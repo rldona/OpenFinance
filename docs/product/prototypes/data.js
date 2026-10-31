@@ -18,9 +18,9 @@
   const household = {
     name: 'Nuestra casa',
     members: ['Raúl', 'Elena'],
-    account: 'Cuenta común',
-    bank: 'Banco Norte',
-    savingsAccount: 'Cuenta ahorro',
+    account: 'Cuenta conjunta Revolut',
+    bank: 'Revolut',
+    savingsAccount: 'Hucha Ahorro (Revolut)',
   }
 
   const categories = [
@@ -58,10 +58,10 @@
     const summer = [5, 6, 7].includes(mo.m)
 
     // Aportaciones de cada uno a la cuenta común (no son gasto ni ingreso «real» del hogar, pero sí entradas)
-    add(mo, 1, 'TRANSFERENCIA DE RAUL - APORTACION CASA', null, 160000, { income: true, who: 'Raúl' })
-    add(mo, 1, 'TRANSFERENCIA DE ELENA - APORTACION CASA', null, 140000, { income: true, who: 'Elena' })
+    add(mo, 1, 'Payment from Raul Lopez (Bankinter)', null, 160000, { income: true, who: 'Raúl' })
+    add(mo, 1, 'Payment from Elena Martin (Bankinter)', null, 140000, { income: true, who: 'Elena' })
     // Traspaso al ahorro: es ahorro, no gasto
-    add(mo, 2, 'TRASPASO A CUENTA AHORRO', null, -30000, { savings: true })
+    add(mo, 2, 'To pocket EUR Ahorro', null, -30000, { savings: true })
 
     add(mo, 1, 'RECIBO HIPOTECA PRESTAMO 0042', 'vivienda', -72000)
     add(mo, 5, 'COMUNIDAD PROPIETARIOS C/ MAYOR 12', 'vivienda', -6500)

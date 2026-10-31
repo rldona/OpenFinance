@@ -9,7 +9,7 @@ Un ticket está terminado cuando cumple sus criterios de aceptación, tiene test
 | Fase | Objetivo | Tickets | Estado |
 | --- | --- | --- | --- |
 | 0 · Base | Repositorio, CI, entorno y `Money` | OF-001 … OF-003 | ✅ Hecha |
-| 1 · Datos | Meter los movimientos reales de la cuenta común | OF-101 … OF-106 | ⏭️ Siguiente |
+| 1 · Datos | Meter los movimientos reales de la cuenta conjunta de Revolut | OF-101 … OF-106 | 🚧 En curso (OF-104) |
 | 2 · Categorías | Que cada gasto tenga su categoría casi sin esfuerzo | OF-201 … OF-203 | Pendiente |
 | 3 · Gráficos | Este mes, ¿En qué gastamos? y Evolución | OF-301 … OF-305 | Pendiente |
 | 4 · Ahorro | Presupuestos, objetivos, ideas y simulador | OF-401 … OF-405 | Pendiente |
@@ -39,24 +39,26 @@ Un hogar (`Workspace`) con dos personas que inician sesión con email y contrase
 - 🧪 Sin sesión, la API responde 401; con sesión, solo devuelve datos de su hogar.
 
 ### OF-102 · Cuentas
-Cuenta común (obligatoria) y cuenta de ahorro (opcional), con banco, moneda y saldo inicial.
+Cuenta conjunta de Revolut (obligatoria) y huchas o cuenta de ahorro (opcional), con banco, moneda y saldo inicial.
 - 🧪 Saldo actual = saldo inicial + suma de movimientos, calculado con `Money`.
 
 ### OF-103 · Movimientos
 Modelo y API de movimientos.
-- Campos: cuenta, fecha efectiva, concepto original, importe (`Money`), tipo, categoría (opcional), persona (en aportaciones), archivo de origen.
-- Tipos: `contribution` (aportación de una persona), `expense`, `income` (otros ingresos), `savings_transfer` (traspaso a ahorro), `internal_transfer`.
+- Campos: cuenta, fecha y hora, fecha valor, concepto original, importe (`Money`, comisión incluida), tipo, categoría (opcional), persona (en aportaciones), tipo según el banco y archivo de origen.
+- Tipos (`TransactionKind`, ya definido en `domain/imports`): `contribution` (aportación de una persona), `expense` (un importe positivo es una devolución y resta gasto), `income` (otros ingresos), `savings_transfer` (traspaso a hucha o ahorro), `internal_transfer`.
 - `GET /api/v1/transactions?month=2026-10&q=…&uncategorized=true`.
-- 🧪 Los traspasos y las transferencias internas no cuentan como gasto; las aportaciones cuentan como entrada.
+- 🧪 Los traspasos y las transferencias internas no cuentan como gasto; las aportaciones cuentan como entrada; las devoluciones restan gasto.
 - Depende de: OF-102.
 
-### OF-104 · Lector de CSV del banco
-Lectura del CSV del banco de casa a partir de un archivo de ejemplo anonimizado.
-- Perfil de banco configurable: separador, codificación, decimal con coma, formato de fecha y columnas.
-- Los importes se leen como texto y se convierten a `Decimal`; nunca pasan por `float`.
-- Propone el tipo de movimiento: los traspasos a la cuenta de ahorro y las aportaciones de cada persona se reconocen por patrón configurable.
-- 🧪 Tests con el CSV de ejemplo y con casos límite (miles con punto, signos, líneas vacías y cabeceras extra).
-- **Necesita:** un CSV real anonimizado.
+### OF-104 · Lector del CSV de Revolut 🚧
+Lectura del extracto de la cuenta conjunta de Revolut. Formato y decisiones en [bancos.md](bancos.md).
+- ✅ Lector `parse_revolut_csv` con cabeceras en inglés y supuestas en español, solo `COMPLETED` y producto `Current`, comisión incluida en el importe.
+- ✅ Los importes se leen como texto y se convierten a `Decimal`; nunca pasan por `float`.
+- ✅ Propone el tipo: aportación por persona, traspaso a hucha, ingreso, gasto o devolución.
+- ✅ Huella estable para deduplicar, sin fusionar filas idénticas del mismo archivo.
+- ✅ Comprobación del saldo fila a fila para detectar movimientos que faltan.
+- ⬜ Validar con un extracto real anonimizado y resolver los puntos «Por confirmar» de [bancos.md](bancos.md).
+- ⬜ Guardar en la configuración del hogar los patrones de cada persona y de las huchas.
 
 ### OF-105 · Importación idempotente
 Vista previa → confirmación, sin duplicados.
@@ -172,6 +174,7 @@ Ideas que se retoman cuando v0.1 esté en uso; cada una tiene su ADR aplazado.
 | Idea | Referencia |
 | --- | --- |
 | Más cuentas (tarjetas) y conciliación de saldos | — |
+| Cuentas personales de Bankinter (lector de su Excel y un perfil por persona) | [bancos.md](bancos.md) |
 | Conexión automática con el banco (Open Banking) | — |
 | Asistente con IA que explica los gráficos y propone cambios con aprobación | ADR-0004, ADR-0005 |
 | Perfiles compartidos y reparto de gastos | ADR-0011 |

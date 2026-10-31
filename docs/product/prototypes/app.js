@@ -236,7 +236,7 @@
       <div class="card" style="margin-top:16px"><h2>Gasto mensual por categoría</h2>${C.stacked(rows, { fmt: fmt0 })}
         <div class="legend">${main.map((id) => `<span><i style="background:${CAT[id].color}"></i>${esc(CAT[id].name)}</span>`).join('')}<span><i style="background:#cbd5e1"></i>Resto</span></div></div>
       <div class="card" style="margin-top:16px"><h2>Ahorro de cada mes</h2>${C.bars(savings, { fmt: fmt0, ref: Math.round(totalSaved / 12), refLabel: `Media ${fmt0(totalSaved / 12)}` })}
-        <p class="small muted" style="margin:8px 0 0">Ahorro = lo que entra en la cuenta común − lo que se gasta. El traspaso a la cuenta de ahorro cuenta como ahorro, no como gasto.</p></div>`
+        <p class="small muted" style="margin:8px 0 0">Ahorro = lo que entra en la cuenta común − lo que se gasta. Lo que pasa a la hucha cuenta como ahorro, no como gasto.</p></div>`
   }
 
   /* ---------- Ahorrar ---------- */
@@ -306,7 +306,7 @@
   function txTable(list, compact) {
     if (!list.length) return '<p class="muted">No hay movimientos.</p>'
     return `<table><thead><tr><th>Fecha</th><th>Concepto</th>${compact ? '' : '<th>Categoría</th>'}<th class="num">Importe</th></tr></thead><tbody>
-      ${list.map((t) => `<tr><td class="muted small">${dateLabel(t.date)}</td><td>${esc(merchant(t.desc))}<div class="small muted">${esc(t.desc)}</div></td>${compact ? '' : `<td>${t.income ? `<span class="tag">Aportación de ${esc(t.who)}</span>` : t.savings ? '<span class="tag">Traspaso a ahorro</span>' : catSelect(t)}</td>`}<td class="num ${t.amount < 0 ? '' : 'pos'}">${t.amount > 0 ? '+' : ''}${fmt(t.amount)}</td></tr>`).join('')}
+      ${list.map((t) => `<tr><td class="muted small">${dateLabel(t.date)}</td><td>${esc(merchant(t.desc))}<div class="small muted">${esc(t.desc)}</div></td>${compact ? '' : `<td>${t.income ? `<span class="tag">Aportación de ${esc(t.who)}</span>` : t.savings ? '<span class="tag">A la hucha</span>' : catSelect(t)}</td>`}<td class="num ${t.amount < 0 ? '' : 'pos'}">${t.amount > 0 ? '+' : ''}${fmt(t.amount)}</td></tr>`).join('')}
     </tbody></table>`
   }
 
@@ -342,7 +342,7 @@
     const steps = ['Subir CSV', 'Revisar', 'Listo'].map((l, k) => `<div class="step ${k + 1 === s ? 'on' : k + 1 < s ? 'done' : ''}">${k + 1 < s ? '✓' : k + 1}. ${l}</div>`).join('')
     let body
     if (s === 1) {
-      body = `<div class="dropzone"><p style="font-size:34px;margin:0">📄</p><p>Descarga los movimientos de la web de ${esc(D.household.bank)} en CSV y arrástralos aquí</p><button class="btn primary" data-import="2">Usar «movimientos-noviembre.csv» de ejemplo</button><p class="small muted">El archivo se procesa en vuestro equipo; no sale a ningún servicio externo.</p></div>`
+      body = `<div class="dropzone"><p style="font-size:34px;margin:0">📄</p><p>En la app de Revolut: cuenta conjunta → Extracto → Excel. Arrastra aquí el archivo</p><button class="btn primary" data-import="2">Usar «revolut-conjunta-noviembre.csv» de ejemplo</button><p class="small muted">El archivo se procesa en vuestro equipo; no sale a ningún servicio externo.</p></div>`
     } else if (s === 2) {
       const rows = [
         ['2026-11-01', 'RECIBO HIPOTECA PRESTAMO 0042', -72000, 'vivienda', 'nuevo'],
@@ -357,7 +357,7 @@
     } else {
       body = `<div class="card"><h2>✓ Importados 4 movimientos</h2><p>3 se han clasificado solos con vuestras reglas; 1 queda sin categoría. Volver a importar el mismo archivo no crea duplicados.</p><a class="btn" href="#movimientos">Ver movimientos</a> <button class="btn" data-import="1">Importar otro</button></div>`
     }
-    return `<h1>Importar movimientos</h1><p class="lead">De momento, a mano: un CSV del banco cuando queráis. La conexión automática con el banco llegará más adelante.</p><div class="steps">${steps}</div>${body}`
+    return `<h1>Importar movimientos</h1><p class="lead">De momento, a mano: el extracto de Revolut cuando queráis. La conexión automática con el banco llegará más adelante.</p><div class="steps">${steps}</div>${body}`
   }
 
   /* ---------- render y eventos ---------- */
