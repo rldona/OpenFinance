@@ -5,9 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
+from uuid import UUID
 
 from openfinance.domain.identity import User
-from openfinance.domain.ledger import Account, Transaction
+from openfinance.domain.imports import ClassificationRules, ParseResult
+from openfinance.domain.imports.batch import ImportBatch
+from openfinance.domain.ledger import Account, Institution, Transaction
 from openfinance.domain.shared.ids import AccountId, UserId, WorkspaceId
 from openfinance.domain.workspaces import Household
 
@@ -65,6 +68,33 @@ class TransactionRepository(Protocol):
         self, household_id: WorkspaceId, account_id: AccountId
     ) -> list[Transaction]: ...
     def add(self, transaction: Transaction) -> None: ...
+    def existing_fingerprints(
+        self, household_id: WorkspaceId, account_id: AccountId, fingerprints: list[str]
+    ) -> set[str]: ...
+
+
+class ImportBatchRepository(Protocol):
+    def add(self, batch: ImportBatch, content: bytes) -> None: ...
+    def get(self, household_id: WorkspaceId, batch_id: UUID) -> ImportBatch | None: ...
+    def content(self, batch_id: UUID) -> bytes | None: ...
+    def claim(self, batch_id: UUID) -> bool:
+        """Pasa el lote de vista previa a confirmado si nadie lo ha hecho antes."""
+        ...
+
+    def purge_expired_content(self, now: datetime) -> None: ...
+    def save_committed(self, batch: ImportBatch) -> None:
+        """Guarda el resultado y borra el contenido del archivo, que ya no hace falta."""
+        ...
+
+
+class StatementParser(Protocol):
+    def __call__(
+        self, content: bytes, account_key: str, rules: ClassificationRules
+    ) -> ParseResult: ...
+
+
+class StatementParsers(Protocol):
+    def get(self, institution: Institution) -> StatementParser | None: ...
 
 
 class SessionRepository(Protocol):
@@ -93,5 +123,9 @@ class UnitOfWork(Protocol):
     def transactions(self) -> TransactionRepository: ...
     @property
     def sessions(self) -> SessionRepository: ...
+    @property
+    def imports(self) -> ImportBatchRepository: ...
 
-    def commit(self) -> None: ...
+    def commit(self) -> None:
+        """Confirma la transacción. Un conflicto de integridad se traduce en ConflictError."""
+        ...

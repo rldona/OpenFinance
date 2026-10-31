@@ -30,6 +30,12 @@ Para probar sin PostgreSQL basta con `DATABASE_URL=sqlite:///./dev.db` (solo des
 | `GET` | `/api/v1/me` | Persona, hogar y miembros |
 | `GET` | `/api/v1/accounts` | Cuentas visibles con su saldo |
 | `GET` | `/api/v1/transactions` | Movimientos visibles; filtros `month=AAAA-MM`, `q`, `uncategorized`, `account_id` |
+| `POST` | `/api/v1/imports` | Vista previa de un extracto (multipart: `account_id`, `file`); no guarda nada |
+| `POST` | `/api/v1/imports/{id}/commit` | Guarda los movimientos nuevos de la vista previa; repetirlo no duplica |
+
+Todas las peticiones que escriben (`POST`, `PUT`, `PATCH`, `DELETE`) deben llevar la cabecera `X-Requested-With: OpenFinance`; el cliente de la web la añade solo.
+
+Si cambias la API, regenera el contrato y los tipos de la web con `make openapi` (CI comprueba que estén al día).
 
 Los importes viajan como texto decimal exacto: `{"amount": "-87.34", "currency": "EUR"}`.
 

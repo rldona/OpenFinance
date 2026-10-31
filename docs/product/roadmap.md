@@ -9,7 +9,7 @@ Un ticket está terminado cuando cumple sus criterios de aceptación, tiene test
 | Fase | Objetivo | Tickets | Estado |
 | --- | --- | --- | --- |
 | 0 · Base | Repositorio, CI, entorno y `Money` | OF-001 … OF-003 | ✅ Hecha |
-| 1 · Datos | Meter los movimientos reales de Revolut (conjunta) y Bankinter (personales) | OF-101 … OF-107 | 🚧 En curso: OF-101 a 103 ✅, OF-104 🚧 |
+| 1 · Datos | Meter los movimientos reales de Revolut (conjunta) y Bankinter (personales) | OF-101 … OF-107 | 🚧 OF-101 a 103, 105 y 106 ✅ · OF-104 y 107 esperan extractos reales |
 | 2 · Categorías | Que cada gasto tenga su categoría casi sin esfuerzo | OF-201 … OF-203 | Pendiente |
 | 3 · Gráficos | Este mes, ¿En qué gastamos? y Evolución | OF-301 … OF-305 | Pendiente |
 | 4 · Ahorro | Presupuestos, objetivos, ideas y simulador | OF-401 … OF-405 | Pendiente |
@@ -72,20 +72,27 @@ Lectura del extracto de la cuenta conjunta de Revolut. Formato y decisiones en [
 - ⬜ Validar con un extracto real anonimizado y resolver los puntos «Por confirmar» de [bancos.md](bancos.md).
 - ⬜ Guardar en la configuración del hogar los patrones de cada persona y de las huchas.
 
-### OF-105 · Importación idempotente
+### OF-105 · Importación idempotente ✅
 Vista previa → confirmación, sin duplicados.
-- Deduplicación por identificador del banco si existe; si no, por huella de (cuenta, fecha, importe, concepto normalizado, ordinal del día).
-- `POST /imports` (vista previa) y `POST /imports/{id}/commit`.
-- 🧪 Importar dos veces el mismo archivo no crea movimientos nuevos.
-- 🧪 Dos cafés iguales el mismo día en el mismo archivo **no** se consideran duplicados.
-- Depende de: OF-103, OF-104.
+- ✅ `POST /api/v1/imports` (multipart: `account_id`, `file`): lee el extracto y devuelve la vista previa sin guardar movimientos. Indica nuevos, ya importados, filas descartadas con su motivo, descuadres internos del extracto y si el saldo final coincidirá con el del banco.
+- ✅ `POST /api/v1/imports/{id}/commit`: guarda solo los nuevos, con procedencia (`import:<archivo>` e `import_id`). Repetirlo devuelve el mismo resultado sin volver a guardar.
+- ✅ Deduplicación por huella, única por cuenta en la base de datos, y comprobación previa de las huellas existentes.
+- ✅ Aportaciones reconocidas por el nombre de cada persona en el concepto; «To pocket» → hucha. Se ajustará con los extractos reales.
+- ✅ Límites: 5 MB por archivo y vista previa válida 24 h. El contenido del archivo se borra al confirmar.
+- ✅ 🧪 Importar dos veces el mismo archivo no crea movimientos nuevos; confirmar dos veces tampoco.
+- ✅ 🧪 Dos cafés iguales el mismo día en el mismo archivo **no** se consideran duplicados.
+- ✅ 🧪 Un extracto que solapa con uno anterior solo añade lo nuevo.
+- ✅ 🧪 No se puede importar en la cuenta personal de la pareja ni en otro hogar; nadie de otro hogar puede confirmar una vista previa ajena.
+- ✅ Las escrituras de la API exigen la cabecera `X-Requested-With: OpenFinance` (protección CSRF).
 
-### OF-106 · Pantallas Movimientos e Importar
+### OF-106 · Pantallas Movimientos e Importar ✅
 Versión real de las pantallas del prototipo.
-- Lista por mes con búsqueda y filtro «sin categoría».
-- Asistente de importación en 3 pasos: subir, revisar (nuevos y duplicados) y listo.
-- Cliente de API tipado a partir de OpenAPI (ADR-0009).
-- Depende de: OF-103, OF-105.
+- ✅ Pantalla de inicio de sesión y cabecera con hogar, pestañas, miembros y «Salir».
+- ✅ **Movimientos**: por mes (o todos), búsqueda, filtro por cuenta y «solo sin categoría». Cada fila indica su tipo: aportación de quién, a la hucha, devolución, ingreso o sin categoría.
+- ✅ **Importar** en 3 pasos: elegir cuenta y extracto; revisar nuevos, ya importados, descartados y si el saldo cuadra con el banco; confirmar.
+- ✅ Cliente de API tipado con tipos generados desde OpenAPI (`make openapi`); CI falla si el contrato o los tipos no están al día (ADR-0009).
+- ✅ Importes formateados desde el decimal exacto, sin `float`, también en el navegador.
+- Pendiente: probar en un navegador real con Playwright (OF-503) y las pestañas de gráficos (fase 3).
 
 ### OF-107 · Lector de Bankinter (cuentas personales)
 - Lector del extracto de Bankinter (probablemente Excel) para las cuentas personales.

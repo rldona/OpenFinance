@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import csv
 import io
-from collections.abc import Collection, Mapping
+from collections.abc import Callable, Collection, Iterator, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
@@ -44,6 +44,8 @@ _COLUMNS: Mapping[str, tuple[str, ...]] = {
     "balance": ("balance", "saldo"),
 }
 _REQUIRED = ("started", "description", "amount", "currency", "state")
+_MAX_DESCRIPTION = 500
+_MAX_BANK_TYPE = 40
 _DATE_FORMATS = ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d")
 _REFUND_TYPES = frozenset({"REFUND", "CARD_REFUND"})
 _COMPLETED = frozenset({"COMPLETED", "COMPLETADO", "COMPLETADA"})
@@ -110,6 +112,8 @@ def parse_revolut_csv(content: bytes | str, profile: RevolutProfile) -> ParseRes
         header = next(reader)
     except StopIteration as exc:
         raise ImportFormatError("El archivo está vacío") from exc
+    except csv.Error as exc:
+        raise ImportFormatError(f"CSV mal formado: {exc}") from exc
     col = _header_map(header)
     products = {p.upper() for p in profile.products}
 
@@ -118,12 +122,27 @@ def parse_revolut_csv(content: bytes | str, profile: RevolutProfile) -> ParseRes
         return row[idx].strip() if idx is not None and idx < len(row) else ""
 
     result = ParseResult()
-    seen: dict[tuple[str, str, str], int] = {}
 
+    try:
+        _read_rows(reader, cell, products, profile, result)
+    except csv.Error as exc:
+        raise ImportFormatError(f"CSV mal formado: {exc}") from exc
+    result.balance_mismatches = check_running_balance(result.rows)
+    return result
+
+
+def _read_rows(
+    reader: Iterator[list[str]],
+    cell: Callable[[list[str], str], str],
+    products: set[str],
+    profile: RevolutProfile,
+    result: ParseResult,
+) -> None:
+    seen: dict[tuple[str, str, str], int] = {}
     for line, row in enumerate(reader, start=2):
         if not any(c.strip() for c in row):
             continue
-        description = cell(row, "description")
+        description = cell(row, "description")[:_MAX_DESCRIPTION]
         state = cell(row, "state").upper()
         if state not in _COMPLETED:
             reason = _SKIP_REASONS.get(state, f"estado desconocido: {state or 'vacío'}")
@@ -146,7 +165,7 @@ def parse_revolut_csv(content: bytes | str, profile: RevolutProfile) -> ParseRes
             result.skipped.append(SkippedRow(line, f"fila no válida: {exc}", description))
             continue
 
-        bank_type = cell(row, "type").upper()
+        bank_type = cell(row, "type").upper()[:_MAX_BANK_TYPE]
         kind, member = suggest_kind(
             description,
             is_inflow=amount.amount > 0,
@@ -173,6 +192,3 @@ def parse_revolut_csv(content: bytes | str, profile: RevolutProfile) -> ParseRes
                 line=line,
             )
         )
-
-    result.balance_mismatches = check_running_balance(result.rows)
-    return result

@@ -29,6 +29,7 @@ from openfinance.infrastructure.throttle import LoginThrottle
 from openfinance.main import create_app
 
 PASSWORD = "contraseña-de-prueba"
+CSRF = {"X-Requested-With": "OpenFinance"}
 
 
 class FakeHasher:
@@ -165,7 +166,7 @@ def app(session_factory):
 
 @pytest.fixture
 def client(app) -> TestClient:
-    return TestClient(app)
+    return TestClient(app, headers=CSRF)
 
 
 def login(client: TestClient, email: str, password: str = PASSWORD):
@@ -174,23 +175,23 @@ def login(client: TestClient, email: str, password: str = PASSWORD):
 
 @pytest.fixture
 def as_raul(app, seed) -> TestClient:
-    c = TestClient(app)
+    c = TestClient(app, headers=CSRF)
     assert login(c, "raul@example.org").status_code == 200
     return c
 
 
 @pytest.fixture
 def as_elena(app, seed) -> TestClient:
-    c = TestClient(app)
+    c = TestClient(app, headers=CSRF)
     assert login(c, "elena@example.org").status_code == 200
     return c
 
 
 @pytest.fixture
 def as_ana(app, seed) -> TestClient:
-    c = TestClient(app)
+    c = TestClient(app, headers=CSRF)
     assert login(c, "ana@example.org").status_code == 200
     return c
 
 
-__all__ = ["PASSWORD", "FakeHasher", "date", "login"]
+__all__ = ["CSRF", "PASSWORD", "FakeHasher", "date", "login"]

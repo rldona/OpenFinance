@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import calendar
 from datetime import UTC, datetime
+from uuid import UUID
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from openfinance.application.errors import ConflictError
 from openfinance.application.ports import StoredSession, TransactionQuery
 from openfinance.domain.identity import User
+from openfinance.domain.imports.batch import PREVIEW_TTL, ImportBatch, ImportStatus
 from openfinance.domain.ledger import (
     Account,
     AccountKind,
@@ -26,11 +30,24 @@ from openfinance.domain.workspaces import Household
 from openfinance.infrastructure.db.models import (
     AccountRow,
     HouseholdRow,
+    ImportBatchRow,
     MembershipRow,
     SessionRow,
     TransactionRow,
     UserRow,
 )
+
+_CONFLICT = "Los datos han cambiado mientras guardabas; vuelve a intentarlo"
+
+
+def _flush(session: Session) -> None:
+    try:
+        session.flush()
+    except IntegrityError as exc:
+        session.rollback()
+        raise ConflictError(
+            "Los datos han cambiado mientras guardabas; vuelve a intentarlo"
+        ) from exc
 
 
 def _as_utc(value: datetime) -> datetime:
@@ -158,6 +175,7 @@ def _transaction(row: TransactionRow) -> Transaction:
         bank_type=row.bank_type,
         source=row.source,
         fingerprint=row.fingerprint,
+        import_id=row.import_id,
     )
 
 
@@ -216,9 +234,29 @@ class SqlTransactionRepository:
                 bank_type=t.bank_type,
                 source=t.source,
                 fingerprint=t.fingerprint,
+                import_id=t.import_id,
             )
         )
-        self._s.flush()
+        _flush(self._s)
+
+    def existing_fingerprints(
+        self, household_id: WorkspaceId, account_id: AccountId, fingerprints: list[str]
+    ) -> set[str]:
+        found: set[str] = set()
+        for i in range(0, len(fingerprints), 500):
+            chunk = fingerprints[i : i + 500]
+            found.update(
+                f
+                for f in self._s.scalars(
+                    select(TransactionRow.fingerprint).where(
+                        TransactionRow.household_id == household_id,
+                        TransactionRow.account_id == account_id,
+                        TransactionRow.fingerprint.in_(chunk),
+                    )
+                )
+                if f is not None
+            )
+        return found
 
 
 class SqlSessionRepository:
@@ -255,6 +293,87 @@ class SqlSessionRepository:
         return int(getattr(result, "rowcount", 0) or 0)
 
 
+def _batch(row: ImportBatchRow) -> ImportBatch:
+    return ImportBatch(
+        id=row.id,
+        household_id=WorkspaceId(row.household_id),
+        account_id=AccountId(row.account_id),
+        filename=row.filename,
+        created_by=UserId(row.created_by),
+        created_at=_as_utc(row.created_at),
+        status=ImportStatus(row.status),
+        committed_at=_as_utc(row.committed_at) if row.committed_at else None,
+        created_count=row.created_count,
+        duplicate_count=row.duplicate_count,
+        skipped_count=row.skipped_count,
+    )
+
+
+class SqlImportBatchRepository:
+    def __init__(self, session: Session) -> None:
+        self._s = session
+
+    def add(self, batch: ImportBatch, content: bytes) -> None:
+        self._s.add(
+            ImportBatchRow(
+                id=batch.id,
+                household_id=batch.household_id,
+                account_id=batch.account_id,
+                filename=batch.filename,
+                content=content,
+                status=batch.status.value,
+                created_by=batch.created_by,
+                created_at=batch.created_at,
+            )
+        )
+        self._s.flush()
+
+    def get(self, household_id: WorkspaceId, batch_id: UUID) -> ImportBatch | None:
+        row = self._s.scalar(
+            select(ImportBatchRow).where(
+                ImportBatchRow.id == batch_id, ImportBatchRow.household_id == household_id
+            )
+        )
+        return _batch(row) if row else None
+
+    def content(self, batch_id: UUID) -> bytes | None:
+        return self._s.scalar(select(ImportBatchRow.content).where(ImportBatchRow.id == batch_id))
+
+    def claim(self, batch_id: UUID) -> bool:
+        result = self._s.execute(
+            update(ImportBatchRow)
+            .where(
+                ImportBatchRow.id == batch_id,
+                ImportBatchRow.status == ImportStatus.PREVIEW.value,
+            )
+            .values(status=ImportStatus.COMMITTED.value)
+        )
+        return bool(getattr(result, "rowcount", 0))
+
+    def purge_expired_content(self, now: datetime) -> None:
+        self._s.execute(
+            update(ImportBatchRow)
+            .where(
+                ImportBatchRow.status == ImportStatus.PREVIEW.value,
+                ImportBatchRow.created_at < now - PREVIEW_TTL,
+                ImportBatchRow.content.is_not(None),
+            )
+            .values(content=None)
+        )
+
+    def save_committed(self, batch: ImportBatch) -> None:
+        row = self._s.get(ImportBatchRow, batch.id)
+        if row is None:
+            raise LookupError(batch.id)
+        row.status = batch.status.value
+        row.committed_at = batch.committed_at
+        row.created_count = batch.created_count
+        row.duplicate_count = batch.duplicate_count
+        row.skipped_count = batch.skipped_count
+        row.content = None
+        self._s.flush()
+
+
 class SqlUnitOfWork:
     def __init__(self, session: Session) -> None:
         self.session = session
@@ -263,6 +382,13 @@ class SqlUnitOfWork:
         self.accounts = SqlAccountRepository(session)
         self.transactions = SqlTransactionRepository(session)
         self.sessions = SqlSessionRepository(session)
+        self.imports = SqlImportBatchRepository(session)
 
     def commit(self) -> None:
-        self.session.commit()
+        try:
+            self.session.commit()
+        except IntegrityError as exc:
+            self.session.rollback()
+            raise ConflictError(
+                "Los datos han cambiado mientras guardabas; vuelve a intentarlo"
+            ) from exc

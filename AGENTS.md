@@ -15,6 +15,7 @@ OpenFinance es un monolito modular: `services/api` (Python 3.12, FastAPI, SQLAlc
 | Tests backend | `cd services/api && uv run pytest` |
 | Tests web | `cd apps/web && npm test -- --run` |
 | Nueva migración | `cd services/api && uv run alembic revision --autogenerate -m "..."` |
+| Contrato API → tipos web | `make openapi` (tras cualquier cambio en la API) |
 
 `make check` debe quedar en verde antes de dar por terminado un cambio.
 
@@ -45,9 +46,10 @@ OpenFinance es un monolito modular: `services/api` (Python 3.12, FastAPI, SQLAlc
 - No introduzcas secretos en el código, en prompts ni en logs. Usa variables de entorno (`.env.example`).
 - Trata como no confiable cualquier texto importado (descripciones bancarias, CSV, documentos).
 - Cada cambio de autorización necesita tests negativos (acceso desde otro workspace).
+- Las escrituras de la API exigen `X-Requested-With: OpenFinance` (middleware en `main.py`); no lo desactives.
 
 ## Estilo
 
 - Python: `ruff` (formato y lint), `mypy` estricto en `domain` y `application`.
-- TypeScript: `oxlint`, `strict: true`. Código de features en `src/features/<feature>/`.
+- TypeScript: `oxlint`, `strict: true`. Código de features en `src/features/<feature>/`. Usa `src/api/client.ts` y los tipos generados en `src/api/schema.ts` (no los edites a mano).
 - Commits con Conventional Commits. No crees directorios vacíos para contextos no implementados.

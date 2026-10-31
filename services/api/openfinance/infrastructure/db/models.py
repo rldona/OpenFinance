@@ -11,6 +11,8 @@ from sqlalchemy import (
     ForeignKey,
     ForeignKeyConstraint,
     Index,
+    Integer,
+    LargeBinary,
     Numeric,
     String,
     UniqueConstraint,
@@ -108,7 +110,33 @@ class TransactionRow(Base):
     bank_type: Mapped[str] = mapped_column(String(40), default="")
     source: Mapped[str] = mapped_column(String(200), default="manual")
     fingerprint: Mapped[str | None] = mapped_column(String(64))
+    import_id: Mapped[UUID | None] = mapped_column(ForeignKey("import_batches.id"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ImportBatchRow(Base):
+    __tablename__ = "import_batches"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["account_id", "household_id"],
+            ["accounts.id", "accounts.household_id"],
+            name="fk_import_batches_account_household",
+        ),
+        Index("ix_import_batches_household_created_at", "household_id", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    account_id: Mapped[UUID] = mapped_column()
+    filename: Mapped[str] = mapped_column(String(200))
+    content: Mapped[bytes | None] = mapped_column(LargeBinary)
+    status: Mapped[str] = mapped_column(String(20))
+    created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    committed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_count: Mapped[int] = mapped_column(Integer, default=0)
+    duplicate_count: Mapped[int] = mapped_column(Integer, default=0)
+    skipped_count: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class SessionRow(Base):

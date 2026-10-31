@@ -6,6 +6,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import StrEnum
+from uuid import UUID
 
 from openfinance.domain.shared import Currency, Money
 from openfinance.domain.shared.ids import AccountId, TransactionId, UserId, WorkspaceId
@@ -88,6 +89,8 @@ class Transaction:
     source: str = "manual"
     """Procedencia: ``manual`` o ``import:<archivo>``."""
     fingerprint: str | None = None
+    import_id: UUID | None = None
+    """Importación de la que procede, si viene de un extracto."""
 
     def __post_init__(self) -> None:
         if self.kind is TransactionKind.CONTRIBUTION and self.member_id is None:

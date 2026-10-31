@@ -1,3 +1,16 @@
+import type { components } from './schema'
+
+type Schemas = components['schemas']
+export type Me = Schemas['MeOut']
+export type Account = Schemas['AccountOut']
+export type Transaction = Schemas['TransactionOut']
+export type TransactionKind = Schemas['TransactionKind']
+export type Money = Schemas['MoneyOut']
+export type ImportPreview = Schemas['ImportPreviewOut']
+export type ImportResult = Schemas['ImportResultOut']
+
+export const CSRF_HEADER = { 'X-Requested-With': 'OpenFinance' } as const
+
 export class ApiError extends Error {
   readonly status: number
 
@@ -8,21 +21,70 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiGet<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
-    ...init,
-    headers: { Accept: 'application/json', ...init?.headers },
-    credentials: 'include',
-  })
-  if (!response.ok) {
-    throw new ApiError(response.status, `GET ${path} → ${response.status}`)
+function detailOf(body: unknown, status: number): string {
+  if (body && typeof body === 'object' && 'detail' in body) {
+    const detail = (body as { detail: unknown }).detail
+    if (typeof detail === 'string') return detail
+    if (Array.isArray(detail)) return 'Revisa los datos enviados'
   }
-  return (await response.json()) as T
+  if (status === 429) return 'Demasiados intentos. Espera unos minutos.'
+  return `Error ${status}`
 }
 
-export interface Health {
-  status: string
-  version: string
+let onUnauthorized: (() => void) | null = null
+
+/** La app se suscribe para volver al login si la sesión caduca. */
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  onUnauthorized = handler
 }
 
-export const getHealth = (signal?: AbortSignal) => apiGet<Health>('/health', { signal })
+type Query = Record<string, string | number | boolean | undefined | null>
+
+async function request<T>(
+  method: 'GET' | 'POST',
+  path: string,
+  options: { query?: Query; json?: unknown; form?: FormData; signal?: AbortSignal } = {},
+): Promise<T> {
+  const params = new URLSearchParams()
+  for (const [k, v] of Object.entries(options.query ?? {})) {
+    if (v !== undefined && v !== null && v !== '' && v !== false) params.set(k, String(v))
+  }
+  const url = params.size ? `${path}?${params}` : path
+  const headers: Record<string, string> = { Accept: 'application/json' }
+  if (method !== 'GET') Object.assign(headers, CSRF_HEADER)
+  let body: BodyInit | undefined
+  if (options.json !== undefined) {
+    headers['Content-Type'] = 'application/json'
+    body = JSON.stringify(options.json)
+  } else if (options.form) {
+    body = options.form
+  }
+  const response = await fetch(url, { method, headers, body, credentials: 'include', signal: options.signal })
+  if (response.status === 204) return undefined as T
+  const data: unknown = await response.json().catch(() => null)
+  if (response.status === 401 && path !== '/api/v1/auth/login' && path !== '/api/v1/me') onUnauthorized?.()
+  if (!response.ok) throw new ApiError(response.status, detailOf(data, response.status))
+  return data as T
+}
+
+export const TRANSACTIONS_LIMIT = 1000
+
+export const api = {
+  me: (signal?: AbortSignal) => request<Me>('GET', '/api/v1/me', { signal }),
+  login: (email: string, password: string) =>
+    request<Me>('POST', '/api/v1/auth/login', { json: { email, password } }),
+  logout: () => request<void>('POST', '/api/v1/auth/logout'),
+  accounts: (signal?: AbortSignal) => request<Account[]>('GET', '/api/v1/accounts', { signal }),
+  transactions: (
+    query: { month?: string; q?: string; uncategorized?: boolean; account_id?: string },
+    signal?: AbortSignal,
+  ) => request<Transaction[]>('GET', '/api/v1/transactions', { query, signal }),
+  previewImport: (accountId: string, file: File) => {
+    const form = new FormData()
+    form.set('account_id', accountId)
+    form.set('file', file)
+    return request<ImportPreview>('POST', '/api/v1/imports', { form })
+  },
+  commitImport: (importId: string) =>
+    request<ImportResult>('POST', `/api/v1/imports/${encodeURIComponent(importId)}/commit`),
+}

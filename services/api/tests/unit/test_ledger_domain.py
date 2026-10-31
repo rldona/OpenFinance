@@ -154,3 +154,12 @@ class TestIdentity:
         with pytest.raises(InvalidUserError):
             validate_password("corta")
         validate_password("suficientemente-larga")
+
+
+def test_safe_filename() -> None:
+    from openfinance.domain.imports.batch import safe_filename
+
+    assert safe_filename("C:\\Users\\raul\\extracto.csv") == "extracto.csv"
+    assert safe_filename("../../etc/pass\x00wd\n.csv") == "passwd.csv"
+    assert safe_filename("   ") == "extracto"
+    assert len(safe_filename("a" * 500)) == 150

@@ -5,6 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
 
+from openfinance.application.imports import ImportPreview, ImportResult
 from openfinance.domain.identity import User
 from openfinance.domain.ledger import (
     Account,
@@ -109,4 +110,95 @@ class TransactionOut(BaseModel):
             category=t.category,
             member_id=t.member_id,
             source=t.source,
+        )
+
+
+class PreviewRowOut(BaseModel):
+    line: int
+    booked_at: datetime
+    description: str
+    amount: MoneyOut
+    kind: TransactionKind
+    member_id: UUID | None
+    duplicate: bool
+
+
+class SkippedRowOut(BaseModel):
+    line: int
+    reason: str
+    description: str
+
+
+class BalanceMismatchOut(BaseModel):
+    line: int
+    expected: MoneyOut
+    reported: MoneyOut
+
+
+class ImportPreviewOut(BaseModel):
+    id: UUID
+    account_id: UUID
+    filename: str
+    new_count: int
+    duplicate_count: int
+    skipped_count: int
+    rows: list[PreviewRowOut]
+    skipped: list[SkippedRowOut]
+    balance_mismatches: list[BalanceMismatchOut]
+    bank_balance: MoneyOut | None
+    balance_after_import: MoneyOut
+
+    @classmethod
+    def of(cls, p: ImportPreview) -> ImportPreviewOut:
+        return cls(
+            id=p.batch.id,
+            account_id=p.account.id,
+            filename=p.batch.filename,
+            new_count=p.new_count,
+            duplicate_count=p.duplicate_count,
+            skipped_count=len(p.skipped),
+            rows=[
+                PreviewRowOut(
+                    line=r.row.line,
+                    booked_at=r.row.booked_at,
+                    description=r.row.description,
+                    amount=MoneyOut.of(r.row.amount),
+                    kind=r.row.suggested_kind
+                    if r.member_id or r.row.suggested_kind is not TransactionKind.CONTRIBUTION
+                    else TransactionKind.INCOME,
+                    member_id=r.member_id,
+                    duplicate=r.duplicate,
+                )
+                for r in p.rows
+            ],
+            skipped=[
+                SkippedRowOut(line=x.line, reason=x.reason, description=x.description)
+                for x in p.skipped
+            ],
+            balance_mismatches=[
+                BalanceMismatchOut(
+                    line=m.line, expected=MoneyOut.of(m.expected), reported=MoneyOut.of(m.reported)
+                )
+                for m in p.balance_mismatches
+            ],
+            bank_balance=MoneyOut.of(p.bank_balance) if p.bank_balance else None,
+            balance_after_import=MoneyOut.of(p.balance_after_import),
+        )
+
+
+class ImportResultOut(BaseModel):
+    id: UUID
+    status: str
+    created: int
+    duplicates: int
+    skipped: int
+
+    @classmethod
+    def of(cls, r: ImportResult) -> ImportResultOut:
+        return cls(
+            id=r.batch.id,
+            status=r.batch.status.value,
+            created=r.created,
+            duplicates=r.duplicates,
+            skipped=r.skipped,
         )

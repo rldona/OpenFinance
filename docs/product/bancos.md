@@ -36,6 +36,8 @@ Formato (confirmado con la configuración pública de importación de Firefly II
 
 Implementado en `services/api/openfinance/infrastructure/importers/revolut.py`, con tests sobre una muestra sintética (`tests/fixtures/revolut_joint_synthetic.csv`).
 
+Al importar (OF-105), los patrones de aportación se generan a partir del nombre de cada persona del hogar: el nombre completo y el primer nombre, sin tildes. Por ejemplo, «Raúl López» reconoce «Payment from RAUL LOPEZ» y «Transfer from Raul». Para la hucha se usa «To pocket».
+
 ### Por confirmar con un extracto real
 
 - [ ] Cabeceras exactas, en inglés o en español según el idioma de la app.
