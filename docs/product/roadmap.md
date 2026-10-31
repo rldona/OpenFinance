@@ -9,7 +9,7 @@ Un ticket está terminado cuando cumple sus criterios de aceptación, tiene test
 | Fase | Objetivo | Tickets | Estado |
 | --- | --- | --- | --- |
 | 0 · Base | Repositorio, CI, entorno y `Money` | OF-001 … OF-003 | ✅ Hecha |
-| 1 · Datos | Meter los movimientos reales de la cuenta conjunta de Revolut | OF-101 … OF-106 | 🚧 En curso (OF-104) |
+| 1 · Datos | Meter los movimientos reales de Revolut (conjunta) y Bankinter (personales) | OF-101 … OF-107 | 🚧 En curso: OF-101 a 103 ✅, OF-104 🚧 |
 | 2 · Categorías | Que cada gasto tenga su categoría casi sin esfuerzo | OF-201 … OF-203 | Pendiente |
 | 3 · Gráficos | Este mes, ¿En qué gastamos? y Evolución | OF-301 … OF-305 | Pendiente |
 | 4 · Ahorro | Presupuestos, objetivos, ideas y simulador | OF-401 … OF-405 | Pendiente |
@@ -31,24 +31,36 @@ Un ticket está terminado cuando cumple sus criterios de aceptación, tiene test
 
 ## Fase 1 · Datos
 
-### OF-101 · Hogar y personas
+### OF-101 · Hogar y personas ✅
 Un hogar (`Workspace`) con dos personas que inician sesión con email y contraseña.
-- Comando para crear el hogar y las dos cuentas de usuario (`make bootstrap` o CLI), sin pantalla de registro pública.
-- Sesión por cookie `HttpOnly`/`SameSite`; contraseñas con hash Argon2.
-- Ambas personas tienen acceso completo; no hay roles.
-- 🧪 Sin sesión, la API responde 401; con sesión, solo devuelve datos de su hogar.
+- ✅ `make bootstrap` (o `openfinance bootstrap`) crea el hogar, las dos personas y sus cuentas; no hay registro público.
+- ✅ Sesión en servidor con cookie `HttpOnly` y `SameSite=Lax` (`Secure` configurable); en la base de datos solo se guarda el hash del token. Contraseñas con Argon2id, mínimo 10 caracteres.
+- ✅ Las dos personas tienen acceso completo a lo común; no hay roles.
+- ✅ 🧪 Sin sesión, la API responde 401; con sesión, solo devuelve datos de su hogar. Una contraseña errónea y un email desconocido dan la misma respuesta; la sesión caduca y el cierre de sesión la invalida.
+- ✅ Revisión de seguridad aplicada:
+  - Limitador de intentos de login: 5 por email y 20 por IP cada 15 minutos, y también en nginx.
+  - Como mucho 2 verificaciones de Argon2 a la vez.
+  - La cookie es `Secure` en producción.
+  - Al iniciar sesión se sustituye la sesión anterior y se purgan las caducadas.
+  - Los errores 422 no devuelven lo enviado.
+  - Se rechaza CORS `*` y `/docs` queda oculto en producción.
+  - Claves foráneas compuestas que impiden mezclar hogares en movimientos y titulares.
+- Pendiente: pantalla de login en la web (OF-106); «cerrar todas las sesiones» cuando exista el cambio de contraseña; exigir JSON y comprobar `Origin` en los futuros endpoints de escritura.
 
-### OF-102 · Cuentas
-Cuenta conjunta de Revolut (obligatoria) y huchas o cuenta de ahorro (opcional), con banco, moneda y saldo inicial.
-- 🧪 Saldo actual = saldo inicial + suma de movimientos, calculado con `Money`.
+### OF-102 · Cuentas ✅
+Cuenta conjunta de Revolut, huchas y cuentas personales de Bankinter, con entidad, moneda y saldo inicial ([ADR-0013](../adr/0013-cuentas-personales-privadas.md)).
+- ✅ Una cuenta personal tiene titular y solo la ve esa persona.
+- ✅ 🧪 Saldo actual = saldo inicial + suma de movimientos, calculado con `Money`.
+- ✅ `GET /api/v1/accounts`: primero la conjunta, después las huchas y al final las personales.
 
-### OF-103 · Movimientos
+### OF-103 · Movimientos ✅
 Modelo y API de movimientos.
-- Campos: cuenta, fecha y hora, fecha valor, concepto original, importe (`Money`, comisión incluida), tipo, categoría (opcional), persona (en aportaciones), tipo según el banco y archivo de origen.
-- Tipos (`TransactionKind`, ya definido en `domain/imports`): `contribution` (aportación de una persona), `expense` (un importe positivo es una devolución y resta gasto), `income` (otros ingresos), `savings_transfer` (traspaso a hucha o ahorro), `internal_transfer`.
-- `GET /api/v1/transactions?month=2026-10&q=…&uncategorized=true`.
-- 🧪 Los traspasos y las transferencias internas no cuentan como gasto; las aportaciones cuentan como entrada; las devoluciones restan gasto.
-- Depende de: OF-102.
+- ✅ Campos: cuenta, fecha y hora, fecha valor, concepto original, importe (`Money`, comisión incluida), tipo, categoría (opcional), persona (en aportaciones), tipo según el banco, procedencia y huella de deduplicación (única por cuenta).
+- ✅ Tipos: `contribution`, `expense` (un importe positivo es una devolución), `income`, `savings_transfer` e `internal_transfer`.
+- ✅ `GET /api/v1/transactions?month=2026-10&q=…&uncategorized=true&account_id=…`.
+- ✅ 🧪 Los traspasos y las transferencias internas no cuentan como gasto; las aportaciones cuentan como entrada; las devoluciones restan gasto; una aportación que sale de una cuenta personal no es entrada ni gasto del hogar.
+- ✅ 🧪 Aislamiento: ni los movimientos de otro hogar ni los de la cuenta personal de tu pareja aparecen; pedirlos por id da 404.
+- Nota: la categoría es por ahora un texto libre (`super`, `vivienda`…); OF-201 la convertirá en entidad.
 
 ### OF-104 · Lector del CSV de Revolut 🚧
 Lectura del extracto de la cuenta conjunta de Revolut. Formato y decisiones en [bancos.md](bancos.md).
@@ -74,6 +86,13 @@ Versión real de las pantallas del prototipo.
 - Asistente de importación en 3 pasos: subir, revisar (nuevos y duplicados) y listo.
 - Cliente de API tipado a partir de OpenAPI (ADR-0009).
 - Depende de: OF-103, OF-105.
+
+### OF-107 · Lector de Bankinter (cuentas personales)
+- Lector del extracto de Bankinter (probablemente Excel) para las cuentas personales.
+- Las transferencias a la cuenta conjunta se reconocen como aportación de su titular.
+- Vista personal: «mi gasto» de cada persona, visible solo para ella (ADR-0013).
+- **Necesita:** un extracto real anonimizado.
+- Depende de: OF-105.
 
 ---
 
@@ -174,7 +193,6 @@ Ideas que se retoman cuando v0.1 esté en uso; cada una tiene su ADR aplazado.
 | Idea | Referencia |
 | --- | --- |
 | Más cuentas (tarjetas) y conciliación de saldos | — |
-| Cuentas personales de Bankinter (lector de su Excel y un perfil por persona) | [bancos.md](bancos.md) |
 | Conexión automática con el banco (Open Banking) | — |
 | Asistente con IA que explica los gráficos y propone cambios con aprobación | ADR-0004, ADR-0005 |
 | Perfiles compartidos y reparto de gastos | ADR-0011 |

@@ -34,6 +34,7 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgresql+psycopg://openfinance:openfinance@localhost:5432/openfinance
+      TEST_DATABASE_URL: postgresql+psycopg://openfinance:openfinance@localhost:5432/openfinance
       OPENFINANCE_ENVIRONMENT: test
     steps:
       - uses: actions/checkout@v4

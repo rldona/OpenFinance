@@ -3,7 +3,8 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
-from openfinance.domain.imports.model import TransactionKind, normalize_text
+from openfinance.domain.imports.model import normalize_text
+from openfinance.domain.ledger import TransactionKind
 
 
 @dataclass(frozen=True, slots=True)

@@ -6,10 +6,10 @@ from openfinance.domain.imports.model import (
     ImportedRow,
     ParseResult,
     SkippedRow,
-    TransactionKind,
     check_running_balance,
     fingerprint,
 )
+from openfinance.domain.ledger import TransactionKind
 
 __all__ = [
     "BalanceMismatch",

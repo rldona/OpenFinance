@@ -4,7 +4,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from openfinance.infrastructure.config import get_settings
-from openfinance.infrastructure.db.base import Base
+from openfinance.infrastructure.db import Base
 
 config = context.config
 config.set_main_option("sqlalchemy.url", get_settings().database_url)

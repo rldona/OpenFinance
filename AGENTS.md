@@ -35,6 +35,7 @@ OpenFinance es un monolito modular: `services/api` (Python 3.12, FastAPI, SQLAlc
 
 - Importes con `openfinance.domain.shared.Money` (`Decimal` + moneda ISO 4217). **Nunca `float`.**
 - Toda entidad pertenece a un `Workspace` (el hogar) y toda consulta filtra por él.
+- Las cuentas personales solo las ve su titular (ADR-0013): filtra siempre por hogar **y** por visibilidad, y añade tests negativos.
 - Los traspasos a la cuenta de ahorro y las transferencias internas no son gasto; las aportaciones de cada persona son entradas.
 - Importar dos veces el mismo archivo no duplica movimientos.
 - No se borran silenciosamente movimientos importados; las correcciones quedan trazadas.

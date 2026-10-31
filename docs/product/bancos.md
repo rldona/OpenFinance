@@ -4,7 +4,7 @@
 | --- | --- | --- | --- |
 | Cuenta conjunta (gastos de casa) | **Revolut** | ✅ Sí | CSV del extracto |
 | Huchas de la cuenta conjunta | **Revolut** | Como traspaso a ahorro | Se detectan en el mismo CSV |
-| Cuentas personales de cada uno | **Bankinter** | ❌ No (ADR-0012) | Las aportaciones se ven desde Revolut |
+| Cuentas personales de cada uno | **Bankinter** | ✅ Sí, privadas para su titular ([ADR-0013](../adr/0013-cuentas-personales-privadas.md)) | Extracto de Bankinter (OF-107, pendiente de muestra) |
 
 ## Revolut · cuenta conjunta
 
@@ -46,4 +46,8 @@ Implementado en `services/api/openfinance/infrastructure/importers/revolut.py`, 
 
 ## Bankinter · cuentas personales
 
-Fuera de v0.1. Si más adelante se quiere ver el gasto personal de cada uno, Bankinter exporta los movimientos desde la web (normalmente en Excel). Habrá que añadir un lector propio y un perfil personal por persona.
+Cada persona tiene la suya; **solo la ve su titular** (ADR-0013). Ya existen en el modelo y se pueden crear con `make bootstrap`; falta el lector de extractos (OF-107).
+
+Bankinter exporta los movimientos desde la web, normalmente en Excel. Para hacer el lector necesito una muestra real anonimizada: un extracto de un mes con nombres, conceptos e importes cambiados, pero con las cabeceras, el formato de fecha y el formato de importes intactos.
+
+Las transferencias de Bankinter a la conjunta se registrarán como **aportación** de su titular: en Bankinter, como salida que no es gasto; en Revolut, como entrada.

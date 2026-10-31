@@ -5,24 +5,9 @@ import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from enum import StrEnum
 
+from openfinance.domain.ledger import TransactionKind
 from openfinance.domain.shared import Money
-
-
-class TransactionKind(StrEnum):
-    """Qué significa un movimiento para el hogar (ADR-0012)."""
-
-    CONTRIBUTION = "contribution"
-    """Aportación de una persona a la cuenta común. Es entrada, no ingreso «externo»."""
-    EXPENSE = "expense"
-    """Gasto. Un importe positivo es una devolución y resta gasto."""
-    INCOME = "income"
-    """Otros ingresos de la cuenta común (intereses, devoluciones de Hacienda…)."""
-    SAVINGS_TRANSFER = "savings_transfer"
-    """Traspaso a ahorro (hucha o cuenta de ahorro). Es ahorro, no gasto."""
-    INTERNAL_TRANSFER = "internal_transfer"
-    """Movimiento entre cuentas del hogar que no es gasto ni ahorro."""
 
 
 @dataclass(frozen=True, slots=True)

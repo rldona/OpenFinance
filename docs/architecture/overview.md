@@ -51,6 +51,8 @@ Se hacen cumplir con `import-linter` (`services/api/pyproject.toml`):
 
 - `Money` = `Decimal` + `Currency` ISO 4217, cuantizado a céntimos; rechaza `float`.
 - Tipos de movimiento: **aportación** (entra a la cuenta común), **gasto** (con categoría), **traspaso a ahorro** (no es gasto).
+- Cuentas: conjunta (Revolut) y huchas visibles para el hogar; personales (Bankinter) visibles solo para su titular ([ADR-0013](../adr/0013-cuentas-personales-privadas.md)).
+- Sesiones en servidor: cookie `HttpOnly` con un token aleatorio del que solo se guarda el hash; contraseñas con Argon2id.
 - Fecha efectiva ≠ fecha de importación; cada movimiento importado conserva su archivo de origen.
 - Deduplicación por identificador externo cuando el banco lo da; si no, por huella de fecha, importe y concepto normalizado.
 - Los gráficos se calculan en el Core con consultas agregadas por mes y categoría; el frontend solo pinta.

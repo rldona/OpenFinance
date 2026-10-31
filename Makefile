@@ -1,7 +1,7 @@
 API_DIR := services/api
 WEB_DIR := apps/web
 
-.PHONY: setup api web test lint typecheck check up down migrate
+.PHONY: setup api web test lint typecheck check up down migrate bootstrap
 
 setup:
 	cd $(API_DIR) && uv sync
@@ -36,3 +36,6 @@ down:
 
 migrate:
 	cd $(API_DIR) && uv run alembic upgrade head
+
+bootstrap:
+	cd $(API_DIR) && uv run openfinance bootstrap
