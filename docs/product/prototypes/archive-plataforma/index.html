@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenFinance · Prototipo v0.1</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="banner">
+      <strong>Prototipo navegable</strong>
+      <span>Datos ficticios · Nada se guarda · Sirve para validar flujos de v0.1</span>
+      <label>Ver como
+        <select id="role-switch" aria-label="Rol del usuario actual">
+          <option value="owner">Ana · owner</option>
+          <option value="editor">Luis · editor</option>
+          <option value="viewer">Marta · viewer</option>
+        </select>
+      </label>
+    </div>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand">OpenFinance<span>Personal Finance Platform</span></div>
+        <select id="ws-switch" class="ws-switch" aria-label="Workspace"></select>
+        <nav id="nav" aria-label="Principal"></nav>
+        <div class="me" id="me"></div>
+      </aside>
+      <main class="content" id="view" tabindex="-1"></main>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

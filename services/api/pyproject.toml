@@ -1,0 +1,101 @@
+[project]
+name = "openfinance"
+version = "0.1.0.dev0"
+description = "OpenFinance Core: modelo financiero, reglas de negocio, persistencia y API."
+license = "AGPL-3.0-or-later"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "sqlalchemy>=2.0.36",
+    "psycopg[binary]>=3.2",
+    "alembic>=1.14",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "httpx>=0.28",
+    "ruff>=0.8",
+    "mypy>=1.13",
+    "import-linter>=2.1",
+]
+
+[build-system]
+requires = ["uv_build>=0.8,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "N", "S", "DTZ"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S"]
+"migrations/**" = ["N999"]
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["pydantic.mypy"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["openfinance.domain.*", "openfinance.application.*"]
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = ["integration: requiere una base de datos PostgreSQL accesible en DATABASE_URL"]
+
+[tool.importlinter]
+root_package = "openfinance"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "El dominio no depende de frameworks ni de otras capas"
+type = "forbidden"
+source_modules = ["openfinance.domain"]
+forbidden_modules = [
+    "fastapi",
+    "starlette",
+    "sqlalchemy",
+    "alembic",
+    "pydantic_settings",
+    "openfinance.application",
+    "openfinance.infrastructure",
+    "openfinance.api",
+]
+
+[[tool.importlinter.contracts]]
+name = "La capa de aplicación no depende de HTTP ni de infraestructura"
+type = "forbidden"
+source_modules = ["openfinance.application"]
+forbidden_modules = [
+    "fastapi",
+    "starlette",
+    "sqlalchemy",
+    "openfinance.api",
+    "openfinance.infrastructure",
+]
+
+[[tool.importlinter.contracts]]
+name = "Capas del Core"
+type = "layers"
+layers = [
+    "openfinance.api",
+    "openfinance.infrastructure",
+    "openfinance.application",
+    "openfinance.domain",
+]
