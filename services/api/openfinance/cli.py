@@ -96,12 +96,42 @@ def _bootstrap(_: argparse.Namespace) -> int:
     return 0
 
 
+def _demo(args: argparse.Namespace) -> int:
+    from openfinance.demo import create_demo
+    from openfinance.infrastructure.config import get_settings
+    from openfinance.infrastructure.time import local_today
+
+    if get_settings().is_production and not args.force:
+        print(
+            "La demostración crea usuarios con una contraseña conocida. No se ejecuta en "
+            "producción salvo con --force.",
+            file=sys.stderr,
+        )
+        return 1
+
+    with get_session_factory()() as session:
+        try:
+            r = create_demo(SqlUnitOfWork(session), Argon2PasswordHasher(), local_today())
+        except ApplicationError as exc:
+            print(f"No se ha creado la demostración: {exc}", file=sys.stderr)
+            return 1
+    print(
+        f"Hogar «{r.household}» con {r.transactions} movimientos ({r.months[0]} a {r.months[1]})."
+    )
+    print(f"Entra con {r.emails[0]} o {r.emails[1]} y la contraseña «{r.password}».")
+    print("Son datos ficticios: no uses estas cuentas para tus datos reales.")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="openfinance")
     sub = parser.add_subparsers(required=True)
     sub.add_parser("bootstrap", help="Crear el hogar, sus personas y sus cuentas").set_defaults(
         func=_bootstrap
     )
+    demo = sub.add_parser("demo", help="Crear un hogar de demostración con 12 meses de datos")
+    demo.add_argument("--force", action="store_true", help="Permitirlo también en producción")
+    demo.set_defaults(func=_demo)
     args = parser.parse_args(argv)
     result: int = args.func(args)
     return result

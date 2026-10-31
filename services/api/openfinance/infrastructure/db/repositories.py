@@ -203,6 +203,8 @@ class SqlTransactionRepository:
             stmt = stmt.where(
                 TransactionRow.description.icontains(query.text.strip(), autoescape=True)
             )
+        if query.category_id is not None:
+            stmt = stmt.where(TransactionRow.category_id == query.category_id)
         if query.uncategorized:
             stmt = stmt.where(
                 TransactionRow.kind == TransactionKind.EXPENSE.value,
@@ -288,6 +290,43 @@ class SqlTransactionRepository:
             )
         )
         return [_transaction(r) for r in rows]
+
+    def in_range(
+        self,
+        household_id: WorkspaceId,
+        account_ids: list[AccountId],
+        start: datetime,
+        end: datetime,
+        *,
+        only_category: bool = False,
+        category_id: CategoryId | None = None,
+    ) -> list[Transaction]:
+        if not account_ids:
+            return []
+        stmt = select(TransactionRow).where(
+            TransactionRow.household_id == household_id,
+            TransactionRow.account_id.in_(account_ids),
+            TransactionRow.booked_at.between(start, end),
+        )
+        if only_category:
+            stmt = stmt.where(
+                TransactionRow.category_id.is_(None)
+                if category_id is None
+                else TransactionRow.category_id == category_id
+            )
+        return [_transaction(r) for r in self._s.scalars(stmt.order_by(TransactionRow.booked_at))]
+
+    def first_booked_at(
+        self, household_id: WorkspaceId, account_ids: list[AccountId]
+    ) -> datetime | None:
+        if not account_ids:
+            return None
+        return self._s.scalar(
+            select(func.min(TransactionRow.booked_at)).where(
+                TransactionRow.household_id == household_id,
+                TransactionRow.account_id.in_(account_ids),
+            )
+        )
 
     def count_uncategorized(self, household_id: WorkspaceId, account_ids: list[AccountId]) -> int:
         return int(

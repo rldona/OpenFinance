@@ -1,5 +1,6 @@
 from functools import lru_cache
 from typing import Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -15,6 +16,8 @@ class Settings(BaseSettings):
     )
     cors_origins: list[str] = ["http://localhost:5173"]
     log_level: str = "INFO"
+    timezone: str = "Europe/Madrid"
+    """Zona horaria del hogar: decide qué es «hoy» y el mes en curso."""
     session_cookie_name: str = "of_session"
     session_cookie_secure: bool | None = None
     """Por defecto: activada en producción y desactivada en desarrollo."""
@@ -25,6 +28,10 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _check(self) -> "Settings":
+        try:
+            ZoneInfo(self.timezone)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise ValueError(f"Zona horaria no válida: {self.timezone}") from exc
         if "*" in self.cors_origins:
             raise ValueError("OPENFINANCE_CORS_ORIGINS no admite '*' con cookies de sesión")
         return self

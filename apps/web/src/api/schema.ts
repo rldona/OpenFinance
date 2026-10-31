@@ -133,6 +133,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/insights/category": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Category Detail
+         * @description Una categoría en los últimos 12 meses y sus comercios principales.
+         */
+        get: operations["category_detail_api_v1_insights_category_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/insights/month": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Month Overview
+         * @description Resumen de un mes de la conjunta y las huchas: lo que se gasta, entra y ahorra.
+         */
+        get: operations["month_overview_api_v1_insights_month_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/insights/trends": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Trends
+         * @description Evolución mensual hasta ``month``: gasto, entradas, ahorro y gasto por categoría.
+         */
+        get: operations["trends_api_v1_insights_trends_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me": {
         parameters: {
             query?: never;
@@ -301,6 +361,31 @@ export interface components {
             rule: components["schemas"]["RuleOut"] | null;
             transaction: components["schemas"]["TransactionOut"];
         };
+        /** CategoryAmountOut */
+        CategoryAmountOut: {
+            amount: components["schemas"]["MoneyOut"];
+            average: components["schemas"]["MoneyOut"] | null;
+            /**
+             * Category Id
+             * @description None = sin categoría
+             */
+            category_id: string | null;
+        };
+        /** CategoryDetailOut */
+        CategoryDetailOut: {
+            average: components["schemas"]["MoneyOut"] | null;
+            /** Category Id */
+            category_id: string | null;
+            /**
+             * Merchants
+             * @description Comercios principales de los últimos 3 meses
+             */
+            merchants: components["schemas"]["MerchantOut"][];
+            /** Month */
+            month: string;
+            /** Months */
+            months: components["schemas"]["MonthAmountOut"][];
+        };
         /** CategoryIn */
         CategoryIn: {
             /**
@@ -441,6 +526,15 @@ export interface components {
             members: components["schemas"]["MemberOut"][];
             user: components["schemas"]["UserOut"];
         };
+        /** MemberAmountOut */
+        MemberAmountOut: {
+            amount: components["schemas"]["MoneyOut"];
+            /**
+             * Member Id
+             * Format: uuid
+             */
+            member_id: string;
+        };
         /** MemberOut */
         MemberOut: {
             /** Display Name */
@@ -450,6 +544,14 @@ export interface components {
              * Format: uuid
              */
             id: string;
+        };
+        /** MerchantOut */
+        MerchantOut: {
+            amount: components["schemas"]["MoneyOut"];
+            /** Count */
+            count: number;
+            /** Merchant */
+            merchant: string;
         };
         /** MetaResponse */
         MetaResponse: {
@@ -475,6 +577,62 @@ export interface components {
              * @example EUR
              */
             currency: string;
+        };
+        /** MonthAmountOut */
+        MonthAmountOut: {
+            amount: components["schemas"]["MoneyOut"];
+            /** Has Data */
+            has_data: boolean;
+            /** Month */
+            month: string;
+        };
+        /** MonthOverviewOut */
+        MonthOverviewOut: {
+            /** @description Media de gasto de los meses anteriores con datos (hasta 12) */
+            average_spent: components["schemas"]["MoneyOut"] | null;
+            /** Categories */
+            categories: components["schemas"]["CategoryAmountOut"][];
+            /** Contributions */
+            contributions: components["schemas"]["MemberAmountOut"][];
+            /** Currency */
+            currency: string;
+            /**
+             * Daily
+             * @description Gasto acumulado al final de cada día (decimal exacto)
+             */
+            daily: string[];
+            /** Days Elapsed */
+            days_elapsed: number;
+            /** Has Data */
+            has_data: boolean;
+            income: components["schemas"]["MoneyOut"];
+            inflow: components["schemas"]["MoneyOut"];
+            /**
+             * Is Partial
+             * @description Mes en curso: los datos llegan hasta days_elapsed
+             */
+            is_partial: boolean;
+            /** Month */
+            month: string;
+            /** Previous Daily */
+            previous_daily: string[];
+            previous_spent: components["schemas"]["MoneyOut"] | null;
+            /** @description Gasto del mes anterior hasta el mismo día (para comparar el mes en curso) */
+            previous_spent_to_date: components["schemas"]["MoneyOut"] | null;
+            saved: components["schemas"]["MoneyOut"];
+            saved_to_savings: components["schemas"]["MoneyOut"];
+            /**
+             * Saving Rate
+             * @description % de lo que entra que se ahorra
+             */
+            saving_rate: number | null;
+            spent: components["schemas"]["MoneyOut"];
+        };
+        /** MonthSavedOut */
+        MonthSavedOut: {
+            /** Month */
+            month: string;
+            saved: components["schemas"]["MoneyOut"];
         };
         /** PreviewRowOut */
         PreviewRowOut: {
@@ -561,6 +719,38 @@ export interface components {
              * Format: date
              */
             value_date: string;
+        };
+        /** TrendCategoryOut */
+        TrendCategoryOut: {
+            amount: components["schemas"]["MoneyOut"];
+            /** Category Id */
+            category_id: string | null;
+        };
+        /** TrendMonthOut */
+        TrendMonthOut: {
+            /** Categories */
+            categories: components["schemas"]["TrendCategoryOut"][];
+            /** Has Data */
+            has_data: boolean;
+            inflow: components["schemas"]["MoneyOut"];
+            /** Month */
+            month: string;
+            saved: components["schemas"]["MoneyOut"];
+            spent: components["schemas"]["MoneyOut"];
+        };
+        /** TrendsOut */
+        TrendsOut: {
+            average_saved: components["schemas"]["MoneyOut"] | null;
+            average_spent: components["schemas"]["MoneyOut"] | null;
+            best: components["schemas"]["MonthSavedOut"] | null;
+            /** Months */
+            months: components["schemas"]["TrendMonthOut"][];
+            /** Saving Rate */
+            saving_rate: number | null;
+            total_inflow: components["schemas"]["MoneyOut"];
+            total_saved: components["schemas"]["MoneyOut"];
+            total_spent: components["schemas"]["MoneyOut"];
+            worst: components["schemas"]["MonthSavedOut"] | null;
         };
         /** UserOut */
         UserOut: {
@@ -819,6 +1009,105 @@ export interface operations {
             };
         };
     };
+    category_detail_api_v1_insights_category_get: {
+        parameters: {
+            query?: {
+                /** @description AAAA-MM; por defecto, el actual */
+                month?: string | null;
+                /** @description Vacío = sin categoría */
+                category_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    month_overview_api_v1_insights_month_get: {
+        parameters: {
+            query?: {
+                /** @description AAAA-MM; por defecto, el actual */
+                month?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonthOverviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    trends_api_v1_insights_trends_get: {
+        parameters: {
+            query?: {
+                /** @description AAAA-MM; por defecto, el actual */
+                month?: string | null;
+                months?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrendsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_me_api_v1_me_get: {
         parameters: {
             query?: never;
@@ -866,6 +1155,9 @@ export interface operations {
                 q?: string | null;
                 uncategorized?: boolean;
                 account_id?: string | null;
+                category_id?: string | null;
+                /** @description Solo cuentas del hogar (conjunta y huchas), como los gráficos */
+                shared_only?: boolean;
                 limit?: number;
             };
             header?: never;

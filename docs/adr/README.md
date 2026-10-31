@@ -19,3 +19,4 @@ Formato: contexto → decisión → consecuencias. Un ADR aceptado no se edita; 
 | [0011](0011-perfiles-compartidos-reparto.md) | Perfiles compartidos y reparto de gastos | Deferred (0012) |
 | [0012](0012-empezar-por-el-hogar.md) | Empezar por el hogar | Accepted |
 | [0013](0013-cuentas-personales-privadas.md) | Cuentas personales en el hogar, privadas por defecto | Accepted |
+| [0014](0014-graficos-svg-propios.md) | Gráficos SVG propios en React | Accepted |

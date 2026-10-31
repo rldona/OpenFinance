@@ -2,13 +2,23 @@ import type { Money } from '../api/client'
 
 const formatters = new Map<string, Intl.NumberFormat>()
 
-function formatter(currency: string): Intl.NumberFormat {
-  let f = formatters.get(currency)
+function formatter(currency: string, rounded = false): Intl.NumberFormat {
+  const key = `${currency}:${rounded}`
+  let f = formatters.get(key)
   if (!f) {
-    f = new Intl.NumberFormat('es-ES', { style: 'currency', currency })
-    formatters.set(currency, f)
+    f = new Intl.NumberFormat('es-ES', {
+      style: 'currency',
+      currency,
+      ...(rounded ? { maximumFractionDigits: 0, minimumFractionDigits: 0 } : {}),
+    })
+    formatters.set(key, f)
   }
   return f
+}
+
+/** Importe redondeado a euros, para titulares y gráficos. */
+export function formatMoneyRounded(money: Money): string {
+  return formatter(money.currency, true).format(money.amount as Intl.StringNumericLiteral)
 }
 
 /** Formatea el decimal exacto que envía la API sin pasar por float. */
@@ -33,6 +43,14 @@ export function centsToAmount(cents: bigint): string {
   return `${negative ? '-' : ''}${abs / 100n}.${frac}`
 }
 
+/** Variación porcentual entera de `now` frente a `before` (null si no hay base). */
+export function percentChange(now: Money, before: Money): number | null {
+  const b = toCents(before.amount)
+  if (b === 0n) return null
+  const diff = toCents(now.amount) - b
+  return Math.round((Number(diff) * 100) / Number(b < 0n ? -b : b))
+}
+
 export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
 }
@@ -45,6 +63,11 @@ export function shiftMonth(month: string, delta: number): string {
   const [y, m] = month.split('-').map(Number)
   const d = new Date(y, m - 1 + delta, 1)
   return currentMonth(d)
+}
+
+export function shortMonth(month: string): string {
+  const [y, m] = month.split('-').map(Number)
+  return new Date(y, m - 1, 1).toLocaleDateString('es-ES', { month: 'short' }).replace('.', '')
 }
 
 export function monthLabel(month: string): string {

@@ -19,6 +19,8 @@ make web                      # http://localhost:5173 (proxy de /api y /health a
 
 Para probar sin PostgreSQL basta con `DATABASE_URL=sqlite:///./dev.db` (solo desarrollo).
 
+Para ver los gráficos sin datos reales: `make demo` crea un hogar ficticio con 12 meses de movimientos (usuarios `raul@demo.openfinance` y `elena@demo.openfinance`, contraseña `demo-openfinance`). No lo uses en una instalación con datos reales.
+
 `make bootstrap` pregunta por el nombre del hogar, el nombre, el email y la contraseña de cada persona, el saldo inicial de la cuenta conjunta de Revolut y si se añaden las cuentas personales de Bankinter. No hay registro público: el alta se hace una vez desde el servidor.
 
 ### API disponible
@@ -36,6 +38,9 @@ Para probar sin PostgreSQL basta con `DATABASE_URL=sqlite:///./dev.db` (solo des
 | `PATCH` | `/api/v1/categories/{id}` | Renombrar, icono, color u ocultar |
 | `PATCH` | `/api/v1/transactions/{id}` | Poner o quitar la categoría de un gasto; con `learn` aprende la regla del comercio |
 | `GET` | `/api/v1/transactions/uncategorized-count` | Gastos sin categoría visibles para ti |
+| `GET` | `/api/v1/insights/month?month=AAAA-MM` | Resumen del mes para «Este mes» |
+| `GET` | `/api/v1/insights/category?month=&category_id=` | Una categoría en 12 meses y sus comercios |
+| `GET` | `/api/v1/insights/trends?month=&months=12` | Evolución mensual |
 
 Todas las peticiones que escriben (`POST`, `PUT`, `PATCH`, `DELETE`) deben llevar la cabecera `X-Requested-With: OpenFinance`; el cliente de la web la añade solo.
 

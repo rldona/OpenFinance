@@ -259,3 +259,90 @@ class CategorizeOut(BaseModel):
 
 class CountOut(BaseModel):
     count: int
+
+
+class MemberAmountOut(BaseModel):
+    member_id: UUID
+    amount: MoneyOut
+
+
+class CategoryAmountOut(BaseModel):
+    category_id: UUID | None = Field(description="None = sin categoría")
+    amount: MoneyOut
+    average: MoneyOut | None
+
+
+class MonthOverviewOut(BaseModel):
+    month: str
+    has_data: bool
+    spent: MoneyOut
+    previous_spent: MoneyOut | None
+    is_partial: bool = Field(description="Mes en curso: los datos llegan hasta days_elapsed")
+    days_elapsed: int
+    previous_spent_to_date: MoneyOut | None = Field(
+        description="Gasto del mes anterior hasta el mismo día (para comparar el mes en curso)"
+    )
+    average_spent: MoneyOut | None = Field(
+        description="Media de gasto de los meses anteriores con datos (hasta 12)"
+    )
+    inflow: MoneyOut
+    income: MoneyOut
+    saved: MoneyOut
+    saved_to_savings: MoneyOut
+    saving_rate: int | None = Field(description="% de lo que entra que se ahorra")
+    contributions: list[MemberAmountOut]
+    categories: list[CategoryAmountOut]
+    currency: str
+    daily: list[str] = Field(description="Gasto acumulado al final de cada día (decimal exacto)")
+    previous_daily: list[str]
+
+
+class MonthAmountOut(BaseModel):
+    month: str
+    amount: MoneyOut
+    has_data: bool
+
+
+class MerchantOut(BaseModel):
+    merchant: str
+    amount: MoneyOut
+    count: int
+
+
+class CategoryDetailOut(BaseModel):
+    category_id: UUID | None
+    month: str
+    months: list[MonthAmountOut]
+    average: MoneyOut | None
+    merchants: list[MerchantOut] = Field(description="Comercios principales de los últimos 3 meses")
+
+
+class TrendCategoryOut(BaseModel):
+    category_id: UUID | None
+    amount: MoneyOut
+
+
+class TrendMonthOut(BaseModel):
+    month: str
+    has_data: bool
+    spent: MoneyOut
+    inflow: MoneyOut
+    saved: MoneyOut
+    categories: list[TrendCategoryOut]
+
+
+class MonthSavedOut(BaseModel):
+    month: str
+    saved: MoneyOut
+
+
+class TrendsOut(BaseModel):
+    months: list[TrendMonthOut]
+    total_saved: MoneyOut
+    total_inflow: MoneyOut
+    total_spent: MoneyOut
+    average_spent: MoneyOut | None
+    average_saved: MoneyOut | None
+    saving_rate: int | None
+    best: MonthSavedOut | None
+    worst: MonthSavedOut | None

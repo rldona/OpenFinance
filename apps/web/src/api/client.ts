@@ -12,6 +12,9 @@ export type Category = Schemas['CategoryOut']
 export type CategoryInput = Schemas['CategoryIn']
 export type CategoryPatch = Schemas['CategoryPatch']
 export type CategorizeResult = Schemas['CategorizeOut']
+export type MonthOverview = Schemas['MonthOverviewOut']
+export type CategoryDetail = Schemas['CategoryDetailOut']
+export type Trends = Schemas['TrendsOut']
 
 export const CSRF_HEADER = { 'X-Requested-With': 'OpenFinance' } as const
 
@@ -80,7 +83,7 @@ export const api = {
   logout: () => request<void>('POST', '/api/v1/auth/logout'),
   accounts: (signal?: AbortSignal) => request<Account[]>('GET', '/api/v1/accounts', { signal }),
   transactions: (
-    query: { month?: string; q?: string; uncategorized?: boolean; account_id?: string },
+    query: { month?: string; q?: string; uncategorized?: boolean; account_id?: string; category_id?: string; shared_only?: boolean },
     signal?: AbortSignal,
   ) => request<Transaction[]>('GET', '/api/v1/transactions', { query, signal }),
   previewImport: (accountId: string, file: File) => {
@@ -99,6 +102,15 @@ export const api = {
     request<CategorizeResult>('PATCH', `/api/v1/transactions/${encodeURIComponent(transactionId)}`, {
       json: { category_id: categoryId, learn },
     }),
+  insightsMonth: (month: string, signal?: AbortSignal) =>
+    request<MonthOverview>('GET', '/api/v1/insights/month', { query: { month }, signal }),
+  insightsCategory: (month: string, categoryId: string | null, signal?: AbortSignal) =>
+    request<CategoryDetail>('GET', '/api/v1/insights/category', {
+      query: { month, category_id: categoryId ?? undefined },
+      signal,
+    }),
+  insightsTrends: (month: string, signal?: AbortSignal) =>
+    request<Trends>('GET', '/api/v1/insights/trends', { query: { month, months: 12 }, signal }),
   uncategorizedCount: (signal?: AbortSignal) =>
     request<{ count: number }>('GET', '/api/v1/transactions/uncategorized-count', { signal }),
 }

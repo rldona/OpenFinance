@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { api, type Category, type Me } from '../api/client'
+import { currentMonth } from '../lib/format'
 import { HouseholdContext } from './household-context'
 
 export function HouseholdProvider({
@@ -16,6 +17,8 @@ export function HouseholdProvider({
   const [uncategorized, setUncategorized] = useState(0)
   const [categoriesVersion, setCategoriesVersion] = useState(0)
   const [countVersion, setCountVersion] = useState(0)
+  const [month, setMonth] = useState(currentMonth)
+  const [focusCategory, setFocusCategory] = useState<string | null | undefined>(undefined)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -51,8 +54,22 @@ export function HouseholdProvider({
       reloadCategories,
       refreshUncategorized,
       notify,
+      month,
+      setMonth,
+      focusCategory,
+      setFocusCategory,
     }),
-    [me, categories, categoriesReady, uncategorized, reloadCategories, refreshUncategorized, notify],
+    [
+      me,
+      categories,
+      categoriesReady,
+      uncategorized,
+      reloadCategories,
+      refreshUncategorized,
+      notify,
+      month,
+      focusCategory,
+    ],
   )
   return <HouseholdContext.Provider value={value}>{children}</HouseholdContext.Provider>
 }

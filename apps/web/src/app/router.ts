@@ -16,7 +16,7 @@ export type RouteId = (typeof ROUTES)[number]['id'] | (typeof HIDDEN_ROUTES)[num
 function parse(hash: string): RouteId {
   const id = hash.replace(/^#\/?/, '')
   const hidden = HIDDEN_ROUTES.find((r) => r === id)
-  return hidden ?? ROUTES.find((r) => r.id === id)?.id ?? 'movimientos'
+  return hidden ?? ROUTES.find((r) => r.id === id)?.id ?? 'mes'
 }
 
 export function useRoute(): RouteId {

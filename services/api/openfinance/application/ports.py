@@ -23,6 +23,9 @@ class TransactionQuery:
     text: str | None = None
     uncategorized: bool = False
     account_id: AccountId | None = None
+    category_id: CategoryId | None = None
+    shared_only: bool = False
+    """Solo cuentas del hogar (conjunta y huchas), como los gráficos."""
     limit: int = 1000
 
     def __post_init__(self) -> None:
@@ -81,6 +84,22 @@ class TransactionRepository(Protocol):
         """Gastos sin categoría cuyo comercio empieza por esa palabra."""
         ...
 
+    def in_range(
+        self,
+        household_id: WorkspaceId,
+        account_ids: list[AccountId],
+        start: datetime,
+        end: datetime,
+        *,
+        only_category: bool = False,
+        category_id: CategoryId | None = None,
+    ) -> list[Transaction]:
+        """Con ``only_category``, solo los de ``category_id`` (``None`` = sin categoría)."""
+        ...
+
+    def first_booked_at(
+        self, household_id: WorkspaceId, account_ids: list[AccountId]
+    ) -> datetime | None: ...
     def count_uncategorized(
         self, household_id: WorkspaceId, account_ids: list[AccountId]
     ) -> int: ...

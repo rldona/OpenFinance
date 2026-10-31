@@ -5,6 +5,9 @@ import { useToast } from '../components/useToast'
 import { LoginPage } from '../features/auth/LoginPage'
 import { CategoriesPage } from '../features/categories/CategoriesPage'
 import { ImportPage } from '../features/import/ImportPage'
+import { MonthPage } from '../features/insights/MonthPage'
+import { SpendingPage } from '../features/insights/SpendingPage'
+import { TrendsPage } from '../features/insights/TrendsPage'
 import { ComingSoon } from '../features/placeholder/ComingSoon'
 import { TransactionsPage } from '../features/transactions/TransactionsPage'
 import { HouseholdProvider } from './household'
@@ -24,11 +27,11 @@ function Page({ route }: { route: RouteId }) {
     case 'categorias':
       return <CategoriesPage />
     case 'mes':
-      return <ComingSoon title="Este mes" ticket="OF-303" />
+      return <MonthPage />
     case 'gastos':
-      return <ComingSoon title="¿En qué gastamos?" ticket="OF-304" />
+      return <SpendingPage />
     case 'evolucion':
-      return <ComingSoon title="Evolución" ticket="OF-305" />
+      return <TrendsPage />
     case 'ahorrar':
       return <ComingSoon title="Ahorrar" ticket="OF-401 … OF-405" />
   }

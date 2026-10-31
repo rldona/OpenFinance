@@ -11,7 +11,7 @@ Un ticket está terminado cuando cumple sus criterios de aceptación, tiene test
 | 0 · Base | Repositorio, CI, entorno y `Money` | OF-001 … OF-003 | ✅ Hecha |
 | 1 · Datos | Meter los movimientos reales de Revolut (conjunta) y Bankinter (personales) | OF-101 … OF-107 | 🚧 OF-101 a 103, 105 y 106 ✅ · OF-104 y 107 esperan extractos reales |
 | 2 · Categorías | Que cada gasto tenga su categoría casi sin esfuerzo | OF-201 … OF-203 | ✅ Hecha |
-| 3 · Gráficos | Este mes, ¿En qué gastamos? y Evolución | OF-301 … OF-305 | Pendiente |
+| 3 · Gráficos | Este mes, ¿En qué gastamos? y Evolución | OF-301 … OF-305 | ✅ Hecha |
 | 4 · Ahorro | Presupuestos, objetivos, ideas y simulador | OF-401 … OF-405 | Pendiente |
 | 5 · Uso real | Instalado en casa, con copias de seguridad | OF-501 … OF-504 | Pendiente |
 
@@ -133,28 +133,32 @@ Versión real de las pantallas del prototipo.
 
 ## Fase 3 · Gráficos
 
-### OF-301 · API de agregados (`insights`)
-El Core calcula y el frontend solo pinta.
-- Gasto y entradas por mes, gasto por categoría y mes, gasto acumulado por día, media de los meses anteriores y comercios principales por categoría.
-- 🧪 Las sumas por categoría cuadran con la suma total del mes.
-- 🧪 Los traspasos a ahorro quedan excluidos del gasto.
-- Depende de: OF-103, OF-201.
+### OF-301 · API de agregados (`insights`) ✅
+El Core calcula y el frontend solo pinta. Los totales del hogar usan solo la conjunta y las huchas (ADR-0013).
+- ✅ `GET /api/v1/insights/month`: gastado, entradas (aportaciones por persona), ahorro y %, gasto por categoría con su media, gasto acumulado por día, mes anterior y media de los meses anteriores con datos.
+- ✅ Mes en curso: la curva llega hasta hoy (en la zona horaria del hogar, `OPENFINANCE_TIMEZONE`) y se compara con el mismo tramo del mes anterior.
+- ✅ `GET /api/v1/insights/category`: 12 meses de una categoría (o «sin categoría»), su media y los comercios principales de los últimos 3 meses.
+- ✅ `GET /api/v1/insights/trends`: 12 meses de gasto, entradas, ahorro y gasto por categoría; totales, medias, % de ahorro y mejor y peor mes.
+- ✅ `GET /api/v1/transactions?category_id=…&shared_only=true` para listar los movimientos de un gráfico.
+- ✅ 🧪 Las sumas por categoría cuadran con el gasto del mes; los traspasos a ahorro quedan fuera del gasto; las cuentas personales nunca cuentan; los meses sin datos no entran en las medias.
 
-### OF-302 · Componentes de gráficos
-- Decidir entre el SVG propio del prototipo (`charts.js`) y una librería, y registrarlo en un ADR. Criterios: peso, accesibilidad, uso en móvil y mantenimiento.
-- Componentes necesarios: donut, barras con línea de referencia, barras apiladas, líneas con área y anillo de progreso.
+### OF-302 · Componentes de gráficos ✅
+- ✅ Decidido en [ADR-0014](../adr/0014-graficos-svg-propios.md), con medidas: SVG propio (≈ 4 KB) frente a Chart.js (+62 KB gzip) y Recharts (+122 KB gzip).
+- ✅ Donut, barras (con referencia, mes resaltado y negativos), barras apiladas, líneas con área y anillo de progreso en `apps/web/src/components/charts/`.
+- ✅ Accesibles (`role="img"` con resumen y una tabla de datos oculta para lectores de pantalla) y escalables con `viewBox`.
 
-### OF-303 · Pantalla «Este mes»
-- 3 indicadores principales (gastado, ahorrado, categoría principal), donut, ritmo de gasto frente al mes anterior y al presupuesto, cambios frente a la media y selector de mes.
-- Depende de: OF-301, OF-302 (presupuestos con OF-401; hasta entonces se ocultan).
+### OF-303 · Pantalla «Este mes» ✅
+- ✅ Pantalla de inicio: gastado (frente al mes anterior y a la media), ahorrado y %, dónde más se va, donut con las 5 categorías principales, ritmo de gasto frente al mes anterior y lo que más ha cambiado frente a la media.
+- Los presupuestos se añadirán con OF-401.
 
-### OF-304 · Pantalla «¿En qué gastamos?»
-- Donut con ranking de categorías y, al elegir una, sus 12 meses frente a la media, sus comercios y sus movimientos.
-- Depende de: OF-301, OF-302.
+### OF-304 · Pantalla «¿En qué gastamos?» ✅
+- ✅ Donut y ranking de categorías; al elegir una (o «sin categoría»): 12 meses frente a la media, comercios principales y movimientos del mes.
 
-### OF-305 · Pantalla «Evolución»
-- Barras apiladas de 12 meses, ahorro de cada mes, ahorro acumulado y mejor y peor mes.
-- Depende de: OF-301, OF-302.
+### OF-305 · Pantalla «Evolución» ✅
+- ✅ Barras apiladas de 12 meses (6 categorías principales + resto), ahorro de cada mes con su media, ahorrado en el periodo y mejor y peor mes.
+
+### Demostración
+- ✅ `make demo` crea un hogar ficticio con 12 meses de datos para ver los gráficos sin datos reales. Es todo o nada y se niega en producción salvo con `--force`, porque la contraseña es pública.
 
 ---
 

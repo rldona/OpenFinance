@@ -11,6 +11,12 @@ export type HouseholdState = {
   reloadCategories: () => void
   refreshUncategorized: () => void
   notify: (message: string) => void
+  /** Mes elegido (AAAA-MM), compartido entre pantallas. */
+  month: string
+  setMonth: (month: string) => void
+  /** Categoría elegida en «¿En qué gastamos?» (`null` = sin categoría; `undefined` = la mayor). */
+  focusCategory: string | null | undefined
+  setFocusCategory: (id: string | null | undefined) => void
 }
 
 export const HouseholdContext = createContext<HouseholdState | null>(null)

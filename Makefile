@@ -1,7 +1,7 @@
 API_DIR := services/api
 WEB_DIR := apps/web
 
-.PHONY: setup api web test lint typecheck check up down migrate bootstrap openapi
+.PHONY: setup api web test lint typecheck check up down migrate bootstrap openapi demo
 
 setup:
 	cd $(API_DIR) && uv sync
@@ -43,3 +43,6 @@ bootstrap:
 openapi:
 	cd $(API_DIR) && uv run python -m openfinance.api.export_openapi > ../../$(WEB_DIR)/openapi.json
 	cd $(WEB_DIR) && npm run gen:api
+
+demo:
+	cd $(API_DIR) && uv run openfinance demo

@@ -56,4 +56,4 @@ Se hacen cumplir con `import-linter` (`services/api/pyproject.toml`):
 - Sesiones en servidor: cookie `HttpOnly` con un token aleatorio del que solo se guarda el hash; contraseñas con Argon2id.
 - Fecha efectiva ≠ fecha de importación; cada movimiento importado conserva su archivo de origen.
 - Deduplicación por identificador externo cuando el banco lo da; si no, por huella de fecha, importe y concepto normalizado.
-- Los gráficos se calculan en el Core con consultas agregadas por mes y categoría; el frontend solo pinta.
+- Los gráficos se calculan en el Core (`domain/insights.py`) solo con la conjunta y las huchas; el frontend solo pinta, con componentes SVG propios ([ADR-0014](../adr/0014-graficos-svg-propios.md)).

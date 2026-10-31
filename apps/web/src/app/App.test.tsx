@@ -5,7 +5,7 @@ import { ACCOUNTS, CATEGORIES, ME, PREVIEW, TRANSACTIONS, mockApi } from '../tes
 import { App } from './App'
 
 beforeEach(() => {
-  window.location.hash = ''
+  window.location.hash = '#movimientos'
 })
 afterEach(() => vi.restoreAllMocks())
 
@@ -243,5 +243,161 @@ describe('Errores de carga', () => {
     render(<App />)
     expect(await screen.findByText('No se han podido cargar las categorías')).toBeInTheDocument()
     expect(await screen.findByLabelText('Categoría de Glovo')).toBeDisabled()
+  })
+})
+
+const eur = (amount: string) => ({ amount, currency: 'EUR' })
+
+const OVERVIEW = {
+  month: '2026-10',
+  has_data: true,
+  spent: eur('1000.00'),
+  previous_spent: eur('800.00'),
+  is_partial: false,
+  days_elapsed: 31,
+  previous_spent_to_date: eur('800.00'),
+  average_spent: eur('900.00'),
+  inflow: eur('3000.00'),
+  income: eur('0.00'),
+  saved: eur('2000.00'),
+  saved_to_savings: eur('300.00'),
+  saving_rate: 67,
+  contributions: [
+    { member_id: 'u-raul', amount: eur('1600.00') },
+    { member_id: 'u-elena', amount: eur('1400.00') },
+  ],
+  categories: [
+    { category_id: 'c-super', amount: eur('600.00'), average: eur('500.00') },
+    { category_id: 'c-rest', amount: eur('300.00'), average: eur('100.00') },
+    { category_id: null, amount: eur('100.00'), average: eur('0.00') },
+  ],
+  currency: 'EUR',
+  daily: Array.from({ length: 31 }, (_, i) => (i < 10 ? '100.00' : '1000.00')),
+  previous_daily: Array.from({ length: 30 }, () => '800.00'),
+}
+
+const DETAIL = {
+  category_id: 'c-super',
+  month: '2026-10',
+  months: Array.from({ length: 12 }, (_, i) => ({
+    month: `2026-${String(i + 1).padStart(2, '0')}`,
+    amount: eur(i === 11 ? '600.00' : '500.00'),
+    has_data: true,
+  })),
+  average: eur('500.00'),
+  merchants: [{ merchant: 'Mercadona', amount: eur('1500.00'), count: 12 }],
+}
+
+const TRENDS = {
+  months: Array.from({ length: 12 }, (_, i) => ({
+    month: `${i < 2 ? 2025 : 2026}-${String(((i + 10) % 12) + 1).padStart(2, '0')}`,
+    has_data: true,
+    spent: eur('1000.00'),
+    inflow: eur('3000.00'),
+    saved: eur(i === 9 ? '-500.00' : '2000.00'),
+    categories: [
+      { category_id: 'c-super', amount: eur('600.00') },
+      { category_id: null, amount: eur('400.00') },
+    ],
+  })),
+  total_saved: eur('21500.00'),
+  total_inflow: eur('36000.00'),
+  total_spent: eur('12000.00'),
+  average_spent: eur('1000.00'),
+  average_saved: eur('1791.67'),
+  saving_rate: 60,
+  best: { month: '2026-01', saved: eur('2000.00') },
+  worst: { month: '2026-08', saved: eur('-500.00') },
+}
+
+describe('Gráficos (fase 3)', () => {
+  it('Este mes es la pantalla de inicio y resume el mes', async () => {
+    window.location.hash = ''
+    const calls = loggedIn({ 'GET /api/v1/insights/month': { body: OVERVIEW } })
+    render(<App />)
+    expect(await screen.findByRole('heading', { name: 'Este mes' })).toBeInTheDocument()
+    expect(screen.getByText(/▲ 25 % que el mes anterior/)).toBeInTheDocument()
+    expect(screen.getByText('67 % de lo que entra')).toBeInTheDocument()
+    expect(screen.getByText(/Raúl 1600 €|Raúl 1\.600 €/)).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /Gasto de octubre de 2026 por categoría/ })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /Gasto acumulado/ })).toBeInTheDocument()
+    // Restaurantes es lo que más cambia frente a la media: +200 €
+    expect(screen.getByText('Lo que más ha cambiado frente a vuestra media').nextElementSibling).toHaveTextContent(
+      /Restaurantes\+200/,
+    )
+    const req = calls.find((c) => c.url.pathname === '/api/v1/insights/month')!
+    expect(req.url.searchParams.get('month')).toMatch(/^\d{4}-\d{2}$/)
+  })
+
+  it('pulsar una categoría lleva a su detalle', async () => {
+    window.location.hash = '#mes'
+    const calls = loggedIn({
+      'GET /api/v1/insights/month': { body: OVERVIEW },
+      'GET /api/v1/insights/category': { body: { ...DETAIL, category_id: 'c-rest' } },
+    })
+    render(<App />)
+    await userEvent.click((await screen.findAllByRole('link', { name: /Restaurantes/ }))[0])
+    expect(await screen.findByRole('heading', { name: /Restaurantes · últimos 12 meses/ })).toBeInTheDocument()
+    const req = calls.filter((c) => c.url.pathname === '/api/v1/insights/category').at(-1)!
+    expect(req.url.searchParams.get('category_id')).toBe('c-rest')
+  })
+
+  it('¿En qué gastamos? enseña 12 meses, media y comercios', async () => {
+    window.location.hash = '#gastos'
+    const calls = loggedIn({
+      'GET /api/v1/insights/month': { body: OVERVIEW },
+      'GET /api/v1/insights/category': { body: DETAIL },
+    })
+    render(<App />)
+    expect(await screen.findByRole('heading', { name: /Supermercado · últimos 12 meses/ })).toBeInTheDocument()
+    expect(screen.getByText('Media 500 €')).toBeInTheDocument()
+    expect(screen.getByText(/▲ 20 % que la media/)).toBeInTheDocument()
+    const merchants = screen.getByRole('heading', { name: 'Dónde (últimos 3 meses)' }).parentElement!
+    expect(within(merchants).getByText('Mercadona')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Supermercado/ })).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(screen.getByRole('button', { name: /Sin categoría/ }))
+    await waitFor(() => {
+      const last = calls.filter((c) => c.url.pathname === '/api/v1/insights/category').at(-1)!
+      expect(last.url.searchParams.has('category_id')).toBe(false)
+    })
+    const tx = calls.filter((c) => c.url.pathname === '/api/v1/transactions').at(-1)!
+    expect(tx.url.searchParams.get('uncategorized')).toBe('true')
+  })
+
+  it('Evolución resume 12 meses y marca el peor', async () => {
+    window.location.hash = '#evolucion'
+    loggedIn({ 'GET /api/v1/insights/trends': { body: TRENDS } })
+    const { container } = render(<App />)
+    expect(await screen.findByText('(gastasteis más de lo que entró)')).toBeInTheDocument()
+    expect(screen.getByText('60 % de todo lo que entró')).toBeInTheDocument()
+    expect(screen.getByText('Media 1792 €')).toBeInTheDocument()
+    expect(container.querySelectorAll('[data-stack]')).toHaveLength(12)
+    expect(screen.getByRole('img', { name: /Ahorro mensual/ })).toBeInTheDocument()
+  })
+
+  it('un mes en curso se compara con los mismos días del anterior', async () => {
+    window.location.hash = '#mes'
+    loggedIn({
+      'GET /api/v1/insights/month': {
+        body: {
+          ...OVERVIEW,
+          is_partial: true,
+          days_elapsed: 10,
+          previous_spent_to_date: eur('500.00'),
+          daily: OVERVIEW.daily.slice(0, 10),
+        },
+      },
+    })
+    render(<App />)
+    expect(await screen.findByText(/mes en curso, hasta el día 10/)).toBeInTheDocument()
+    expect(screen.getByText(/▲ 100 % que a estas alturas del mes anterior/)).toBeInTheDocument()
+    expect(screen.getByText(/\(meses completos\)/)).toBeInTheDocument()
+  })
+
+  it('sin datos en el mes invita a importar', async () => {
+    window.location.hash = '#mes'
+    loggedIn({ 'GET /api/v1/insights/month': { body: { ...OVERVIEW, has_data: false } } })
+    render(<App />)
+    expect(await screen.findByText(/No hay movimientos de la cuenta conjunta/)).toBeInTheDocument()
   })
 })

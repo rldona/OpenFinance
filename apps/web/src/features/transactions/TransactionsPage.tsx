@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { ApiError, TRANSACTIONS_LIMIT, api, type Account, type Transaction } from '../../api/client'
 import { useHousehold } from '../../app/household-context'
-import { currentMonth, formatDate, formatMoney, monthLabel, shiftMonth } from '../../lib/format'
+import { formatDate, formatMoney } from '../../lib/format'
+import { MonthPicker } from '../insights/common'
 import { kindLabel } from './labels'
 
 function CategorySelect({
@@ -34,8 +35,7 @@ function CategorySelect({
 }
 
 export function TransactionsPage() {
-  const { me, categoryById, uncategorized, refreshUncategorized, notify } = useHousehold()
-  const [month, setMonth] = useState(currentMonth)
+  const { me, categoryById, uncategorized, refreshUncategorized, notify, month } = useHousehold()
   const [allMonths, setAllMonths] = useState(false)
   const [q, setQ] = useState('')
   const [debouncedQ, setDebouncedQ] = useState('')
@@ -116,25 +116,7 @@ export function TransactionsPage() {
             <a href="#categorias">Gestionar categorías</a>
           </p>
         </div>
-        <div className="month-picker" role="group" aria-label="Mes">
-          <button
-            type="button"
-            onClick={() => setMonth((m) => shiftMonth(m, -1))}
-            disabled={allMonths || onlyUncategorized}
-            aria-label="Mes anterior"
-          >
-            ‹
-          </button>
-          <strong>{allMonths || onlyUncategorized ? 'Todos los meses' : monthLabel(month)}</strong>
-          <button
-            type="button"
-            onClick={() => setMonth((m) => shiftMonth(m, 1))}
-            disabled={allMonths || onlyUncategorized}
-            aria-label="Mes siguiente"
-          >
-            ›
-          </button>
-        </div>
+        <MonthPicker disabled={allMonths || onlyUncategorized} />
       </div>
 
       {uncategorized > 0 && !onlyUncategorized && (

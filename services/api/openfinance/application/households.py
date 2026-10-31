@@ -45,8 +45,9 @@ class BootstrapRequest:
 
 
 def bootstrap_household(
-    uow: UnitOfWork, hasher: PasswordHasher, request: BootstrapRequest
+    uow: UnitOfWork, hasher: PasswordHasher, request: BootstrapRequest, *, commit: bool = True
 ) -> Household:
+    """Crea hogar, personas, categorías y cuentas. Con ``commit=False`` lo deja a quien llama."""
     if not request.members:
         raise InvalidRequestError("El hogar necesita al menos una persona")
     try:
@@ -95,5 +96,6 @@ def bootstrap_household(
             raise InvalidRequestError(f"Cuenta «{spec.name}»: {exc}") from exc
         uow.accounts.add(account)
 
-    uow.commit()
+    if commit:
+        uow.commit()
     return household

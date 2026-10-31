@@ -155,6 +155,97 @@
         "title": "CategorizeOut",
         "type": "object"
       },
+      "CategoryAmountOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "average": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None = sin categoría",
+            "title": "Category Id"
+          }
+        },
+        "required": [
+          "category_id",
+          "amount",
+          "average"
+        ],
+        "title": "CategoryAmountOut",
+        "type": "object"
+      },
+      "CategoryDetailOut": {
+        "properties": {
+          "average": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "merchants": {
+            "description": "Comercios principales de los últimos 3 meses",
+            "items": {
+              "$ref": "#/components/schemas/MerchantOut"
+            },
+            "title": "Merchants",
+            "type": "array"
+          },
+          "month": {
+            "title": "Month",
+            "type": "string"
+          },
+          "months": {
+            "items": {
+              "$ref": "#/components/schemas/MonthAmountOut"
+            },
+            "title": "Months",
+            "type": "array"
+          }
+        },
+        "required": [
+          "category_id",
+          "month",
+          "months",
+          "average",
+          "merchants"
+        ],
+        "title": "CategoryDetailOut",
+        "type": "object"
+      },
       "CategoryIn": {
         "properties": {
           "color": {
@@ -519,6 +610,24 @@
         "title": "MeOut",
         "type": "object"
       },
+      "MemberAmountOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "member_id": {
+            "format": "uuid",
+            "title": "Member Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "member_id",
+          "amount"
+        ],
+        "title": "MemberAmountOut",
+        "type": "object"
+      },
       "MemberOut": {
         "properties": {
           "display_name": {
@@ -536,6 +645,28 @@
           "display_name"
         ],
         "title": "MemberOut",
+        "type": "object"
+      },
+      "MerchantOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "merchant": {
+            "title": "Merchant",
+            "type": "string"
+          }
+        },
+        "required": [
+          "merchant",
+          "amount",
+          "count"
+        ],
+        "title": "MerchantOut",
         "type": "object"
       },
       "MetaResponse": {
@@ -592,6 +723,180 @@
           "currency"
         ],
         "title": "MoneyOut",
+        "type": "object"
+      },
+      "MonthAmountOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "has_data": {
+            "title": "Has Data",
+            "type": "boolean"
+          },
+          "month": {
+            "title": "Month",
+            "type": "string"
+          }
+        },
+        "required": [
+          "month",
+          "amount",
+          "has_data"
+        ],
+        "title": "MonthAmountOut",
+        "type": "object"
+      },
+      "MonthOverviewOut": {
+        "properties": {
+          "average_spent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Media de gasto de los meses anteriores con datos (hasta 12)"
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryAmountOut"
+            },
+            "title": "Categories",
+            "type": "array"
+          },
+          "contributions": {
+            "items": {
+              "$ref": "#/components/schemas/MemberAmountOut"
+            },
+            "title": "Contributions",
+            "type": "array"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "daily": {
+            "description": "Gasto acumulado al final de cada día (decimal exacto)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Daily",
+            "type": "array"
+          },
+          "days_elapsed": {
+            "title": "Days Elapsed",
+            "type": "integer"
+          },
+          "has_data": {
+            "title": "Has Data",
+            "type": "boolean"
+          },
+          "income": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "inflow": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "is_partial": {
+            "description": "Mes en curso: los datos llegan hasta days_elapsed",
+            "title": "Is Partial",
+            "type": "boolean"
+          },
+          "month": {
+            "title": "Month",
+            "type": "string"
+          },
+          "previous_daily": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Previous Daily",
+            "type": "array"
+          },
+          "previous_spent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "previous_spent_to_date": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Gasto del mes anterior hasta el mismo día (para comparar el mes en curso)"
+          },
+          "saved": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "saved_to_savings": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "saving_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "% de lo que entra que se ahorra",
+            "title": "Saving Rate"
+          },
+          "spent": {
+            "$ref": "#/components/schemas/MoneyOut"
+          }
+        },
+        "required": [
+          "month",
+          "has_data",
+          "spent",
+          "previous_spent",
+          "is_partial",
+          "days_elapsed",
+          "previous_spent_to_date",
+          "average_spent",
+          "inflow",
+          "income",
+          "saved",
+          "saved_to_savings",
+          "saving_rate",
+          "contributions",
+          "categories",
+          "currency",
+          "daily",
+          "previous_daily"
+        ],
+        "title": "MonthOverviewOut",
+        "type": "object"
+      },
+      "MonthSavedOut": {
+        "properties": {
+          "month": {
+            "title": "Month",
+            "type": "string"
+          },
+          "saved": {
+            "$ref": "#/components/schemas/MoneyOut"
+          }
+        },
+        "required": [
+          "month",
+          "saved"
+        ],
+        "title": "MonthSavedOut",
         "type": "object"
       },
       "PreviewRowOut": {
@@ -792,6 +1097,153 @@
           "source"
         ],
         "title": "TransactionOut",
+        "type": "object"
+      },
+      "TrendCategoryOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          }
+        },
+        "required": [
+          "category_id",
+          "amount"
+        ],
+        "title": "TrendCategoryOut",
+        "type": "object"
+      },
+      "TrendMonthOut": {
+        "properties": {
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/TrendCategoryOut"
+            },
+            "title": "Categories",
+            "type": "array"
+          },
+          "has_data": {
+            "title": "Has Data",
+            "type": "boolean"
+          },
+          "inflow": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "month": {
+            "title": "Month",
+            "type": "string"
+          },
+          "saved": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "spent": {
+            "$ref": "#/components/schemas/MoneyOut"
+          }
+        },
+        "required": [
+          "month",
+          "has_data",
+          "spent",
+          "inflow",
+          "saved",
+          "categories"
+        ],
+        "title": "TrendMonthOut",
+        "type": "object"
+      },
+      "TrendsOut": {
+        "properties": {
+          "average_saved": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "average_spent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "best": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MonthSavedOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "months": {
+            "items": {
+              "$ref": "#/components/schemas/TrendMonthOut"
+            },
+            "title": "Months",
+            "type": "array"
+          },
+          "saving_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saving Rate"
+          },
+          "total_inflow": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "total_saved": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "total_spent": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "worst": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MonthSavedOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "months",
+          "total_saved",
+          "total_inflow",
+          "total_spent",
+          "average_spent",
+          "average_saved",
+          "saving_rate",
+          "best",
+          "worst"
+        ],
+        "title": "TrendsOut",
         "type": "object"
       },
       "UserOut": {
@@ -1154,6 +1606,196 @@
         ]
       }
     },
+    "/api/v1/insights/category": {
+      "get": {
+        "description": "Una categoría en los últimos 12 meses y sus comercios principales.",
+        "operationId": "category_detail_api_v1_insights_category_get",
+        "parameters": [
+          {
+            "description": "AAAA-MM; por defecto, el actual",
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(19|2\\d)\\d{2}-(0[1-9]|1[0-2])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "AAAA-MM; por defecto, el actual",
+              "title": "Month"
+            }
+          },
+          {
+            "description": "Vacío = sin categoría",
+            "in": "query",
+            "name": "category_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Vacío = sin categoría",
+              "title": "Category Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Category Detail",
+        "tags": [
+          "insights"
+        ]
+      }
+    },
+    "/api/v1/insights/month": {
+      "get": {
+        "description": "Resumen de un mes de la conjunta y las huchas: lo que se gasta, entra y ahorra.",
+        "operationId": "month_overview_api_v1_insights_month_get",
+        "parameters": [
+          {
+            "description": "AAAA-MM; por defecto, el actual",
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(19|2\\d)\\d{2}-(0[1-9]|1[0-2])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "AAAA-MM; por defecto, el actual",
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonthOverviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Month Overview",
+        "tags": [
+          "insights"
+        ]
+      }
+    },
+    "/api/v1/insights/trends": {
+      "get": {
+        "description": "Evolución mensual hasta ``month``: gasto, entradas, ahorro y gasto por categoría.",
+        "operationId": "trends_api_v1_insights_trends_get",
+        "parameters": [
+          {
+            "description": "AAAA-MM; por defecto, el actual",
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(19|2\\d)\\d{2}-(0[1-9]|1[0-2])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "AAAA-MM; por defecto, el actual",
+              "title": "Month"
+            }
+          },
+          {
+            "in": "query",
+            "name": "months",
+            "required": false,
+            "schema": {
+              "default": 12,
+              "maximum": 36,
+              "minimum": 2,
+              "title": "Months",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrendsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Trends",
+        "tags": [
+          "insights"
+        ]
+      }
+    },
     "/api/v1/me": {
       "get": {
         "operationId": "get_me_api_v1_me_get",
@@ -1207,7 +1849,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+                  "pattern": "^(19|2\\d)\\d{2}-(0[1-9]|1[0-2])$",
                   "type": "string"
                 },
                 {
@@ -1259,6 +1901,35 @@
                 }
               ],
               "title": "Account Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category Id"
+            }
+          },
+          {
+            "description": "Solo cuentas del hogar (conjunta y huchas), como los gráficos",
+            "in": "query",
+            "name": "shared_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Solo cuentas del hogar (conjunta y huchas), como los gráficos",
+              "title": "Shared Only",
+              "type": "boolean"
             }
           },
           {

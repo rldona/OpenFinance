@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from openfinance.application.errors import NotFoundError
 from openfinance.application.ports import TransactionQuery, UnitOfWork
-from openfinance.domain.ledger import Account, Transaction, account_balance
+from openfinance.domain.ledger import Account, AccountKind, Transaction, account_balance
 from openfinance.domain.shared import Money
 from openfinance.domain.workspaces import Actor
 
@@ -32,6 +32,8 @@ def list_accounts(uow: UnitOfWork, actor: Actor) -> list[AccountView]:
 
 def list_transactions(uow: UnitOfWork, actor: Actor, query: TransactionQuery) -> list[Transaction]:
     accounts = visible_accounts(uow, actor)
+    if query.shared_only:
+        accounts = [a for a in accounts if a.kind in (AccountKind.JOINT, AccountKind.SAVINGS)]
     ids = [a.id for a in accounts]
     if query.account_id is not None:
         if query.account_id not in ids:
