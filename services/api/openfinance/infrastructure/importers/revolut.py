@@ -22,8 +22,8 @@ from openfinance.domain.imports import (
     fingerprint,
     suggest_kind,
 )
-from openfinance.domain.imports.model import normalize_text
 from openfinance.domain.shared import Money
+from openfinance.domain.shared.text import normalize_text
 
 
 class ImportFormatError(ValueError):

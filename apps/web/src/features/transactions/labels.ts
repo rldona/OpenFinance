@@ -1,10 +1,13 @@
-import type { Me, Transaction } from '../../api/client'
+import type { Category, Me, Transaction } from '../../api/client'
 import { toCents } from '../../lib/format'
 
-export function kindLabel(t: Pick<Transaction, 'kind' | 'member_id' | 'category' | 'amount'>, me: Me): {
-  text: string
-  tone: 'neutral' | 'in' | 'save' | 'warn'
-} {
+type Labelled = Pick<Transaction, 'kind' | 'member_id' | 'category_id' | 'amount'>
+
+export function kindLabel(
+  t: Labelled,
+  me: Me,
+  categoryById: Map<string, Category> = new Map(),
+): { text: string; tone: 'neutral' | 'in' | 'save' | 'warn' } {
   switch (t.kind) {
     case 'contribution': {
       const who = me.members.find((m) => m.id === t.member_id)?.display_name ?? 'alguien'
@@ -16,8 +19,12 @@ export function kindLabel(t: Pick<Transaction, 'kind' | 'member_id' | 'category'
       return { text: 'Ingreso', tone: 'in' }
     case 'internal_transfer':
       return { text: 'Entre cuentas', tone: 'neutral' }
-    case 'expense':
-      if (toCents(t.amount.amount) > 0n) return { text: 'Devolución', tone: 'in' }
-      return t.category ? { text: t.category, tone: 'neutral' } : { text: 'Sin categoría', tone: 'warn' }
+    case 'expense': {
+      const category = t.category_id ? categoryById.get(t.category_id) : undefined
+      const refund = toCents(t.amount.amount) > 0n
+      if (category) return { text: `${category.icon} ${category.name}${refund ? ' · devolución' : ''}`, tone: 'neutral' }
+      if (refund) return { text: 'Devolución', tone: 'in' }
+      return { text: 'Sin categoría', tone: 'warn' }
+    }
   }
 }

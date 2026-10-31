@@ -417,3 +417,70 @@ tr.dim {
     grid-template-columns: 1fr;
   }
 }
+
+.badge {
+  background: var(--neg);
+  color: #fff;
+  border-radius: 99px;
+  font-size: 11px;
+  padding: 0 6px;
+  margin-left: 6px;
+}
+
+.notice.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.catsel {
+  font: inherit;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 3px 4px;
+  border-radius: 7px;
+  max-width: 230px;
+}
+
+.catsel:hover,
+.catsel:focus {
+  border-color: var(--border);
+  background: var(--surface);
+}
+
+.catsel.empty {
+  background: var(--warn-soft);
+  border-color: #f5d9a8;
+  color: var(--warn);
+}
+
+.icon-field {
+  width: 56px;
+  text-align: center;
+}
+
+.toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  max-width: min(420px, calc(100vw - 40px));
+  background: #1f2937;
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 10px;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: all 0.2s;
+  pointer-events: none;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: none;
+}
+
+table.stale {
+  opacity: 0.55;
+}

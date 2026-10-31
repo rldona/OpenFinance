@@ -9,11 +9,14 @@ export const ROUTES = [
   { id: 'importar', label: 'Importar' },
 ] as const
 
-export type RouteId = (typeof ROUTES)[number]['id']
+const HIDDEN_ROUTES = ['categorias'] as const
+
+export type RouteId = (typeof ROUTES)[number]['id'] | (typeof HIDDEN_ROUTES)[number]
 
 function parse(hash: string): RouteId {
   const id = hash.replace(/^#\/?/, '')
-  return ROUTES.find((r) => r.id === id)?.id ?? 'movimientos'
+  const hidden = HIDDEN_ROUTES.find((r) => r === id)
+  return hidden ?? ROUTES.find((r) => r.id === id)?.id ?? 'movimientos'
 }
 
 export function useRoute(): RouteId {

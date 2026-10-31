@@ -4,12 +4,13 @@ import calendar
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from openfinance.application.errors import ConflictError
 from openfinance.application.ports import StoredSession, TransactionQuery
+from openfinance.domain.categories import Category, CategoryId, CategoryRule
 from openfinance.domain.identity import User
 from openfinance.domain.imports.batch import PREVIEW_TTL, ImportBatch, ImportStatus
 from openfinance.domain.ledger import (
@@ -29,6 +30,8 @@ from openfinance.domain.shared.ids import (
 from openfinance.domain.workspaces import Household
 from openfinance.infrastructure.db.models import (
     AccountRow,
+    CategoryRow,
+    CategoryRuleRow,
     HouseholdRow,
     ImportBatchRow,
     MembershipRow,
@@ -170,7 +173,8 @@ def _transaction(row: TransactionRow) -> Transaction:
         description=row.description,
         amount=Money.of(row.amount, row.currency),
         kind=TransactionKind(row.kind),
-        category=row.category,
+        category_id=CategoryId(row.category_id) if row.category_id else None,
+        merchant=row.merchant,
         member_id=UserId(row.member_id) if row.member_id else None,
         bank_type=row.bank_type,
         source=row.source,
@@ -202,7 +206,7 @@ class SqlTransactionRepository:
         if query.uncategorized:
             stmt = stmt.where(
                 TransactionRow.kind == TransactionKind.EXPENSE.value,
-                TransactionRow.category.is_(None),
+                TransactionRow.category_id.is_(None),
             )
         stmt = stmt.order_by(TransactionRow.booked_at.desc(), TransactionRow.id).limit(query.limit)
         return [_transaction(r) for r in self._s.scalars(stmt)]
@@ -229,7 +233,8 @@ class SqlTransactionRepository:
                 amount=t.amount.amount,
                 currency=t.amount.currency.code,
                 kind=t.kind.value,
-                category=t.category,
+                category_id=t.category_id,
+                merchant=t.merchant,
                 member_id=t.member_id,
                 bank_type=t.bank_type,
                 source=t.source,
@@ -238,6 +243,61 @@ class SqlTransactionRepository:
             )
         )
         _flush(self._s)
+
+    def get(self, household_id: WorkspaceId, transaction_id: TransactionId) -> Transaction | None:
+        row = self._s.scalar(
+            select(TransactionRow).where(
+                TransactionRow.id == transaction_id, TransactionRow.household_id == household_id
+            )
+        )
+        return _transaction(row) if row else None
+
+    def set_category(
+        self, household_id: WorkspaceId, ids: list[TransactionId], category_id: CategoryId | None
+    ) -> None:
+        for i in range(0, len(ids), 500):
+            self._s.execute(
+                update(TransactionRow)
+                .where(
+                    TransactionRow.household_id == household_id,
+                    TransactionRow.id.in_(ids[i : i + 500]),
+                    TransactionRow.kind == TransactionKind.EXPENSE.value,
+                )
+                .values(category_id=category_id)
+            )
+        _flush(self._s)
+
+    def _uncategorized(self, household_id: WorkspaceId, account_ids: list[AccountId]):  # type: ignore[no-untyped-def]
+        return (
+            TransactionRow.household_id == household_id,
+            TransactionRow.account_id.in_(account_ids),
+            TransactionRow.kind == TransactionKind.EXPENSE.value,
+            TransactionRow.category_id.is_(None),
+        )
+
+    def uncategorized_with_merchant_word(
+        self, household_id: WorkspaceId, account_ids: list[AccountId], first_word: str
+    ) -> list[Transaction]:
+        rows = self._s.scalars(
+            select(TransactionRow).where(
+                *self._uncategorized(household_id, account_ids),
+                or_(
+                    TransactionRow.merchant == first_word,
+                    TransactionRow.merchant.startswith(f"{first_word} ", autoescape=True),
+                ),
+            )
+        )
+        return [_transaction(r) for r in rows]
+
+    def count_uncategorized(self, household_id: WorkspaceId, account_ids: list[AccountId]) -> int:
+        return int(
+            self._s.scalar(
+                select(func.count())
+                .select_from(TransactionRow)
+                .where(*self._uncategorized(household_id, account_ids))
+            )
+            or 0
+        )
 
     def existing_fingerprints(
         self, household_id: WorkspaceId, account_id: AccountId, fingerprints: list[str]
@@ -291,6 +351,109 @@ class SqlSessionRepository:
     def delete_expired(self, now: datetime) -> int:
         result = self._s.execute(delete(SessionRow).where(SessionRow.expires_at <= now))
         return int(getattr(result, "rowcount", 0) or 0)
+
+
+def _category(row: CategoryRow) -> Category:
+    return Category(
+        id=CategoryId(row.id),
+        household_id=WorkspaceId(row.household_id),
+        name=row.name,
+        icon=row.icon,
+        color=row.color,
+        hidden=row.hidden,
+        slug=row.slug,
+        position=row.position,
+    )
+
+
+class SqlCategoryRepository:
+    def __init__(self, session: Session) -> None:
+        self._s = session
+
+    def for_household(self, household_id: WorkspaceId) -> list[Category]:
+        rows = self._s.scalars(
+            select(CategoryRow)
+            .where(CategoryRow.household_id == household_id)
+            .order_by(CategoryRow.position, CategoryRow.name)
+        )
+        return [_category(r) for r in rows]
+
+    def get(self, household_id: WorkspaceId, category_id: CategoryId) -> Category | None:
+        row = self._s.scalar(
+            select(CategoryRow).where(
+                CategoryRow.id == category_id, CategoryRow.household_id == household_id
+            )
+        )
+        return _category(row) if row else None
+
+    def add(self, category: Category) -> None:
+        self._s.add(
+            CategoryRow(
+                id=category.id,
+                household_id=category.household_id,
+                name=category.name,
+                key=category.key[:50],
+                icon=category.icon,
+                color=category.color,
+                hidden=category.hidden,
+                slug=category.slug,
+                position=category.position,
+            )
+        )
+        _flush(self._s)
+
+    def update(self, category: Category) -> None:
+        row = self._s.get(CategoryRow, category.id)
+        if row is None or row.household_id != category.household_id:
+            raise LookupError(category.id)
+        row.name = category.name
+        row.key = category.key[:50]
+        row.icon = category.icon
+        row.color = category.color
+        row.hidden = category.hidden
+        _flush(self._s)
+
+
+class SqlRuleRepository:
+    def __init__(self, session: Session) -> None:
+        self._s = session
+
+    def for_household(self, household_id: WorkspaceId) -> list[CategoryRule]:
+        rows = self._s.scalars(
+            select(CategoryRuleRow).where(CategoryRuleRow.household_id == household_id)
+        )
+        return [
+            CategoryRule(
+                WorkspaceId(r.household_id), r.merchant, CategoryId(r.category_id), r.scope
+            )
+            for r in rows
+        ]
+
+    def upsert(self, rule: CategoryRule, now: datetime) -> None:
+        row = self._s.get(CategoryRuleRow, (rule.household_id, rule.scope, rule.merchant))
+        if row is None:
+            self._s.add(
+                CategoryRuleRow(
+                    household_id=rule.household_id,
+                    scope=rule.scope,
+                    merchant=rule.merchant,
+                    category_id=rule.category_id,
+                    updated_at=now,
+                )
+            )
+        else:
+            row.category_id = rule.category_id
+            row.updated_at = now
+        _flush(self._s)
+
+    def delete(self, household_id: WorkspaceId, scope: str, merchant: str) -> None:
+        self._s.execute(
+            delete(CategoryRuleRow).where(
+                CategoryRuleRow.household_id == household_id,
+                CategoryRuleRow.scope == scope,
+                CategoryRuleRow.merchant == merchant,
+            )
+        )
 
 
 def _batch(row: ImportBatchRow) -> ImportBatch:
@@ -383,6 +546,8 @@ class SqlUnitOfWork:
         self.transactions = SqlTransactionRepository(session)
         self.sessions = SqlSessionRepository(session)
         self.imports = SqlImportBatchRepository(session)
+        self.categories = SqlCategoryRepository(session)
+        self.rules = SqlRuleRepository(session)
 
     def commit(self) -> None:
         try:

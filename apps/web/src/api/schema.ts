@@ -55,6 +55,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Categories */
+        get: operations["list_categories_api_v1_categories_get"];
+        put?: never;
+        /** Create Category */
+        post: operations["create_category_api_v1_categories_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/categories/{category_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Category
+         * @description Renombrar, cambiar icono o color, u ocultar. Las categorías no se borran.
+         */
+        patch: operations["update_category_api_v1_categories__category_id__patch"];
+        trace?: never;
+    };
     "/api/v1/imports": {
         parameters: {
             query?: never;
@@ -146,6 +184,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/transactions/uncategorized-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Uncategorized Count */
+        get: operations["uncategorized_count_api_v1_transactions_uncategorized_count_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/transactions/{transaction_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Categorize
+         * @description Pone o quita la categoría de un gasto y, por defecto, aprende la regla.
+         */
+        patch: operations["categorize_api_v1_transactions__transaction_id__patch"];
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -207,6 +282,73 @@ export interface components {
              * @description Extracto del banco (CSV)
              */
             file: string;
+        };
+        /** CategorizeIn */
+        CategorizeIn: {
+            /** Category Id */
+            category_id: string | null;
+            /**
+             * Learn
+             * @description Guardar la regla «comercio → categoría» y aplicarla a los gastos sin ella
+             * @default true
+             */
+            learn: boolean;
+        };
+        /** CategorizeOut */
+        CategorizeOut: {
+            /** Also Categorized */
+            also_categorized: number;
+            rule: components["schemas"]["RuleOut"] | null;
+            transaction: components["schemas"]["TransactionOut"];
+        };
+        /** CategoryIn */
+        CategoryIn: {
+            /**
+             * Color
+             * @default #64748b
+             */
+            color: string;
+            /**
+             * Icon
+             * @default 🏷️
+             */
+            icon: string;
+            /** Name */
+            name: string;
+        };
+        /** CategoryOut */
+        CategoryOut: {
+            /** Color */
+            color: string;
+            /** Hidden */
+            hidden: boolean;
+            /** Icon */
+            icon: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string | null;
+        };
+        /** CategoryPatch */
+        CategoryPatch: {
+            /** Color */
+            color?: string | null;
+            /** Hidden */
+            hidden?: boolean | null;
+            /** Icon */
+            icon?: string | null;
+            /** Name */
+            name?: string | null;
+        };
+        /** CountOut */
+        CountOut: {
+            /** Count */
+            count: number;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -342,6 +484,11 @@ export interface components {
              * Format: date-time
              */
             booked_at: string;
+            /**
+             * Category Id
+             * @description Categoría propuesta por una regla aprendida
+             */
+            category_id: string | null;
             /** Description */
             description: string;
             /** Duplicate */
@@ -351,6 +498,16 @@ export interface components {
             line: number;
             /** Member Id */
             member_id: string | null;
+        };
+        /** RuleOut */
+        RuleOut: {
+            /**
+             * Category Id
+             * Format: uuid
+             */
+            category_id: string;
+            /** Merchant */
+            merchant: string;
         };
         /** SkippedRowOut */
         SkippedRowOut: {
@@ -380,8 +537,8 @@ export interface components {
              * Format: date-time
              */
             booked_at: string;
-            /** Category */
-            category: string | null;
+            /** Category Id */
+            category_id: string | null;
             /** Description */
             description: string;
             /**
@@ -392,6 +549,11 @@ export interface components {
             kind: components["schemas"]["TransactionKind"];
             /** Member Id */
             member_id: string | null;
+            /**
+             * Merchant
+             * @description Comercio normalizado y legible, p. ej. «Mercadona»
+             */
+            merchant: string;
             /** Source */
             source: string;
             /**
@@ -502,6 +664,94 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    list_categories_api_v1_categories_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryOut"][];
+                };
+            };
+        };
+    };
+    create_category_api_v1_categories_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_category_api_v1_categories__category_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };
@@ -631,6 +881,61 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TransactionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    uncategorized_count_api_v1_transactions_uncategorized_count_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CountOut"];
+                };
+            };
+        };
+    };
+    categorize_api_v1_transactions__transaction_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transaction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategorizeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategorizeOut"];
                 };
             };
             /** @description Validation Error */

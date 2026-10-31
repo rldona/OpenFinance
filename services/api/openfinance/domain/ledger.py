@@ -8,6 +8,7 @@ from datetime import date, datetime
 from enum import StrEnum
 from uuid import UUID
 
+from openfinance.domain.categories import CategoryId, merchant_key
 from openfinance.domain.shared import Currency, Money
 from openfinance.domain.shared.ids import AccountId, TransactionId, UserId, WorkspaceId
 
@@ -82,7 +83,7 @@ class Transaction:
     description: str
     amount: Money
     kind: TransactionKind
-    category: str | None = None
+    category_id: CategoryId | None = None
     member_id: UserId | None = None
     """Quién aporta, en las aportaciones."""
     bank_type: str = ""
@@ -91,6 +92,8 @@ class Transaction:
     fingerprint: str | None = None
     import_id: UUID | None = None
     """Importación de la que procede, si viene de un extracto."""
+    merchant: str = ""
+    """Comercio normalizado; se calcula a partir del concepto si no se indica."""
 
     def __post_init__(self) -> None:
         if self.kind is TransactionKind.CONTRIBUTION and self.member_id is None:
@@ -99,10 +102,14 @@ class Transaction:
             raise LedgerError("Solo las aportaciones indican persona")
         if self.amount.is_zero:
             raise LedgerError("Un movimiento no puede ser de importe cero")
+        if self.category_id is not None and self.kind is not TransactionKind.EXPENSE:
+            raise LedgerError("Solo los gastos tienen categoría")
+        if not self.merchant:
+            object.__setattr__(self, "merchant", merchant_key(self.description))
 
     @property
     def is_uncategorized(self) -> bool:
-        return self.kind is TransactionKind.EXPENSE and self.category is None
+        return self.kind is TransactionKind.EXPENSE and self.category_id is None
 
 
 def account_balance(account: Account, transactions: Iterable[Transaction]) -> Money:

@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ACCOUNTS, ME, PREVIEW, TRANSACTIONS, mockApi } from '../test/api'
+import { ACCOUNTS, CATEGORIES, ME, PREVIEW, TRANSACTIONS, mockApi } from '../test/api'
 import { App } from './App'
 
 beforeEach(() => {
@@ -14,6 +14,8 @@ const loggedIn = (extra: Parameters<typeof mockApi>[0] = {}) =>
     'GET /api/v1/me': { body: ME },
     'GET /api/v1/accounts': { body: ACCOUNTS },
     'GET /api/v1/transactions': { body: TRANSACTIONS },
+    'GET /api/v1/categories': { body: CATEGORIES },
+    'GET /api/v1/transactions/uncategorized-count': { body: { count: 1 } },
     ...extra,
   })
 
@@ -24,6 +26,8 @@ describe('Inicio de sesión', () => {
       'POST /api/v1/auth/login': { body: ME },
       'GET /api/v1/accounts': { body: ACCOUNTS },
       'GET /api/v1/transactions': { body: [] },
+      'GET /api/v1/categories': { body: CATEGORIES },
+      'GET /api/v1/transactions/uncategorized-count': { body: { count: 0 } },
     })
     render(<App />)
     await userEvent.type(await screen.findByLabelText('Email'), 'raul@example.org')
@@ -66,9 +70,10 @@ describe('Movimientos', () => {
     expect(row('Payment from Raul')).toHaveTextContent('Aportación de Raúl')
     expect(row('Payment from Raul')).toHaveTextContent(/\+1600,00\s€|\+1\.600,00\s€/)
     expect(row('To pocket Ahorro')).toHaveTextContent('A la hucha')
-    expect(row('Glovo')).toHaveTextContent('Sin categoría')
-    expect(row('Amazon')).toHaveTextContent('Devolución')
-    expect(row('Mercadona')).toHaveTextContent('Cuenta conjunta')
+    expect(screen.getByLabelText('Categoría de Glovo')).toHaveValue('')
+    expect(screen.getByLabelText('Categoría de Mercadona')).toHaveValue('c-super')
+    expect(within(screen.getByLabelText('Categoría de Glovo')).queryByText(/Antigua/)).toBeNull()
+    expect(within(table).getAllByText(/Cuenta conjunta/).length).toBeGreaterThan(0)
   })
 
   it('filtra por mes y por «sin categoría»', async () => {
@@ -78,12 +83,13 @@ describe('Movimientos', () => {
     const month = calls.filter((c) => c.url.pathname === '/api/v1/transactions').at(-1)!
     expect(month.url.searchParams.get('month')).toMatch(/^\d{4}-\d{2}$/)
 
-    await userEvent.click(screen.getByLabelText(/Solo sin/))
+    await userEvent.click(screen.getByLabelText(/Solo sin categoría/))
     await waitFor(() => {
       const last = calls.filter((c) => c.url.pathname === '/api/v1/transactions').at(-1)!
       expect(last.url.searchParams.get('uncategorized')).toBe('true')
     })
 
+    await userEvent.click(screen.getByLabelText(/Solo sin categoría/))
     await userEvent.click(screen.getByRole('button', { name: 'Mes anterior' }))
     await waitFor(() => {
       const last = calls.filter((c) => c.url.pathname === '/api/v1/transactions').at(-1)!
@@ -113,6 +119,8 @@ describe('Importar', () => {
 
     expect(await screen.findByText(/coincidirá con el del banco/)).toBeInTheDocument()
     expect(screen.getByText('Aportación de Elena')).toBeInTheDocument()
+    expect(screen.getByText('🛒 Supermercado')).toBeInTheDocument()
+    expect(screen.getByText(/· regla/)).toBeInTheDocument()
     expect(screen.getByText('Ya importado')).toBeInTheDocument()
     expect(screen.getByText(/Filas que no se importan \(1\)/)).toBeInTheDocument()
 
@@ -170,5 +178,70 @@ describe('Sesión caducada', () => {
     loggedIn({ 'GET /api/v1/transactions': { body: many } })
     render(<App />)
     expect(await screen.findByText(/Se muestran los 1000 más recientes/)).toBeInTheDocument()
+  })
+})
+
+describe('Categorías', () => {
+  it('muestra el número de gastos sin categoría en la pestaña y en el aviso', async () => {
+    loggedIn({ 'GET /api/v1/transactions/uncategorized-count': { body: { count: 3 } } })
+    render(<App />)
+    expect(await screen.findByLabelText('3 sin categoría')).toBeInTheDocument()
+    expect(screen.getByText(/3 gastos sin categoría/)).toBeInTheDocument()
+  })
+
+  it('cambia la categoría desde la tabla y avisa de la regla aprendida', async () => {
+    const calls = loggedIn({
+      'PATCH /api/v1/transactions/t4': {
+        body: {
+          transaction: { ...TRANSACTIONS[3], category_id: 'c-rest' },
+          rule: { merchant: 'Glovo', category_id: 'c-rest' },
+          also_categorized: 2,
+        },
+      },
+    })
+    render(<App />)
+    await userEvent.selectOptions(await screen.findByLabelText('Categoría de Glovo'), 'c-rest')
+    expect(await screen.findByText('Regla guardada: «Glovo» → Restaurantes · 2 más clasificados')).toBeInTheDocument()
+    const patch = calls.find((c) => c.method === 'PATCH')!
+    expect(JSON.parse(String(patch.body))).toEqual({ category_id: 'c-rest', learn: true })
+    expect(patch.headers.get('X-Requested-With')).toBe('OpenFinance')
+    await waitFor(() =>
+      expect(calls.filter((c) => c.url.pathname === '/api/v1/transactions/uncategorized-count').length).toBe(2),
+    )
+  })
+
+  it('crea, renombra y oculta categorías', async () => {
+    window.location.hash = '#categorias'
+    const calls = loggedIn({
+      'POST /api/v1/categories': { status: 201, body: { id: 'c-new', name: 'Mascotas', icon: '🐶', color: '#64748b', hidden: false, slug: null } },
+      'PATCH /api/v1/categories/c-super': { body: { ...CATEGORIES[0], name: 'Súper' } },
+      'PATCH /api/v1/categories/c-rest': { body: { ...CATEGORIES[1], hidden: true } },
+    })
+    render(<App />)
+    const name = await screen.findByLabelText('Nombre de Supermercado')
+    await userEvent.clear(name)
+    await userEvent.type(name, 'Súper{Enter}')
+    await userEvent.click(screen.getAllByLabelText('Oculta')[1])
+    await userEvent.clear(screen.getByLabelText('Icono de la nueva categoría'))
+    await userEvent.type(screen.getByLabelText('Icono de la nueva categoría'), '🐶')
+    await userEvent.type(screen.getByLabelText('Nombre de la nueva categoría'), 'Mascotas')
+    await userEvent.click(screen.getByRole('button', { name: 'Añadir' }))
+
+    expect(await screen.findByText('Categoría «Mascotas» creada')).toBeInTheDocument()
+    const bodies = calls.filter((c) => c.method !== 'GET').map((c) => [c.method, c.url.pathname, JSON.parse(String(c.body))])
+    expect(bodies).toEqual([
+      ['PATCH', '/api/v1/categories/c-super', { name: 'Súper' }],
+      ['PATCH', '/api/v1/categories/c-rest', { hidden: true }],
+      ['POST', '/api/v1/categories', { name: 'Mascotas', icon: '🐶', color: '#64748b' }],
+    ])
+  })
+})
+
+describe('Errores de carga', () => {
+  it('avisa si las categorías no cargan y no deja categorizar', async () => {
+    loggedIn({ 'GET /api/v1/categories': { status: 500, body: { detail: 'boom' } } })
+    render(<App />)
+    expect(await screen.findByText('No se han podido cargar las categorías')).toBeInTheDocument()
+    expect(await screen.findByLabelText('Categoría de Glovo')).toBeDisabled()
   })
 })

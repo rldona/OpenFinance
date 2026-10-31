@@ -100,6 +100,203 @@
         "title": "Body_create_import_api_v1_imports_post",
         "type": "object"
       },
+      "CategorizeIn": {
+        "properties": {
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "learn": {
+            "default": true,
+            "description": "Guardar la regla «comercio → categoría» y aplicarla a los gastos sin ella",
+            "title": "Learn",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "category_id"
+        ],
+        "title": "CategorizeIn",
+        "type": "object"
+      },
+      "CategorizeOut": {
+        "properties": {
+          "also_categorized": {
+            "title": "Also Categorized",
+            "type": "integer"
+          },
+          "rule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RuleOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "transaction": {
+            "$ref": "#/components/schemas/TransactionOut"
+          }
+        },
+        "required": [
+          "transaction",
+          "rule",
+          "also_categorized"
+        ],
+        "title": "CategorizeOut",
+        "type": "object"
+      },
+      "CategoryIn": {
+        "properties": {
+          "color": {
+            "default": "#64748b",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "title": "Color",
+            "type": "string"
+          },
+          "icon": {
+            "default": "🏷️",
+            "maxLength": 8,
+            "minLength": 1,
+            "title": "Icon",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CategoryIn",
+        "type": "object"
+      },
+      "CategoryOut": {
+        "properties": {
+          "color": {
+            "title": "Color",
+            "type": "string"
+          },
+          "hidden": {
+            "title": "Hidden",
+            "type": "boolean"
+          },
+          "icon": {
+            "title": "Icon",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "icon",
+          "color",
+          "hidden",
+          "slug"
+        ],
+        "title": "CategoryOut",
+        "type": "object"
+      },
+      "CategoryPatch": {
+        "properties": {
+          "color": {
+            "anyOf": [
+              {
+                "pattern": "^#[0-9a-fA-F]{6}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "hidden": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hidden"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "maxLength": 8,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "CategoryPatch",
+        "type": "object"
+      },
+      "CountOut": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "title": "CountOut",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -407,6 +604,19 @@
             "title": "Booked At",
             "type": "string"
           },
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Categoría propuesta por una regla aprendida",
+            "title": "Category Id"
+          },
           "description": {
             "title": "Description",
             "type": "string"
@@ -442,9 +652,29 @@
           "amount",
           "kind",
           "member_id",
+          "category_id",
           "duplicate"
         ],
         "title": "PreviewRowOut",
+        "type": "object"
+      },
+      "RuleOut": {
+        "properties": {
+          "category_id": {
+            "format": "uuid",
+            "title": "Category Id",
+            "type": "string"
+          },
+          "merchant": {
+            "title": "Merchant",
+            "type": "string"
+          }
+        },
+        "required": [
+          "merchant",
+          "category_id"
+        ],
+        "title": "RuleOut",
         "type": "object"
       },
       "SkippedRowOut": {
@@ -497,16 +727,17 @@
             "title": "Booked At",
             "type": "string"
           },
-          "category": {
+          "category_id": {
             "anyOf": [
               {
+                "format": "uuid",
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Category"
+            "title": "Category Id"
           },
           "description": {
             "title": "Description",
@@ -532,6 +763,11 @@
             ],
             "title": "Member Id"
           },
+          "merchant": {
+            "description": "Comercio normalizado y legible, p. ej. «Mercadona»",
+            "title": "Merchant",
+            "type": "string"
+          },
           "source": {
             "title": "Source",
             "type": "string"
@@ -550,7 +786,8 @@
           "description",
           "amount",
           "kind",
-          "category",
+          "category_id",
+          "merchant",
           "member_id",
           "source"
         ],
@@ -710,6 +947,124 @@
         "summary": "Logout",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/v1/categories": {
+      "get": {
+        "operationId": "list_categories_api_v1_categories_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CategoryOut"
+                  },
+                  "title": "Response List Categories Api V1 Categories Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Categories",
+        "tags": [
+          "categories"
+        ]
+      },
+      "post": {
+        "operationId": "create_category_api_v1_categories_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Category",
+        "tags": [
+          "categories"
+        ]
+      }
+    },
+    "/api/v1/categories/{category_id}": {
+      "patch": {
+        "description": "Renombrar, cambiar icono o color, u ocultar. Las categorías no se borran.",
+        "operationId": "update_category_api_v1_categories__category_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "category_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Category Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Category",
+        "tags": [
+          "categories"
         ]
       }
     },
@@ -948,6 +1303,81 @@
         "summary": "List Transactions",
         "tags": [
           "ledger"
+        ]
+      }
+    },
+    "/api/v1/transactions/uncategorized-count": {
+      "get": {
+        "operationId": "uncategorized_count_api_v1_transactions_uncategorized_count_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Uncategorized Count",
+        "tags": [
+          "categories"
+        ]
+      }
+    },
+    "/api/v1/transactions/{transaction_id}": {
+      "patch": {
+        "description": "Pone o quita la categoría de un gasto y, por defecto, aprende la regla.",
+        "operationId": "categorize_api_v1_transactions__transaction_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transaction_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transaction Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategorizeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategorizeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Categorize",
+        "tags": [
+          "categories"
         ]
       }
     },

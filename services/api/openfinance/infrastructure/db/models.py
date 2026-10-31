@@ -5,6 +5,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -94,6 +95,12 @@ class TransactionRow(Base):
             name="fk_transactions_member_membership",
         ),
         Index("ix_transactions_household_booked_at", "household_id", "booked_at"),
+        Index("ix_transactions_household_merchant", "household_id", "merchant"),
+        ForeignKeyConstraint(
+            ["category_id", "household_id"],
+            ["categories.id", "categories.household_id"],
+            name="fk_transactions_category_household",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
@@ -105,13 +112,50 @@ class TransactionRow(Base):
     amount: Mapped[Decimal] = mapped_column(AMOUNT)
     currency: Mapped[str] = mapped_column(String(3))
     kind: Mapped[str] = mapped_column(String(30))
-    category: Mapped[str | None] = mapped_column(String(50))
+    category_id: Mapped[UUID | None] = mapped_column()
+    merchant: Mapped[str] = mapped_column(String(100), default="")
     member_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
     bank_type: Mapped[str] = mapped_column(String(40), default="")
     source: Mapped[str] = mapped_column(String(200), default="manual")
     fingerprint: Mapped[str | None] = mapped_column(String(64))
     import_id: Mapped[UUID | None] = mapped_column(ForeignKey("import_batches.id"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CategoryRow(Base):
+    __tablename__ = "categories"
+    __table_args__ = (
+        UniqueConstraint("household_id", "key", name="uq_categories_household_key"),
+        UniqueConstraint("id", "household_id", name="uq_categories_id_household"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"), index=True)
+    name: Mapped[str] = mapped_column(String(50))
+    key: Mapped[str] = mapped_column(String(50))
+    icon: Mapped[str] = mapped_column(String(16))
+    color: Mapped[str] = mapped_column(String(7))
+    hidden: Mapped[bool] = mapped_column(Boolean, default=False)
+    slug: Mapped[str | None] = mapped_column(String(30))
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CategoryRuleRow(Base):
+    __tablename__ = "category_rules"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["category_id", "household_id"],
+            ["categories.id", "categories.household_id"],
+            name="fk_category_rules_category_household",
+        ),
+    )
+
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"), primary_key=True)
+    scope: Mapped[str] = mapped_column(String(36), primary_key=True)
+    merchant: Mapped[str] = mapped_column(String(100), primary_key=True)
+    category_id: Mapped[UUID] = mapped_column()
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class ImportBatchRow(Base):

@@ -32,6 +32,10 @@ Para probar sin PostgreSQL basta con `DATABASE_URL=sqlite:///./dev.db` (solo des
 | `GET` | `/api/v1/transactions` | Movimientos visibles; filtros `month=AAAA-MM`, `q`, `uncategorized`, `account_id` |
 | `POST` | `/api/v1/imports` | Vista previa de un extracto (multipart: `account_id`, `file`); no guarda nada |
 | `POST` | `/api/v1/imports/{id}/commit` | Guarda los movimientos nuevos de la vista previa; repetirlo no duplica |
+| `GET` / `POST` | `/api/v1/categories` | Categorías del hogar / crear una |
+| `PATCH` | `/api/v1/categories/{id}` | Renombrar, icono, color u ocultar |
+| `PATCH` | `/api/v1/transactions/{id}` | Poner o quitar la categoría de un gasto; con `learn` aprende la regla del comercio |
+| `GET` | `/api/v1/transactions/uncategorized-count` | Gastos sin categoría visibles para ti |
 
 Todas las peticiones que escriben (`POST`, `PUT`, `PATCH`, `DELETE`) deben llevar la cabecera `X-Requested-With: OpenFinance`; el cliente de la web la añade solo.
 

@@ -35,15 +35,22 @@ export const ACCOUNTS = [
   { id: 'a-raul', name: 'Bankinter Raúl', institution: 'bankinter', kind: 'personal', owner_id: 'u-raul', opening_balance: eur('0.00'), balance: eur('500.00') },
 ]
 
+export const CATEGORIES = [
+  { id: 'c-super', name: 'Supermercado', icon: '🛒', color: '#16a34a', hidden: false, slug: 'super' },
+  { id: 'c-rest', name: 'Restaurantes', icon: '🍽️', color: '#ea580c', hidden: false, slug: 'restaurantes' },
+  { id: 'c-old', name: 'Antigua', icon: '📦', color: '#64748b', hidden: true, slug: null },
+]
+
 const tx = (id: string, description: string, amount: string, kind: string, extra: object = {}) => ({
   id,
   account_id: 'a-joint',
   booked_at: '2026-10-05T10:00:00',
   value_date: '2026-10-05',
   description,
+  merchant: description,
   amount: eur(amount),
   kind,
-  category: null,
+  category_id: null,
   member_id: null,
   source: 'import:revolut.csv',
   ...extra,
@@ -52,7 +59,7 @@ const tx = (id: string, description: string, amount: string, kind: string, extra
 export const TRANSACTIONS = [
   tx('t1', 'Payment from Raul', '1600.00', 'contribution', { member_id: 'u-raul' }),
   tx('t2', 'To pocket Ahorro', '-300.00', 'savings_transfer'),
-  tx('t3', 'Mercadona', '-87.34', 'expense', { category: 'super' }),
+  tx('t3', 'Mercadona', '-87.34', 'expense', { category_id: 'c-super' }),
   tx('t4', 'Glovo', '-25.40', 'expense'),
   tx('t5', 'Amazon', '23.99', 'expense'),
 ]
@@ -65,9 +72,9 @@ export const PREVIEW = {
   duplicate_count: 1,
   skipped_count: 1,
   rows: [
-    { line: 2, booked_at: '2026-10-01T08:00:12', description: 'Payment from Elena', amount: eur('1400.00'), kind: 'contribution', member_id: 'u-elena', duplicate: false },
-    { line: 3, booked_at: '2026-10-03T19:22:41', description: 'Mercadona', amount: eur('-87.34'), kind: 'expense', member_id: null, duplicate: true },
-    { line: 4, booked_at: '2026-10-04T08:15:03', description: 'Café Central', amount: eur('-1.80'), kind: 'expense', member_id: null, duplicate: false },
+    { line: 2, booked_at: '2026-10-01T08:00:12', description: 'Payment from Elena', amount: eur('1400.00'), kind: 'contribution', member_id: 'u-elena', category_id: null, duplicate: false },
+    { line: 3, booked_at: '2026-10-03T19:22:41', description: 'Mercadona', amount: eur('-87.34'), kind: 'expense', member_id: null, category_id: 'c-super', duplicate: true },
+    { line: 4, booked_at: '2026-10-04T08:15:03', description: 'Café Central', amount: eur('-1.80'), kind: 'expense', member_id: null, category_id: null, duplicate: false },
   ],
   skipped: [{ line: 5, reason: 'pendiente: se importará cuando se complete', description: 'Glovo' }],
   balance_mismatches: [],

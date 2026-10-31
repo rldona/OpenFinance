@@ -1,21 +1,28 @@
 import { useEffect, useState } from 'react'
 import { ApiError, api, setUnauthorizedHandler, type Me } from '../api/client'
+import { Toast } from '../components/Toast'
+import { useToast } from '../components/useToast'
 import { LoginPage } from '../features/auth/LoginPage'
+import { CategoriesPage } from '../features/categories/CategoriesPage'
 import { ImportPage } from '../features/import/ImportPage'
 import { ComingSoon } from '../features/placeholder/ComingSoon'
 import { TransactionsPage } from '../features/transactions/TransactionsPage'
+import { HouseholdProvider } from './household'
+import { useHousehold } from './household-context'
 import { ROUTES, type RouteId, useRoute } from './router'
 
 type Session = { kind: 'loading' } | { kind: 'anonymous' } | { kind: 'error' } | { kind: 'ready'; me: Me }
 
 const COLORS = ['#0f766e', '#db2777', '#2563eb']
 
-function Page({ route, me }: { route: RouteId; me: Me }) {
+function Page({ route }: { route: RouteId }) {
   switch (route) {
     case 'movimientos':
-      return <TransactionsPage me={me} />
+      return <TransactionsPage />
     case 'importar':
-      return <ImportPage me={me} />
+      return <ImportPage />
+    case 'categorias':
+      return <CategoriesPage />
     case 'mes':
       return <ComingSoon title="Este mes" ticket="OF-303" />
     case 'gastos':
@@ -30,6 +37,7 @@ function Page({ route, me }: { route: RouteId; me: Me }) {
 export function App() {
   const [session, setSession] = useState<Session>({ kind: 'loading' })
   const route = useRoute()
+  const [toast, notify] = useToast()
 
   useEffect(() => {
     setUnauthorizedHandler(() => setSession({ kind: 'anonymous' }))
@@ -57,14 +65,23 @@ export function App() {
     )
   if (session.kind === 'anonymous') return <LoginPage onLogin={(me) => setSession({ kind: 'ready', me })} />
 
-  const { me } = session
+  return (
+    <HouseholdProvider me={session.me} notify={notify}>
+      <Shell route={route} onLogout={() => setSession({ kind: 'anonymous' })} />
+      <Toast message={toast} />
+    </HouseholdProvider>
+  )
+}
+
+function Shell({ route, onLogout }: { route: RouteId; onLogout: () => void }) {
+  const { me, uncategorized, notify } = useHousehold()
 
   async function logout() {
     try {
       await api.logout()
-      setSession({ kind: 'anonymous' })
+      onLogout()
     } catch {
-      window.alert('No se ha podido cerrar la sesión. Inténtalo de nuevo.')
+      notify('No se ha podido cerrar la sesión. Inténtalo de nuevo.')
     }
   }
 
@@ -76,8 +93,18 @@ export function App() {
         </div>
         <nav className="tabs" aria-label="Secciones">
           {ROUTES.map((r) => (
-            <a key={r.id} href={`#${r.id}`} className={route === r.id ? 'active' : ''} aria-current={route === r.id ? 'page' : undefined}>
+            <a
+              key={r.id}
+              href={`#${r.id}`}
+              className={route === r.id ? 'active' : ''}
+              aria-current={route === r.id ? 'page' : undefined}
+            >
               {r.label}
+              {r.id === 'movimientos' && uncategorized > 0 && (
+                <span className="badge" aria-label={`${uncategorized} sin categoría`}>
+                  {uncategorized}
+                </span>
+              )}
             </a>
           ))}
         </nav>
@@ -93,7 +120,7 @@ export function App() {
         </button>
       </header>
       <main>
-        <Page route={route} me={me} />
+        <Page route={route} />
       </main>
     </>
   )

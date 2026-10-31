@@ -3,6 +3,7 @@ from uuid import uuid4
 
 import pytest
 
+from openfinance.domain.categories import CategoryId
 from openfinance.domain.identity import InvalidUserError, normalize_email, validate_password
 from openfinance.domain.ledger import (
     Account,
@@ -39,6 +40,9 @@ def account(kind=AccountKind.JOINT, owner=None, opening="100.00") -> Account:
 JOINT = account()
 
 
+SUPER = CategoryId(uuid4())
+
+
 def tx(amount: str, kind=TransactionKind.EXPENSE, member=None, acc=JOINT, category=None):
     return Transaction(
         id=TransactionId(uuid4()),
@@ -50,7 +54,7 @@ def tx(amount: str, kind=TransactionKind.EXPENSE, member=None, acc=JOINT, catego
         amount=Money.of(amount, EUR),
         kind=kind,
         member_id=member,
-        category=category,
+        category_id=category,
     )
 
 
@@ -58,9 +62,9 @@ MONTH = [
     tx("1600.00", TransactionKind.CONTRIBUTION, RAUL),
     tx("1400.00", TransactionKind.CONTRIBUTION, ELENA),
     tx("-300.00", TransactionKind.SAVINGS_TRANSFER),
-    tx("-87.34", category="super"),
+    tx("-87.34", category=SUPER),
     tx("-51.50"),
-    tx("23.99", category="otros"),  # devolución
+    tx("23.99", category=SUPER),  # devolución
     tx("22.50", TransactionKind.INCOME),
     tx("-40.00", TransactionKind.INTERNAL_TRANSFER),
 ]
@@ -131,13 +135,30 @@ class TestTransactions:
         with pytest.raises(LedgerError):
             tx("-10.00", member=RAUL)
 
+    def test_only_expenses_have_category(self) -> None:
+        with pytest.raises(LedgerError, match="categoría"):
+            tx("-300.00", TransactionKind.SAVINGS_TRANSFER, category=SUPER)
+
+    def test_merchant_is_derived_from_description(self) -> None:
+        t = Transaction(
+            id=TransactionId(uuid4()),
+            household_id=HOUSE,
+            account_id=JOINT.id,
+            booked_at=datetime(2026, 10, 5, 12, 0),  # noqa: DTZ001
+            value_date=date(2026, 10, 5),
+            description="COMPRA TARJETA 4821 MERCADONA 1234",
+            amount=Money.of("-1.00", EUR),
+            kind=TransactionKind.EXPENSE,
+        )
+        assert t.merchant == "MERCADONA"
+
     def test_zero_amount_is_rejected(self) -> None:
         with pytest.raises(LedgerError):
             tx("0.00")
 
     def test_uncategorized_only_applies_to_expenses(self) -> None:
         assert tx("-5.00").is_uncategorized
-        assert not tx("-5.00", category="super").is_uncategorized
+        assert not tx("-5.00", category=SUPER).is_uncategorized
         assert not tx("-5.00", TransactionKind.SAVINGS_TRANSFER).is_uncategorized
 
 

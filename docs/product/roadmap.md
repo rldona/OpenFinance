@@ -10,7 +10,7 @@ Un ticket está terminado cuando cumple sus criterios de aceptación, tiene test
 | --- | --- | --- | --- |
 | 0 · Base | Repositorio, CI, entorno y `Money` | OF-001 … OF-003 | ✅ Hecha |
 | 1 · Datos | Meter los movimientos reales de Revolut (conjunta) y Bankinter (personales) | OF-101 … OF-107 | 🚧 OF-101 a 103, 105 y 106 ✅ · OF-104 y 107 esperan extractos reales |
-| 2 · Categorías | Que cada gasto tenga su categoría casi sin esfuerzo | OF-201 … OF-203 | Pendiente |
+| 2 · Categorías | Que cada gasto tenga su categoría casi sin esfuerzo | OF-201 … OF-203 | ✅ Hecha |
 | 3 · Gráficos | Este mes, ¿En qué gastamos? y Evolución | OF-301 … OF-305 | Pendiente |
 | 4 · Ahorro | Presupuestos, objetivos, ideas y simulador | OF-401 … OF-405 | Pendiente |
 | 5 · Uso real | Instalado en casa, con copias de seguridad | OF-501 … OF-504 | Pendiente |
@@ -105,20 +105,29 @@ Versión real de las pantallas del prototipo.
 
 ## Fase 2 · Categorías
 
-### OF-201 · Categorías
-Las 13 categorías del prototipo vienen de serie, con icono y color, y se pueden renombrar, crear y ocultar.
-- 🧪 Ocultar una categoría no borra sus movimientos.
+### OF-201 · Categorías ✅
+- ✅ Categorías por hogar con nombre, icono, color y orden; cada hogar nace con las 13 del prototipo (identificadas por `slug`).
+- ✅ Crear, renombrar, cambiar icono o color y ocultar (`GET/POST /api/v1/categories`, `PATCH /api/v1/categories/{id}`). No se borran.
+- ✅ Nombres únicos por hogar sin distinguir mayúsculas ni tildes.
+- ✅ 🧪 Ocultar una categoría no borra la de sus movimientos; una categoría oculta no se puede asignar a movimientos nuevos.
+- ✅ Migración 0004 de los datos existentes: el texto libre pasa a categoría (las desconocidas se crean como propias) y se calcula el comercio de cada movimiento.
 
-### OF-202 · Reglas por comercio
-- Normalización del comercio a partir del concepto: quita prefijos como «COMPRA TARJETA 4821» y los números de terminal.
-- Al corregir la categoría de un movimiento se crea o actualiza una regla «comercio → categoría».
-- Las reglas se aplican en la vista previa de importación y a los movimientos sin categoría del mismo comercio.
-- 🧪 Corregir «MERCADONA 1234» clasifica también «MERCADONA 0087».
-- Depende de: OF-201, OF-105.
+### OF-202 · Reglas por comercio ✅
+- ✅ Comercio normalizado (`merchant_key`): quita prefijos del banco («COMPRA TARJETA 4821», «PAGO CON TARJETA», «RECIBO DE»…), números de tarjeta o terminal y sufijos societarios. Ejemplo: «MERCADONA 0087» → `MERCADONA`.
+- ✅ Al corregir la categoría de un gasto se guarda la regla «comercio → categoría» y se aplica a los gastos **sin categoría** de ese comercio; nunca pisa una elegida a mano. Al quitar la categoría, se olvida la regla.
+- ✅ Prudencia antes que cobertura:
+  - Una regla aplica si sus palabras son el principio del comercio (`MERCADONA` → `MERCADONA VALENCIA`), nunca al revés.
+  - Las reglas de una sola palabra corta (`BAR`, `GAS`) o de intermediarios (`PAYPAL`, `AMAZON`…) solo aplican al comercio exacto y no se propagan.
+- ✅ Privacidad (ADR-0013): una regla aprendida en una cuenta personal es solo de su titular y solo afecta a sus cuentas personales. Las del hogar afectan a las cuentas que ve quien corrige.
+- ✅ Las reglas se aplican en la vista previa de importación y al confirmar.
+- ✅ 🧪 Corregir «MERCADONA 1234» clasifica también «MERCADONA 0087» y «COMPRA TARJETA … MERCADONA VALENCIA».
 
-### OF-203 · Corrección en la tabla
-- Selector de categoría en cada fila, aviso «N movimientos sin categoría» y contador en la pestaña.
-- Depende de: OF-202, OF-106.
+### OF-203 · Corrección en la tabla ✅
+- ✅ `PATCH /api/v1/transactions/{id}` (`category_id`, `learn`) devuelve la regla aprendida y cuántos movimientos más se han clasificado.
+- ✅ Web: selector de categoría en cada gasto, aviso «N gastos sin categoría» con acceso directo al filtro y contador en la pestaña (`GET /api/v1/transactions/uncategorized-count`).
+- ✅ Mensaje «Regla guardada: «Mercadona» → Supermercado · 2 más clasificados».
+- ✅ Pantalla **Categorías** (`#categorias`) para crear, renombrar, cambiar icono o color y ocultar.
+- ✅ La vista previa de importación muestra la categoría propuesta por regla.
 
 ---
 

@@ -5,8 +5,8 @@ import {
   type Account,
   type ImportPreview,
   type ImportResult,
-  type Me,
 } from '../../api/client'
+import { useHousehold } from '../../app/household-context'
 import { centsToAmount, formatDate, formatMoney, toCents } from '../../lib/format'
 import { kindLabel } from '../transactions/labels'
 
@@ -30,7 +30,8 @@ function Steps({ current }: { current: number }) {
   )
 }
 
-export function ImportPage({ me }: { me: Me }) {
+export function ImportPage() {
+  const { me, categoryById, refreshUncategorized } = useHousehold()
   const [accounts, setAccounts] = useState<Account[]>([])
   const [accountId, setAccountId] = useState('')
   const [file, setFile] = useState<File | null>(null)
@@ -166,13 +167,14 @@ export function ImportPage({ me }: { me: Me }) {
             </thead>
             <tbody>
               {p.rows.map((r) => {
-                const label = kindLabel({ ...r, category: null }, me)
+                const label = kindLabel(r, me, categoryById)
                 return (
                   <tr key={r.line} className={r.duplicate ? 'dim' : ''}>
                     <td className="muted small">{formatDate(r.booked_at)}</td>
                     <td>{r.description}</td>
                     <td>
                       <span className={`tag tag-${label.tone}`}>{label.text}</span>
+                      {r.category_id && <span className="small muted"> · regla</span>}
                     </td>
                     <td className="num">{formatMoney(r.amount, { signed: true })}</td>
                     <td className="small muted">{r.duplicate ? 'Ya importado' : 'Nuevo'}</td>
@@ -202,7 +204,15 @@ export function ImportPage({ me }: { me: Me }) {
               className="btn primary"
               type="button"
               disabled={busy || p.new_count === 0}
-              onClick={() => void run(() => api.commitImport(p.id), (result) => setStep({ kind: 'done', result }))}
+              onClick={() =>
+                void run(
+                  () => api.commitImport(p.id),
+                  (result) => {
+                    setStep({ kind: 'done', result })
+                    refreshUncategorized()
+                  },
+                )
+              }
             >
               {p.new_count === 0
                 ? 'Nada nuevo que importar'

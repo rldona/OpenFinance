@@ -6,9 +6,11 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID, uuid4
 
+from openfinance.application.categories import rules_for_account
 from openfinance.application.errors import ConflictError, InvalidRequestError, NotFoundError
 from openfinance.application.ledger import visible_accounts
 from openfinance.application.ports import StatementParsers, UnitOfWork
+from openfinance.domain.categories import CategoryId, best_rule, merchant_key
 from openfinance.domain.identity import User
 from openfinance.domain.imports import (
     BalanceMismatch,
@@ -23,7 +25,6 @@ from openfinance.domain.imports.batch import (
     ImportStatus,
     safe_filename,
 )
-from openfinance.domain.imports.model import normalize_text
 from openfinance.domain.ledger import (
     Account,
     Transaction,
@@ -32,6 +33,7 @@ from openfinance.domain.ledger import (
 )
 from openfinance.domain.shared import Money
 from openfinance.domain.shared.ids import TransactionId, UserId
+from openfinance.domain.shared.text import normalize_text
 from openfinance.domain.workspaces import Actor
 
 # Pendiente de validar con extractos reales (docs/product/bancos.md).
@@ -45,6 +47,8 @@ class PreviewRow:
     row: ImportedRow
     duplicate: bool
     member_id: UserId | None
+    category_id: CategoryId | None = None
+    """Categoría propuesta por una regla aprendida."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,10 +131,18 @@ def _preview_rows(
     existing = uow.transactions.existing_fingerprints(
         actor.household_id, account.id, [r.fingerprint for r in result.rows]
     )
-    return [
-        PreviewRow(r, r.fingerprint in existing, UserId(UUID(r.member)) if r.member else None)
-        for r in result.rows
-    ]
+    rules = rules_for_account(uow, account)
+    hidden = {c.id for c in uow.categories.for_household(actor.household_id) if c.hidden}
+    rows = []
+    for r in result.rows:
+        category = None
+        if r.suggested_kind is TransactionKind.EXPENSE:
+            rule = best_rule(rules, merchant_key(r.description))
+            if rule is not None and rule.category_id not in hidden:
+                category = rule.category_id
+        member = UserId(UUID(r.member)) if r.member else None
+        rows.append(PreviewRow(r, r.fingerprint in existing, member, category))
+    return rows
 
 
 def _build_preview(
@@ -231,6 +243,7 @@ def commit_import(
                 amount=row.amount,
                 kind=kind,
                 member_id=member if kind is TransactionKind.CONTRIBUTION else None,
+                category_id=r.category_id if kind is TransactionKind.EXPENSE else None,
                 bank_type=row.bank_type,
                 source=f"import:{batch.filename}"[:MAX_SOURCE],
                 fingerprint=row.fingerprint,

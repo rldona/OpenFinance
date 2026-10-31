@@ -7,11 +7,12 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
+from openfinance.domain.categories import Category, CategoryId, CategoryRule
 from openfinance.domain.identity import User
 from openfinance.domain.imports import ClassificationRules, ParseResult
 from openfinance.domain.imports.batch import ImportBatch
 from openfinance.domain.ledger import Account, Institution, Transaction
-from openfinance.domain.shared.ids import AccountId, UserId, WorkspaceId
+from openfinance.domain.shared.ids import AccountId, TransactionId, UserId, WorkspaceId
 from openfinance.domain.workspaces import Household
 
 
@@ -68,9 +69,37 @@ class TransactionRepository(Protocol):
         self, household_id: WorkspaceId, account_id: AccountId
     ) -> list[Transaction]: ...
     def add(self, transaction: Transaction) -> None: ...
+    def get(
+        self, household_id: WorkspaceId, transaction_id: TransactionId
+    ) -> Transaction | None: ...
+    def set_category(
+        self, household_id: WorkspaceId, ids: list[TransactionId], category_id: CategoryId | None
+    ) -> None: ...
+    def uncategorized_with_merchant_word(
+        self, household_id: WorkspaceId, account_ids: list[AccountId], first_word: str
+    ) -> list[Transaction]:
+        """Gastos sin categoría cuyo comercio empieza por esa palabra."""
+        ...
+
+    def count_uncategorized(
+        self, household_id: WorkspaceId, account_ids: list[AccountId]
+    ) -> int: ...
     def existing_fingerprints(
         self, household_id: WorkspaceId, account_id: AccountId, fingerprints: list[str]
     ) -> set[str]: ...
+
+
+class CategoryRepository(Protocol):
+    def for_household(self, household_id: WorkspaceId) -> list[Category]: ...
+    def get(self, household_id: WorkspaceId, category_id: CategoryId) -> Category | None: ...
+    def add(self, category: Category) -> None: ...
+    def update(self, category: Category) -> None: ...
+
+
+class RuleRepository(Protocol):
+    def for_household(self, household_id: WorkspaceId) -> list[CategoryRule]: ...
+    def upsert(self, rule: CategoryRule, now: datetime) -> None: ...
+    def delete(self, household_id: WorkspaceId, scope: str, merchant: str) -> None: ...
 
 
 class ImportBatchRepository(Protocol):
@@ -125,6 +154,10 @@ class UnitOfWork(Protocol):
     def sessions(self) -> SessionRepository: ...
     @property
     def imports(self) -> ImportBatchRepository: ...
+    @property
+    def categories(self) -> CategoryRepository: ...
+    @property
+    def rules(self) -> RuleRepository: ...
 
     def commit(self) -> None:
         """Confirma la transacción. Un conflicto de integridad se traduce en ConflictError."""

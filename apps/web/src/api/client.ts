@@ -8,6 +8,10 @@ export type TransactionKind = Schemas['TransactionKind']
 export type Money = Schemas['MoneyOut']
 export type ImportPreview = Schemas['ImportPreviewOut']
 export type ImportResult = Schemas['ImportResultOut']
+export type Category = Schemas['CategoryOut']
+export type CategoryInput = Schemas['CategoryIn']
+export type CategoryPatch = Schemas['CategoryPatch']
+export type CategorizeResult = Schemas['CategorizeOut']
 
 export const CSRF_HEADER = { 'X-Requested-With': 'OpenFinance' } as const
 
@@ -41,7 +45,7 @@ export function setUnauthorizedHandler(handler: (() => void) | null): void {
 type Query = Record<string, string | number | boolean | undefined | null>
 
 async function request<T>(
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'PATCH',
   path: string,
   options: { query?: Query; json?: unknown; form?: FormData; signal?: AbortSignal } = {},
 ): Promise<T> {
@@ -87,4 +91,14 @@ export const api = {
   },
   commitImport: (importId: string) =>
     request<ImportResult>('POST', `/api/v1/imports/${encodeURIComponent(importId)}/commit`),
+  categories: (signal?: AbortSignal) => request<Category[]>('GET', '/api/v1/categories', { signal }),
+  createCategory: (input: CategoryInput) => request<Category>('POST', '/api/v1/categories', { json: input }),
+  updateCategory: (id: string, patch: CategoryPatch) =>
+    request<Category>('PATCH', `/api/v1/categories/${encodeURIComponent(id)}`, { json: patch }),
+  categorize: (transactionId: string, categoryId: string | null, learn = true) =>
+    request<CategorizeResult>('PATCH', `/api/v1/transactions/${encodeURIComponent(transactionId)}`, {
+      json: { category_id: categoryId, learn },
+    }),
+  uncategorizedCount: (signal?: AbortSignal) =>
+    request<{ count: number }>('GET', '/api/v1/transactions/uncategorized-count', { signal }),
 }

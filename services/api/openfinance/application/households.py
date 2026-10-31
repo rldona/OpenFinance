@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from uuid import uuid4
 
+from openfinance.application.categories import seed_default_categories
 from openfinance.application.errors import ConflictError, InvalidRequestError
 from openfinance.application.ports import PasswordHasher, UnitOfWork
 from openfinance.domain.identity import (
@@ -63,6 +64,7 @@ def bootstrap_household(
             raise ConflictError(f"Ya existe un usuario con el email {email}")
 
     uow.households.add(household)
+    seed_default_categories(uow, household.id)
     users: dict[str, UserId] = {}
     for member, email in zip(request.members, emails, strict=True):
         user = User(

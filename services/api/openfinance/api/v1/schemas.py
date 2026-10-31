@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field
 
 from openfinance.application.imports import ImportPreview, ImportResult
+from openfinance.domain.categories import Category, merchant_label
 from openfinance.domain.identity import User
 from openfinance.domain.ledger import (
     Account,
@@ -93,7 +94,8 @@ class TransactionOut(BaseModel):
     description: str
     amount: MoneyOut
     kind: TransactionKind
-    category: str | None
+    category_id: UUID | None
+    merchant: str = Field(description="Comercio normalizado y legible, p. ej. «Mercadona»")
     member_id: UUID | None
     source: str
 
@@ -107,7 +109,8 @@ class TransactionOut(BaseModel):
             description=t.description,
             amount=MoneyOut.of(t.amount),
             kind=t.kind,
-            category=t.category,
+            category_id=t.category_id,
+            merchant=merchant_label(t.merchant),
             member_id=t.member_id,
             source=t.source,
         )
@@ -120,6 +123,7 @@ class PreviewRowOut(BaseModel):
     amount: MoneyOut
     kind: TransactionKind
     member_id: UUID | None
+    category_id: UUID | None = Field(description="Categoría propuesta por una regla aprendida")
     duplicate: bool
 
 
@@ -167,6 +171,7 @@ class ImportPreviewOut(BaseModel):
                     if r.member_id or r.row.suggested_kind is not TransactionKind.CONTRIBUTION
                     else TransactionKind.INCOME,
                     member_id=r.member_id,
+                    category_id=r.category_id,
                     duplicate=r.duplicate,
                 )
                 for r in p.rows
@@ -202,3 +207,55 @@ class ImportResultOut(BaseModel):
             duplicates=r.duplicates,
             skipped=r.skipped,
         )
+
+
+COLOR_PATTERN = r"^#[0-9a-fA-F]{6}$"
+
+
+class CategoryOut(BaseModel):
+    id: UUID
+    name: str
+    icon: str
+    color: str
+    hidden: bool
+    slug: str | None
+
+    @classmethod
+    def of(cls, c: Category) -> CategoryOut:
+        return cls(id=c.id, name=c.name, icon=c.icon, color=c.color, hidden=c.hidden, slug=c.slug)
+
+
+class CategoryIn(BaseModel):
+    name: str = Field(min_length=1, max_length=50)
+    icon: str = Field(default="🏷️", min_length=1, max_length=8)
+    color: str = Field(default="#64748b", pattern=COLOR_PATTERN)
+
+
+class CategoryPatch(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=50)
+    icon: str | None = Field(default=None, min_length=1, max_length=8)
+    color: str | None = Field(default=None, pattern=COLOR_PATTERN)
+    hidden: bool | None = None
+
+
+class CategorizeIn(BaseModel):
+    category_id: UUID | None
+    learn: bool = Field(
+        default=True,
+        description="Guardar la regla «comercio → categoría» y aplicarla a los gastos sin ella",
+    )
+
+
+class RuleOut(BaseModel):
+    merchant: str
+    category_id: UUID
+
+
+class CategorizeOut(BaseModel):
+    transaction: TransactionOut
+    rule: RuleOut | None
+    also_categorized: int
+
+
+class CountOut(BaseModel):
+    count: int

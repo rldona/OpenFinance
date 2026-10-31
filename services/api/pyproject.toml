@@ -46,6 +46,7 @@ ignore = ["S101"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S"]
+"tests/db/test_migrations.py" = ["S", "E501"]
 "migrations/**" = ["N999"]
 
 [tool.mypy]

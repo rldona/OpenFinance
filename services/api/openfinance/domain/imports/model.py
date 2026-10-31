@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import hashlib
-import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime
 
 from openfinance.domain.ledger import TransactionKind
 from openfinance.domain.shared import Money
+from openfinance.domain.shared.text import normalize_text
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,13 +48,6 @@ class ParseResult:
     rows: list[ImportedRow] = field(default_factory=list)
     skipped: list[SkippedRow] = field(default_factory=list)
     balance_mismatches: list[BalanceMismatch] = field(default_factory=list)
-
-
-def normalize_text(text: str) -> str:
-    """Mayúsculas, sin tildes y con espacios simples: base estable para comparar conceptos."""
-    decomposed = unicodedata.normalize("NFKD", text)
-    ascii_only = "".join(c for c in decomposed if not unicodedata.combining(c))
-    return " ".join(ascii_only.upper().split())
 
 
 def fingerprint(

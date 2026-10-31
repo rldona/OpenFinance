@@ -89,7 +89,7 @@ def _tx(account, amount, desc, when, kind=TransactionKind.EXPENSE, member=None, 
         amount=Money.of(amount, "EUR"),
         kind=kind,
         member_id=member,
-        category=category,
+        category_id=category,
     )
 
 
@@ -137,14 +137,15 @@ def seed(session_factory) -> Seed:
         joint = by_name["Cuenta conjunta"]
         raul_p, elena_p = by_name["Bankinter Raúl"], by_name["Bankinter Elena"]
         other = uow.accounts.for_household(uow.households.households_of(ana.id)[0])[0]
+        super_ = next(c.id for c in uow.categories.for_household(house) if c.slug == "super")
 
         d = datetime  # hora local del extracto
         for t in [
             _tx(joint, "1600.00", "Payment from Raul", d(2026, 10, 1, 8), TransactionKind.CONTRIBUTION, raul.id),  # noqa: E501
             _tx(joint, "-300.00", "To pocket Ahorro", d(2026, 10, 2, 7), TransactionKind.SAVINGS_TRANSFER),  # noqa: E501
-            _tx(joint, "-87.34", "Mercadona", d(2026, 10, 3, 19), category="super"),
+            _tx(joint, "-87.34", "Mercadona", d(2026, 10, 3, 19), category=super_),
             _tx(joint, "-25.40", "Glovo 50% dto", d(2026, 10, 7, 21)),
-            _tx(joint, "-60.00", "Mercadona", d(2026, 9, 28, 10), category="super"),
+            _tx(joint, "-60.00", "Mercadona", d(2026, 9, 28, 10), category=super_),
             _tx(raul_p, "-1600.00", "Aportación casa", d(2026, 10, 1, 7, 59), TransactionKind.CONTRIBUTION, raul.id),  # noqa: E501
             _tx(elena_p, "-42.00", "Peluquería", d(2026, 10, 9, 17)),
             _tx(other, "-10.00", "Mercadona vecinos", d(2026, 10, 3, 9)),
