@@ -135,6 +135,16 @@ class TransactionRepository(Protocol):
     def set_category(
         self, household_id: WorkspaceId, ids: list[TransactionId], category_id: CategoryId | None
     ) -> None: ...
+    def transfer_candidates(
+        self,
+        household_id: WorkspaceId,
+        account_ids: list[AccountId],
+        transaction: Transaction,
+        days: int,
+    ) -> list[Transaction]:
+        """Movimientos de otras cuentas con el importe contrario y fecha cercana, sin enlazar."""
+        ...
+
     def merchant_totals(
         self, household_id: WorkspaceId, account_ids: list[AccountId]
     ) -> list[tuple[str, int, Decimal]]:
@@ -189,6 +199,19 @@ class RuleRepository(Protocol):
     def upsert(self, rule: CategoryRule, now: datetime) -> None: ...
     def get(self, household_id: WorkspaceId, scope: str, merchant: str) -> CategoryRule | None: ...
     def delete(self, household_id: WorkspaceId, scope: str, merchant: str) -> None: ...
+
+
+class LinkRepository(Protocol):
+    def peers(
+        self, household_id: WorkspaceId, ids: list[TransactionId]
+    ) -> dict[TransactionId, TransactionId]:
+        """El otro lado del traspaso de cada movimiento enlazado. Sin enlace = ausente."""
+        ...
+
+    def link(self, household_id: WorkspaceId, a: TransactionId, b: TransactionId) -> None: ...
+    def unlink(self, household_id: WorkspaceId, a: TransactionId) -> None:
+        """Quita el enlace de ``a`` y de su otro lado."""
+        ...
 
 
 class SplitRepository(Protocol):
@@ -378,6 +401,8 @@ class UnitOfWork(Protocol):
     def tags(self) -> TagRepository: ...
     @property
     def splits(self) -> SplitRepository: ...
+    @property
+    def links(self) -> LinkRepository: ...
     @property
     def member_patterns(self) -> MemberPatternRepository: ...
     @property

@@ -4,6 +4,7 @@ import { useHousehold } from '../../app/household-context'
 import { ErrorState, Loading } from '../../components/LoadState'
 import { formatDate } from '../../lib/format'
 import { SplitEditor } from './SplitEditor'
+import { TransferLink } from './TransferLink'
 import { useLoad } from '../../lib/useLoad'
 
 const KINDS: { value: TransactionKind; label: string }[] = [
@@ -23,6 +24,8 @@ export function TransactionDetail({
   onDelete,
   onTagsSaved,
   onSplitChanged,
+  onLinkChanged,
+  accountName,
 }: {
   t: Transaction
   /** Cambia cuando el movimiento se ha corregido o deshecho, para recargar el historial. */
@@ -35,6 +38,9 @@ export function TransactionDetail({
   onTagsSaved?: (operationId: string | null) => void
   /** Tras dividir o deshacer la división, con la operación para «Deshacer» (OF-1003). */
   onSplitChanged?: (message: string, operationId: string | null) => void
+  /** Tras enlazar o desenlazar un traspaso (OF-1004). */
+  onLinkChanged?: (message: string, operationId: string | null) => void
+  accountName?: (id: string) => string
 }) {
   const { me, notify } = useHousehold()
   const [kind, setKind] = useState<TransactionKind>(t.kind)
@@ -152,6 +158,7 @@ export function TransactionDetail({
         )}
       </form>
       {t.kind === 'expense' && onSplitChanged && <SplitEditor t={t} onChanged={onSplitChanged} />}
+      {onLinkChanged && accountName && <TransferLink t={t} accountName={accountName} onChanged={onLinkChanged} />}
       <p className="small muted">
         {onDelete
           ? 'Añadido a mano: puedes borrarlo y deshacerlo después.'

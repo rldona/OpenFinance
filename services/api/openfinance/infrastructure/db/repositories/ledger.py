@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import calendar
 from dataclasses import replace
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
@@ -31,6 +31,7 @@ from openfinance.domain.splits import SplitPart
 from openfinance.domain.tags import tag_key
 from openfinance.infrastructure.db.models import (
     AccountRow,
+    TransactionLinkRow,
     TransactionRow,
     TransactionSplitRow,
     TransactionTagRow,
@@ -360,6 +361,34 @@ class SqlTransactionRepository:
             _ACTIVE,
             _NOT_SPLIT,
         )
+
+    def transfer_candidates(
+        self,
+        household_id: WorkspaceId,
+        account_ids: list[AccountId],
+        transaction: Transaction,
+        days: int,
+    ) -> list[Transaction]:
+        others = [a for a in account_ids if a != transaction.account_id]
+        if not others:
+            return []
+        delta = timedelta(days=days)
+        rows = self._s.scalars(
+            select(TransactionRow)
+            .where(
+                TransactionRow.household_id == household_id,
+                TransactionRow.account_id.in_(others),
+                TransactionRow.amount == -transaction.amount.amount,
+                TransactionRow.currency == transaction.amount.currency.code,
+                TransactionRow.booked_at.between(
+                    transaction.booked_at - delta, transaction.booked_at + delta
+                ),
+                TransactionRow.id.not_in(select(TransactionLinkRow.transaction_id)),
+                _ACTIVE,
+            )
+            .order_by(TransactionRow.booked_at)
+        )
+        return [_transaction(r) for r in rows]
 
     def merchant_totals(
         self, household_id: WorkspaceId, account_ids: list[AccountId]

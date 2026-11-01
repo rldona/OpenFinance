@@ -1287,6 +1287,50 @@
         "title": "Institution",
         "type": "string"
       },
+      "LinkIn": {
+        "properties": {
+          "peer_id": {
+            "description": "El otro lado del traspaso",
+            "format": "uuid",
+            "title": "Peer Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "peer_id"
+        ],
+        "title": "LinkIn",
+        "type": "object"
+      },
+      "LinkOut": {
+        "properties": {
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "peer": {
+            "$ref": "#/components/schemas/TransactionOut"
+          },
+          "transaction": {
+            "$ref": "#/components/schemas/TransactionOut"
+          }
+        },
+        "required": [
+          "transaction",
+          "peer",
+          "operation_id"
+        ],
+        "title": "LinkOut",
+        "type": "object"
+      },
       "LoginIn": {
         "properties": {
           "email": {
@@ -2617,6 +2661,19 @@
             "title": "Tags",
             "type": "array"
           },
+          "transfer_peer_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "El otro lado del traspaso, si está enlazado y tú también lo ves",
+            "title": "Transfer Peer Id"
+          },
           "value_date": {
             "format": "date",
             "title": "Value Date",
@@ -2637,7 +2694,8 @@
           "source",
           "note",
           "tags",
-          "parts"
+          "parts",
+          "transfer_peer_id"
         ],
         "title": "TransactionOut",
         "type": "object"
@@ -5108,6 +5166,102 @@
         ]
       }
     },
+    "/api/v1/transactions/{transaction_id}/link": {
+      "delete": {
+        "description": "Desenlaza un traspaso (los tipos no se tocan); se puede deshacer.",
+        "operationId": "unlink_transfer_api_v1_transactions__transaction_id__link_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transaction_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transaction Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unlink Transfer",
+        "tags": [
+          "ledger"
+        ]
+      },
+      "put": {
+        "description": "Enlaza los dos lados de un traspaso entre cuentas tuyas; se puede deshacer.",
+        "operationId": "link_transfer_api_v1_transactions__transaction_id__link_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transaction_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transaction Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Link Transfer",
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
     "/api/v1/transactions/{transaction_id}/split": {
       "delete": {
         "description": "Deshace la división de un gasto; se puede deshacer.",
@@ -5253,6 +5407,54 @@
           }
         },
         "summary": "Set Tags",
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
+    "/api/v1/transactions/{transaction_id}/transfer-candidates": {
+      "get": {
+        "description": "Posibles otros lados de un traspaso: importe contrario, otra cuenta tuya y pocos días.",
+        "operationId": "transfer_candidates_api_v1_transactions__transaction_id__transfer_candidates_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transaction_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transaction Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TransactionOut"
+                  },
+                  "title": "Response Transfer Candidates Api V1 Transactions  Transaction Id  Transfer Candidates Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Transfer Candidates",
         "tags": [
           "ledger"
         ]

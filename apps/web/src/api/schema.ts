@@ -766,6 +766,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/transactions/{transaction_id}/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Link Transfer
+         * @description Enlaza los dos lados de un traspaso entre cuentas tuyas; se puede deshacer.
+         */
+        put: operations["link_transfer_api_v1_transactions__transaction_id__link_put"];
+        post?: never;
+        /**
+         * Unlink Transfer
+         * @description Desenlaza un traspaso (los tipos no se tocan); se puede deshacer.
+         */
+        delete: operations["unlink_transfer_api_v1_transactions__transaction_id__link_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/transactions/{transaction_id}/split": {
         parameters: {
             query?: never;
@@ -803,6 +827,26 @@ export interface paths {
          * @description Sustituye las etiquetas de un movimiento; se puede deshacer.
          */
         put: operations["set_tags_api_v1_transactions__transaction_id__tags_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/transactions/{transaction_id}/transfer-candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Transfer Candidates
+         * @description Posibles otros lados de un traspaso: importe contrario, otra cuenta tuya y pocos días.
+         */
+        get: operations["transfer_candidates_api_v1_transactions__transaction_id__transfer_candidates_get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -1319,6 +1363,22 @@ export interface components {
          * @enum {string}
          */
         Institution: "revolut" | "bankinter" | "other";
+        /** LinkIn */
+        LinkIn: {
+            /**
+             * Peer Id
+             * Format: uuid
+             * @description El otro lado del traspaso
+             */
+            peer_id: string;
+        };
+        /** LinkOut */
+        LinkOut: {
+            /** Operation Id */
+            operation_id: string | null;
+            peer: components["schemas"]["TransactionOut"];
+            transaction: components["schemas"]["TransactionOut"];
+        };
         /** LoginIn */
         LoginIn: {
             /**
@@ -1879,6 +1939,11 @@ export interface components {
              * @description Etiquetas del movimiento
              */
             tags: string[];
+            /**
+             * Transfer Peer Id
+             * @description El otro lado del traspaso, si está enlazado y tú también lo ves
+             */
+            transfer_peer_id: string | null;
             /**
              * Value Date
              * Format: date
@@ -3390,6 +3455,72 @@ export interface operations {
             };
         };
     };
+    link_transfer_api_v1_transactions__transaction_id__link_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transaction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unlink_transfer_api_v1_transactions__transaction_id__link_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transaction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     split_transaction_api_v1_transactions__transaction_id__split_put: {
         parameters: {
             query?: never;
@@ -3478,6 +3609,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TagsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transfer_candidates_api_v1_transactions__transaction_id__transfer_candidates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transaction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionOut"][];
                 };
             };
             /** @description Validation Error */

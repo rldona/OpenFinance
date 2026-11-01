@@ -380,6 +380,7 @@ export function TransactionsPage() {
                         {t.merchant || t.description}
                       </button>
                       <div className="small muted">
+                        {t.transfer_peer_id && <span title="Traspaso enlazado" aria-label="Traspaso enlazado">🔗 </span>}
                         {t.description} · {accountName(t.account_id)}
                         {t.note && <> · 📝 {t.note.split('\n')[0]}</>}
                         {t.tags.map((x) => (
@@ -408,11 +409,16 @@ export function TransactionsPage() {
                     <tr role="row" className="detail-row">
                       <td role="cell" colSpan={onlyUncategorized ? 5 : 4}>
                         <TransactionDetail
-                          key={`${t.id}|${t.kind}|${t.member_id}|${t.note}|${t.tags.join()}|${t.parts.length}`}
+                          key={`${t.id}|${t.kind}|${t.member_id}|${t.note}|${t.tags.join()}|${t.parts.length}|${t.transfer_peer_id}`}
                           t={t}
                           version={version}
                           onClose={() => setOpenId(null)}
                           onDelete={t.source === 'manual' ? () => void deleteManual(t) : undefined}
+                          accountName={accountName}
+                          onLinkChanged={(message, op) => {
+                            notifyUndoable(notify, me, message, op, refresh)
+                            refresh()
+                          }}
                           onSplitChanged={(message, op) => {
                             notifyUndoable(notify, me, message, op, refresh)
                             refresh()

@@ -2,6 +2,7 @@ import type { components, operations } from './schema'
 
 type Schemas = components['schemas']
 export type Me = Schemas['MeOut']
+export type LinkResult = Schemas['LinkOut']
 export type SplitResult = Schemas['SplitOut']
 export type TagCount = Schemas['TagOut']
 export type TagsResult = Schemas['TagsOut']
@@ -161,6 +162,13 @@ export const api = {
     request<MemberPattern>('POST', '/api/v1/me/patterns', { json: { pattern, direction } }),
   removePattern: (p: MemberPattern) =>
     request<void>('DELETE', `/api/v1/me/patterns/${p.direction}/${encodeURIComponent(p.pattern)}`),
+  /** Traspasos entre cuentas propias: candidatos, enlazar y desenlazar (OF-1004). */
+  transferCandidates: (transactionId: string, signal?: AbortSignal) =>
+    request<Transaction[]>('GET', `/api/v1/transactions/${encodeURIComponent(transactionId)}/transfer-candidates`, { signal }),
+  linkTransfer: (transactionId: string, peerId: string) =>
+    request<LinkResult>('PUT', `/api/v1/transactions/${encodeURIComponent(transactionId)}/link`, { json: { peer_id: peerId } }),
+  unlinkTransfer: (transactionId: string) =>
+    request<LinkResult>('DELETE', `/api/v1/transactions/${encodeURIComponent(transactionId)}/link`),
   /** Divide un gasto en partes con categoría que suman su importe (OF-1003). */
   splitTransaction: (transactionId: string, parts: { amount: string; category_id: string }[]) =>
     request<SplitResult>('PUT', `/api/v1/transactions/${encodeURIComponent(transactionId)}/split`, { json: { parts } }),

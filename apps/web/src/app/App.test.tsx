@@ -313,6 +313,56 @@ describe('Dividir un gasto (OF-1003)', () => {
   })
 })
 
+describe('Traspasos enlazados (OF-1004)', () => {
+  const OTHER = { ...TRANSACTIONS[3], id: 't9', description: 'Entrada de Glovo', account_id: 'a-raul', amount: { amount: '25.40', currency: 'EUR' } }
+
+  it('busca el otro lado, lo enlaza y avisa con «Deshacer»', async () => {
+    window.location.hash = '#movimientos'
+    const calls = loggedIn({
+      'GET /api/v1/transactions/t4/history': { body: [] },
+      'GET /api/v1/transactions/t4/transfer-candidates': { body: [OTHER] },
+      'PUT /api/v1/transactions/t4/link': { body: { transaction: TRANSACTIONS[3], peer: OTHER, operation_id: 'op-l' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Glovo' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Enlazar como traspaso' }))
+    const list = await screen.findByRole('list', { name: 'Posibles otros lados' })
+    expect(list).toHaveTextContent('Entrada de Glovo · Bankinter Raúl · +25,40')
+    await userEvent.click(screen.getByRole('button', { name: 'Enlazar con Entrada de Glovo' }))
+    expect(JSON.parse(String(calls.find((c) => c.method === 'PUT' && c.url.pathname.endsWith('/link'))!.body))).toEqual({ peer_id: 't9' })
+    expect(await screen.findByText('Traspaso enlazado')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Deshacer' })).toBeInTheDocument()
+  })
+
+  it('dice cuando no hay otro lado posible', async () => {
+    window.location.hash = '#movimientos'
+    loggedIn({
+      'GET /api/v1/transactions/t4/history': { body: [] },
+      'GET /api/v1/transactions/t4/transfer-candidates': { body: [] },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Glovo' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Enlazar como traspaso' }))
+    expect(await screen.findByText(/No hay un movimiento de otra cuenta tuya/)).toBeInTheDocument()
+  })
+
+  it('un traspaso enlazado lleva 🔗 y se puede desenlazar', async () => {
+    window.location.hash = '#movimientos'
+    const LINKED = TRANSACTIONS.map((t) => (t.id === 't4' ? { ...t, transfer_peer_id: 't9' } : t))
+    const calls = loggedIn({
+      'GET /api/v1/transactions/page': { body: page(LINKED) },
+      'GET /api/v1/transactions/t4/history': { body: [] },
+      'DELETE /api/v1/transactions/t4/link': { body: { transaction: TRANSACTIONS[3], peer: OTHER, operation_id: 'op-d' } },
+    })
+    render(<App />)
+    expect(await screen.findByLabelText('Traspaso enlazado')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Detalle de Glovo' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Desenlazar' }))
+    expect(calls.some((c) => c.method === 'DELETE' && c.url.pathname === '/api/v1/transactions/t4/link')).toBe(true)
+    expect(await screen.findByText('Traspaso desenlazado')).toBeInTheDocument()
+  })
+})
+
 describe('Varios a la vez y efectivo (OF-705)', () => {
   it('pone la misma categoría a los seleccionados sin aprender reglas y se puede deshacer', async () => {
     const calls = loggedIn({

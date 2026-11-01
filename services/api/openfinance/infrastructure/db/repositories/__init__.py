@@ -18,6 +18,7 @@ from openfinance.infrastructure.db.repositories.ledger import (
     SqlAccountRepository,
     SqlTransactionRepository,
 )
+from openfinance.infrastructure.db.repositories.links import SqlLinkRepository
 from openfinance.infrastructure.db.repositories.merchants import SqlMerchantRepository
 from openfinance.infrastructure.db.repositories.savings import (
     SqlBudgetRepository,
@@ -37,6 +38,7 @@ __all__ = [
     "SqlHouseholdRepository",
     "SqlIdeaDismissalRepository",
     "SqlImportBatchRepository",
+    "SqlLinkRepository",
     "SqlMemberPatternRepository",
     "SqlMerchantRepository",
     "SqlRuleRepository",

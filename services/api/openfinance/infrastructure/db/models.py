@@ -216,6 +216,19 @@ class TransactionSplitRow(Base):
     category_id: Mapped[UUID] = mapped_column()
 
 
+class TransactionLinkRow(Base):
+    """Un lado de un traspaso enlazado: cada enlace son dos filas, una por lado (OF-1004)."""
+
+    __tablename__ = "transaction_links"
+    __table_args__ = (CheckConstraint("transaction_id <> peer_id", name="not_self"),)
+
+    transaction_id: Mapped[UUID] = mapped_column(
+        ForeignKey("transactions.id", ondelete="CASCADE"), primary_key=True
+    )
+    peer_id: Mapped[UUID] = mapped_column(ForeignKey("transactions.id", ondelete="CASCADE"))
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+
+
 class MerchantRow(Base):
     """Comercio con nombre propio (OF-1001). Los que nadie ha tocado no tienen fila."""
 

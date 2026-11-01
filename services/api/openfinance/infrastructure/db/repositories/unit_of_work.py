@@ -24,6 +24,7 @@ from openfinance.infrastructure.db.repositories.ledger import (
     SqlAccountRepository,
     SqlTransactionRepository,
 )
+from openfinance.infrastructure.db.repositories.links import SqlLinkRepository
 from openfinance.infrastructure.db.repositories.merchants import SqlMerchantRepository
 from openfinance.infrastructure.db.repositories.savings import (
     SqlBudgetRepository,
@@ -51,6 +52,7 @@ class SqlUnitOfWork:
         self.merchants = SqlMerchantRepository(session)
         self.tags = SqlTagRepository(session)
         self.splits = SqlSplitRepository(session)
+        self.links = SqlLinkRepository(session)
         self.member_patterns = SqlMemberPatternRepository(session)
         self.changes = SqlChangeRepository(session)
 

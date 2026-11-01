@@ -225,6 +225,8 @@ def _apply(
             done, rest = _apply_transaction(uow, actor, visible, entity_id, changes)
         elif entity is Entity.RULE:
             done, rest = _apply_rule(uow, actor, entity_id, changes, now)
+        elif entity is Entity.LINK:
+            done, rest = _apply_link(uow, actor, visible, entity_id, changes)
         elif entity is Entity.SPLIT:
             done, rest = _apply_split(uow, actor, visible, entity_id, changes)
         elif entity is Entity.MERCHANT:
@@ -309,6 +311,36 @@ def _apply_rule(
                 CategoryRule(actor.household_id, merchant, CategoryId(UUID(str(c.after))), scope),
                 now,
             )
+        applied += 1
+    return applied, kept
+
+
+def _apply_link(
+    uow: UnitOfWork,
+    actor: Actor,
+    visible: set[AccountId],
+    entity_id: str,
+    changes: list[Change],
+) -> tuple[int, list[Change]]:
+    """Enlace de un traspaso (OF-1004): ``peer`` es el otro lado o ``None``."""
+    first = TransactionId(UUID(entity_id))
+    state = uow.links.peers(actor.household_id, [first]).get(first)
+    current = str(state) if state else None
+    applied, kept = 0, []
+    for c in changes:
+        if c.field != "peer" or current != c.before:
+            kept.append(c)
+            continue
+        other = TransactionId(UUID(str(c.after if c.after is not None else c.before)))
+        accounts = uow.transactions.accounts_of(actor.household_id, [first, other])
+        if not {accounts.get(first), accounts.get(other)} <= visible:
+            kept.append(c)  # quien no ve alguno de los dos lados no lo toca
+            continue
+        if c.after is None:
+            uow.links.unlink(actor.household_id, first)
+        else:
+            uow.links.link(actor.household_id, first, other)
+        current = None if c.after is None else str(c.after)
         applied += 1
     return applied, kept
 

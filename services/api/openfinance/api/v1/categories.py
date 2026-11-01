@@ -83,7 +83,7 @@ def categorize(
     )
     return CategorizeOut(
         transaction=TransactionOut.of(
-            result.transaction, decorate(uow, actor.household_id, [result.transaction])
+            result.transaction, decorate(uow, actor, [result.transaction])
         ),
         rule=rule,
         also_categorized=result.also_categorized,

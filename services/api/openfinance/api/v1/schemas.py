@@ -112,6 +112,9 @@ class TransactionOut(BaseModel):
     parts: list[SplitPartOut] = Field(
         description="Partes con categoría si el gasto está dividido (suman su importe)"
     )
+    transfer_peer_id: UUID | None = Field(
+        description="El otro lado del traspaso, si está enlazado y tú también lo ves"
+    )
 
     @classmethod
     def of(cls, t: Transaction, decor: Decor | None = None) -> TransactionOut:
@@ -131,6 +134,7 @@ class TransactionOut(BaseModel):
             source=t.source,
             note=t.note,
             tags=list(d.tags.get(t.id, ())),
+            transfer_peer_id=d.peers.get(t.id),
             parts=[
                 SplitPartOut(amount=MoneyOut.of(p.amount), category_id=p.category_id)
                 for p in d.splits.get(t.id, [])
@@ -715,4 +719,14 @@ class SplitIn(BaseModel):
 
 class SplitOut(BaseModel):
     transaction: TransactionOut
+    operation_id: UUID | None
+
+
+class LinkIn(BaseModel):
+    peer_id: UUID = Field(description="El otro lado del traspaso")
+
+
+class LinkOut(BaseModel):
+    transaction: TransactionOut
+    peer: TransactionOut
     operation_id: UUID | None

@@ -10,6 +10,8 @@ from openfinance.api.v1.schemas import (
     AccountOut,
     BulkCategorizeIn,
     BulkCategorizeOut,
+    LinkIn,
+    LinkOut,
     ManualTransactionIn,
     ManualTransactionOut,
     MoneyOut,
@@ -22,12 +24,13 @@ from openfinance.api.v1.schemas import (
     TransactionOut,
     TransactionPageOut,
 )
-from openfinance.application import ledger, movements, splits
+from openfinance.application import ledger, links, movements, splits
 from openfinance.application import tags as tags_app
 from openfinance.application.decorate import decorate
-from openfinance.application.ports import TransactionQuery
+from openfinance.application.ports import TransactionQuery, UnitOfWork
 from openfinance.domain.categories import CategoryId
 from openfinance.domain.shared.ids import AccountId, TransactionId
+from openfinance.domain.workspaces import Actor
 from openfinance.infrastructure.time import utc_now
 
 router = APIRouter(tags=["ledger"])
@@ -73,7 +76,7 @@ def list_transactions(
     except ValueError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
     found = ledger.list_transactions(uow, actor, query)
-    decor = decorate(uow, actor.household_id, found)
+    decor = decorate(uow, actor, found)
     return [TransactionOut.of(t, decor) for t in found]
 
 
@@ -122,7 +125,7 @@ def page_transactions(
     except ValueError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
     page = ledger.page_transactions(uow, actor, query)
-    decor = decorate(uow, actor.household_id, page.items)
+    decor = decorate(uow, actor, page.items)
     return TransactionPageOut(
         items=[TransactionOut.of(t, decor) for t in page.items],
         next_cursor=_encode_cursor(*page.next_after) if page.next_after else None,
@@ -164,9 +167,7 @@ def add_manual(body: ManualTransactionIn, actor: ActorDep, uow: UowDep) -> Manua
         utc_now(),
     )
     return ManualTransactionOut(
-        transaction=TransactionOut.of(
-            r.transaction, decorate(uow, actor.household_id, [r.transaction])
-        ),
+        transaction=TransactionOut.of(r.transaction, decorate(uow, actor, [r.transaction])),
         operation_id=r.operation_id,
     )
 
@@ -192,7 +193,7 @@ def set_tags(transaction_id: UUID, body: TagsIn, actor: ActorDep, uow: UowDep) -
     )
     t = result.transaction
     return TagsOut(
-        transaction=TransactionOut.of(t, decorate(uow, actor.household_id, [t])),
+        transaction=TransactionOut.of(t, decorate(uow, actor, [t])),
         operation_id=result.operation_id,
     )
 
@@ -211,7 +212,7 @@ def split_transaction(
     )
     return SplitOut(
         transaction=TransactionOut.of(
-            result.transaction, decorate(uow, actor.household_id, [result.transaction])
+            result.transaction, decorate(uow, actor, [result.transaction])
         ),
         operation_id=result.operation_id,
     )
@@ -223,7 +224,43 @@ def unsplit_transaction(transaction_id: UUID, actor: ActorDep, uow: UowDep) -> S
     result = splits.unsplit_transaction(uow, actor, TransactionId(transaction_id), utc_now())
     return SplitOut(
         transaction=TransactionOut.of(
-            result.transaction, decorate(uow, actor.household_id, [result.transaction])
+            result.transaction, decorate(uow, actor, [result.transaction])
         ),
         operation_id=result.operation_id,
+    )
+
+
+@router.get(
+    "/transactions/{transaction_id}/transfer-candidates", response_model=list[TransactionOut]
+)
+def transfer_candidates(transaction_id: UUID, actor: ActorDep, uow: UowDep) -> list[TransactionOut]:
+    """Posibles otros lados de un traspaso: importe contrario, otra cuenta tuya y pocos días."""
+    found = links.candidates(uow, actor, TransactionId(transaction_id))
+    decor = decorate(uow, actor, found)
+    return [TransactionOut.of(t, decor) for t in found]
+
+
+def _link_out(uow: UnitOfWork, actor: Actor, result: links.LinkResult) -> LinkOut:
+    decor = decorate(uow, actor, [result.transaction, result.peer])
+    return LinkOut(
+        transaction=TransactionOut.of(result.transaction, decor),
+        peer=TransactionOut.of(result.peer, decor),
+        operation_id=result.operation_id,
+    )
+
+
+@router.put("/transactions/{transaction_id}/link", response_model=LinkOut)
+def link_transfer(transaction_id: UUID, body: LinkIn, actor: ActorDep, uow: UowDep) -> LinkOut:
+    """Enlaza los dos lados de un traspaso entre cuentas tuyas; se puede deshacer."""
+    result = links.link_transfer(
+        uow, actor, TransactionId(transaction_id), TransactionId(body.peer_id), utc_now()
+    )
+    return _link_out(uow, actor, result)
+
+
+@router.delete("/transactions/{transaction_id}/link", response_model=LinkOut)
+def unlink_transfer(transaction_id: UUID, actor: ActorDep, uow: UowDep) -> LinkOut:
+    """Desenlaza un traspaso (los tipos no se tocan); se puede deshacer."""
+    return _link_out(
+        uow, actor, links.unlink_transfer(uow, actor, TransactionId(transaction_id), utc_now())
     )

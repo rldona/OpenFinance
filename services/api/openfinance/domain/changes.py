@@ -19,6 +19,9 @@ class Entity(StrEnum):
     RULE = "rule"
     """Regla «comercio → categoría». Su identificador es ``ámbito|comercio``."""
     IMPORT = "import"
+    LINK = "link"
+    """Traspaso enlazado (OF-1004). Su identificador es el del lado con menor identificador;
+    campo ``peer`` = identificador del otro lado, o ``None`` si no hay enlace."""
     SPLIT = "split"
     """Partes de un movimiento dividido (OF-1003). Su identificador es el del movimiento; campo
     ``parts`` = «importe@categoría|…» o ``None`` si no está dividido."""
