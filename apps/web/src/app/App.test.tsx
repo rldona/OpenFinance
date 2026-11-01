@@ -117,7 +117,9 @@ describe('Importar', () => {
 
     const select = await screen.findByLabelText('Cuenta')
     await waitFor(() => expect(select).toHaveValue('a-joint'))
-    expect(within(select).getByRole('option', { name: /Bankinter Raúl \(próximamente\)/ })).toBeDisabled()
+    expect(within(select).getByRole('option', { name: 'Bankinter Raúl' })).toBeEnabled()
+    expect(screen.getByLabelText('Extracto')).toHaveAttribute('accept', '.csv,.xlsx')
+    expect(screen.getByText('📄 Elige el extracto (CSV o Excel)')).toBeInTheDocument()
 
     const file = new File(['Type,Product\n'], 'revolut.csv', { type: 'text/csv' })
     await userEvent.upload(screen.getByLabelText('Extracto'), file)
@@ -138,6 +140,17 @@ describe('Importar', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Importar 2 movimientos' }))
     expect(await screen.findByText('✓ Importados 2 movimientos')).toBeInTheDocument()
+  })
+
+  it('en Bankinter solo admite Excel', async () => {
+    window.location.hash = '#importar'
+    loggedIn({})
+    render(<App />)
+    const select = await screen.findByLabelText('Cuenta')
+    await waitFor(() => expect(select).toHaveValue('a-joint'))
+    await userEvent.selectOptions(select, 'a-raul')
+    expect(screen.getByLabelText('Extracto')).toHaveAttribute('accept', '.xlsx')
+    expect(screen.getByText('📄 Elige el extracto (Excel)')).toBeInTheDocument()
   })
 
   it('avisa si el saldo no cuadrará con el del banco', async () => {

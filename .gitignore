@@ -29,3 +29,5 @@ coverage/
 data/
 backups/
 *.dump
+# Extractos bancarios reales: nunca se suben al repositorio
+/Extractos/

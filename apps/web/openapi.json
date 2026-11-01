@@ -88,7 +88,7 @@
           },
           "file": {
             "contentMediaType": "application/octet-stream",
-            "description": "Extracto del banco (CSV)",
+            "description": "Extracto del banco (CSV o XLSX)",
             "title": "File",
             "type": "string"
           }

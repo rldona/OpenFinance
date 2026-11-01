@@ -14,6 +14,8 @@ dependencies = [
     "alembic>=1.14",
     "argon2-cffi>=25.1.0",
     "python-multipart>=0.0.33",
+    "openpyxl>=3.1.5",
+    "defusedxml>=0.7.1",
 ]
 
 [project.scripts]
@@ -27,6 +29,7 @@ dev = [
     "ruff>=0.8",
     "mypy>=1.13",
     "import-linter>=2.1",
+    "types-openpyxl>=3.1.5.20261017",
 ]
 
 [build-system]
@@ -79,6 +82,7 @@ forbidden_modules = [
     "sqlalchemy",
     "alembic",
     "pydantic_settings",
+    "openpyxl",
     "openfinance.application",
     "openfinance.infrastructure",
     "openfinance.api",
@@ -92,6 +96,7 @@ forbidden_modules = [
     "fastapi",
     "starlette",
     "sqlalchemy",
+    "openpyxl",
     "openfinance.api",
     "openfinance.infrastructure",
 ]

@@ -2,6 +2,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, File, Form, UploadFile
+from fastapi.concurrency import run_in_threadpool
 
 from openfinance.api.deps import ActorDep, ParsersDep, UowDep
 from openfinance.api.v1.schemas import ImportPreviewOut, ImportResultOut
@@ -19,14 +20,22 @@ async def create_import(
     uow: UowDep,
     parsers: ParsersDep,
     account_id: Annotated[UUID, Form()],
-    file: Annotated[UploadFile, File(description="Extracto del banco (CSV)")],
+    file: Annotated[UploadFile, File(description="Extracto del banco (CSV o XLSX)")],
 ) -> ImportPreviewOut:
     """Lee el extracto y devuelve la vista previa. No guarda movimientos."""
     content = await file.read(MAX_FILE_BYTES + 1)
     if len(content) > MAX_FILE_BYTES:
         raise InvalidRequestError("El archivo es demasiado grande (máximo 5 MB)")
-    preview = imports.preview_import(
-        uow, parsers, actor, account_id, file.filename or "extracto", content, utc_now()
+    # Leer el extracto es trabajo de CPU y de base de datos síncrono: fuera del bucle.
+    preview = await run_in_threadpool(
+        imports.preview_import,
+        uow,
+        parsers,
+        actor,
+        account_id,
+        file.filename or "extracto",
+        content,
+        utc_now(),
     )
     return ImportPreviewOut.of(preview)
 

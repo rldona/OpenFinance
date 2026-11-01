@@ -9,7 +9,12 @@ from uuid import UUID
 
 from openfinance.domain.categories import Category, CategoryId, CategoryRule
 from openfinance.domain.identity import User
-from openfinance.domain.imports import ClassificationRules, ParseResult
+from openfinance.domain.imports import (
+    ClassificationRules,
+    MemberPattern,
+    ParseResult,
+    PatternDirection,
+)
 from openfinance.domain.imports.batch import ImportBatch
 from openfinance.domain.ledger import Account, Institution, Transaction
 from openfinance.domain.savings import Budget, Goal, GoalId
@@ -150,6 +155,17 @@ class ImportBatchRepository(Protocol):
         ...
 
 
+class MemberPatternRepository(Protocol):
+    def for_household(self, household_id: WorkspaceId) -> list[MemberPattern]: ...
+    def add(self, pattern: MemberPattern, now: datetime) -> None:
+        """Un patrón repetido (mismo hogar, sentido y texto) es un ConflictError."""
+        ...
+
+    def delete(
+        self, household_id: WorkspaceId, direction: PatternDirection, pattern: str
+    ) -> bool: ...
+
+
 class StatementParser(Protocol):
     def __call__(
         self, content: bytes, account_key: str, rules: ClassificationRules
@@ -196,6 +212,8 @@ class UnitOfWork(Protocol):
     def budgets(self) -> BudgetRepository: ...
     @property
     def goals(self) -> GoalRepository: ...
+    @property
+    def member_patterns(self) -> MemberPatternRepository: ...
 
     def commit(self) -> None:
         """Confirma la transacción. Un conflicto de integridad se traduce en ConflictError."""

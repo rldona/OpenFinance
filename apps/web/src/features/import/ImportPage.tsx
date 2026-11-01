@@ -10,7 +10,11 @@ import { useHousehold } from '../../app/household-context'
 import { centsToAmount, formatDate, formatMoney, toCents } from '../../lib/format'
 import { kindLabel } from '../transactions/labels'
 
-const SUPPORTED = new Set(['revolut'])
+const FORMATS: Record<string, { accept: string; label: string }> = {
+  revolut: { accept: '.csv,.xlsx', label: 'CSV o Excel' },
+  bankinter: { accept: '.xlsx', label: 'Excel' },
+}
+const SUPPORTED = new Set(Object.keys(FORMATS))
 
 type Step = { kind: 'upload' } | { kind: 'review'; preview: ImportPreview } | { kind: 'done'; result: ImportResult }
 
@@ -226,11 +230,15 @@ export function ImportPage() {
     )
   }
 
+  const selected = accounts.find((a) => a.id === accountId)
+  const format = (selected && FORMATS[selected.institution]) ?? FORMATS.revolut
+
   return (
     <section>
       <h1>Importar extracto</h1>
       <p className="lead">
-        En la app de Revolut: cuenta conjunta → Extracto → formato Excel (CSV). Nada se guarda hasta que lo confirméis.
+        Revolut: cuenta → Extracto → formato Excel o CSV. Bankinter: Movimientos → descargar en Excel (.xlsx). Nada se
+        guarda hasta que lo confirméis.
       </p>
       <Steps current={0} />
       <form className="card upload" onSubmit={preview}>
@@ -246,10 +254,10 @@ export function ImportPage() {
           </select>
         </label>
         <label className="dropzone">
-          <span>{file ? `📄 ${file.name}` : '📄 Elige el extracto (CSV)'}</span>
+          <span>{file ? `📄 ${file.name}` : `📄 Elige el extracto (${format.label})`}</span>
           <input
             type="file"
-            accept=".csv,text/csv"
+            accept={format.accept}
             aria-label="Extracto"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           />

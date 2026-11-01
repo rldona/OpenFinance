@@ -12,6 +12,7 @@ from openfinance.application.errors import ConflictError
 from openfinance.application.ports import StoredSession, TransactionQuery
 from openfinance.domain.categories import Category, CategoryId, CategoryRule
 from openfinance.domain.identity import User
+from openfinance.domain.imports import MemberPattern, PatternDirection
 from openfinance.domain.imports.batch import PREVIEW_TTL, ImportBatch, ImportStatus
 from openfinance.domain.insights import Month
 from openfinance.domain.ledger import (
@@ -38,6 +39,7 @@ from openfinance.infrastructure.db.models import (
     GoalRow,
     HouseholdRow,
     ImportBatchRow,
+    MemberPatternRow,
     MembershipRow,
     SessionRow,
     TransactionRow,
@@ -682,6 +684,52 @@ class SqlImportBatchRepository:
         self._s.flush()
 
 
+class SqlMemberPatternRepository:
+    def __init__(self, session: Session) -> None:
+        self._s = session
+
+    def for_household(self, household_id: WorkspaceId) -> list[MemberPattern]:
+        rows = self._s.scalars(
+            select(MemberPatternRow)
+            .where(MemberPatternRow.household_id == household_id)
+            .order_by(MemberPatternRow.direction, MemberPatternRow.pattern)
+        )
+        return [
+            MemberPattern(
+                WorkspaceId(r.household_id),
+                UserId(r.user_id),
+                r.pattern,
+                PatternDirection(r.direction),
+            )
+            for r in rows
+        ]
+
+    def add(self, pattern: MemberPattern, now: datetime) -> None:
+        key = (pattern.household_id, pattern.direction.value, pattern.pattern)
+        if self._s.get(MemberPatternRow, key) is not None:
+            raise ConflictError("Ese patrón ya está guardado")
+        self._s.add(
+            MemberPatternRow(
+                household_id=pattern.household_id,
+                direction=pattern.direction.value,
+                pattern=pattern.pattern,
+                user_id=pattern.user_id,
+                created_at=now,
+            )
+        )
+        _flush(self._s)
+
+    def delete(self, household_id: WorkspaceId, direction: PatternDirection, pattern: str) -> bool:
+        result = self._s.execute(
+            delete(MemberPatternRow).where(
+                MemberPatternRow.household_id == household_id,
+                MemberPatternRow.direction == direction.value,
+                MemberPatternRow.pattern == pattern,
+            )
+        )
+        return bool(getattr(result, "rowcount", 0))
+
+
 class SqlUnitOfWork:
     def __init__(self, session: Session) -> None:
         self.session = session
@@ -695,6 +743,7 @@ class SqlUnitOfWork:
         self.rules = SqlRuleRepository(session)
         self.budgets = SqlBudgetRepository(session)
         self.goals = SqlGoalRepository(session)
+        self.member_patterns = SqlMemberPatternRepository(session)
 
     def commit(self) -> None:
         try:

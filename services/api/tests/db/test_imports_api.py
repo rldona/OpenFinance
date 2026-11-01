@@ -2,10 +2,14 @@
 
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
 from openfinance.api.v1 import imports as imports_api
+from openfinance.domain.ledger import Account, AccountKind, Institution
+from openfinance.domain.shared import Currency, Money
+from openfinance.domain.shared.ids import AccountId
 from openfinance.infrastructure.db.repositories import SqlUnitOfWork
 
 FIXTURE = (Path(__file__).parents[1] / "fixtures" / "revolut_joint_synthetic.csv").read_bytes()
@@ -123,10 +127,27 @@ class TestCommit:
 
 
 class TestValidation:
-    def test_personal_bankinter_account_is_not_supported_yet(self, as_raul, seed) -> None:
+    def test_unsupported_institution(self, as_raul, seed, session_factory) -> None:
+        other = Account(
+            id=AccountId(uuid4()),
+            household_id=seed.joint.household_id,
+            name="Otro banco",
+            institution=Institution.OTHER,
+            kind=AccountKind.JOINT,
+            currency=Currency("EUR"),
+            opening_balance=Money.of("0", "EUR"),
+        )
+        with session_factory() as s:
+            SqlUnitOfWork(s).accounts.add(other)
+            s.commit()
+        r = upload(as_raul, other.id)
+        assert r.status_code == 422
+        assert "other" in r.json()["detail"]
+
+    def test_csv_into_bankinter_is_rejected(self, as_raul, seed) -> None:
         r = upload(as_raul, seed.raul_personal.id)
         assert r.status_code == 422
-        assert "bankinter" in r.json()["detail"]
+        assert "Excel" in r.json()["detail"]
 
     def test_wrong_format(self, as_raul, seed) -> None:
         r = upload(as_raul, seed.joint.id, b"Fecha;Concepto;Importe\n01/10/2026;x;-1,00\n")
@@ -202,6 +223,13 @@ class TestReviewFixes:
         r = upload(as_raul, seed.joint.id, huge_field)
         assert r.status_code == 422
         assert "CSV mal formado" in r.json()["detail"]
+
+    def test_absurd_amount_is_a_skipped_row_not_a_500(self, as_raul, seed) -> None:
+        header = FIXTURE.splitlines()[0]
+        row = b"\nCARD_PAYMENT,Current,2026-10-01 10:00:00,,Tienda,1E+50,0,EUR,COMPLETED,1\n"
+        r = upload(as_raul, seed.joint.id, header + row)
+        assert r.status_code == 201
+        assert [s["reason"] for s in r.json()["skipped"]] == ["fila no válida: importe no válido"]
 
     def test_long_values_fit_their_columns(self, as_raul, seed) -> None:
         header = FIXTURE.splitlines()[0]

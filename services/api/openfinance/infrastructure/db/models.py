@@ -224,6 +224,27 @@ class ImportBatchRow(Base):
     skipped_count: Mapped[int] = mapped_column(Integer, default=0)
 
 
+class MemberPatternRow(Base):
+    """Texto del concepto bancario que identifica la aportación de una persona."""
+
+    __tablename__ = "member_patterns"
+    __table_args__ = (
+        CheckConstraint("direction IN ('inflow', 'outflow')", name="direction_valid"),
+        CheckConstraint("length(pattern) >= 3", name="pattern_min_length"),
+        ForeignKeyConstraint(
+            ["household_id", "user_id"],
+            ["memberships.household_id", "memberships.user_id"],
+            name="fk_member_patterns_member_membership",
+        ),
+    )
+
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"), primary_key=True)
+    direction: Mapped[str] = mapped_column(String(10), primary_key=True)
+    pattern: Mapped[str] = mapped_column(String(60), primary_key=True)
+    user_id: Mapped[UUID] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class SessionRow(Base):
     __tablename__ = "sessions"
 

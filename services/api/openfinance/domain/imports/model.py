@@ -46,28 +46,46 @@ class BalanceMismatch:
 @dataclass(slots=True)
 class ParseResult:
     rows: list[ImportedRow] = field(default_factory=list)
+    """En el orden en que el banco las aplica al saldo: de la más antigua a la más reciente."""
     skipped: list[SkippedRow] = field(default_factory=list)
     balance_mismatches: list[BalanceMismatch] = field(default_factory=list)
 
+    @property
+    def closing_balance(self) -> Money | None:
+        """Saldo que informa el banco tras la última fila aplicada."""
+        return next(
+            (r.balance_after for r in reversed(self.rows) if r.balance_after is not None), None
+        )
+
 
 def fingerprint(
-    account_key: str, booked_at: datetime, amount: Money, description: str, occurrence: int = 0
+    account_key: str,
+    booked_at: datetime,
+    amount: Money,
+    description: str,
+    occurrence: int = 0,
+    *,
+    discriminator: str = "",
 ) -> str:
     """Huella estable para deduplicar filas sin identificador del banco.
 
     ``occurrence`` distingue filas idénticas dentro del mismo extracto (dos cafés iguales
     en el mismo segundo), de forma que no se fusionen entre sí.
+
+    ``discriminator`` añade un dato propio de la fila cuando el banco no da hora (p. ej. el
+    saldo tras el movimiento). Vacío, la huella es la de siempre: las ya guardadas no cambian.
     """
-    payload = "|".join(
-        (
-            account_key,
-            booked_at.isoformat(timespec="seconds"),
-            str(amount.amount),
-            amount.currency.code,
-            normalize_text(description),
-            str(occurrence),
-        )
-    )
+    parts = [
+        account_key,
+        booked_at.isoformat(timespec="seconds"),
+        str(amount.amount),
+        amount.currency.code,
+        normalize_text(description),
+        str(occurrence),
+    ]
+    if discriminator:
+        parts.append(discriminator)
+    payload = "|".join(parts)
     return hashlib.sha256(payload.encode()).hexdigest()
 
 

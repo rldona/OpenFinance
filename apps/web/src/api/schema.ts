@@ -433,7 +433,7 @@ export interface components {
             account_id: string;
             /**
              * File
-             * @description Extracto del banco (CSV)
+             * @description Extracto del banco (CSV o XLSX)
              */
             file: string;
         };

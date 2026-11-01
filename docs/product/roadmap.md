@@ -9,7 +9,7 @@ Un ticket está terminado cuando cumple sus criterios de aceptación, tiene test
 | Fase | Objetivo | Tickets | Estado |
 | --- | --- | --- | --- |
 | 0 · Base | Repositorio, CI, entorno y `Money` | OF-001 … OF-003 | ✅ Hecha |
-| 1 · Datos | Meter los movimientos reales de Revolut (conjunta) y Bankinter (personales) | OF-101 … OF-107 | 🚧 OF-101 a 103, 105 y 106 ✅ · OF-104 y 107 esperan extractos reales |
+| 1 · Datos | Meter los movimientos reales de Revolut (conjunta) y Bankinter (personales) | OF-101 … OF-108 | ✅ OF-101 a OF-107 · OF-108 (vista «mi gasto») pendiente |
 | 2 · Categorías | Que cada gasto tenga su categoría casi sin esfuerzo | OF-201 … OF-203 | ✅ Hecha |
 | 3 · Gráficos | Este mes, ¿En qué gastamos? y Evolución | OF-301 … OF-305 | ✅ Hecha |
 | 4 · Ahorro | Presupuestos, objetivos, ideas y simulador | OF-401 … OF-405 | ✅ Hecha |
@@ -62,15 +62,18 @@ Modelo y API de movimientos.
 - ✅ 🧪 Aislamiento: ni los movimientos de otro hogar ni los de la cuenta personal de tu pareja aparecen; pedirlos por id da 404.
 - Nota: la categoría es por ahora un texto libre (`super`, `vivienda`…); OF-201 la convertirá en entidad.
 
-### OF-104 · Lector del CSV de Revolut 🚧
-Lectura del extracto de la cuenta conjunta de Revolut. Formato y decisiones en [bancos.md](bancos.md).
-- ✅ Lector `parse_revolut_csv` con cabeceras en inglés y supuestas en español, solo `COMPLETED` y producto `Current`, comisión incluida en el importe.
-- ✅ Los importes se leen como texto y se convierten a `Decimal`; nunca pasan por `float`.
-- ✅ Propone el tipo: aportación por persona, traspaso a hucha, ingreso, gasto o devolución.
-- ✅ Huella estable para deduplicar, sin fusionar filas idénticas del mismo archivo.
-- ✅ Comprobación del saldo fila a fila para detectar movimientos que faltan.
-- ⬜ Validar con un extracto real anonimizado y resolver los puntos «Por confirmar» de [bancos.md](bancos.md).
-- ⬜ Guardar en la configuración del hogar los patrones de cada persona y de las huchas.
+### OF-104 · Lector del extracto de Revolut ✅
+Lectura del extracto de la cuenta conjunta de Revolut. Formato y decisiones en [bancos.md](bancos.md) y [ADR-0015](../adr/0015-patrones-por-persona-y-xlsx.md).
+- ✅ Lector `parse_revolut` que detecta el formato: CSV con cabeceras en inglés o Excel (.xlsx) en español, validado con un extracto real. Solo filas completadas y del producto de la cuenta, comisión incluida en el importe.
+- ✅ Los importes nunca pasan por `float`: del CSV se leen como texto y del Excel desde su representación decimal.
+- ✅ Cabeceras con la codificación rota (`DescripciÃ³n`) reparadas; horas de Excel redondeadas al segundo; pendientes sin fecha de fin ni saldo descartados con su motivo.
+- ✅ Propone el tipo: aportación por persona (nombre o patrón guardado), traspaso a hucha, ingreso, gasto o devolución (también un pago con tarjeta positivo).
+- ✅ Huella estable para deduplicar, sin fusionar filas idénticas del mismo archivo. 🧪 El mismo extracto en CSV y en Excel da las mismas huellas; 🧪 las huellas ya guardadas no cambian.
+- ✅ Comprobación del saldo fila a fila en el orden del archivo (fecha de finalización); el saldo final del banco es el de la última fila.
+- ✅ Patrones de cada persona guardados en el hogar (`member_patterns`) y gestionados con `openfinance member-patterns` (ADR-0015).
+- ✅ Lectura segura de Excel: límites de tamaño, ratio de compresión, filas y columnas; sin fórmulas ni enlaces; XML con `defusedxml`.
+- ✅ `openfinance statement-check` para comprobar un extracto sin base de datos mostrando solo recuentos.
+- Pendiente (ver [bancos.md](bancos.md)): hora local o UTC, signo de la comisión y texto de las huchas en el Excel en español.
 
 ### OF-105 · Importación idempotente ✅
 Vista previa → confirmación, sin duplicados.
@@ -94,12 +97,19 @@ Versión real de las pantallas del prototipo.
 - ✅ Importes formateados desde el decimal exacto, sin `float`, también en el navegador.
 - Pendiente: probar en un navegador real con Playwright (OF-503) y las pestañas de gráficos (fase 3).
 
-### OF-107 · Lector de Bankinter (cuentas personales)
-- Lector del extracto de Bankinter (probablemente Excel) para las cuentas personales.
-- Las transferencias a la cuenta conjunta se reconocen como aportación de su titular.
-- Vista personal: «mi gasto» de cada persona, visible solo para ella (ADR-0013).
-- **Necesita:** un extracto real anonimizado.
+### OF-107 · Lector de Bankinter (cuentas personales) ✅
+- ✅ Lector `parse_bankinter` del Excel de movimientos, validado con un extracto real: salta el preámbulo y los filtros, descarta los pendientes con su motivo e invierte el orden (el banco lista del más reciente al más antiguo) para que cuadre el saldo.
+- ✅ El número de cuenta del preámbulo no se lee ni aparece en errores ni en filas descartadas. Los `.xls` antiguos y los CSV se rechazan con un mensaje claro.
+- ✅ 🧪 Sin hora en el extracto, la huella incluye el saldo: dos movimientos iguales el mismo día no se fusionan y un extracto solapado no duplica.
+- ✅ 🧪 Las salidas «Revolut\*\*NNNN\*» y las que coinciden con un patrón de salida del titular son **aportación** del titular; no cuentan como gasto ni en los totales del hogar.
+- ✅ 🧪 En la cuenta personal no se usan los nombres: un Bizum de la pareja es ingreso. Transferencias y Bizum según el signo.
+- ✅ 🧪 Solo el titular puede previsualizar, confirmar y ver los movimientos importados; ni la pareja ni otro hogar.
+- La vista personal «mi gasto» pasa a OF-108.
 - Depende de: OF-105.
+
+### OF-108 · Vista «mi gasto» de cada persona
+- Vista de la cuenta personal de cada persona con su gasto, visible solo para ella (ADR-0013).
+- Depende de: OF-107.
 
 ---
 

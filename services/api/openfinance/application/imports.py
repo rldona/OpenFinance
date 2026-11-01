@@ -16,7 +16,9 @@ from openfinance.domain.imports import (
     BalanceMismatch,
     ClassificationRules,
     ImportedRow,
+    MemberPattern,
     ParseResult,
+    PatternDirection,
     SkippedRow,
 )
 from openfinance.domain.imports.batch import (
@@ -27,6 +29,8 @@ from openfinance.domain.imports.batch import (
 )
 from openfinance.domain.ledger import (
     Account,
+    AccountKind,
+    Institution,
     Transaction,
     TransactionKind,
     account_balance,
@@ -38,6 +42,9 @@ from openfinance.domain.workspaces import Actor
 
 # Pendiente de validar con extractos reales (docs/product/bancos.md).
 DEFAULT_SAVINGS_PATTERNS = ("To pocket",)
+DEFAULT_OUTFLOW_CONTRIBUTION_PATTERNS = ("REVOLUT**",)
+"""Salidas de una cuenta personal de Bankinter hacia Revolut: la recarga de la conjunta
+(ADR-0015). En otras entidades ese texto no tiene por qué significar lo mismo."""
 MAX_SOURCE = 200
 _MIN_PATTERN = 3
 
@@ -80,14 +87,45 @@ class ImportResult:
     skipped: int = field(default=0)
 
 
-def classification_rules(members: list[User]) -> ClassificationRules:
-    """Reconoce aportaciones por el nombre de cada persona en el concepto."""
-    patterns: dict[str, list[str]] = {}
+def classification_rules(
+    account: Account, members: list[User], patterns: list[MemberPattern]
+) -> ClassificationRules:
+    """Cómo reconocer aportaciones en los conceptos de esta cuenta (ADR-0015).
+
+    En la conjunta (y las huchas), las entradas con el nombre de una persona o uno de sus
+    patrones de entrada son su aportación. En una cuenta personal solo cuentan como
+    aportación las salidas del titular que coinciden con sus patrones de salida (y, en
+    Bankinter, ``REVOLUT**``): un Bizum de la pareja ahí es un ingreso, no una aportación.
+    """
+    member_ids = {m.id for m in members}
+    known = [p for p in patterns if p.user_id in member_ids]
+    if account.kind is AccountKind.PERSONAL:
+        owner = account.owner_id
+        defaults = (
+            DEFAULT_OUTFLOW_CONTRIBUTION_PATTERNS
+            if account.institution is Institution.BANKINTER
+            else ()
+        )
+        outflow = [
+            p.pattern
+            for p in known
+            if p.direction is PatternDirection.OUTFLOW and p.user_id == owner
+        ]
+        return ClassificationRules(
+            savings_patterns=DEFAULT_SAVINGS_PATTERNS,
+            outflow_member_patterns={str(owner): [*defaults, *outflow]},
+        )
+    inflow: dict[str, list[str]] = {}
     for m in members:
         name = normalize_text(m.display_name)
-        candidates = {name, name.split(" ")[0]}
-        patterns[str(m.id)] = [p for p in candidates if len(p) >= _MIN_PATTERN]
-    return ClassificationRules(member_patterns=patterns, savings_patterns=DEFAULT_SAVINGS_PATTERNS)
+        candidates = [
+            p for p in dict.fromkeys((name, name.split(" ")[0])) if len(p) >= _MIN_PATTERN
+        ]
+        candidates += [
+            p.pattern for p in known if p.direction is PatternDirection.INFLOW and p.user_id == m.id
+        ]
+        inflow[str(m.id)] = candidates
+    return ClassificationRules(member_patterns=inflow, savings_patterns=DEFAULT_SAVINGS_PATTERNS)
 
 
 def _account(uow: UnitOfWork, actor: Actor, account_id: UUID) -> Account:
@@ -105,7 +143,11 @@ def _parse(
         raise InvalidRequestError(
             f"Todavía no se pueden importar extractos de {account.institution.value}"
         )
-    rules = classification_rules(uow.households.members(actor.household_id))
+    rules = classification_rules(
+        account,
+        uow.households.members(actor.household_id),
+        uow.member_patterns.for_household(actor.household_id),
+    )
     try:
         result = parser(content, str(account.id), rules)
     except ValueError as exc:
@@ -154,14 +196,14 @@ def _build_preview(
     for r in rows:
         if not r.duplicate:
             after = after + r.row.amount
-    with_balance = [r for r in result.rows if r.balance_after is not None]
-    bank = (
-        max(with_balance, key=lambda r: (r.booked_at, r.line)).balance_after
-        if with_balance
-        else None
-    )
     return ImportPreview(
-        batch, account, rows, result.skipped, result.balance_mismatches, bank, after
+        batch,
+        account,
+        rows,
+        result.skipped,
+        result.balance_mismatches,
+        result.closing_balance,
+        after,
     )
 
 
@@ -220,7 +262,7 @@ def commit_import(
         )
 
     # Se vuelve a leer el archivo con las reglas actuales; el resultado coincide con la vista
-    # previa salvo que entre medias cambien los miembros del hogar.
+    # previa salvo que entre medias cambien los miembros del hogar o sus patrones.
     result = _parse(uow, parsers, actor, account, content)
     rows = _preview_rows(uow, actor, account, result)
     created = 0

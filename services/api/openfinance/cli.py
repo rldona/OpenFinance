@@ -2,6 +2,10 @@
 
 ``openfinance bootstrap`` crea el hogar, sus dos personas y sus cuentas. No hay registro
 público: el alta se hace una vez desde el servidor.
+
+``openfinance member-patterns`` guarda los textos del banco que identifican la aportación
+de cada persona, y ``openfinance statement-check`` comprueba un extracto sin base de datos
+mostrando solo recuentos.
 """
 
 from __future__ import annotations
@@ -9,7 +13,9 @@ from __future__ import annotations
 import argparse
 import getpass
 import sys
+from collections import Counter
 from collections.abc import Callable, Sequence
+from pathlib import Path
 
 from openfinance.application.errors import ApplicationError
 from openfinance.application.households import (
@@ -18,8 +24,15 @@ from openfinance.application.households import (
     NewMember,
     bootstrap_household,
 )
+from openfinance.application.imports import (
+    DEFAULT_OUTFLOW_CONTRIBUTION_PATTERNS,
+    DEFAULT_SAVINGS_PATTERNS,
+)
 from openfinance.domain.identity import MIN_PASSWORD_LENGTH
-from openfinance.domain.ledger import AccountKind, Institution
+from openfinance.domain.imports import ClassificationRules, ParseResult, PatternDirection
+from openfinance.domain.imports.batch import MAX_FILE_BYTES
+from openfinance.domain.ledger import AccountKind, Institution, TransactionKind
+from openfinance.domain.shared.text import normalize_text
 from openfinance.infrastructure.db.repositories import SqlUnitOfWork
 from openfinance.infrastructure.db.session import get_session_factory
 from openfinance.infrastructure.security import Argon2PasswordHasher
@@ -123,6 +136,131 @@ def _demo(args: argparse.Namespace) -> int:
     return 0
 
 
+def _member_patterns(args: argparse.Namespace) -> int:
+    from openfinance.application import member_patterns as mp
+    from openfinance.infrastructure.time import utc_now
+
+    direction = PatternDirection.OUTFLOW if args.outflow else PatternDirection.INFLOW
+    with get_session_factory()() as session:
+        uow = SqlUnitOfWork(session)
+        try:
+            if args.action == "add":
+                added = mp.add_member_pattern(uow, args.email, args.pattern, direction, utc_now())
+                print(f"Guardado «{added.pattern}» ({added.direction.value}) para {args.email}.")
+            elif args.action == "remove":
+                mp.remove_member_pattern(uow, args.email, args.pattern, direction)
+                print("Patrón eliminado.")
+            else:
+                listed = mp.list_member_patterns(uow, args.email)
+                if not listed:
+                    print("El hogar no tiene patrones guardados.")
+                for item in listed:
+                    p = item.pattern
+                    print(f"{p.direction.value:8} {item.member.email:30} {p.pattern}")
+        except ApplicationError as exc:
+            print(f"No se ha podido completar: {exc}", file=sys.stderr)
+            return 1
+    return 0
+
+
+_KNOWN_BANK_TYPES = {
+    "PAGO CON TARJETA": "pago con tarjeta",
+    "CARD_PAYMENT": "pago con tarjeta",
+    "TRANSFERIR": "transferencia",
+    "TRANSFER": "transferencia",
+    "RECARGAS": "recarga",
+    "TOPUP": "recarga",
+    "CARD_REFUND": "devolución",
+    "REFUND": "devolución",
+    "ATM": "cajero",
+    "EXCHANGE": "cambio de divisa",
+}
+
+
+def _bank_type_group(bank_type: str) -> str:
+    """El tipo del banco viene del archivo: solo se muestran los conocidos."""
+    return _KNOWN_BANK_TYPES.get(normalize_text(bank_type), "otros")
+
+
+def _generic_reason(reason: str) -> str:
+    """El motivo sin los datos de la fila que a veces lo acompañan."""
+    head = reason.split(":", 1)[0].strip()
+    return "producto distinto de la cuenta" if head.startswith("producto") else head
+
+
+def _check_rules(bank: str, patterns: Sequence[str]) -> ClassificationRules:
+    if bank == "bankinter":
+        return ClassificationRules(
+            savings_patterns=DEFAULT_SAVINGS_PATTERNS,
+            outflow_member_patterns={
+                "titular": [*DEFAULT_OUTFLOW_CONTRIBUTION_PATTERNS, *patterns]
+            },
+        )
+    return ClassificationRules(
+        member_patterns={f"patrón {i}": [p] for i, p in enumerate(patterns, start=1)},
+        savings_patterns=DEFAULT_SAVINGS_PATTERNS,
+    )
+
+
+def _parse_statement(bank: str, content: bytes, rules: ClassificationRules) -> ParseResult:
+    from openfinance.infrastructure.importers.bankinter import parse_bankinter
+    from openfinance.infrastructure.importers.revolut import RevolutProfile, parse_revolut
+
+    if bank == "bankinter":
+        return parse_bankinter(content, "statement-check", rules)
+    return parse_revolut(content, RevolutProfile(account_key="statement-check", rules=rules))
+
+
+def statement_summary(result: ParseResult) -> list[str]:
+    """Solo recuentos: ni conceptos, ni importes, ni números de cuenta."""
+    reasons = Counter(_generic_reason(s.reason) for s in result.skipped)
+    kinds = Counter(r.suggested_kind.value for r in result.rows)
+    contributions = [r for r in result.rows if r.suggested_kind is TransactionKind.CONTRIBUTION]
+    inflows_without_member = sum(
+        1 for r in result.rows if r.suggested_kind is TransactionKind.INCOME and r.amount.amount > 0
+    )
+    currencies = Counter(r.amount.currency.code for r in result.rows)
+    inflow_types = Counter(
+        _bank_type_group(r.bank_type) for r in result.rows if r.amount.amount > 0 and r.bank_type
+    )
+    lines = [
+        f"Filas leídas: {len(result.rows) + len(result.skipped)}",
+        f"Importables: {len(result.rows)}",
+        f"Descartadas: {len(result.skipped)}",
+        *(f"  {reason}: {n}" for reason, n in sorted(reasons.items())),
+        f"Descuadres de saldo: {len(result.balance_mismatches)}",
+        "Tipo propuesto:",
+        *(f"  {kind}: {n}" for kind, n in sorted(kinds.items())),
+        f"Aportaciones con persona: {sum(1 for r in contributions if r.member)}",
+        f"Aportaciones sin persona: {sum(1 for r in contributions if not r.member)}",
+        f"Entradas sin persona (propuestas como ingreso): {inflows_without_member}",
+        *(f"  entradas de tipo {t}: {n}" for t, n in sorted(inflow_types.items())),
+        "Monedas: " + ", ".join(f"{c} {n}" for c, n in sorted(currencies.items())),
+        f"Saldo final del banco: {'sí' if result.closing_balance is not None else 'no'}",
+    ]
+    return lines
+
+
+def _statement_check(args: argparse.Namespace) -> int:
+    from openfinance.infrastructure.importers.common import ImportFormatError
+
+    path = Path(args.file)
+    if not path.is_file():
+        print("No se encuentra el archivo.", file=sys.stderr)
+        return 1
+    content = path.read_bytes()
+    if len(content) > MAX_FILE_BYTES:
+        print("El archivo es demasiado grande (máximo 5 MB).", file=sys.stderr)
+        return 1
+    try:
+        result = _parse_statement(args.bank, content, _check_rules(args.bank, args.patterns))
+    except ImportFormatError as exc:
+        print(f"No se puede leer: {exc}", file=sys.stderr)
+        return 1
+    print("\n".join(statement_summary(result)))
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="openfinance")
     sub = parser.add_subparsers(required=True)
@@ -132,6 +270,43 @@ def main(argv: Sequence[str] | None = None) -> int:
     demo = sub.add_parser("demo", help="Crear un hogar de demostración con 12 meses de datos")
     demo.add_argument("--force", action="store_true", help="Permitirlo también en producción")
     demo.set_defaults(func=_demo)
+
+    quotes = "Escribe el patrón entre comillas simples para que la shell no lo toque: '*1234'"
+    patterns = sub.add_parser(
+        "member-patterns",
+        help="Patrones del banco que identifican la aportación de cada persona",
+        description=quotes,
+    )
+    actions = patterns.add_subparsers(dest="action", required=True)
+    for action, text in (("add", "Guardar un patrón"), ("remove", "Eliminar un patrón")):
+        p = actions.add_parser(action, help=text, description=quotes)
+        p.add_argument("email", help="Email de la persona que aporta")
+        p.add_argument("pattern", help="Texto del concepto, p. ej. '*1234' o 'REVOLUT**'")
+        p.add_argument(
+            "--outflow",
+            action="store_true",
+            help="Salida de su cuenta personal (por defecto: entrada en la conjunta)",
+        )
+    listing = actions.add_parser("list", help="Ver los patrones del hogar")
+    listing.add_argument("email", help="Email de alguien del hogar")
+    listing.set_defaults(outflow=False)
+    patterns.set_defaults(func=_member_patterns)
+
+    check = sub.add_parser(
+        "statement-check",
+        help="Comprobar un extracto sin guardarlo: solo muestra recuentos",
+        description=quotes,
+    )
+    check.add_argument("--bank", choices=("revolut", "bankinter"), required=True)
+    check.add_argument(
+        "--member-pattern",
+        dest="patterns",
+        action="append",
+        default=[],
+        help="Patrón de aportación (entrada en Revolut, salida en Bankinter). Repetible.",
+    )
+    check.add_argument("file", help="Extracto (CSV o XLSX)")
+    check.set_defaults(func=_statement_check)
     args = parser.parse_args(argv)
     result: int = args.func(args)
     return result
