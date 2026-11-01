@@ -48,7 +48,7 @@ async function expectNoHorizontalScroll(page: Page) {
       scrollWidth: document.documentElement.scrollWidth,
       // Los elementos más profundos que se salen, para saber qué arreglar.
       wide: Array.from(document.body.querySelectorAll('*'))
-        .filter((el) => el.getBoundingClientRect().right > w + 1 && !el.closest('.tabs, .sr-only'))
+        .filter((el) => el.getBoundingClientRect().right > w + 1 && !el.closest('.sr-only'))
         .filter((el, _, all) => !all.some((other) => other !== el && el.contains(other)))
         .slice(0, 5)
         .map((el) => `${el.tagName.toLowerCase()}.${el.className} → ${Math.round(el.getBoundingClientRect().right)}`),
@@ -126,7 +126,7 @@ async function expectTouchTargets(page: Page) {
     ({ min }) =>
       Array.from(
         document.querySelectorAll(
-          '.tabs a, .top .btn, .top summary, main .btn.primary, main .month-picker button, form .field',
+          '.nav a, .top .btn, .top summary, main .btn.primary, main .month-picker button, form .field',
         ),
       )
         .map((el) => ({ el, r: el.getBoundingClientRect() }))
@@ -213,7 +213,13 @@ test('importar un extracto en tres pasos', async ({ page }, info) => {
   await expect(page.locator('.step[aria-current="step"]')).toContainText('Revisar')
   await expect(page.getByText(`Mercadona ${tag}`)).toBeVisible()
   await checkScreen(page, 'importar-revisar')
-  await page.getByRole('button', { name: /^Importar \d+ movimientos?$/ }).click()
+  // El hogar de prueba no tiene tarjetas de recarga guardadas: la conjunta pide confirmarlo
+  // antes de importar (OF-704).
+  const confirm = page.getByRole('button', { name: /^Importar \d+ movimientos?$/ })
+  await expect(page.getByText(/guardada la tarjeta con la que se recarga la conjunta/)).toBeVisible()
+  await expect(confirm).toBeDisabled()
+  await page.getByLabel(/Importar igualmente/).check()
+  await confirm.click()
 
   await expect(page.locator('.step[aria-current="step"]')).toContainText('Listo')
   await expect(page.getByRole('heading', { name: /Importados? \d+ movimientos?/ })).toBeVisible()
