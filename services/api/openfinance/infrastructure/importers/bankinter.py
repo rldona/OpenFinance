@@ -62,6 +62,11 @@ _PENDING = "pendiente: se importará cuando se contabilice"
 _MAX_DESCRIPTION = 500
 
 
+_DECIMAL_SEP = None
+"""Los importes del Excel son números. Si alguno llega como texto, solo se acepta lo que no
+tiene dos lecturas: el formato del texto no se ha visto en un extracto real (bancos.md)."""
+
+
 def _date(value: Cell) -> datetime:
     if isinstance(value, datetime):
         return value.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -122,10 +127,12 @@ def parse_bankinter(content: bytes, account_key: str, rules: ClassificationRules
             raw_value = cell(row, "value")
             value_date = _date(raw_value) if cell_text(raw_value) else booked_at
             currency = cell_text(cell(row, "currency"))
-            amount = Money.of(to_decimal(cell(row, "amount")), currency)
+            amount = Money.of(to_decimal(cell(row, "amount"), decimal_sep=_DECIMAL_SEP), currency)
             raw_balance = cell(row, "balance")
             balance = (
-                Money.of(to_decimal(raw_balance), currency) if cell_text(raw_balance) else None
+                Money.of(to_decimal(raw_balance, decimal_sep=_DECIMAL_SEP), currency)
+                if cell_text(raw_balance)
+                else None
             )
         except ValueError as exc:
             result.skipped.append(SkippedRow(line, f"fila no válida: {exc}", description))

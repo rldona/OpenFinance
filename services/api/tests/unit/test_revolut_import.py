@@ -149,3 +149,14 @@ def test_fingerprints_do_not_depend_on_classification_rules(result) -> None:
     again = parse_revolut_csv(FIXTURE.read_bytes(), other)
     assert [r.fingerprint for r in again.rows] == [r.fingerprint for r in result.rows]
     assert result.rows[0].fingerprint == FIRST_FINGERPRINT
+
+
+def test_thousands_in_the_english_csv_are_never_read_as_decimals() -> None:
+    lines = FIXTURE.read_text(encoding="utf-8").splitlines()
+    when = "2026-10-12 09:00:00,2026-10-12 09:00:01"
+    extra = (
+        f'TRANSFER,Current,{when},Transferencia de alguien,"1,234",0.00,EUR,COMPLETED,"3,853.69"'
+    )
+    result = parse_revolut_csv("\n".join([*lines, extra]), PROFILE)
+    assert result.rows[-1].amount == Money.of("1234", "EUR")
+    assert result.balance_mismatches == []
