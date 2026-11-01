@@ -18,7 +18,7 @@ Puntos a vigilar, ninguno bloqueante:
 | **psycopg / psycopg-binary** (LGPL-3.0-only) | La LGPL-3.0 es la GPL-3.0 con permisos adicionales, así que se puede combinar con código AGPL-3.0 (AGPL-3.0 §13 permite combinar con GPL-3.0). Se usa sin modificar y como biblioteca. | Si algún día se modifica psycopg, esos cambios se publican bajo LGPL. La wheel `psycopg-binary` incluye `libpq` (PostgreSQL License) y sus bibliotecas C (entre ellas OpenSSL 3, Apache-2.0). |
 | **Apache-2.0** (python-multipart, opentelemetry-api, uvloop en doble licencia…) | Compatible con GPLv3/AGPLv3 en un sentido: código Apache-2.0 puede formar parte de una obra AGPL-3.0. | Conservar sus avisos `NOTICE` si se redistribuyen (los conserva la propia instalación de paquetes). |
 | **PSF-2.0** (typing_extensions, defusedxml) | La FSF la considera compatible con la GPL. | — |
-| **MPL-2.0** (solo en desarrollo: lightningcss, certifi y pathspec) | MPL-2.0 §3.3 permite combinarla con GPL/AGPL salvo que el fichero diga «Incompatible With Secondary Licenses», y no lo dice. Además no acaban en lo que se distribuye. | Si alguna pasara a producción, revisar que no lleve esa marca. |
+| **MPL-2.0** (solo en desarrollo: lightningcss, axe-core, certifi y pathspec) | MPL-2.0 §3.3 permite combinarla con GPL/AGPL salvo que el fichero diga «Incompatible With Secondary Licenses», y no lo dice. Además no acaban en lo que se distribuye. | Si alguna pasara a producción, revisar que no lleve esa marca. |
 | **Imágenes Docker** (sistema base con componentes GPL) | El proyecto no publica imágenes: cada instalación las construye o descarga de Docker Hub. Junto a los paquetes del sistema (BusyBox, glibc…) son una «agregación» (AGPL-3.0 §5), no una obra derivada. | Si se publican imágenes en un registro, hay que ofrecer también el código fuente de los componentes GPL de la imagen base. |
 
 La lista permitida de `licenses.sh --check` solo contiene estas licencias. Una dependencia nueva con otra licencia hace fallar CI y obliga a revisarla y a actualizar este documento.
@@ -94,7 +94,7 @@ Herramientas que se usan para comprobar y construir, pero que no forman parte de
 | BSD-2-Clause | 2 | entities, webidl-conversions |
 | BSD-3-Clause | 2 | source-map-js, tough-cookie |
 | ISC | 2 | picocolors, saxes |
-| MPL-2.0 | 2 | lightningcss |
+| MPL-2.0 | 3 | lightningcss, axe-core |
 | BlueOak-1.0.0 | 1 | lru-cache |
 | CC0-1.0 | 1 | mdn-data |
 
