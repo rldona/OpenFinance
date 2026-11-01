@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 from openfinance.application.changes import record, transaction_state
 from openfinance.application.errors import ConflictError, InvalidRequestError, NotFoundError
 from openfinance.application.ledger import visible_accounts
-from openfinance.application.ports import UnitOfWork
+from openfinance.application.ports import TransactionQuery, UnitOfWork
 from openfinance.domain.categories import (
     DEFAULT_CATEGORIES,
     HOUSEHOLD_SCOPE,
@@ -18,6 +18,7 @@ from openfinance.domain.categories import (
     CategoryId,
     CategoryRule,
     can_learn,
+    is_person_transfer,
     merchant_label,
     rule_matches,
 )
@@ -226,7 +227,8 @@ def edit_transaction(
     scope = rule_scope(account)
     rule: CategoryRule | None = None
     others: list[TransactionId] = []
-    if edit.set_category and edit.learn and can_learn(tx.merchant):
+    learns = can_learn(tx.merchant) and not is_person_transfer(tx.description, tx.bank_type)
+    if edit.set_category and edit.learn and learns:
         previous = uow.rules.get(actor.household_id, scope, tx.merchant)
         if category is None:
             uow.rules.delete(actor.household_id, scope, tx.merchant)
@@ -287,6 +289,63 @@ def _category_name(uow: UnitOfWork, t: Transaction) -> str:
         return "Sin categoría"
     category = uow.categories.get(t.household_id, t.category_id)
     return category.name if category else "Categoría"
+
+
+@dataclass(frozen=True, slots=True)
+class RuleView:
+    rule: CategoryRule
+    personal: bool
+    """Aprendida en una cuenta personal: solo la ve y la aplica su titular (ADR-0013)."""
+    matches: int
+    """Movimientos con esa categoría cuyo comercio coincide con la regla."""
+
+
+def list_rules(uow: UnitOfWork, actor: Actor) -> list[RuleView]:
+    """Las reglas del hogar y las personales propias. Nunca las personales de la pareja."""
+    own = str(actor.user_id)
+    rules = [
+        r for r in uow.rules.for_household(actor.household_id) if r.scope in (HOUSEHOLD_SCOPE, own)
+    ]
+    visible = visible_accounts(uow, actor)
+    by_category: dict[CategoryId, list[Transaction]] = {}
+    views: list[RuleView] = []
+    for rule in rules:
+        if rule.category_id not in by_category:
+            ids = [a.id for a in visible]
+            query = TransactionQuery(category_id=rule.category_id, limit=5000)
+            by_category[rule.category_id] = (
+                uow.transactions.search(actor.household_id, ids, query) if ids else []
+            )
+        targets = {
+            a.id for a in visible if rule.scope == HOUSEHOLD_SCOPE or rule_scope(a) == rule.scope
+        }
+        matches = sum(
+            1
+            for t in by_category[rule.category_id]
+            if t.account_id in targets and rule_matches(rule.merchant, t.merchant)
+        )
+        views.append(RuleView(rule, rule.scope != HOUSEHOLD_SCOPE, matches))
+    views.sort(key=lambda v: (v.personal, v.rule.merchant))
+    return views
+
+
+def delete_rule(
+    uow: UnitOfWork, actor: Actor, personal: bool, merchant: str, now: datetime
+) -> UUID | None:
+    """Borra una regla del hogar o una personal propia. Los movimientos ya clasificados no
+    cambian. Queda en el registro y se puede deshacer."""
+    scope = str(actor.user_id) if personal else HOUSEHOLD_SCOPE
+    rule = uow.rules.get(actor.household_id, scope, merchant)
+    if rule is None:
+        raise NotFoundError("Regla no encontrada")
+    uow.rules.delete(actor.household_id, scope, merchant)
+    change = Change(
+        Entity.RULE, rule_entity_id(scope, merchant), "category_id", str(rule.category_id), None
+    )
+    summary = f"Regla borrada: {merchant_label(merchant)}"
+    operation = record(uow, actor, "rule.delete", summary, [change], now)
+    uow.commit()
+    return operation.id if operation else None
 
 
 def uncategorized_count(uow: UnitOfWork, actor: Actor) -> int:

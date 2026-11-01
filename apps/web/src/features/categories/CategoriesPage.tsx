@@ -85,7 +85,7 @@ export function CategoriesPage() {
       <h1>Categorías</h1>
       <p className="lead">
         Renombra, cambia el icono o el color, u oculta las que no uséis. Ocultar no borra nada: los movimientos conservan su
-        categoría. <a href="#movimientos">Volver a movimientos</a>
+        categoría. <a href="#reglas">Ver las reglas aprendidas</a> · <a href="#movimientos">Volver a movimientos</a>
       </p>
       <div className="card">
         <table role="table" className="rows cats">

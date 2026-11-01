@@ -140,6 +140,22 @@ def can_learn(merchant: str) -> bool:
     return True
 
 
+_PERSON_TRANSFER = re.compile(r"^(?:BIZUM|TRANSFERENCIA|TRANSFER|PAYMENT (?:FROM|TO))\b")
+_TRANSFER_TYPES = frozenset({"TRANSFER", "TRANSFERIR", "TRANSFERENCIA", "BIZUM"})
+
+
+def is_person_transfer(description: str, bank_type: str = "") -> bool:
+    """Bizum o transferencia a o de una persona: su «comercio» es el nombre de alguien.
+
+    Aprender una regla de ella clasificaría igual todo lo que se pague a esa persona, sea lo
+    que sea (OF-702).
+    """
+    return (
+        normalize_text(bank_type) in _TRANSFER_TYPES
+        or _PERSON_TRANSFER.match(normalize_text(description)) is not None
+    )
+
+
 def merchant_label(key: str) -> str:
     """Versión legible del comercio para mostrar: «MERCADONA» → «Mercadona»."""
     return " ".join(w.capitalize() for w in key.split())

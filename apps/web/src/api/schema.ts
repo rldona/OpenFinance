@@ -380,6 +380,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Rules
+         * @description Reglas «comercio → categoría» del hogar y tus personales (nunca las de la pareja).
+         */
+        get: operations["list_rules_api_v1_rules_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rules/{scope}/{merchant}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Rule
+         * @description Borra una regla. Los movimientos ya clasificados no cambian; se puede deshacer.
+         */
+        delete: operations["delete_rule_api_v1_rules__scope___merchant__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/savings/overview": {
         parameters: {
             query?: never;
@@ -1193,6 +1233,35 @@ export interface components {
             category_id: string;
             /** Merchant */
             merchant: string;
+        };
+        /** RuleViewOut */
+        RuleViewOut: {
+            /**
+             * Category Id
+             * Format: uuid
+             */
+            category_id: string;
+            /**
+             * Key
+             * @description Comercio normalizado, para borrar la regla
+             */
+            key: string;
+            /**
+             * Matches
+             * @description Movimientos con esa categoría que coinciden con la regla
+             */
+            matches: number;
+            /**
+             * Merchant
+             * @description Comercio legible
+             */
+            merchant: string;
+            /**
+             * Scope
+             * @description personal = aprendida en tu cuenta personal; solo la ves tú
+             * @enum {string}
+             */
+            scope: "household" | "personal";
         };
         /** SavingsOverviewOut */
         SavingsOverviewOut: {
@@ -2039,6 +2108,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MetaResponse"];
+                };
+            };
+        };
+    };
+    list_rules_api_v1_rules_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleViewOut"][];
+                };
+            };
+        };
+    };
+    delete_rule_api_v1_rules__scope___merchant__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scope: "household" | "personal";
+                merchant: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationRefOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

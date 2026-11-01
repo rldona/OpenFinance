@@ -10,6 +10,7 @@ from openfinance.domain.categories import (
     CategoryRule,
     best_rule,
     can_learn,
+    is_person_transfer,
     merchant_key,
     merchant_label,
     rule_matches,
@@ -111,3 +112,20 @@ def test_invalid_categories(name: str, icon: str, color: str) -> None:
 def test_category_key_ignores_case_and_accents() -> None:
     c = Category(CategoryId(uuid4()), HOUSE, "Café y Té", "☕", "#000000")
     assert c.key == "CAFE Y TE"
+
+
+@pytest.mark.parametrize(
+    ("description", "bank_type", "expected"),
+    [
+        ("Bizum a Juan Perez", "", True),
+        ("BIZUM DE MARIA", "", True),
+        ("Transferencia a Ana López", "", True),
+        ("Payment from Raul", "", True),
+        ("Juan Perez", "TRANSFER", True),
+        ("Juan Perez", "Transferir", True),
+        ("Mercadona", "CARD_PAYMENT", False),
+        ("Bizumarket", "", False),
+    ],
+)
+def test_person_transfers_do_not_learn_rules(description, bank_type, expected) -> None:
+    assert is_person_transfer(description, bank_type) is expected

@@ -214,6 +214,30 @@ describe('Varios a la vez y efectivo (OF-705)', () => {
   })
 })
 
+describe('Reglas (OF-702)', () => {
+  it('lista las reglas con sus movimientos y borra una con «Deshacer»', async () => {
+    window.location.hash = '#reglas'
+    const calls = loggedIn({
+      'GET /api/v1/rules': {
+        body: [
+          { key: 'MERCADONA', merchant: 'Mercadona', category_id: 'c-super', scope: 'household', matches: 12 },
+          { key: 'PELUQUERIA', merchant: 'Peluqueria', category_id: 'c-rest', scope: 'personal', matches: 1 },
+        ],
+      },
+      'DELETE /api/v1/rules/household/MERCADONA': { body: { operation_id: 'op-r' } },
+    })
+    render(<App />)
+    const row = (await screen.findByText('Mercadona')).closest('tr')!
+    expect(row).toHaveTextContent('🛒 Supermercado')
+    expect(row).toHaveTextContent('12')
+    expect(screen.getByText('Personal · solo la ves tú')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Borrar la regla de Mercadona' }))
+    expect(calls.some((c) => c.method === 'DELETE' && c.url.pathname === '/api/v1/rules/household/MERCADONA')).toBe(true)
+    expect(await screen.findByText('Regla borrada: Mercadona')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Deshacer' })).toBeInTheDocument()
+  })
+})
+
 describe('Búsqueda', () => {
   it.each(['#1', '%', '"comillas"', "l'oreal"])('busca «%s» sin romper la pantalla', async (text) => {
     const calls = loggedIn()

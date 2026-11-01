@@ -5,6 +5,7 @@ import { Toast } from '../components/Toast'
 import { useToast } from '../components/useToast'
 import { LoginPage } from '../features/auth/LoginPage'
 import { CategoriesPage } from '../features/categories/CategoriesPage'
+import { RulesPage } from '../features/categories/RulesPage'
 import { ExportMenu } from '../features/export/ExportMenu'
 import { ImportPage } from '../features/import/ImportPage'
 import { MonthPage } from '../features/insights/MonthPage'
@@ -39,6 +40,8 @@ function Page({ route }: { route: RouteId }) {
       return <SavingsPage />
     case 'presupuestos':
       return <BudgetsPage />
+    case 'reglas':
+      return <RulesPage />
   }
 }
 

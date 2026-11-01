@@ -1,3 +1,4 @@
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, status
@@ -10,7 +11,9 @@ from openfinance.api.v1.schemas import (
     CategoryOut,
     CategoryPatch,
     CountOut,
+    OperationRefOut,
     RuleOut,
+    RuleViewOut,
     TransactionOut,
 )
 from openfinance.application import categories
@@ -83,3 +86,27 @@ def categorize(
         also_categorized=result.also_categorized,
         operation_id=result.operation_id,
     )
+
+
+@router.get("/rules", response_model=list[RuleViewOut])
+def list_rules(actor: ActorDep, uow: UowDep) -> list[RuleViewOut]:
+    """Reglas «comercio → categoría» del hogar y tus personales (nunca las de la pareja)."""
+    return [
+        RuleViewOut(
+            key=v.rule.merchant,
+            merchant=merchant_label(v.rule.merchant),
+            category_id=v.rule.category_id,
+            scope="personal" if v.personal else "household",
+            matches=v.matches,
+        )
+        for v in categories.list_rules(uow, actor)
+    ]
+
+
+@router.delete("/rules/{scope}/{merchant}", response_model=OperationRefOut)
+def delete_rule(
+    scope: Literal["household", "personal"], merchant: str, actor: ActorDep, uow: UowDep
+) -> OperationRefOut:
+    """Borra una regla. Los movimientos ya clasificados no cambian; se puede deshacer."""
+    op = categories.delete_rule(uow, actor, scope == "personal", merchant, utc_now())
+    return OperationRefOut(operation_id=op)

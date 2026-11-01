@@ -15,7 +15,7 @@ Un ticket está terminado cuando cumple sus criterios de aceptación, tiene test
 | 4 · Ahorro | Presupuestos, objetivos, ideas y simulador | OF-401 … OF-405 | ✅ Hecha |
 | 5 · Uso real | Instalado en casa, con copias de seguridad | OF-501 … OF-504 | ✅ OF-501 a OF-503 (CI en verde, también `compose-e2e`) · OF-504 preparado: falta la etiqueta `v0.1.0` tras el mes de uso real |
 | 6 · Datos fiables | Que cualquier extracto real se importe sin errores ni entradas infladas | OF-601 … OF-608 | ✅ Hecha · falta reconocer los traspasos internos de OF-602 (pendiente de un extracto real) |
-| 7 · Corregir sin miedo | Editar, deshacer y ajustar desde la web, con historial | OF-701 … OF-706 | 🚧 En curso · base del registro ✅ · OF-701 ✅ · OF-705 ✅ |
+| 7 · Corregir sin miedo | Editar, deshacer y ajustar desde la web, con historial | OF-701 … OF-706 | 🚧 En curso · base del registro ✅ · OF-701 ✅ · OF-702 ✅ · OF-705 ✅ |
 | 8 · Uso diario | Móvil, PWA, accesibilidad y mes en curso honesto (v0.2) | OF-801 … OF-806 | Pendiente |
 | 9 · Operación | Copias cifradas, dependencias y actualizaciones (v0.2) | OF-901 … OF-907 | Pendiente |
 | 10 – 17 | Del libro contable completo a la 1.0 | OF-1001 … OF-1705 | Ver [Después de v0.2](#después-de-v02) |
@@ -339,11 +339,11 @@ Que cualquier error de datos se arregle desde la web, quede trazado y se pueda d
 - ✅ En Movimientos, el concepto abre el detalle: tipo, persona, nota e historial. Cada corrección avisa con «Deshacer» durante 8 s.
 - ✅ 🧪 La pareja no puede editar ni ver el historial de una cuenta personal ajena (404), ni otro hogar; ✅ 🧪 corregir un ingreso a aportación cambia las entradas del mes; ✅ 🧪 cada corrección deja una fila de historial con su autor.
 
-### OF-702 · Reglas visibles: confirmar, deshacer y gestionar
-- Al categorizar, un aviso con «Deshacer» durante 8 s que dice cuántos movimientos ha clasificado la regla; deshacer los revierte.
-- Los Bizum y las transferencias a personas no aprenden reglas por defecto.
-- Pantalla Reglas (`GET/DELETE /api/v1/rules`): comercio, categoría, cuántos movimientos clasifica y si es personal o del hogar.
-- 🧪 Deshacer devuelve a «sin categoría» solo los movimientos que la regla había clasificado; 🧪 la pareja no ve las reglas personales del otro.
+### OF-702 · Reglas visibles: confirmar, deshacer y gestionar ✅
+- ✅ Al categorizar, el aviso dice cuántos movimientos ha clasificado la regla y lleva «Deshacer» durante 8 s: revierte la categoría, la regla y lo que clasificó (es una sola operación del registro).
+- ✅ Los Bizum y las transferencias a o de personas (por concepto o por tipo del banco) no aprenden reglas: su «comercio» es el nombre de alguien.
+- ✅ Pantalla Reglas (`#reglas`, enlazada desde Movimientos y Categorías; `GET /api/v1/rules`, `DELETE /api/v1/rules/{household|personal}/{comercio}`): comercio, categoría, cuántos movimientos coinciden y si es personal. Borrar no cambia lo ya clasificado, queda en el registro y se puede deshacer.
+- ✅ 🧪 Deshacer devuelve a «sin categoría» solo los movimientos que la regla había clasificado (los corregidos después a mano se respetan); ✅ 🧪 la pareja no ve ni borra las reglas personales del otro, ni otro hogar.
 
 ### OF-703 · Historial de importaciones y deshacer una importación
 - Lista de importaciones: archivo, cuenta, quién, cuándo, nuevos, duplicados y descartados.

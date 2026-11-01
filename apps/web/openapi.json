@@ -1882,6 +1882,48 @@
         "title": "RuleOut",
         "type": "object"
       },
+      "RuleViewOut": {
+        "properties": {
+          "category_id": {
+            "format": "uuid",
+            "title": "Category Id",
+            "type": "string"
+          },
+          "key": {
+            "description": "Comercio normalizado, para borrar la regla",
+            "title": "Key",
+            "type": "string"
+          },
+          "matches": {
+            "description": "Movimientos con esa categoría que coinciden con la regla",
+            "title": "Matches",
+            "type": "integer"
+          },
+          "merchant": {
+            "description": "Comercio legible",
+            "title": "Merchant",
+            "type": "string"
+          },
+          "scope": {
+            "description": "personal = aprendida en tu cuenta personal; solo la ves tú",
+            "enum": [
+              "household",
+              "personal"
+            ],
+            "title": "Scope",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "merchant",
+          "category_id",
+          "scope",
+          "matches"
+        ],
+        "title": "RuleViewOut",
+        "type": "object"
+      },
       "SavingsOverviewOut": {
         "properties": {
           "average_saved": {
@@ -3294,6 +3336,88 @@
         "summary": "Get Meta",
         "tags": [
           "meta"
+        ]
+      }
+    },
+    "/api/v1/rules": {
+      "get": {
+        "description": "Reglas «comercio → categoría» del hogar y tus personales (nunca las de la pareja).",
+        "operationId": "list_rules_api_v1_rules_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RuleViewOut"
+                  },
+                  "title": "Response List Rules Api V1 Rules Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Rules",
+        "tags": [
+          "categories"
+        ]
+      }
+    },
+    "/api/v1/rules/{scope}/{merchant}": {
+      "delete": {
+        "description": "Borra una regla. Los movimientos ya clasificados no cambian; se puede deshacer.",
+        "operationId": "delete_rule_api_v1_rules__scope___merchant__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scope",
+            "required": true,
+            "schema": {
+              "enum": [
+                "household",
+                "personal"
+              ],
+              "title": "Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "merchant",
+            "required": true,
+            "schema": {
+              "title": "Merchant",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationRefOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Rule",
+        "tags": [
+          "categories"
         ]
       }
     },

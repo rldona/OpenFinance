@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
@@ -257,6 +258,16 @@ class CategorizeIn(BaseModel):
 class RuleOut(BaseModel):
     merchant: str
     category_id: UUID
+
+
+class RuleViewOut(BaseModel):
+    key: str = Field(description="Comercio normalizado, para borrar la regla")
+    merchant: str = Field(description="Comercio legible")
+    category_id: UUID
+    scope: Literal["household", "personal"] = Field(
+        description="personal = aprendida en tu cuenta personal; solo la ves tú"
+    )
+    matches: int = Field(description="Movimientos con esa categoría que coinciden con la regla")
 
 
 class CategorizeOut(BaseModel):

@@ -18,6 +18,7 @@ export type RevertResult = Schemas['RevertOut']
 export type ManualTransactionInput = Schemas['ManualTransactionIn']
 export type ManualTransactionResult = Schemas['ManualTransactionOut']
 export type BulkCategorizeResult = Schemas['BulkCategorizeOut']
+export type RuleView = Schemas['RuleViewOut']
 export type MonthOverview = Schemas['MonthOverviewOut']
 export type CategoryDetail = Schemas['CategoryDetailOut']
 export type Trends = Schemas['TrendsOut']
@@ -133,6 +134,9 @@ export const api = {
     request<ManualTransactionResult>('POST', '/api/v1/transactions', { json: input }),
   deleteManual: (transactionId: string) =>
     request<{ operation_id: string | null }>('DELETE', `/api/v1/transactions/${encodeURIComponent(transactionId)}`),
+  rules: (signal?: AbortSignal) => request<RuleView[]>('GET', '/api/v1/rules', { signal }),
+  deleteRule: (scope: RuleView['scope'], key: string) =>
+    request<{ operation_id: string | null }>('DELETE', `/api/v1/rules/${scope}/${encodeURIComponent(key)}`),
   changes: (signal?: AbortSignal) => request<Operation[]>('GET', '/api/v1/changes', { signal }),
   undo: (operationId: string) => request<RevertResult>('POST', `/api/v1/changes/${encodeURIComponent(operationId)}/undo`),
   redo: (operationId: string) => request<RevertResult>('POST', `/api/v1/changes/${encodeURIComponent(operationId)}/redo`),
