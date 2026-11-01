@@ -35,18 +35,18 @@ class TestLoginThrottle:
     def test_window_expires(self) -> None:
         t = LoginThrottle(2, 100, timedelta(minutes=15))
         now = datetime(2026, 10, 31, 12, 0)  # noqa: DTZ001
-        t.record_failure("a@b.c", "1.2.3.4", now)
-        t.record_failure("A@B.C", "1.2.3.4", now)
-        assert t.is_blocked("a@b.c", "1.2.3.4", now)
-        assert not t.is_blocked("a@b.c", "1.2.3.4", now + timedelta(minutes=16))
+        assert t.try_acquire("a@b.c", "1.2.3.4", now)
+        assert t.try_acquire("A@B.C", "1.2.3.4", now)
+        assert not t.try_acquire("a@b.c", "1.2.3.4", now)
+        assert t.try_acquire("a@b.c", "1.2.3.4", now + timedelta(minutes=16))
 
     def test_blocks_by_ip_across_emails(self) -> None:
         t = LoginThrottle(100, 3, timedelta(minutes=15))
         now = datetime(2026, 10, 31, 12, 0)  # noqa: DTZ001
         for i in range(3):
-            t.record_failure(f"u{i}@b.c", "9.9.9.9", now)
-        assert t.is_blocked("otro@b.c", "9.9.9.9", now)
-        assert not t.is_blocked("otro@b.c", "8.8.8.8", now)
+            assert t.try_acquire(f"u{i}@b.c", "9.9.9.9", now)
+        assert not t.try_acquire("otro@b.c", "9.9.9.9", now)
+        assert t.try_acquire("otro@b.c", "8.8.8.8", now)
 
 
 class TestSessions:

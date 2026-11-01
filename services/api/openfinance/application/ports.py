@@ -278,6 +278,11 @@ class PasswordHasher(Protocol):
         """Gasta el mismo tiempo que ``verify`` para no revelar si un email existe."""
         ...
 
+    async def averify(self, password_hash: str | None, password: str) -> bool:
+        """Como ``verify`` pero sin bloquear al llamante ni al grupo de hilos común (OF-906).
+        Con ``None`` (no existe esa persona) gasta el mismo tiempo y devuelve ``False``."""
+        ...
+
 
 class UnitOfWork(Protocol):
     @property

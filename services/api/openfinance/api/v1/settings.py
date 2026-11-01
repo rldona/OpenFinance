@@ -27,7 +27,7 @@ def change_password(
     now = utc_now()
     ip = request.client.host if request.client else "unknown"
     key = f"password:{actor.user_id}"
-    if throttle.is_blocked(key, ip, now):
+    if not throttle.try_acquire(key, ip, now):
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS, "Demasiados intentos. Espera unos minutos."
         )
@@ -41,9 +41,11 @@ def change_password(
             request.cookies.get(settings.session_cookie_name, ""),
         )
     except WrongPasswordError:
-        throttle.record_failure(key, ip, now)
+        raise  # el intento sigue contado
+    except Exception:
+        throttle.release(key, ip, now)  # no fue un fallo de credenciales
         raise
-    throttle.reset(key)
+    throttle.release_success(key, ip, now)
     return RevokedOut(revoked=revoked)
 
 

@@ -42,25 +42,20 @@ def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
-def login(
-    uow: UnitOfWork,
-    hasher: PasswordHasher,
-    email: str,
-    password: str,
-    now: datetime,
-    ttl: timedelta,
-    previous_token: str = "",
-) -> NewSession:
-    """Inicia sesión. Sustituye la sesión que traiga el navegador y purga las caducadas."""
+def find_login_user(uow: UnitOfWork, email: str) -> User | None:
+    """La persona de ese email, o ``None``. Primer paso del login (OF-906): la API verifica la
+    contraseña después, fuera del grupo de hilos común."""
     try:
-        user = uow.users.get_by_email(normalize_email(email))
+        return uow.users.get_by_email(normalize_email(email))
     except InvalidUserError:
-        user = None
-    if user is None:
-        hasher.dummy_verify(password)
-        raise AuthenticationError
-    if not hasher.verify(user.password_hash, password):
-        raise AuthenticationError
+        return None
+
+
+def open_session(
+    uow: UnitOfWork, user: User, now: datetime, ttl: timedelta, previous_token: str = ""
+) -> NewSession:
+    """Último paso del login, con la contraseña ya comprobada: abre la sesión, sustituye la
+    que traiga el navegador y purga las caducadas."""
     households = uow.households.households_of(user.id)
     if not households:
         raise AuthenticationError
@@ -74,6 +69,25 @@ def login(
     uow.sessions.add(session)
     uow.commit()
     return NewSession(token, session.expires_at, Actor(user.id, session.household_id))
+
+
+def login(
+    uow: UnitOfWork,
+    hasher: PasswordHasher,
+    email: str,
+    password: str,
+    now: datetime,
+    ttl: timedelta,
+    previous_token: str = "",
+) -> NewSession:
+    """Inicia sesión de una vez (la API usa los pasos por separado para no bloquear)."""
+    user = find_login_user(uow, email)
+    if user is None:
+        hasher.dummy_verify(password)
+        raise AuthenticationError
+    if not hasher.verify(user.password_hash, password):
+        raise AuthenticationError
+    return open_session(uow, user, now, ttl, previous_token)
 
 
 def resolve_session(uow: UnitOfWork, token: str, now: datetime) -> Actor | None:

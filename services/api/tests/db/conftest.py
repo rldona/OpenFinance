@@ -44,6 +44,9 @@ class FakeHasher:
     def dummy_verify(self, password: str) -> None:
         return None
 
+    async def averify(self, password_hash: str | None, password: str) -> bool:
+        return password_hash is not None and self.verify(password_hash, password)
+
 
 @pytest.fixture
 def engine(tmp_path) -> Iterator[Engine]:
