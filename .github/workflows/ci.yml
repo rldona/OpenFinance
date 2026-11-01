@@ -68,6 +68,12 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
+      - name: El lock solo usa el registro público de npm
+        run: |
+          if grep -nE '"resolved": "' package-lock.json | grep -vE '"resolved": "https://registry\.npmjs\.org/'; then
+            echo "::error file=apps/web/package-lock.json::package-lock.json contiene URLs fuera de registry.npmjs.org (¿registro privado o jfrog?). Regenera el lock contra el registro público."
+            exit 1
+          fi
       - run: npm ci
       - name: Tipos del cliente generados desde OpenAPI
         run: |
