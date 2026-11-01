@@ -5,7 +5,12 @@ from fastapi import APIRouter, File, Form, UploadFile
 from fastapi.concurrency import run_in_threadpool
 
 from openfinance.api.deps import ActorDep, ParsersDep, UowDep
-from openfinance.api.v1.schemas import ImportPreviewOut, ImportResultOut
+from openfinance.api.v1.schemas import (
+    ImportListItemOut,
+    ImportPreviewOut,
+    ImportResultOut,
+    UndoImportOut,
+)
 from openfinance.application import imports
 from openfinance.application.errors import InvalidRequestError
 from openfinance.domain.imports.batch import MAX_FILE_BYTES
@@ -46,3 +51,30 @@ def commit_import(
 ) -> ImportResultOut:
     """Guarda los movimientos nuevos. Repetir la llamada no vuelve a guardarlos."""
     return ImportResultOut.of(imports.commit_import(uow, parsers, actor, import_id, utc_now()))
+
+
+@router.get("/imports", response_model=list[ImportListItemOut])
+def list_imports(actor: ActorDep, uow: UowDep) -> list[ImportListItemOut]:
+    """Importaciones confirmadas o deshechas de tus cuentas, de la más reciente a la más antigua."""
+    return [
+        ImportListItemOut(
+            id=v.batch.id,
+            account_id=v.batch.account_id,
+            filename=v.batch.filename,
+            created_by=v.batch.created_by,
+            committed_at=v.batch.committed_at,
+            status="undone" if v.batch.status.value == "undone" else "committed",
+            created=v.batch.created_count,
+            duplicates=v.batch.duplicate_count,
+            skipped=v.batch.skipped_count,
+            can_undo=v.can_undo,
+        )
+        for v in imports.list_imports(uow, actor)
+    ]
+
+
+@router.post("/imports/{import_id}/undo", response_model=UndoImportOut)
+def undo_import(import_id: UUID, actor: ActorDep, uow: UowDep) -> UndoImportOut:
+    """Anula los movimientos de la última importación de una cuenta. Nada se borra."""
+    r = imports.undo_import(uow, actor, import_id, utc_now())
+    return UndoImportOut(voided=r.voided, operation_id=r.operation_id)

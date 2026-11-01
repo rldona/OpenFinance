@@ -195,6 +195,24 @@ class ImportPreviewOut(BaseModel):
         )
 
 
+class ImportListItemOut(BaseModel):
+    id: UUID
+    account_id: UUID
+    filename: str
+    created_by: UUID
+    committed_at: datetime | None
+    status: Literal["committed", "undone"]
+    created: int
+    duplicates: int
+    skipped: int
+    can_undo: bool = Field(description="Solo la última importación confirmada de cada cuenta")
+
+
+class UndoImportOut(BaseModel):
+    voided: int = Field(description="Movimientos anulados")
+    operation_id: UUID | None
+
+
 class ImportResultOut(BaseModel):
     id: UUID
     status: str

@@ -253,7 +253,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Imports
+         * @description Importaciones confirmadas o deshechas de tus cuentas, de la más reciente a la más antigua.
+         */
+        get: operations["list_imports_api_v1_imports_get"];
         put?: never;
         /**
          * Create Import
@@ -280,6 +284,26 @@ export interface paths {
          * @description Guarda los movimientos nuevos. Repetir la llamada no vuelve a guardarlos.
          */
         post: operations["commit_import_api_v1_imports__import_id__commit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports/{import_id}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Undo Import
+         * @description Anula los movimientos de la última importación de una cuenta. Nada se borra.
+         */
+        post: operations["undo_import_api_v1_imports__import_id__undo_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -909,6 +933,44 @@ export interface components {
             title: string;
             yearly_saving: components["schemas"]["MoneyOut"];
         };
+        /** ImportListItemOut */
+        ImportListItemOut: {
+            /**
+             * Account Id
+             * Format: uuid
+             */
+            account_id: string;
+            /**
+             * Can Undo
+             * @description Solo la última importación confirmada de cada cuenta
+             */
+            can_undo: boolean;
+            /** Committed At */
+            committed_at: string | null;
+            /** Created */
+            created: number;
+            /**
+             * Created By
+             * Format: uuid
+             */
+            created_by: string;
+            /** Duplicates */
+            duplicates: number;
+            /** Filename */
+            filename: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Skipped */
+            skipped: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "committed" | "undone";
+        };
         /** ImportPreviewOut */
         ImportPreviewOut: {
             /**
@@ -1380,6 +1442,16 @@ export interface components {
             total_saved: components["schemas"]["MoneyOut"];
             total_spent: components["schemas"]["MoneyOut"];
             worst: components["schemas"]["MonthSavedOut"] | null;
+        };
+        /** UndoImportOut */
+        UndoImportOut: {
+            /** Operation Id */
+            operation_id: string | null;
+            /**
+             * Voided
+             * @description Movimientos anulados
+             */
+            voided: number;
         };
         /** UserOut */
         UserOut: {
@@ -1905,6 +1977,26 @@ export interface operations {
             };
         };
     };
+    list_imports_api_v1_imports_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportListItemOut"][];
+                };
+            };
+        };
+    };
     create_import_api_v1_imports_post: {
         parameters: {
             query?: never;
@@ -1956,6 +2048,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportResultOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    undo_import_api_v1_imports__import_id__undo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UndoImportOut"];
                 };
             };
             /** @description Validation Error */

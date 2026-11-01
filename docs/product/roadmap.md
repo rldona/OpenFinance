@@ -15,7 +15,7 @@ Un ticket está terminado cuando cumple sus criterios de aceptación, tiene test
 | 4 · Ahorro | Presupuestos, objetivos, ideas y simulador | OF-401 … OF-405 | ✅ Hecha |
 | 5 · Uso real | Instalado en casa, con copias de seguridad | OF-501 … OF-504 | ✅ OF-501 a OF-503 (CI en verde, también `compose-e2e`) · OF-504 preparado: falta la etiqueta `v0.1.0` tras el mes de uso real |
 | 6 · Datos fiables | Que cualquier extracto real se importe sin errores ni entradas infladas | OF-601 … OF-608 | ✅ Hecha · falta reconocer los traspasos internos de OF-602 (pendiente de un extracto real) |
-| 7 · Corregir sin miedo | Editar, deshacer y ajustar desde la web, con historial | OF-701 … OF-706 | 🚧 En curso · base del registro ✅ · OF-701 ✅ · OF-702 ✅ · OF-705 ✅ |
+| 7 · Corregir sin miedo | Editar, deshacer y ajustar desde la web, con historial | OF-701 … OF-706 | 🚧 En curso · base del registro ✅ · OF-701 ✅ · OF-702 ✅ · OF-703 ✅ · OF-705 ✅ |
 | 8 · Uso diario | Móvil, PWA, accesibilidad y mes en curso honesto (v0.2) | OF-801 … OF-806 | Pendiente |
 | 9 · Operación | Copias cifradas, dependencias y actualizaciones (v0.2) | OF-901 … OF-907 | Pendiente |
 | 10 – 17 | Del libro contable completo a la 1.0 | OF-1001 … OF-1705 | Ver [Después de v0.2](#después-de-v02) |
@@ -345,10 +345,12 @@ Que cualquier error de datos se arregle desde la web, quede trazado y se pueda d
 - ✅ Pantalla Reglas (`#reglas`, enlazada desde Movimientos y Categorías; `GET /api/v1/rules`, `DELETE /api/v1/rules/{household|personal}/{comercio}`): comercio, categoría, cuántos movimientos coinciden y si es personal. Borrar no cambia lo ya clasificado, queda en el registro y se puede deshacer.
 - ✅ 🧪 Deshacer devuelve a «sin categoría» solo los movimientos que la regla había clasificado (los corregidos después a mano se respetan); ✅ 🧪 la pareja no ve ni borra las reglas personales del otro, ni otro hogar.
 
-### OF-703 · Historial de importaciones y deshacer una importación
-- Lista de importaciones: archivo, cuenta, quién, cuándo, nuevos, duplicados y descartados.
-- «Deshacer importación», con confirmación en la propia pantalla: anula sus movimientos (con registro) si es la última de esa cuenta.
-- 🧪 Deshacer y volver a importar el mismo archivo da el mismo resultado; 🧪 no se puede deshacer una importación de la cuenta personal de la pareja.
+### OF-703 · Historial de importaciones y deshacer una importación ✅
+- ✅ En Importar, la lista de importaciones (`GET /api/v1/imports`): archivo, cuenta, quién, cuándo, nuevos, ya importados y descartados, y si está deshecha. Solo de las cuentas que ve cada persona.
+- ✅ «Deshacer» con confirmación en la propia pantalla (`POST /api/v1/imports/{id}/undo`): anula sus movimientos, con sus correcciones, en una operación del registro que también se puede deshacer. Solo la última importación confirmada de cada cuenta.
+- ✅ Volver a importar un archivo deshecho reactiva los mismos movimientos (mismo identificador y correcciones) en lugar de duplicarlos.
+- No se guarda si el saldo cuadró al confirmar: la vista previa lo comprueba, pero el historial no lo enseña todavía.
+- ✅ 🧪 Deshacer y volver a importar el mismo archivo da el mismo resultado (mismos nuevos, mismos duplicados, mismos movimientos); ✅ 🧪 no se puede deshacer una importación de la cuenta personal de la pareja (404) ni de otro hogar, ni verla en la lista.
 
 ### OF-704 · Ajustes: cuenta propia, sesiones y recargas de la conjunta
 - Cambiar la contraseña (pide la actual) y «Cerrar todas mis sesiones».

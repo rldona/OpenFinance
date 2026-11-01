@@ -1070,6 +1070,80 @@
         "title": "IdeaOut",
         "type": "object"
       },
+      "ImportListItemOut": {
+        "properties": {
+          "account_id": {
+            "format": "uuid",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "can_undo": {
+            "description": "Solo la última importación confirmada de cada cuenta",
+            "title": "Can Undo",
+            "type": "boolean"
+          },
+          "committed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Committed At"
+          },
+          "created": {
+            "title": "Created",
+            "type": "integer"
+          },
+          "created_by": {
+            "format": "uuid",
+            "title": "Created By",
+            "type": "string"
+          },
+          "duplicates": {
+            "title": "Duplicates",
+            "type": "integer"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "skipped": {
+            "title": "Skipped",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "committed",
+              "undone"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "account_id",
+          "filename",
+          "created_by",
+          "committed_at",
+          "status",
+          "created",
+          "duplicates",
+          "skipped",
+          "can_undo"
+        ],
+        "title": "ImportListItemOut",
+        "type": "object"
+      },
       "ImportPreviewOut": {
         "properties": {
           "account_id": {
@@ -2270,6 +2344,33 @@
         "title": "TrendsOut",
         "type": "object"
       },
+      "UndoImportOut": {
+        "properties": {
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "voided": {
+            "description": "Movimientos anulados",
+            "title": "Voided",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "voided",
+          "operation_id"
+        ],
+        "title": "UndoImportOut",
+        "type": "object"
+      },
       "UserOut": {
         "properties": {
           "display_name": {
@@ -3000,6 +3101,30 @@
       }
     },
     "/api/v1/imports": {
+      "get": {
+        "description": "Importaciones confirmadas o deshechas de tus cuentas, de la más reciente a la más antigua.",
+        "operationId": "list_imports_api_v1_imports_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ImportListItemOut"
+                  },
+                  "title": "Response List Imports Api V1 Imports Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Imports",
+        "tags": [
+          "imports"
+        ]
+      },
       "post": {
         "description": "Lee el extracto y devuelve la vista previa. No guarda movimientos.",
         "operationId": "create_import_api_v1_imports_post",
@@ -3080,6 +3205,50 @@
           }
         },
         "summary": "Commit Import",
+        "tags": [
+          "imports"
+        ]
+      }
+    },
+    "/api/v1/imports/{import_id}/undo": {
+      "post": {
+        "description": "Anula los movimientos de la última importación de una cuenta. Nada se borra.",
+        "operationId": "undo_import_api_v1_imports__import_id__undo_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "import_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Import Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UndoImportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Undo Import",
         "tags": [
           "imports"
         ]

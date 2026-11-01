@@ -9,6 +9,7 @@ import {
 import { useHousehold } from '../../app/household-context'
 import { centsToAmount, formatDate, formatMoney, toCents } from '../../lib/format'
 import { kindLabel } from '../transactions/labels'
+import { ImportHistory } from './ImportHistory'
 
 const FORMATS: Record<string, { accept: string; label: string }> = {
   revolut: { accept: '.csv,.xlsx', label: 'CSV o Excel' },
@@ -272,6 +273,7 @@ export function ImportPage() {
           </button>
         </div>
       </form>
+      <ImportHistory accounts={accounts} />
     </section>
   )
 }

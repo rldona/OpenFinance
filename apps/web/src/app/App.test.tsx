@@ -22,6 +22,7 @@ const loggedIn = (extra: Parameters<typeof mockApi>[0] = {}) =>
     'GET /api/v1/transactions': { body: TRANSACTIONS },
     'GET /api/v1/categories': { body: CATEGORIES },
     'GET /api/v1/transactions/uncategorized-count': { body: { count: 1 } },
+    'GET /api/v1/imports': { body: [] },
     ...extra,
   })
 
@@ -238,6 +239,39 @@ describe('Reglas (OF-702)', () => {
   })
 })
 
+describe('Historial de importaciones (OF-703)', () => {
+  const ITEM = {
+    id: 'imp-9',
+    account_id: 'a-joint',
+    filename: 'octubre.xlsx',
+    created_by: 'u-elena',
+    committed_at: '2026-11-01T09:00:00Z',
+    status: 'committed',
+    created: 42,
+    duplicates: 3,
+    skipped: 1,
+    can_undo: true,
+  }
+
+  it('lista quién importó qué y deshace la última tras confirmar en la pantalla', async () => {
+    window.location.hash = '#importar'
+    const calls = loggedIn({
+      'GET /api/v1/imports': { body: [ITEM, { ...ITEM, id: 'imp-8', filename: 'septiembre.xlsx', can_undo: false }] },
+      'POST /api/v1/imports/imp-9/undo': { body: { voided: 42, operation_id: 'op-i' } },
+    })
+    render(<App />)
+    const list = await screen.findByRole('list', { name: 'Importaciones' })
+    expect(within(list).getByText('octubre.xlsx').closest('li')).toHaveTextContent('Elena · 42 nuevos · 3 ya estaban · 1 descartados')
+    expect(within(list).getAllByRole('button', { name: 'Deshacer' })).toHaveLength(1)
+    await userEvent.click(within(list).getByRole('button', { name: 'Deshacer' }))
+    expect(within(list).getByText(/Se anularán sus 42 movimientos/)).toBeInTheDocument()
+    expect(calls.some((c) => c.url.pathname.endsWith('/undo'))).toBe(false)
+    await userEvent.click(within(list).getByRole('button', { name: 'Sí, deshacer' }))
+    expect(await screen.findByText('Importación deshecha: 42 movimientos anulados')).toBeInTheDocument()
+    expect(calls.some((c) => c.method === 'POST' && c.url.pathname === '/api/v1/imports/imp-9/undo')).toBe(true)
+  })
+})
+
 describe('Búsqueda', () => {
   it.each(['#1', '%', '"comillas"', "l'oreal"])('busca «%s» sin romper la pantalla', async (text) => {
     const calls = loggedIn()
@@ -291,7 +325,7 @@ describe('Importar', () => {
     expect(screen.getByText('Ya importado')).toBeInTheDocument()
     expect(screen.getByText(/Filas que no se importan \(1\)/)).toBeInTheDocument()
 
-    const upload = calls.find((c) => c.url.pathname === '/api/v1/imports')!
+    const upload = calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/imports')!
     expect(upload.headers.get('X-Requested-With')).toBe('OpenFinance')
     const form = upload.body as FormData
     expect(form.get('account_id')).toBe('a-joint')
