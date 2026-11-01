@@ -14,14 +14,17 @@ from openfinance.api.v1.schemas import (
     ManualTransactionOut,
     MoneyOut,
     OperationRefOut,
+    SplitIn,
+    SplitOut,
     TagOut,
     TagsIn,
     TagsOut,
     TransactionOut,
     TransactionPageOut,
 )
-from openfinance.application import ledger, merchants, movements
+from openfinance.application import ledger, movements, splits
 from openfinance.application import tags as tags_app
+from openfinance.application.decorate import decorate
 from openfinance.application.ports import TransactionQuery
 from openfinance.domain.categories import CategoryId
 from openfinance.domain.shared.ids import AccountId, TransactionId
@@ -70,9 +73,8 @@ def list_transactions(
     except ValueError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
     found = ledger.list_transactions(uow, actor, query)
-    names = merchants.names_for(uow, actor.household_id, found)
-    tags = tags_app.tags_for(uow, actor.household_id, found)
-    return [TransactionOut.of(t, names, tags) for t in found]
+    decor = decorate(uow, actor.household_id, found)
+    return [TransactionOut.of(t, decor) for t in found]
 
 
 def _encode_cursor(at: datetime, last_id: UUID) -> str:
@@ -120,10 +122,9 @@ def page_transactions(
     except ValueError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
     page = ledger.page_transactions(uow, actor, query)
-    names = merchants.names_for(uow, actor.household_id, page.items)
-    tags = tags_app.tags_for(uow, actor.household_id, page.items)
+    decor = decorate(uow, actor.household_id, page.items)
     return TransactionPageOut(
-        items=[TransactionOut.of(t, names, tags) for t in page.items],
+        items=[TransactionOut.of(t, decor) for t in page.items],
         next_cursor=_encode_cursor(*page.next_after) if page.next_after else None,
         count=page.count,
         total=MoneyOut.of(page.total),
@@ -164,7 +165,7 @@ def add_manual(body: ManualTransactionIn, actor: ActorDep, uow: UowDep) -> Manua
     )
     return ManualTransactionOut(
         transaction=TransactionOut.of(
-            r.transaction, merchants.names_for(uow, actor.household_id, [r.transaction])
+            r.transaction, decorate(uow, actor.household_id, [r.transaction])
         ),
         operation_id=r.operation_id,
     )
@@ -191,10 +192,38 @@ def set_tags(transaction_id: UUID, body: TagsIn, actor: ActorDep, uow: UowDep) -
     )
     t = result.transaction
     return TagsOut(
+        transaction=TransactionOut.of(t, decorate(uow, actor.household_id, [t])),
+        operation_id=result.operation_id,
+    )
+
+
+@router.put("/transactions/{transaction_id}/split", response_model=SplitOut)
+def split_transaction(
+    transaction_id: UUID, body: SplitIn, actor: ActorDep, uow: UowDep
+) -> SplitOut:
+    """Divide un gasto en partes con categoría que suman su importe; se puede deshacer."""
+    result = splits.split_transaction(
+        uow,
+        actor,
+        TransactionId(transaction_id),
+        [(p.amount.replace(",", "."), CategoryId(p.category_id)) for p in body.parts],
+        utc_now(),
+    )
+    return SplitOut(
         transaction=TransactionOut.of(
-            t,
-            merchants.names_for(uow, actor.household_id, [t]),
-            {t.id: result.tags},
+            result.transaction, decorate(uow, actor.household_id, [result.transaction])
+        ),
+        operation_id=result.operation_id,
+    )
+
+
+@router.delete("/transactions/{transaction_id}/split", response_model=SplitOut)
+def unsplit_transaction(transaction_id: UUID, actor: ActorDep, uow: UowDep) -> SplitOut:
+    """Deshace la división de un gasto; se puede deshacer."""
+    result = splits.unsplit_transaction(uow, actor, TransactionId(transaction_id), utc_now())
+    return SplitOut(
+        transaction=TransactionOut.of(
+            result.transaction, decorate(uow, actor.household_id, [result.transaction])
         ),
         operation_id=result.operation_id,
     )

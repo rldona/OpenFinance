@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import calendar
+from dataclasses import replace
 from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
@@ -26,16 +27,19 @@ from openfinance.domain.shared.ids import (
     UserId,
     WorkspaceId,
 )
+from openfinance.domain.splits import SplitPart
 from openfinance.domain.tags import tag_key
 from openfinance.infrastructure.db.models import (
     AccountRow,
     TransactionRow,
+    TransactionSplitRow,
     TransactionTagRow,
 )
 from openfinance.infrastructure.db.repositories._common import (
     _AMOUNT_QUANTUM,
     _flush,
 )
+from openfinance.infrastructure.db.repositories.splits import SqlSplitRepository
 
 _KIND_ORDER = {AccountKind.JOINT: 0, AccountKind.SAVINGS: 1, AccountKind.PERSONAL: 2}
 
@@ -101,7 +105,16 @@ def _transaction(row: TransactionRow) -> Transaction:
 
 
 _ACTIVE = TransactionRow.voided.is_(False)
+_NOT_SPLIT = TransactionRow.id.not_in(select(TransactionSplitRow.transaction_id))
+"""Un movimiento dividido tiene su categoría en las partes, no en él (OF-1003)."""
 """Los movimientos anulados no cuentan en ninguna consulta (ADR-0017)."""
+
+
+def _expand(t: Transaction, parts: list[SplitPart] | None) -> list[Transaction]:
+    """Un movimiento dividido se cuenta como una parte por categoría (mismo id y concepto)."""
+    if not parts:
+        return [t]
+    return [replace(t, amount=p.amount, category_id=p.category_id) for p in parts]
 
 
 def _new_row(t: Transaction) -> TransactionRow:
@@ -149,7 +162,16 @@ class SqlTransactionRepository:
                 TransactionRow.description.icontains(query.text.strip(), autoescape=True)
             )
         if query.category_id is not None:
-            stmt = stmt.where(TransactionRow.category_id == query.category_id)
+            stmt = stmt.where(
+                or_(
+                    TransactionRow.category_id == query.category_id,
+                    TransactionRow.id.in_(
+                        select(TransactionSplitRow.transaction_id).where(
+                            TransactionSplitRow.category_id == query.category_id
+                        )
+                    ),
+                )
+            )
         if query.tag:
             stmt = stmt.where(
                 TransactionRow.id.in_(
@@ -163,6 +185,7 @@ class SqlTransactionRepository:
             stmt = stmt.where(
                 TransactionRow.kind == TransactionKind.EXPENSE.value,
                 TransactionRow.category_id.is_(None),
+                _NOT_SPLIT,
             )
         return stmt
 
@@ -322,6 +345,7 @@ class SqlTransactionRepository:
                     TransactionRow.id.in_(ids[i : i + 500]),
                     TransactionRow.kind == TransactionKind.EXPENSE.value,
                     _ACTIVE,
+                    _NOT_SPLIT,
                 )
                 .values(category_id=category_id)
             )
@@ -334,6 +358,7 @@ class SqlTransactionRepository:
             TransactionRow.kind == TransactionKind.EXPENSE.value,
             TransactionRow.category_id.is_(None),
             _ACTIVE,
+            _NOT_SPLIT,
         )
 
     def merchant_totals(
@@ -396,13 +421,14 @@ class SqlTransactionRepository:
             TransactionRow.booked_at.between(start, end),
             _ACTIVE,
         )
+        txns = [_transaction(r) for r in self._s.scalars(stmt.order_by(TransactionRow.booked_at))]
+        # Los informes cuentan las partes de un movimiento dividido, no el total (OF-1003).
+        parts = SqlSplitRepository(self._s).for_transactions(household_id, [t.id for t in txns])
+        if parts:
+            txns = [p for t in txns for p in _expand(t, parts.get(t.id))]
         if only_category:
-            stmt = stmt.where(
-                TransactionRow.category_id.is_(None)
-                if category_id is None
-                else TransactionRow.category_id == category_id
-            )
-        return [_transaction(r) for r in self._s.scalars(stmt.order_by(TransactionRow.booked_at))]
+            txns = [t for t in txns if t.category_id == category_id]
+        return txns
 
     def first_booked_at(
         self, household_id: WorkspaceId, account_ids: list[AccountId]

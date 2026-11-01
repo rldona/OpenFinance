@@ -2,6 +2,7 @@ import type { components, operations } from './schema'
 
 type Schemas = components['schemas']
 export type Me = Schemas['MeOut']
+export type SplitResult = Schemas['SplitOut']
 export type TagCount = Schemas['TagOut']
 export type TagsResult = Schemas['TagsOut']
 export type MerchantGroup = Schemas['MerchantGroupOut']
@@ -160,6 +161,11 @@ export const api = {
     request<MemberPattern>('POST', '/api/v1/me/patterns', { json: { pattern, direction } }),
   removePattern: (p: MemberPattern) =>
     request<void>('DELETE', `/api/v1/me/patterns/${p.direction}/${encodeURIComponent(p.pattern)}`),
+  /** Divide un gasto en partes con categoría que suman su importe (OF-1003). */
+  splitTransaction: (transactionId: string, parts: { amount: string; category_id: string }[]) =>
+    request<SplitResult>('PUT', `/api/v1/transactions/${encodeURIComponent(transactionId)}/split`, { json: { parts } }),
+  unsplitTransaction: (transactionId: string) =>
+    request<SplitResult>('DELETE', `/api/v1/transactions/${encodeURIComponent(transactionId)}/split`),
   /** Etiquetas de los movimientos que ves, con cuántos las llevan (OF-1002). */
   tags: (signal?: AbortSignal) => request<TagCount[]>('GET', '/api/v1/tags', { signal }),
   setTags: (transactionId: string, tags: string[]) =>

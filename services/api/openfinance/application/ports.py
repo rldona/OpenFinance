@@ -22,6 +22,7 @@ from openfinance.domain.ledger import Account, Institution, Transaction
 from openfinance.domain.merchants import Merchant, MerchantId
 from openfinance.domain.savings import Budget, Goal, GoalId
 from openfinance.domain.shared.ids import AccountId, TransactionId, UserId, WorkspaceId
+from openfinance.domain.splits import SplitPart
 from openfinance.domain.workspaces import Household
 
 
@@ -188,6 +189,20 @@ class RuleRepository(Protocol):
     def upsert(self, rule: CategoryRule, now: datetime) -> None: ...
     def get(self, household_id: WorkspaceId, scope: str, merchant: str) -> CategoryRule | None: ...
     def delete(self, household_id: WorkspaceId, scope: str, merchant: str) -> None: ...
+
+
+class SplitRepository(Protocol):
+    def for_transactions(
+        self, household_id: WorkspaceId, ids: list[TransactionId]
+    ) -> dict[TransactionId, list[SplitPart]]:
+        """Las partes de cada movimiento dividido, en orden. Sin dividir = ausente."""
+        ...
+
+    def set(
+        self, household_id: WorkspaceId, transaction_id: TransactionId, parts: list[SplitPart]
+    ) -> None:
+        """Sustituye las partes (lista vacía = deshacer la división)."""
+        ...
 
 
 class TagRepository(Protocol):
@@ -361,6 +376,8 @@ class UnitOfWork(Protocol):
     def merchants(self) -> MerchantRepository: ...
     @property
     def tags(self) -> TagRepository: ...
+    @property
+    def splits(self) -> SplitRepository: ...
     @property
     def member_patterns(self) -> MemberPatternRepository: ...
     @property

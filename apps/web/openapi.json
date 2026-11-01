@@ -2380,6 +2380,88 @@
         "title": "SkippedRowOut",
         "type": "object"
       },
+      "SplitIn": {
+        "properties": {
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/SplitPartIn"
+            },
+            "maxItems": 10,
+            "minItems": 2,
+            "title": "Parts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "parts"
+        ],
+        "title": "SplitIn",
+        "type": "object"
+      },
+      "SplitOut": {
+        "properties": {
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "transaction": {
+            "$ref": "#/components/schemas/TransactionOut"
+          }
+        },
+        "required": [
+          "transaction",
+          "operation_id"
+        ],
+        "title": "SplitOut",
+        "type": "object"
+      },
+      "SplitPartIn": {
+        "properties": {
+          "amount": {
+            "description": "Con el signo del gasto, p. ej. «-60.00»",
+            "pattern": "^-?\\d{1,9}([.,]\\d{1,2})?$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "category_id": {
+            "format": "uuid",
+            "title": "Category Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "category_id"
+        ],
+        "title": "SplitPartIn",
+        "type": "object"
+      },
+      "SplitPartOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "category_id": {
+            "format": "uuid",
+            "title": "Category Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "category_id"
+        ],
+        "title": "SplitPartOut",
+        "type": "object"
+      },
       "TagOut": {
         "properties": {
           "count": {
@@ -2515,6 +2597,14 @@
             "title": "Note",
             "type": "string"
           },
+          "parts": {
+            "description": "Partes con categoría si el gasto está dividido (suman su importe)",
+            "items": {
+              "$ref": "#/components/schemas/SplitPartOut"
+            },
+            "title": "Parts",
+            "type": "array"
+          },
           "source": {
             "title": "Source",
             "type": "string"
@@ -2546,7 +2636,8 @@
           "member_id",
           "source",
           "note",
-          "tags"
+          "tags",
+          "parts"
         ],
         "title": "TransactionOut",
         "type": "object"
@@ -5014,6 +5105,102 @@
         "summary": "History",
         "tags": [
           "changes"
+        ]
+      }
+    },
+    "/api/v1/transactions/{transaction_id}/split": {
+      "delete": {
+        "description": "Deshace la división de un gasto; se puede deshacer.",
+        "operationId": "unsplit_transaction_api_v1_transactions__transaction_id__split_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transaction_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transaction Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SplitOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unsplit Transaction",
+        "tags": [
+          "ledger"
+        ]
+      },
+      "put": {
+        "description": "Divide un gasto en partes con categoría que suman su importe; se puede deshacer.",
+        "operationId": "split_transaction_api_v1_transactions__transaction_id__split_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transaction_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transaction Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SplitIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SplitOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Split Transaction",
+        "tags": [
+          "ledger"
         ]
       }
     },

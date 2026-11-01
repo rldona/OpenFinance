@@ -224,6 +224,95 @@ describe('Etiquetas y notas largas (OF-1002)', () => {
   })
 })
 
+describe('Dividir un gasto (OF-1003)', () => {
+  const open = async () => {
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Glovo' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Dividir en partes' }))
+  }
+
+  it('avisa de lo que falta por repartir y solo deja guardar cuando suma el total', async () => {
+    window.location.hash = '#movimientos'
+    loggedIn({ 'GET /api/v1/transactions/t4/history': { body: [] } })
+    render(<App />)
+    await open()
+    expect(within(screen.getByRole('form', { name: 'Dividir el gasto' })).getByRole('status')).toHaveTextContent('Falta por repartir 25,40')
+    await userEvent.type(screen.getByLabelText('Importe de la parte 1'), '20')
+    await userEvent.selectOptions(screen.getByLabelText('Categoría de la parte 1'), 'c-rest')
+    await userEvent.type(screen.getByLabelText('Importe de la parte 2'), '3,40')
+    await userEvent.selectOptions(screen.getByLabelText('Categoría de la parte 2'), 'c-super')
+    expect(within(screen.getByRole('form', { name: 'Dividir el gasto' })).getByRole('status')).toHaveTextContent('Falta por repartir 2,00')
+    expect(screen.getByRole('button', { name: 'Guardar la división' })).toBeDisabled()
+    await userEvent.clear(screen.getByLabelText('Importe de la parte 2'))
+    await userEvent.type(screen.getByLabelText('Importe de la parte 2'), '5,40')
+    expect(within(screen.getByRole('form', { name: 'Dividir el gasto' })).getByRole('status')).toHaveTextContent('Todo repartido.')
+    expect(screen.getByRole('button', { name: 'Guardar la división' })).toBeEnabled()
+    await userEvent.clear(screen.getByLabelText('Importe de la parte 2'))
+    await userEvent.type(screen.getByLabelText('Importe de la parte 2'), '9,40')
+    expect(within(screen.getByRole('form', { name: 'Dividir el gasto' })).getByRole('status')).toHaveTextContent('Te pasas 4,00')
+  })
+
+  it('envía las partes con el signo del gasto y permite deshacer', async () => {
+    window.location.hash = '#movimientos'
+    const calls = loggedIn({
+      'GET /api/v1/transactions/t4/history': { body: [] },
+      'PUT /api/v1/transactions/t4/split': { body: { transaction: TRANSACTIONS[3], operation_id: 'op-s' } },
+    })
+    render(<App />)
+    await open()
+    await userEvent.type(screen.getByLabelText('Importe de la parte 1'), '20')
+    await userEvent.selectOptions(screen.getByLabelText('Categoría de la parte 1'), 'c-rest')
+    await userEvent.type(screen.getByLabelText('Importe de la parte 2'), '5,40')
+    await userEvent.selectOptions(screen.getByLabelText('Categoría de la parte 2'), 'c-super')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar la división' }))
+    const put = calls.find((c) => c.method === 'PUT')!
+    expect(JSON.parse(String(put.body))).toEqual({
+      parts: [
+        { amount: '-20', category_id: 'c-rest' },
+        { amount: '-5.40', category_id: 'c-super' },
+      ],
+    })
+    expect(await screen.findByText('Gasto dividido')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Deshacer' })).toBeInTheDocument()
+  })
+
+  it('un gasto ya dividido enseña sus partes y se puede deshacer la división', async () => {
+    window.location.hash = '#movimientos'
+    const SPLIT = TRANSACTIONS.map((t) =>
+      t.id === 't4'
+        ? {
+            ...t,
+            parts: [
+              { amount: { amount: '-20.00', currency: 'EUR' }, category_id: 'c-rest' },
+              { amount: { amount: '-5.40', currency: 'EUR' }, category_id: 'c-super' },
+            ],
+          }
+        : t,
+    )
+    const calls = loggedIn({
+      'GET /api/v1/transactions/page': { body: page(SPLIT) },
+      'GET /api/v1/transactions/t4/history': { body: [] },
+      'DELETE /api/v1/transactions/t4/split': { body: { transaction: TRANSACTIONS[3], operation_id: 'op-u' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Glovo' }))
+    const list = await screen.findByRole('list', { name: 'Partes del gasto' })
+    expect(list).toHaveTextContent('🍽️ Restaurantes · -20,00')
+    expect(list).toHaveTextContent('🛒 Supermercado · -5,40')
+    await userEvent.click(screen.getByRole('button', { name: 'Deshacer la división' }))
+    expect(calls.some((c) => c.method === 'DELETE' && c.url.pathname === '/api/v1/transactions/t4/split')).toBe(true)
+    expect(await screen.findByText('División deshecha')).toBeInTheDocument()
+  })
+
+  it('un ingreso no se puede dividir', async () => {
+    window.location.hash = '#movimientos'
+    loggedIn({ 'GET /api/v1/transactions/t1/history': { body: [] } })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Payment from Raul' }))
+    await screen.findByText('Sin correcciones.')
+    expect(screen.queryByRole('button', { name: 'Dividir en partes' })).toBeNull()
+  })
+})
+
 describe('Varios a la vez y efectivo (OF-705)', () => {
   it('pone la misma categoría a los seleccionados sin aprender reglas y se puede deshacer', async () => {
     const calls = loggedIn({

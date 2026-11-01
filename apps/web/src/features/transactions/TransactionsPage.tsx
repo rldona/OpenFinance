@@ -408,11 +408,15 @@ export function TransactionsPage() {
                     <tr role="row" className="detail-row">
                       <td role="cell" colSpan={onlyUncategorized ? 5 : 4}>
                         <TransactionDetail
-                          key={`${t.id}|${t.kind}|${t.member_id}|${t.note}|${t.tags.join()}`}
+                          key={`${t.id}|${t.kind}|${t.member_id}|${t.note}|${t.tags.join()}|${t.parts.length}`}
                           t={t}
                           version={version}
                           onClose={() => setOpenId(null)}
                           onDelete={t.source === 'manual' ? () => void deleteManual(t) : undefined}
+                          onSplitChanged={(message, op) => {
+                            notifyUndoable(notify, me, message, op, refresh)
+                            refresh()
+                          }}
                           onTagsSaved={(op) => {
                             notifyUndoable(notify, me, 'Etiquetas guardadas', op, refresh)
                             refresh()

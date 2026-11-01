@@ -3,6 +3,7 @@ import { ApiError, api, type CategorizeResult, type Operation, type Transaction,
 import { useHousehold } from '../../app/household-context'
 import { ErrorState, Loading } from '../../components/LoadState'
 import { formatDate } from '../../lib/format'
+import { SplitEditor } from './SplitEditor'
 import { useLoad } from '../../lib/useLoad'
 
 const KINDS: { value: TransactionKind; label: string }[] = [
@@ -21,6 +22,7 @@ export function TransactionDetail({
   onClose,
   onDelete,
   onTagsSaved,
+  onSplitChanged,
 }: {
   t: Transaction
   /** Cambia cuando el movimiento se ha corregido o deshecho, para recargar el historial. */
@@ -31,6 +33,8 @@ export function TransactionDetail({
   onDelete?: () => void
   /** Tras guardar las etiquetas, con la operación para «Deshacer» (OF-1002). */
   onTagsSaved?: (operationId: string | null) => void
+  /** Tras dividir o deshacer la división, con la operación para «Deshacer» (OF-1003). */
+  onSplitChanged?: (message: string, operationId: string | null) => void
 }) {
   const { me, notify } = useHousehold()
   const [kind, setKind] = useState<TransactionKind>(t.kind)
@@ -147,6 +151,7 @@ export function TransactionDetail({
           </p>
         )}
       </form>
+      {t.kind === 'expense' && onSplitChanged && <SplitEditor t={t} onChanged={onSplitChanged} />}
       <p className="small muted">
         {onDelete
           ? 'Añadido a mano: puedes borrarlo y deshacerlo después.'

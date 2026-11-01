@@ -19,6 +19,9 @@ class Entity(StrEnum):
     RULE = "rule"
     """Regla «comercio → categoría». Su identificador es ``ámbito|comercio``."""
     IMPORT = "import"
+    SPLIT = "split"
+    """Partes de un movimiento dividido (OF-1003). Su identificador es el del movimiento; campo
+    ``parts`` = «importe@categoría|…» o ``None`` si no está dividido."""
     MERCHANT = "merchant"
     """Comercio con nombre propio (OF-1001). Campos: ``name`` y ``keys`` (variantes con «|»);
     ``None`` en ``name`` significa que el comercio no existe."""

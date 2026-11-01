@@ -26,6 +26,7 @@ from openfinance.domain.imports.batch import ImportStatus
 from openfinance.domain.ledger import LedgerError, Transaction, TransactionKind
 from openfinance.domain.merchants import Merchant, MerchantId, join_keys, split_keys
 from openfinance.domain.shared.ids import AccountId, TransactionId, UserId
+from openfinance.domain.splits import decode_parts, encode_parts
 from openfinance.domain.tags import join_tags, split_tags
 from openfinance.domain.workspaces import Actor
 
@@ -224,6 +225,8 @@ def _apply(
             done, rest = _apply_transaction(uow, actor, visible, entity_id, changes)
         elif entity is Entity.RULE:
             done, rest = _apply_rule(uow, actor, entity_id, changes, now)
+        elif entity is Entity.SPLIT:
+            done, rest = _apply_split(uow, actor, visible, entity_id, changes)
         elif entity is Entity.MERCHANT:
             done, rest = _apply_merchant(uow, actor, entity_id, changes)
         else:
@@ -307,6 +310,31 @@ def _apply_rule(
                 now,
             )
         applied += 1
+    return applied, kept
+
+
+def _apply_split(
+    uow: UnitOfWork,
+    actor: Actor,
+    visible: set[AccountId],
+    entity_id: str,
+    changes: list[Change],
+) -> tuple[int, list[Change]]:
+    """Partes de un movimiento dividido (OF-1003)."""
+    tid = TransactionId(UUID(entity_id))
+    t = uow.transactions.get(actor.household_id, tid, include_voided=True)
+    if t is None or t.account_id not in visible:
+        return 0, changes
+    state = encode_parts(uow.splits.for_transactions(actor.household_id, [tid]).get(tid, []))
+    applied, kept = 0, []
+    for c in changes:
+        if c.field == "parts" and state == c.before:
+            state = None if c.after is None else str(c.after)
+            applied += 1
+        else:
+            kept.append(c)
+    if applied:
+        uow.splits.set(actor.household_id, tid, decode_parts(state, t.amount.currency.code))
     return applied, kept
 
 

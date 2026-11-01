@@ -77,6 +77,8 @@ class ExportedTransaction:
     note: str
     tags: str
     """Etiquetas separadas por «|» (OF-1002)."""
+    parts: str
+    """Partes de un gasto dividido: «categoría:importe|…» (OF-1003)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,6 +158,7 @@ def export_household(
     for account in visible:
         txns = uow.transactions.for_account(household_id, account.id)
         tags = uow.tags.for_transactions(household_id, [t.id for t in txns])
+        splits = uow.splits.for_transactions(household_id, [t.id for t in txns])
         accounts.append(
             ExportedAccount(
                 id=account.id,
@@ -187,6 +190,10 @@ def export_household(
                 source=t.source,
                 note=t.note,
                 tags=join_tags(tags.get(t.id, ())),
+                parts="|".join(
+                    f"{category_names.get(p.category_id, '')}:{p.amount.amount}"
+                    for p in splits.get(t.id, [])
+                ),
             )
             for t in txns
         )

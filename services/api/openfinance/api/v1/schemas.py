@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
 from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
 
+from openfinance.application.decorate import Decor
 from openfinance.application.imports import ImportPreview, ImportResult
 from openfinance.application.savings import BudgetView, GoalView
 from openfinance.domain.categories import Category, merchant_label
@@ -20,7 +20,6 @@ from openfinance.domain.ledger import (
     TransactionKind,
 )
 from openfinance.domain.shared import Money
-from openfinance.domain.shared.ids import TransactionId
 from openfinance.domain.workspaces import Household
 
 
@@ -91,6 +90,11 @@ class AccountOut(BaseModel):
         )
 
 
+class SplitPartOut(BaseModel):
+    amount: MoneyOut
+    category_id: UUID
+
+
 class TransactionOut(BaseModel):
     id: UUID
     account_id: UUID
@@ -105,15 +109,14 @@ class TransactionOut(BaseModel):
     source: str
     note: str = Field(description="Nota de quien corrigió el movimiento")
     tags: list[str] = Field(description="Etiquetas del movimiento")
+    parts: list[SplitPartOut] = Field(
+        description="Partes con categoría si el gasto está dividido (suman su importe)"
+    )
 
     @classmethod
-    def of(
-        cls,
-        t: Transaction,
-        names: Mapping[str, str] | None = None,
-        tags: Mapping[TransactionId, tuple[str, ...]] | None = None,
-    ) -> TransactionOut:
-        """``names``: nombre propio de cada variante de comercio (OF-1001)."""
+    def of(cls, t: Transaction, decor: Decor | None = None) -> TransactionOut:
+        """``decor``: nombre del comercio, etiquetas y partes (OF-1001 a OF-1003)."""
+        d = decor or Decor()
         return cls(
             id=t.id,
             account_id=t.account_id,
@@ -123,11 +126,15 @@ class TransactionOut(BaseModel):
             amount=MoneyOut.of(t.amount),
             kind=t.kind,
             category_id=t.category_id,
-            merchant=(names or {}).get(t.merchant) or merchant_label(t.merchant),
+            merchant=d.names.get(t.merchant) or merchant_label(t.merchant),
             member_id=t.member_id,
             source=t.source,
             note=t.note,
-            tags=list((tags or {}).get(t.id, ())),
+            tags=list(d.tags.get(t.id, ())),
+            parts=[
+                SplitPartOut(amount=MoneyOut.of(p.amount), category_id=p.category_id)
+                for p in d.splits.get(t.id, [])
+            ],
         )
 
 
@@ -340,6 +347,7 @@ class CategorizeOut(BaseModel):
 
 
 AMOUNT_PATTERN = r"^\d{1,9}([.,]\d{1,2})?$"
+AMOUNT_PATTERN_SIGNED = r"^-?\d{1,9}([.,]\d{1,2})?$"
 
 
 class BulkCategorizeIn(BaseModel):
@@ -690,5 +698,21 @@ class TagsIn(BaseModel):
 
 
 class TagsOut(BaseModel):
+    transaction: TransactionOut
+    operation_id: UUID | None
+
+
+class SplitPartIn(BaseModel):
+    amount: str = Field(
+        pattern=AMOUNT_PATTERN_SIGNED, description="Con el signo del gasto, p. ej. «-60.00»"
+    )
+    category_id: UUID
+
+
+class SplitIn(BaseModel):
+    parts: list[SplitPartIn] = Field(min_length=2, max_length=10)
+
+
+class SplitOut(BaseModel):
     transaction: TransactionOut
     operation_id: UUID | None

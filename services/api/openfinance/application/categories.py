@@ -191,6 +191,12 @@ def edit_transaction(
     if tx is None or account is None:
         raise NotFoundError("Movimiento no encontrado")
 
+    if tx.id in uow.splits.for_transactions(actor.household_id, [tx.id]) and (
+        edit.set_category or (edit.kind is not None and edit.kind is not TransactionKind.EXPENSE)
+    ):
+        raise InvalidRequestError(
+            "Este gasto está dividido en partes: cambia las partes o deshaz la división"
+        )
     kind = edit.kind or tx.kind
     member = None
     if kind is TransactionKind.CONTRIBUTION:

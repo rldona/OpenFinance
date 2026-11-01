@@ -766,6 +766,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/transactions/{transaction_id}/split": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Split Transaction
+         * @description Divide un gasto en partes con categoría que suman su importe; se puede deshacer.
+         */
+        put: operations["split_transaction_api_v1_transactions__transaction_id__split_put"];
+        post?: never;
+        /**
+         * Unsplit Transaction
+         * @description Deshace la división de un gasto; se puede deshacer.
+         */
+        delete: operations["unsplit_transaction_api_v1_transactions__transaction_id__split_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/transactions/{transaction_id}/tags": {
         parameters: {
             query?: never;
@@ -1745,6 +1769,39 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** SplitIn */
+        SplitIn: {
+            /** Parts */
+            parts: components["schemas"]["SplitPartIn"][];
+        };
+        /** SplitOut */
+        SplitOut: {
+            /** Operation Id */
+            operation_id: string | null;
+            transaction: components["schemas"]["TransactionOut"];
+        };
+        /** SplitPartIn */
+        SplitPartIn: {
+            /**
+             * Amount
+             * @description Con el signo del gasto, p. ej. «-60.00»
+             */
+            amount: string;
+            /**
+             * Category Id
+             * Format: uuid
+             */
+            category_id: string;
+        };
+        /** SplitPartOut */
+        SplitPartOut: {
+            amount: components["schemas"]["MoneyOut"];
+            /**
+             * Category Id
+             * Format: uuid
+             */
+            category_id: string;
+        };
         /** TagOut */
         TagOut: {
             /**
@@ -1810,6 +1867,11 @@ export interface components {
              * @description Nota de quien corrigió el movimiento
              */
             note: string;
+            /**
+             * Parts
+             * @description Partes con categoría si el gasto está dividido (suman su importe)
+             */
+            parts: components["schemas"]["SplitPartOut"][];
             /** Source */
             source: string;
             /**
@@ -3315,6 +3377,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OperationOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    split_transaction_api_v1_transactions__transaction_id__split_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transaction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SplitIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unsplit_transaction_api_v1_transactions__transaction_id__split_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transaction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitOut"];
                 };
             };
             /** @description Validation Error */

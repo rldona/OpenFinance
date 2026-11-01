@@ -193,6 +193,29 @@ class TransactionTagRow(Base):
     tag: Mapped[str] = mapped_column(String(40))
 
 
+class TransactionSplitRow(Base):
+    """Parte de un movimiento dividido (OF-1003)."""
+
+    __tablename__ = "transaction_splits"
+    __table_args__ = (
+        CheckConstraint("amount <> 0", name="amount_not_zero"),
+        ForeignKeyConstraint(
+            ["category_id", "household_id"],
+            ["categories.id", "categories.household_id"],
+            name="fk_transaction_splits_category_household",
+        ),
+    )
+
+    transaction_id: Mapped[UUID] = mapped_column(
+        ForeignKey("transactions.id", ondelete="CASCADE"), primary_key=True
+    )
+    position: Mapped[int] = mapped_column(Integer, primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    amount: Mapped[Decimal] = mapped_column(AMOUNT)
+    currency: Mapped[str] = mapped_column(String(3))
+    category_id: Mapped[UUID] = mapped_column()
+
+
 class MerchantRow(Base):
     """Comercio con nombre propio (OF-1001). Los que nadie ha tocado no tienen fila."""
 
