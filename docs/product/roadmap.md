@@ -17,7 +17,7 @@ Un ticket está terminado cuando cumple sus criterios de aceptación, tiene test
 | 6 · Datos fiables | Que cualquier extracto real se importe sin errores ni entradas infladas | OF-601 … OF-608 | ✅ Hecha · falta reconocer los traspasos internos de OF-602 (pendiente de un extracto real) |
 | 7 · Corregir sin miedo | Editar, deshacer y ajustar desde la web, con historial | OF-701 … OF-706 | ✅ Hecha (falta probarla en el mes de uso real) |
 | 8 · Uso diario | Móvil, PWA, accesibilidad y mes en curso honesto (v0.2) | OF-801 … OF-806 | ✅ Hecha (falta probarla en un móvil real y pasar `make e2e`) |
-| 9 · Operación | Copias cifradas, dependencias y actualizaciones (v0.2) | OF-901 … OF-907 | Pendiente |
+| 9 · Operación | Copias cifradas, dependencias y actualizaciones (v0.2) | OF-901 … OF-907 | ✅ |
 | 10 – 17 | Del libro contable completo a la 1.0 | OF-1001 … OF-1705 | Ver [Después de v0.2](#después-de-v02) |
 
 **Hito v0.1:** fases 6 y 7 terminadas y al menos un mes de uso real con vuestros datos. La auditoría del 1 de noviembre de 2026 encontró fallos que, con datos reales, dejan importaciones que no se pueden confirmar o totales inflados que no se pueden corregir; por eso la fase 6 va antes del mes de uso real.
@@ -419,10 +419,21 @@ Que la web se use cada día desde el móvil, el portátil o la tableta, sin sorp
 - ✅ «Descartar» una idea la esconde para todo el hogar (`PUT/DELETE /api/v1/savings/ideas/{id}/dismissed`, migración `0008_dismissed_ideas`); «Ver N ideas descartadas» y «Recuperar». Solo valen ideas que existen (404 si no).
 - ✅ 🧪 Descartar y recuperar es idempotente y se ve igual desde la pareja; ideas inventadas dan 404; otro hogar no se ve afectado; sin sesión no se puede.
 
-## Fase 9 · Operación (v0.2)
+## Fase 9 · Operación (v0.2) ✅
 
 | ID | Ticket |
-| --- | --- |
+| 
+
+Notas de la implementación (sin probar en un equipo con Docker; lo comprueban los jobs `security`, `scripts` y `compose-e2e` de CI):
+
+- OF-901: `make backup` exige `OPENFINANCE_BACKUP_RECIPIENT`; se prueba con `make scripts-test` (docker y age simulados).
+- OF-902: Trivy y `pip-audit` pueden fallar con vulnerabilidades que ya existan en las dependencias: se corrigen o se justifican en `.trivyignore`.
+- OF-903: `deploy/scripts/ci/headers.sh` comprueba cabeceras, caché y gzip contra una instalación real.
+- OF-905: `repositories.py` ahora es un paquete con un módulo por contexto.
+- OF-906: el cambio de contraseña también usa el limitador nuevo, pero su Argon2 sigue en el grupo de hilos común (solo para personas con sesión).
+- OF-907: la consulta de versión es opt-in por privacidad; la firma de las imágenes solo se ve en la primera etiqueta publicada.
+
+--- | --- |
 | OF-901 | Copias cifradas con `age`, rotación y receta para guardarlas fuera del equipo |
 | OF-902 | Imágenes por digest, actions por SHA, Renovate, `pip-audit`, `npm audit` y Trivy |
 | OF-903 | nginx con `gzip`, `Cache-Control` y cabeceras; Compose endurecido y rotación de logs |

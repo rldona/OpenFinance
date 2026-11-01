@@ -639,6 +639,11 @@ tr.dim {
   color: var(--pos);
 }
 
+.notice.info {
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+}
+
 .notice.warn {
   background: var(--warn-soft);
   border: 1px solid var(--warn-border);

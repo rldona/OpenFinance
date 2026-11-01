@@ -93,3 +93,28 @@ class TestReady:
         assert r.status_code == 503
         assert r.json()["status"] == "unavailable"
         assert "hunter2" not in r.text
+
+
+class TestVersionEndpoint:
+    def test_requires_a_session(self, client) -> None:
+        assert client.get("/api/v1/version").status_code == 401
+
+    def test_off_by_default_and_does_not_ask_github(self, as_raul) -> None:
+        body = as_raul.get("/api/v1/version").json()
+        assert body["enabled"] is False
+        assert body["latest"] is None and body["update_available"] is False
+
+    def test_reports_a_newer_release_when_enabled(self, app, as_raul) -> None:
+        from openfinance.api.deps import get_release_source
+        from openfinance.application.updates import LatestRelease
+
+        class Source:
+            def latest(self) -> LatestRelease:
+                return LatestRelease(
+                    "99.0.0", "https://github.com/rldona/OpenFinance/releases/tag/v99.0.0"
+                )
+
+        app.dependency_overrides[get_release_source] = lambda: Source()
+        body = as_raul.get("/api/v1/version").json()
+        assert body["enabled"] is True and body["update_available"] is True
+        assert body["latest"] == "99.0.0"

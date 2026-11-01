@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     login_max_failures_per_email: int = Field(default=5, ge=1)
     login_max_failures_per_ip: int = Field(default=20, ge=1)
     login_window_minutes: int = Field(default=15, ge=1)
+    update_check: bool = False
+    """Avisar de versiones nuevas consultando GitHub (OF-907). Apagado por defecto."""
+    update_repo: str = "rldona/OpenFinance"
 
     @model_validator(mode="after")
     def _check(self) -> "Settings":

@@ -131,12 +131,41 @@ Si la restauración falla a medias, el script lo dice y deja la API parada. No l
 
 Desde la web, **Exportar** (arriba a la derecha) descarga un JSON o un ZIP con un CSV por entidad. Cada persona exporta lo que ve: la cuenta personal de la otra no se incluye. Para una copia completa, usad `make backup`.
 
-## 8. Actualizar
+## 8. Imágenes publicadas y firmadas (opcional)
+
+Por defecto `make up` construye las imágenes en vuestro equipo. Cada versión (`vX.Y.Z`) también se publica ya construida para x86-64 y ARM en `ghcr.io/rldona/openfinance-api` y `ghcr.io/rldona/openfinance-web`, **firmadas con [cosign](https://github.com/sigstore/cosign)** sin claves propias: la firma sale de la identidad del workflow de GitHub que las construyó y queda en el registro público de Sigstore. Llevan además lista de materiales (SBOM) y procedencia.
+
+Comprobad la firma **antes de arrancar** (necesita `cosign`):
+
+```bash
+V=0.2.0
+for img in api web; do
+  cosign verify "ghcr.io/rldona/openfinance-$img:$V" \
+    --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+    --certificate-identity "https://github.com/rldona/OpenFinance/.github/workflows/release.yml@refs/tags/v$V"
+done
+```
+
+Si no sale `Verification for … --` con la firma, no uséis la imagen. Para usarlas, en `.env`:
+
+```dotenv
+COMPOSE_FILE=compose.yaml:compose.images.yaml      # o compose.yaml:compose.images.yaml:compose.https.yaml
+OPENFINANCE_VERSION=0.2.0
+```
+
+y `docker compose pull && make up`. Fijad siempre una versión concreta, nunca `latest`.
+
+### Avisar de versiones nuevas
+
+Con `OPENFINANCE_UPDATE_CHECK=true` en `.env`, el servidor pregunta una vez al día a la API pública de GitHub cuál es la última release. Si es posterior a la vuestra, la web enseña un aviso con un enlace a las novedades (se puede descartar y no vuelve hasta la siguiente versión). **Solo avisa**: nada se actualiza solo, y la consulta no envía ningún dato de la instalación (GitHub ve la IP del servidor, como con cualquier visita). Está apagado por defecto. Para actualizar, seguid la sección siguiente.
+
+## 9. Actualizar
 
 ```bash
 make backup                   # antes de nada
 git pull
 make up                       # reconstruye; las migraciones se aplican al arrancar la API
+# con imágenes publicadas: cambiad OPENFINANCE_VERSION en .env, comprobad la firma y `docker compose pull && make up`
 ```
 
 ## Problemas frecuentes

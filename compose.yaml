@@ -52,6 +52,8 @@ services:
       # Secure por defecto; pon false solo si entras por http dentro de casa (modo direct).
       OPENFINANCE_SESSION_COOKIE_SECURE: ${OPENFINANCE_SESSION_COOKIE_SECURE:-true}
       OPENFINANCE_SESSION_TTL_DAYS: ${OPENFINANCE_SESSION_TTL_DAYS:-30}
+      # Avisar de versiones nuevas consultando GitHub una vez al día (OF-907). Apagado por defecto.
+      OPENFINANCE_UPDATE_CHECK: ${OPENFINANCE_UPDATE_CHECK:-false}
     <<: *hardening
     logging: *logging
     # Corre como usuario sin privilegios (10001) y no escribe en su sistema de ficheros.

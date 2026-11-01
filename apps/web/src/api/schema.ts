@@ -30,7 +30,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Login */
+        /**
+         * Login
+         * @description Primero se cuenta el intento (atómico), luego se busca a la persona, se verifica la
+         *     contraseña en los hilos de Argon2 y se abre la sesión. Los accesos a la base de datos van
+         *     al grupo de hilos común; Argon2, no (OF-906).
+         */
         post: operations["login_api_v1_auth_login_post"];
         delete?: never;
         options?: never;
@@ -682,6 +687,27 @@ export interface paths {
          * @description Correcciones de un movimiento, de cualquier persona, de la más antigua a la más reciente.
          */
         get: operations["history_api_v1_transactions__transaction_id__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Version
+         * @description Versión instalada y, si `OPENFINANCE_UPDATE_CHECK` está activada, si hay una nueva.
+         *     Solo avisa: la actualización la hace quien administra la instalación.
+         */
+        get: operations["get_version_api_v1_version_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1712,6 +1738,28 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** VersionOut */
+        VersionOut: {
+            /** Current */
+            current: string;
+            /**
+             * Enabled
+             * @description Si la consulta de versión nueva está activada
+             */
+            enabled: boolean;
+            /**
+             * Latest
+             * @description Última release publicada, si se ha podido saber
+             */
+            latest: string | null;
+            /** Update Available */
+            update_available: boolean;
+            /**
+             * Url
+             * @description Página de esa release en GitHub
+             */
+            url: string | null;
         };
         /**
          * View
@@ -2993,6 +3041,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_version_api_v1_version_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VersionOut"];
                 };
             };
         };

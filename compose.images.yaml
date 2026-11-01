@@ -1,0 +1,14 @@
+# Usar las imágenes publicadas y firmadas en lugar de construirlas (OF-907).
+# En .env:
+#   COMPOSE_FILE=compose.yaml:compose.images.yaml            (o añadid :compose.https.yaml)
+#   OPENFINANCE_VERSION=0.2.0                                (una versión concreta, nunca «latest»)
+# Comprobad la firma antes de arrancar: docs/deployment/home.md, «Imágenes publicadas».
+# Requiere Docker Compose >= 2.24 (`!reset`).
+
+services:
+  api:
+    image: ghcr.io/rldona/openfinance-api:${OPENFINANCE_VERSION:?Define OPENFINANCE_VERSION en .env}
+    build: !reset null
+  web:
+    image: ghcr.io/rldona/openfinance-web:${OPENFINANCE_VERSION:?Define OPENFINANCE_VERSION en .env}
+    build: !reset null

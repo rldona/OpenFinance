@@ -52,7 +52,7 @@ rm release-notes.md
 
 - [ ] Etiqueta **anotada** `v0.1.0` sobre el commit de `main` con CI verde.
 - [ ] Release en GitHub con las notas de la sección 0.1.0 del CHANGELOG.
-- [ ] No se publican imágenes Docker: cada instalación las construye. Si algún día se publican, revisar antes la nota sobre imágenes de [dependencias.md](../legal/dependencias.md).
+- [ ] El workflow `Release` (`.github/workflows/release.yml`) se lanza solo con la etiqueta y publica las imágenes `openfinance-api` y `openfinance-web` en ghcr.io (amd64 y arm64), firmadas con cosign. Comprobar que acaba en verde y que `cosign verify` (ver [Instalar en casa](../deployment/home.md), «Imágenes publicadas») acepta las dos. Las imágenes base van fijadas por digest: ver la nota sobre imágenes de [dependencias.md](../legal/dependencias.md).
 
 ## 7. Después
 

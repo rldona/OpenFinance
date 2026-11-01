@@ -48,3 +48,11 @@ La fase 5 (OF-501, OF-502) pone OpenFinance en uso real en un equipo de casa (x8
 - La exportación no sirve como copia de seguridad: no incluye lo que la persona no ve. La copia completa es `make backup`.
 - Guardar las copias fuera del equipo queda en manos de quien instala (la guía da recetas con `rsync` y `rclone`). Perder la clave privada de `age` es perder las copias.
 - CI (`compose-e2e`) prueba ambos modos de extremo a extremo: puertos, IP falsificada, cookie `Secure`, exportación, copia y restauración con los mismos saldos, y que los logs no contienen secretos.
+
+## Operación (OF-901 … OF-907)
+
+- **Cadena de suministro:** las imágenes base y las actions de GitHub van fijadas por digest o SHA; Renovate propone las actualizaciones. CI ejecuta `pip-audit`, `npm audit` y Trivy (repositorio e imágenes) y falla con vulnerabilidades altas o críticas que tengan arreglo.
+- **Endurecimiento:** todos los contenedores con `no-new-privileges`; API y nginx con sistema de ficheros de solo lectura y sin capacidades salvo las que nginx necesita para abrir el puerto 80; logs con rotación (5 × 10 MB). nginx comprime solo lo estático (nunca la API, por BREACH), pone caché larga solo a los ficheros con hash, `no-cache` a la página y al service worker, y `no-store` a la API.
+- **Observabilidad:** `OPENFINANCE_LOG_LEVEL` se aplica; cada petición lleva `X-Request-ID` (el de nginx si es válido) y deja una línea sin query ni cabeceras. `/ready` comprueba la base de datos y es el `healthcheck` de la API.
+- **Imágenes publicadas y firmadas:** en cada etiqueta `vX.Y.Z`, ghcr.io con cosign sin claves (OIDC de GitHub). Quien prefiera construir en local puede seguir haciéndolo.
+- **Aviso de versión nueva opt-in:** consultar GitHub revela que hay una instalación en esa IP, y el proyecto es local-first (ADR-0007), así que `OPENFINANCE_UPDATE_CHECK` está apagado por defecto; no envía datos y solo avisa.
