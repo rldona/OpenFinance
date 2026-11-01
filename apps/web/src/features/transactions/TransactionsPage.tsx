@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ApiError, TRANSACTIONS_LIMIT, api, type Account, type Transaction } from '../../api/client'
 import { useHousehold } from '../../app/household-context'
+import { ErrorState, Loading } from '../../components/LoadState'
 import { formatDate, formatMoney } from '../../lib/format'
 import { MonthPicker } from '../insights/common'
 import { kindLabel } from './labels'
@@ -163,12 +164,8 @@ export function TransactionsPage() {
           </label>
         </div>
 
-        {error && (
-          <p className="error" role="alert">
-            {error}
-          </p>
-        )}
-        {!error && rows === null && <p className="muted">Cargando…</p>}
+        {error && <ErrorState message={error} onRetry={() => setVersion((v) => v + 1)} />}
+        {!error && rows === null && <Loading />}
         {rows && rows.length === 0 && (
           <div className="empty">
             {onlyUncategorized ? (

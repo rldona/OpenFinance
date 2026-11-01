@@ -80,6 +80,15 @@ h2 {
 .error {
   color: var(--neg);
 }
+.error-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.error-state .error {
+  margin: 0;
+}
 
 .top {
   display: flex;

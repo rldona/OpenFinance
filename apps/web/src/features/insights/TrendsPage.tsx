@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
-import { ApiError, api, type Trends } from '../../api/client'
+import { api, type Trends } from '../../api/client'
 import { useHousehold } from '../../app/household-context'
 import { BarChart, StackedBars, geometry } from '../../components/charts'
+import { ErrorState, Loading } from '../../components/LoadState'
+import { useLoad } from '../../lib/useLoad'
 import { centsToAmount, formatMoney, formatMoneyRounded, monthLabel, shortMonth, toCents } from '../../lib/format'
 import { MonthPicker, NoData } from './common'
 import { useCategoryMeta } from './meta'
@@ -12,29 +13,10 @@ const REST_COLOR = '#cbd5e1'
 export function TrendsPage() {
   const { month } = useHousehold()
   const meta = useCategoryMeta()
-  const [result, setResult] = useState<{ month: string; data?: Trends; error?: string } | null>(null)
-
-  useEffect(() => {
-    const controller = new AbortController()
-    api.insightsTrends(month, controller.signal).then(
-      (data) => setResult({ month, data }),
-      (err: unknown) => {
-        if (!controller.signal.aborted)
-          setResult({ month, error: err instanceof ApiError ? err.message : 'No se han podido cargar los datos' })
-      },
-    )
-    return () => controller.abort()
-  }, [month])
-
-  const current = result?.month === month ? result : null
-  if (current?.error) return <p className="error" role="alert">{current.error}</p>
-  if (!current?.data)
-    return (
-      <p className="muted" role="status">
-        Cargando…
-      </p>
-    )
-  const t = current.data
+  const trends = useLoad<Trends>(month, (s) => api.insightsTrends(month, s))
+  if (trends.error) return <ErrorState message={trends.error} onRetry={trends.reload} />
+  if (!trends.data) return <Loading />
+  const t = trends.data
   const withData = t.months.filter((m) => m.has_data)
   if (withData.length === 0) return <NoData title="Evolución" />
 

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
-import { ApiError, api, type Budgets, type MonthOverview } from '../../api/client'
+import { api, type Budgets, type MonthOverview } from '../../api/client'
 import { useHousehold } from '../../app/household-context'
 import { Donut, LineChart, geometry } from '../../components/charts'
+import { ErrorState, Loading } from '../../components/LoadState'
+import { useLoad } from '../../lib/useLoad'
 import { centsToAmount, formatMoney, formatMoneyRounded, monthLabel, shortMonth, toCents } from '../../lib/format'
 import { Delta, MonthPicker, NoData, ViewPicker } from './common'
 import { sharePercent, useCategoryMeta } from './meta'
@@ -12,7 +14,6 @@ const abs = (x: bigint) => (x < 0n ? -x : x)
 export function MonthPage() {
   const { me, month, view, uncategorized, setFocusCategory } = useHousehold()
   const meta = useCategoryMeta()
-  const [result, setResult] = useState<{ key: string; data?: MonthOverview; error?: string } | null>(null)
   const [budgets, setBudgets] = useState<Budgets | null>(null)
 
   useEffect(() => {
@@ -22,29 +23,12 @@ export function MonthPage() {
     return () => controller.abort()
   }, [month])
 
-  useEffect(() => {
-    const controller = new AbortController()
-    const key = `${view}|${month}`
-    api.insightsMonth(month, view, controller.signal).then(
-      (data) => setResult({ key, data }),
-      (err: unknown) => {
-        if (!controller.signal.aborted)
-          setResult({ key, error: err instanceof ApiError ? err.message : 'No se han podido cargar los datos' })
-      },
-    )
-    return () => controller.abort()
-  }, [month, view])
+  const overview = useLoad<MonthOverview>(`${view}|${month}`, (s) => api.insightsMonth(month, view, s))
 
   const mine = view === 'mine'
-  const current = result?.key === `${view}|${month}` ? result : null
-  if (current?.error) return <p className="error" role="alert">{current.error}</p>
-  if (!current?.data)
-    return (
-      <p className="muted" role="status">
-        Cargando…
-      </p>
-    )
-  const o = current.data
+  if (overview.error) return <ErrorState message={overview.error} onRetry={overview.reload} />
+  if (!overview.data) return <Loading />
+  const o = overview.data
   if (!o.has_data) return <NoData title="Este mes" />
 
   const money = (amount: string) => ({ amount, currency: o.currency })

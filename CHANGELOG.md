@@ -34,6 +34,7 @@ Se publicará como **0.1.0**, la primera versión para usar en casa. Pasos en [d
 - **Clasificación** (OF-602): sacar dinero de una hucha («From pocket») ya no cuenta como ingreso; en Movimientos se lee «De la hucha». Los nombres y patrones se buscan por palabra completa: una transferencia de «Mariana» ya no es una aportación de Ana.
 - **Movimientos** (OF-603): buscar un texto con «#» ya no deja la lista congelada. Si una pantalla falla, aparece «Algo ha fallado» con un botón para recargar.
 - **Importar** (OF-604): un «1,234» del CSV de Revolut (mil doscientos treinta y cuatro) ya no se lee como 1,234 €. Cada banco tiene su formato de número; lo que no lo sigue, o se puede leer de dos maneras, aparece como fila descartada en vez de guardarse con un importe equivocado.
+- **Pantallas** (OF-605): si algo no carga, se ve el error con un botón **Reintentar**. Antes el panel de movimientos de una categoría se quedaba en «Cargando…» y Presupuestos no se recuperaba sin recargar la página.
 
 ### Security
 

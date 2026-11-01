@@ -701,3 +701,39 @@ describe('Ahorro (fase 4)', () => {
     ])
   })
 })
+
+describe('Errores al cargar (OF-605)', () => {
+  it('si fallan los movimientos de una categoría se ve el error con «Reintentar»', async () => {
+    window.location.hash = '#gastos'
+    let failures = 1
+    loggedIn({
+      'GET /api/v1/insights/month': { body: OVERVIEW },
+      'GET /api/v1/insights/category': { body: DETAIL },
+      'GET /api/v1/transactions': (call) =>
+        call.url.searchParams.has('category_id') && failures-- > 0
+          ? { status: 500, body: { detail: 'Error del servidor' } }
+          : { body: TRANSACTIONS },
+    })
+    render(<App />)
+    const panel = (await screen.findByRole('heading', { name: /Movimientos de/ })).parentElement!
+    expect(await within(panel).findByRole('alert')).toHaveTextContent('Error del servidor')
+    await userEvent.click(within(panel).getByRole('button', { name: 'Reintentar' }))
+    expect(await within(panel).findByRole('table')).toBeInTheDocument()
+    expect(within(panel).queryByRole('alert')).toBeNull()
+  })
+
+  it('Presupuestos se recupera al reintentar', async () => {
+    window.location.hash = '#presupuestos'
+    let failures = 1
+    loggedIn({
+      'GET /api/v1/categories': { body: CATS_WITH_SLUGS },
+      'GET /api/v1/budgets': () =>
+        failures-- > 0 ? { status: 500, body: { detail: 'Error del servidor' } } : { body: BUDGETS },
+      'GET /api/v1/savings/overview': { body: SAVINGS },
+    })
+    render(<App />)
+    expect(await screen.findByRole('alert')).toHaveTextContent('Error del servidor')
+    await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(await screen.findByLabelText('Presupuesto de Supermercado')).toBeInTheDocument()
+  })
+})

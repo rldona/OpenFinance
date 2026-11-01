@@ -14,7 +14,7 @@ Un ticket está terminado cuando cumple sus criterios de aceptación, tiene test
 | 3 · Gráficos | Este mes, ¿En qué gastamos? y Evolución | OF-301 … OF-305 | ✅ Hecha |
 | 4 · Ahorro | Presupuestos, objetivos, ideas y simulador | OF-401 … OF-405 | ✅ Hecha |
 | 5 · Uso real | Instalado en casa, con copias de seguridad | OF-501 … OF-504 | ✅ OF-501 a OF-503 (CI en verde, también `compose-e2e`) · OF-504 preparado: falta la etiqueta `v0.1.0` tras el mes de uso real |
-| 6 · Datos fiables | Que cualquier extracto real se importe sin errores ni entradas infladas | OF-601 … OF-608 | 🚧 En curso · OF-601 ✅ · OF-602 ✅ (salvo traspasos internos) · OF-603 ✅ · OF-604 ✅ |
+| 6 · Datos fiables | Que cualquier extracto real se importe sin errores ni entradas infladas | OF-601 … OF-608 | 🚧 En curso · OF-601 ✅ · OF-602 ✅ (salvo traspasos internos) · OF-603 ✅ · OF-604 ✅ · OF-605 ✅ |
 | 7 · Corregir sin miedo | Editar, deshacer y ajustar desde la web, con historial | OF-701 … OF-706 | Pendiente |
 | 8 · Uso diario | Móvil, PWA, accesibilidad y mes en curso honesto (v0.2) | OF-801 … OF-806 | Pendiente |
 | 9 · Operación | Copias cifradas, dependencias y actualizaciones (v0.2) | OF-901 … OF-907 | Pendiente |
@@ -28,7 +28,7 @@ Estado a 1 de noviembre de 2026. Código en [github.com/rldona/OpenFinance](http
 
 ### Lo que falta para v0.1, en orden
 
-0. **Terminar la fase 6** (OF-605 … OF-608, y los traspasos internos de OF-602). Sin ella, el mes de uso real produciría datos que hoy no se pueden corregir. La fase 7 se puede hacer durante ese mes.
+0. **Terminar la fase 6** (OF-606 … OF-608, y los traspasos internos de OF-602). Sin ella, el mes de uso real produciría datos que hoy no se pueden corregir. La fase 7 se puede hacer durante ese mes.
 1. **Instalar en casa** siguiendo [Instalar en casa](../deployment/home.md), en modo HTTPS con dominio propio, en un equipo x86-64:
    1. Configurar el DNS del dominio y abrir los puertos 80 y 443 del router hacia el equipo.
    2. En `.env`: `COMPOSE_FILE=compose.yaml:compose.https.yaml`, `OPENFINANCE_DOMAIN` y una contraseña de PostgreSQL aleatoria.
@@ -298,9 +298,10 @@ Una verificación de tarjeta a 0,00 € pasaba la vista previa, pero al confirma
 - ✅ Lo que no sigue el formato («12,30» en el CSV inglés, «1,23,456», «1.5.») es una fila no válida con su motivo.
 - ✅ 🧪 «1,234» en el CSV inglés se lee como 1234 y el saldo cuadra; ✅ 🧪 sin formato declarado, «1,234» y «1.234» se rechazan como «importe ambiguo», nunca se leen como 1,234.
 
-### OF-605 · `useLoad` común con estados de carga, error y reintento
-- Sacar `useLoad` a `src/lib/` y migrar las 6 pantallas. Componentes `<Loading/>`, `<ErrorState onRetry/>` y `<UncategorizedNotice/>`.
-- 🧪 Si falla el panel de movimientos de una categoría se ve el error con «Reintentar» (hoy se queda en «Cargando…»); Presupuestos se recupera al reintentar.
+### OF-605 · `useLoad` común con estados de carga, error y reintento ✅
+- ✅ `useLoad` en `src/lib/useLoad.ts`, con `reload`: al recargar se siguen viendo los datos hasta que llegan los nuevos, y un error se quita al reintentar. Lo usan Este mes, ¿En qué gastamos? (y su panel), Evolución, Ahorrar y Presupuestos; Movimientos mantiene su carga propia (filas atenuadas mientras llega la nueva consulta) con el mismo «Reintentar».
+- ✅ Componentes `<Loading/>` y `<ErrorState onRetry/>` en `src/components/LoadState.tsx`. `<UncategorizedNotice/>` no se ha extraído: el aviso solo aparece en Este mes.
+- ✅ 🧪 Si fallan los movimientos de una categoría se ve el error con «Reintentar» y al reintentar se cargan; ✅ 🧪 Presupuestos se recupera al reintentar (antes el error se quedaba para siempre).
 
 ### OF-606 · CLI de mantenimiento: contraseña, cuentas y personas
 - `openfinance users set-password <email>` (sin eco, revoca las sesiones de esa persona) y `openfinance accounts add` para añadir una hucha o una cuenta personal al hogar existente.
