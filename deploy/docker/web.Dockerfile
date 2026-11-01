@@ -12,7 +12,7 @@ FROM nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef
 ENV OPENFINANCE_PROXY_MODE=direct
 
 COPY deploy/docker/nginx/default.conf.template /etc/nginx/templates/default.conf.template
-COPY deploy/docker/nginx/proxy-direct.conf deploy/docker/nginx/proxy-caddy.conf /etc/nginx/snippets/
+COPY deploy/docker/nginx/proxy-direct.conf deploy/docker/nginx/proxy-caddy.conf deploy/docker/nginx/security-headers.conf /etc/nginx/snippets/
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80
