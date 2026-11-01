@@ -14,7 +14,7 @@ Un ticket está terminado cuando cumple sus criterios de aceptación, tiene test
 | 3 · Gráficos | Este mes, ¿En qué gastamos? y Evolución | OF-301 … OF-305 | ✅ Hecha |
 | 4 · Ahorro | Presupuestos, objetivos, ideas y simulador | OF-401 … OF-405 | ✅ Hecha |
 | 5 · Uso real | Instalado en casa, con copias de seguridad | OF-501 … OF-504 | ✅ OF-501 a OF-503 (CI en verde, también `compose-e2e`) · OF-504 preparado: falta la etiqueta `v0.1.0` tras el mes de uso real |
-| 6 · Datos fiables | Que cualquier extracto real se importe sin errores ni entradas infladas | OF-601 … OF-608 | 🚧 En curso · OF-601 ✅ · OF-602 ✅ (salvo traspasos internos) · OF-603 ✅ · OF-604 ✅ · OF-605 ✅ |
+| 6 · Datos fiables | Que cualquier extracto real se importe sin errores ni entradas infladas | OF-601 … OF-608 | 🚧 En curso · OF-601 ✅ · OF-602 ✅ (salvo traspasos internos) · OF-603 ✅ · OF-604 ✅ · OF-605 ✅ · OF-606 ✅ |
 | 7 · Corregir sin miedo | Editar, deshacer y ajustar desde la web, con historial | OF-701 … OF-706 | Pendiente |
 | 8 · Uso diario | Móvil, PWA, accesibilidad y mes en curso honesto (v0.2) | OF-801 … OF-806 | Pendiente |
 | 9 · Operación | Copias cifradas, dependencias y actualizaciones (v0.2) | OF-901 … OF-907 | Pendiente |
@@ -28,7 +28,7 @@ Estado a 1 de noviembre de 2026. Código en [github.com/rldona/OpenFinance](http
 
 ### Lo que falta para v0.1, en orden
 
-0. **Terminar la fase 6** (OF-606 … OF-608, y los traspasos internos de OF-602). Sin ella, el mes de uso real produciría datos que hoy no se pueden corregir. La fase 7 se puede hacer durante ese mes.
+0. **Terminar la fase 6** (OF-607 y OF-608, y los traspasos internos de OF-602). Sin ella, el mes de uso real produciría datos que hoy no se pueden corregir. La fase 7 se puede hacer durante ese mes.
 1. **Instalar en casa** siguiendo [Instalar en casa](../deployment/home.md), en modo HTTPS con dominio propio, en un equipo x86-64:
    1. Configurar el DNS del dominio y abrir los puertos 80 y 443 del router hacia el equipo.
    2. En `.env`: `COMPOSE_FILE=compose.yaml:compose.https.yaml`, `OPENFINANCE_DOMAIN` y una contraseña de PostgreSQL aleatoria.
@@ -303,9 +303,11 @@ Una verificación de tarjeta a 0,00 € pasaba la vista previa, pero al confirma
 - ✅ Componentes `<Loading/>` y `<ErrorState onRetry/>` en `src/components/LoadState.tsx`. `<UncategorizedNotice/>` no se ha extraído: el aviso solo aparece en Este mes.
 - ✅ 🧪 Si fallan los movimientos de una categoría se ve el error con «Reintentar» y al reintentar se cargan; ✅ 🧪 Presupuestos se recupera al reintentar (antes el error se quedaba para siempre).
 
-### OF-606 · CLI de mantenimiento: contraseña, cuentas y personas
-- `openfinance users set-password <email>` (sin eco, revoca las sesiones de esa persona) y `openfinance accounts add` para añadir una hucha o una cuenta personal al hogar existente.
-- 🧪 Tras cambiar la contraseña, la sesión anterior da 401.
+### OF-606 · CLI de mantenimiento: contraseña, cuentas y personas ✅
+- ✅ `openfinance users set-password <email>`: la contraseña se pide sin eco (nunca como argumento), y se cierran solo las sesiones de esa persona.
+- ✅ `openfinance accounts add <email> <nombre> [--kind savings|joint|personal] [--bank …] [--opening-balance …]`: añade una cuenta al hogar de esa persona; con `personal`, es su titular. El nombre no se puede repetir en el hogar.
+- ✅ 🧪 Tras cambiar la contraseña, la sesión anterior da 401, la de la otra persona sigue abierta y la contraseña vieja ya no entra; ✅ 🧪 una cuenta personal nueva solo la ve su titular y no se puede dar a alguien de otro hogar.
+- Guía: [Instalar en casa](../deployment/home.md).
 
 ### OF-607 · Purgar el contenido de importaciones caducadas
 - Al arrancar la API y en cada login, además de en cada vista previa; `make backup` purga antes de volcar.

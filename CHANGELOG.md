@@ -23,6 +23,7 @@ Se publicará como **0.1.0**, la primera versión para usar en casa. Pasos en [d
 - **Gráficos** (OF-301 a OF-305): las pantallas «Este mes», «¿En qué gastamos?» y «Evolución», con lo gastado y ahorrado, el gasto por categoría frente a vuestra media, el ritmo del mes y 12 meses de historia. `make demo` crea un hogar ficticio para verlos sin datos reales.
 - **Mi gasto** (OF-108): en «Este mes» y «¿En qué gastamos?», el selector «Hogar / Mío» enseña el gasto de tus cuentas personales y lo que has aportado a la conjunta. Solo lo ves tú y no cambia los totales del hogar.
 - **Ahorro** (OF-401 a OF-405): presupuestos por categoría con aviso al 85 %, objetivos de ahorro con fecha estimada, detección de cuotas y subidas de precio, ideas de ahorro con su respaldo y un simulador de recortes.
+- **Mantenimiento** (OF-606): `openfinance users set-password` cambia la contraseña de alguien desde el servidor y cierra sus sesiones; `openfinance accounts add` añade una hucha o una cuenta después del alta. Ver [Instalar en casa](docs/deployment/home.md).
 - **Exportación y copias** (OF-501, [ADR-0016](docs/adr/0016-exposicion-y-copias.md)): botón **Exportar** (JSON o CSV) con lo que ve cada persona, y `make backup` / `make restore` para guardar y recuperar toda la base de datos.
 - **Instalación en casa** (OF-502): Docker Compose para usarlo en la red local o desde fuera con HTTPS y dominio propio. Guía: [Instalar en casa](docs/deployment/home.md).
 - **Móvil** (OF-503): todas las pantallas y los gráficos se usan bien en el móvil.

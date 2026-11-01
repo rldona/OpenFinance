@@ -7,9 +7,18 @@ import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from openfinance.application.errors import AuthenticationError, NotFoundError
+from openfinance.application.errors import (
+    AuthenticationError,
+    InvalidRequestError,
+    NotFoundError,
+)
 from openfinance.application.ports import PasswordHasher, StoredSession, UnitOfWork
-from openfinance.domain.identity import InvalidUserError, User, normalize_email
+from openfinance.domain.identity import (
+    InvalidUserError,
+    User,
+    normalize_email,
+    validate_password,
+)
 from openfinance.domain.workspaces import Actor, Household
 
 
@@ -83,6 +92,25 @@ def logout(uow: UnitOfWork, token: str) -> None:
     if token:
         uow.sessions.delete(_hash_token(token))
         uow.commit()
+
+
+def set_password(uow: UnitOfWork, hasher: PasswordHasher, email: str, password: str) -> int:
+    """Cambia la contraseña de una persona y cierra sus sesiones. Devuelve cuántas había.
+
+    Se usa desde el servidor (``openfinance users set-password``) cuando alguien la olvida.
+    """
+    try:
+        normalized = normalize_email(email)
+        validate_password(password)
+    except InvalidUserError as exc:
+        raise InvalidRequestError(str(exc)) from exc
+    user = uow.users.get_by_email(normalized)
+    if user is None:
+        raise NotFoundError(f"No hay ninguna persona con el email {normalized}")
+    uow.users.set_password_hash(user.id, hasher.hash(password))
+    revoked = uow.sessions.delete_for_user(user.id)
+    uow.commit()
+    return revoked
 
 
 def revoke_all_sessions(uow: UnitOfWork, now: datetime) -> int:
