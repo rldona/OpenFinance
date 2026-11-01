@@ -13,9 +13,42 @@ Un ticket está terminado cuando cumple sus criterios de aceptación, tiene test
 | 2 · Categorías | Que cada gasto tenga su categoría casi sin esfuerzo | OF-201 … OF-203 | ✅ Hecha |
 | 3 · Gráficos | Este mes, ¿En qué gastamos? y Evolución | OF-301 … OF-305 | ✅ Hecha |
 | 4 · Ahorro | Presupuestos, objetivos, ideas y simulador | OF-401 … OF-405 | ✅ Hecha |
-| 5 · Uso real | Instalado en casa, con copias de seguridad | OF-501 … OF-504 | En curso · OF-501 a OF-503 implementados (Compose y Playwright se verifican en CI) · OF-504 preparado: falta la etiqueta `v0.1.0` tras el mes de uso real y OF-108 |
+| 5 · Uso real | Instalado en casa, con copias de seguridad | OF-501 … OF-504 | ✅ OF-501 a OF-503 (CI en verde, también `compose-e2e`) · OF-504 preparado: falta la etiqueta `v0.1.0` tras el mes de uso real y OF-108 |
 
 **Hito v0.1:** fin de la fase 5, con al menos un mes de uso real con vuestros datos.
+
+## Cómo retomar
+
+Estado a 1 de noviembre de 2026. Código en [github.com/rldona/OpenFinance](https://github.com/rldona/OpenFinance) (público, rama `main`). CI en verde en todos sus jobs: `backend`, `frontend`, `licenses` y `compose-e2e` en los modos `direct` y `https`.
+
+### Lo que falta para v0.1, en orden
+
+1. **OF-108 · Vista «mi gasto».** Es el único ticket de desarrollo pendiente; el detalle está en su apartado, más abajo.
+2. **Instalar en casa** siguiendo [Instalar en casa](../deployment/home.md), en modo HTTPS con dominio propio, en un equipo x86-64:
+   1. Configurar el DNS del dominio y abrir los puertos 80 y 443 del router hacia el equipo.
+   2. En `.env`: `COMPOSE_FILE=compose.yaml:compose.https.yaml`, `OPENFINANCE_DOMAIN` y una contraseña de PostgreSQL aleatoria.
+   3. `docker compose up -d --wait` y después `make bootstrap` para crear el hogar, las dos personas y sus cuentas.
+   4. **Antes de importar nada**, guardar el final de la tarjeta con la que cada persona recarga la conjunta: `openfinance member-patterns add <email> '*NNNN'`. Revolut muestra las recargas como «Recarga de \*NNNN», sin nombre. Sin ese patrón entran como ingreso y **no se pueden reclasificar después**.
+   5. Comprobar un extracto sin tocar la base de datos: `openfinance statement-check --bank revolut|bankinter FICHERO`. Solo muestra recuentos.
+   6. Importar desde la pantalla **Importar**: Revolut en la conjunta y el Bankinter de cada persona en su cuenta personal.
+   7. Programar `make backup` con cron y probar una vez `make restore FILE=…`.
+   8. Abrirlo desde un móvil real: pestañas, Importar, descarga de la exportación y que el teclado no tape los campos.
+3. **Un mes de uso real** con vuestros datos.
+4. **Release:** seguir [release.md](../development/release.md). Hay que subir las versiones a 0.1.0, crear la etiqueta anotada `v0.1.0` y publicar la release en GitHub.
+
+### Pendientes menores (no bloquean v0.1)
+
+- Revolut (ver [bancos.md](bancos.md)): confirmar si las horas están en hora local o en UTC, el signo de la comisión y cómo aparecen las huchas en el Excel en español. El extracto de octubre no tiene comisiones ni huchas, así que se confirmará con los próximos.
+- No se puede cambiar el tipo ni la persona de un movimiento ya importado. Si hace falta, merece su propio ticket.
+- «Cerrar todas las sesiones» desde la web, cuando exista el cambio de contraseña. Hoy solo existe en la CLI: `openfinance sessions revoke-all`.
+
+### Notas de entorno
+
+- **Extractos reales:** van en `/Extractos`, que está en `.gitignore`. Nunca se copian a tests, fixtures ni documentación. Los tests usan archivos sintéticos.
+- **Sin Docker ni PostgreSQL en el portátil de desarrollo:** los tests de base de datos corren en local con SQLite, y Compose solo se prueba en CI. Playwright sí funciona en local con la API sobre SQLite y Vite (ver [getting-started](../development/getting-started.md)).
+- **Identidad de git:** commits con `Raúl López Doña <1206870+rldona@users.noreply.github.com>` (ya configurado en este repositorio) y firmados con DCO (`git commit -s`).
+- **npm:** el `~/.npmrc` del equipo apunta a un registro corporativo. Si se regenera el lock, hay que hacerlo con `npm install --registry=https://registry.npmjs.org/`. CI falla si `package-lock.json` contiene URLs de otro registro.
+- **Vercel:** nunca se lanzan despliegues de preview. Todo pasa por GitHub Actions.
 
 ---
 
@@ -108,7 +141,13 @@ Versión real de las pantallas del prototipo.
 - Depende de: OF-105.
 
 ### OF-108 · Vista «mi gasto» de cada persona
-- Vista de la cuenta personal de cada persona con su gasto, visible solo para ella (ADR-0013).
+Vista de la cuenta personal de cada persona con su gasto, visible solo para ella (ADR-0013). Es el último ticket de desarrollo antes de v0.1.
+- Agregados del mes calculados en el Core para las cuentas personales de quien pregunta: gastado, ingresos, aportado a la conjunta y gasto por categoría con su media. No cambia nada de los totales del hogar, que siguen usando solo la conjunta y las huchas.
+- Pantalla (o selector «Hogar / Mío») que reutiliza los gráficos de «Este mes» y «¿En qué gastamos?».
+- Lo aportado a la conjunta (salidas «Revolut\*\*NNNN\*» o con un patrón de salida del titular) se muestra aparte y no cuenta como gasto propio.
+- 🧪 Tests negativos: la pareja no ve los agregados de la cuenta personal del otro, ni pidiéndolos directamente; otro hogar tampoco. La vista personal no altera los totales del hogar.
+- Punto de partida: `application/insights.py` (agregados y `shared_scope`), `ledger.visible_accounts`, y en la web `features/insights/` (`MonthPage.tsx`, `SpendingPage.tsx`).
+- Antes de implementarlo, decidir si basta una vista del mes o hacen falta también 12 meses (Evolución).
 - Depende de: OF-107.
 
 ---
@@ -204,18 +243,18 @@ El Core calcula y el frontend solo pinta. Los totales del hogar usan solo la con
 
 ## Fase 5 · Uso real
 
-### OF-501 · Exportación y copia de seguridad ✅ (pendiente de la primera ejecución verde de `compose-e2e`)
+### OF-501 · Exportación y copia de seguridad ✅
 - ✅ `GET /api/v1/export?format=json|csv`: lo que ve quien la pide (nunca la cuenta personal de la otra persona, sesiones, hashes ni huellas), con `format_version` 1, importes exactos como texto y CSV protegidos frente a fórmulas. Botón **Exportar** en la cabecera.
 - ✅ 🧪 Tests negativos de visibilidad: cuenta personal, reglas y patrones de salida de la pareja, y otro hogar.
 - ✅ `make backup` y `make restore FILE=…` ([ADR-0016](../adr/0016-exposicion-y-copias.md)); restaurar aplica migraciones y cierra todas las sesiones (`openfinance sessions revoke-all`).
 - ✅ 🧪 Restaurar una copia en una instalación limpia deja los mismos saldos (CI, `compose-e2e`).
 
-### OF-502 · Instalación en casa ✅ (pendiente de la primera ejecución verde de `compose-e2e`)
+### OF-502 · Instalación en casa ✅
 - ✅ Docker Compose probado de principio a fin en CI en dos modos: `direct` (red local por http) y `caddy` (HTTPS con dominio propio). Ni PostgreSQL ni la API publican puertos.
 - ✅ La IP real llega a la API sin que el cliente pueda falsificarla (nginx sobrescribe `X-Forwarded-For`); aviso en el log si la cookie `Secure` llega por http.
 - ✅ Guía: [Instalar en casa](../deployment/home.md) (móvil en la red local, HTTPS, copias programadas y actualización).
 
-### OF-503 · Móvil ✅ (pendiente de la primera ejecución verde de `compose-e2e` y de probarlo en un móvil real)
+### OF-503 · Móvil ✅ (falta probarlo en un móvil real)
 - ✅ Las 6 pantallas, el acceso, Categorías y Presupuestos se usan en un móvil: pestañas en una fila desplazable, tablas en filas compactas, objetivos táctiles de al menos 40 px y campos de 16 px para que iOS no amplíe la página.
 - ✅ Gráficos legibles en pantalla estrecha: se dibujan al ancho real (el texto no encoge con el `viewBox`) y escriben menos etiquetas cuando no caben. Siguen alimentándose de los agregados del Core.
 - ✅ 🧪 Playwright (`apps/web/e2e`, `make e2e`) en Chrome a 360 px, Safari (WebKit) a 390 px y escritorio: sin scroll horizontal, gráficos dentro de la pantalla con etiquetas de al menos 11 px y sin solapes, pestañas alcanzables, Importar en 3 pasos con un extracto sintético y descarga de la exportación. En CI contra Docker Compose (`compose-e2e`, modo `direct`).

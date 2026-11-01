@@ -10,7 +10,7 @@ Se publicará como **0.1.0**, la primera versión para usar en casa. Pasos en [d
 
 - Un mes de uso real con vuestros datos (hito v0.1).
 - La vista «mi gasto» de cada persona sobre su cuenta personal (OF-108).
-- La primera ejecución verde de la instalación de extremo a extremo en CI (`compose-e2e`) y probarlo en un móvil real.
+- Instalarlo en casa y probarlo en un móvil real. La instalación de extremo a extremo (`compose-e2e`) ya pasa en verde en CI.
 - Pendientes de los extractos reales (ver [bancos.md](docs/product/bancos.md)): hora local o UTC, signo de la comisión y texto de las huchas en el Excel de Revolut en español.
 
 ### Added
