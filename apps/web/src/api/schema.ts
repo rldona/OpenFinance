@@ -522,6 +522,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/savings/ideas/{idea_id}/dismissed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Dismiss Idea
+         * @description Descarta una idea de ahorro para todo el hogar.
+         */
+        put: operations["dismiss_idea_api_v1_savings_ideas__idea_id__dismissed_put"];
+        post?: never;
+        /**
+         * Restore Idea
+         * @description Recupera una idea descartada.
+         */
+        delete: operations["restore_idea_api_v1_savings_ideas__idea_id__dismissed_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/savings/overview": {
         parameters: {
             query?: never;
@@ -577,6 +601,26 @@ export interface paths {
          * @description Pone la misma categoría a varios gastos, sin aprender reglas, en una sola operación.
          */
         post: operations["categorize_many_api_v1_transactions_categorize_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/transactions/page": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Page Transactions
+         * @description Movimientos de 50 en 50 con el total del filtro (OF-803). Mismo orden que el listado.
+         */
+        get: operations["page_transactions_api_v1_transactions_page_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -725,12 +769,14 @@ export interface components {
              * Format: uuid
              */
             category_id: string;
+            /** @description Cuotas fijas de la categoría este mes, cobradas y por cobrar (OF-802) */
+            fixed: components["schemas"]["MoneyOut"];
             /** Percent */
             percent: number;
             spent: components["schemas"]["MoneyOut"];
             /**
              * Status
-             * @description ok, warning (≥ 85 %) u over (> 100 %)
+             * @description ok, warning (≥ 85 % del margen que dejan las cuotas fijas) u over (> 100 %)
              */
             status: string;
         };
@@ -1001,6 +1047,11 @@ export interface components {
             assumption: string | null;
             /** Detail */
             detail: string;
+            /**
+             * Dismissed
+             * @description El hogar la ha descartado; se puede recuperar (OF-806)
+             */
+            dismissed: boolean;
             /** Evidence */
             evidence: string;
             /** Icon */
@@ -1243,6 +1294,8 @@ export interface components {
             daily: string[];
             /** Days Elapsed */
             days_elapsed: number;
+            /** @description Gasto con el que cerraría el mes en curso; null si hay pocos días de datos */
+            forecast: components["schemas"]["MoneyOut"] | null;
             /** Has Data */
             has_data: boolean;
             income: components["schemas"]["MoneyOut"];
@@ -1254,6 +1307,11 @@ export interface components {
             is_partial: boolean;
             /** Month */
             month: string;
+            /**
+             * Pending Charges
+             * @description Cuotas habituales que este mes aún no han llegado (solo el mes en curso)
+             */
+            pending_charges: components["schemas"]["PendingChargeOut"][];
             /** Previous Daily */
             previous_daily: string[];
             previous_spent: components["schemas"]["MoneyOut"] | null;
@@ -1335,6 +1393,24 @@ export interface components {
             direction: components["schemas"]["PatternDirection"];
             /** Pattern */
             pattern: string;
+        };
+        /** PendingChargeOut */
+        PendingChargeOut: {
+            amount: components["schemas"]["MoneyOut"];
+            /** Category Id */
+            category_id: string | null;
+            /**
+             * Expected Day
+             * @description Día del mes en que suele cobrarse
+             */
+            expected_day: number;
+            /**
+             * Late
+             * @description Ya tocaba cobrarla este mes y no ha llegado; no se suma
+             */
+            late: boolean;
+            /** Merchant */
+            merchant: string;
         };
         /** PreviewRowOut */
         PreviewRowOut: {
@@ -1524,6 +1600,23 @@ export interface components {
              * Format: date
              */
             value_date: string;
+        };
+        /** TransactionPageOut */
+        TransactionPageOut: {
+            /**
+             * Count
+             * @description Movimientos que cumplen el filtro en total
+             */
+            count: number;
+            /** Items */
+            items: components["schemas"]["TransactionOut"][];
+            /**
+             * Next Cursor
+             * @description Pásalo como `cursor` para pedir la página siguiente; null en la última
+             */
+            next_cursor: string | null;
+            /** @description Suma con signo de todos los que cumplen el filtro */
+            total: components["schemas"]["MoneyOut"];
         };
         /** TrendCategoryOut */
         TrendCategoryOut: {
@@ -2542,6 +2635,64 @@ export interface operations {
             };
         };
     };
+    dismiss_idea_api_v1_savings_ideas__idea_id__dismissed_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                idea_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_idea_api_v1_savings_ideas__idea_id__dismissed_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                idea_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     overview_api_v1_savings_overview_get: {
         parameters: {
             query?: never;
@@ -2655,6 +2806,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BulkCategorizeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    page_transactions_api_v1_transactions_page_get: {
+        parameters: {
+            query?: {
+                month?: string | null;
+                q?: string | null;
+                uncategorized?: boolean;
+                account_id?: string | null;
+                category_id?: string | null;
+                /** @description `next_cursor` anterior */
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionPageOut"];
                 };
             };
             /** @description Validation Error */

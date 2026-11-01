@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from 'react'
-import { ApiError, TRANSACTIONS_LIMIT, api, type Account, type Transaction } from '../../api/client'
+import { ApiError, api, type Account, type Transaction, type TransactionPage } from '../../api/client'
 import { useHousehold } from '../../app/household-context'
+import { useHashParam } from '../../app/router'
 import { ErrorState, Loading } from '../../components/LoadState'
 import { formatDate, formatMoney } from '../../lib/format'
 import { notifyUndoable } from '../../lib/undo'
@@ -40,20 +41,31 @@ function CategorySelect({
 
 export function TransactionsPage() {
   const { me, categories, categoryById, uncategorized, refreshUncategorized, notify, month } = useHousehold()
-  const [allMonths, setAllMonths] = useState(false)
-  const [q, setQ] = useState('')
-  const [debouncedQ, setDebouncedQ] = useState('')
-  const [onlyUncategorized, setOnlyUncategorized] = useState(false)
-  const [accountId, setAccountId] = useState('')
+  // Los filtros viven en la URL (OF-801): una búsqueda se comparte y sobrevive a recargar.
+  const [allParam, setAllParam] = useHashParam('todos')
+  const [qParam, setQParam] = useHashParam('q')
+  const [sinParam, setSinParam] = useHashParam('sin')
+  const [accountParam, setAccountParam] = useHashParam('cuenta')
+  const allMonths = allParam === '1'
+  const onlyUncategorized = sinParam === '1'
+  const accountId = accountParam ?? ''
+  const setAllMonths = (v: boolean) => setAllParam(v ? '1' : null)
+  const setOnlyUncategorized = (v: boolean) => setSinParam(v ? '1' : null)
+  const setAccountId = (v: string) => setAccountParam(v || null)
+  // El cuadro de texto es local para escribir sin saltos; la URL se actualiza tras una pausa.
+  const [q, setQ] = useState(qParam ?? '')
+  const debouncedQ = (qParam ?? '').trim()
   const [accounts, setAccounts] = useState<Account[]>([])
   const [version, setVersion] = useState(0)
   const [pending, setPending] = useState<string | null>(null)
-  const [result, setResult] = useState<{ key: string; rows?: Transaction[]; error?: string } | null>(null)
+  type Result = { key: string; page?: TransactionPage; rows?: Transaction[]; error?: string }
+  const [result, setResult] = useState<Result | null>(null)
+  const [loadingMore, setLoadingMore] = useState(false)
 
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedQ(q.trim()), 250)
+    const t = setTimeout(() => setQParam(q.trim() || null), 250)
     return () => clearTimeout(t)
-  }, [q])
+  }, [q, setQParam])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -73,8 +85,8 @@ export function TransactionsPage() {
   useEffect(() => {
     const controller = new AbortController()
     api
-      .transactions((JSON.parse(key) as [typeof query, number])[0], controller.signal)
-      .then((rows) => setResult({ key, rows }))
+      .transactionsPage((JSON.parse(key) as [typeof query, number])[0], controller.signal)
+      .then((page) => setResult({ key, page, rows: page.items }))
       .catch((err: unknown) => {
         if (controller.signal.aborted) return
         const error = err instanceof ApiError ? err.message : 'No se han podido cargar los movimientos'
@@ -87,8 +99,32 @@ export function TransactionsPage() {
   // Mientras llega la consulta nueva se siguen viendo las filas anteriores, atenuadas y sin
   // poder editarse, para evitar parpadeos sin permitir cambios sobre datos desactualizados.
   const stale = !current
-  const rows = current?.rows ?? (stale && !result?.error ? (result?.rows ?? null) : null)
+  const shown = current ?? (stale && !result?.error ? result : null)
+  const rows = shown?.rows ?? null
   const error = current?.error ?? null
+  const nextCursor = current?.page?.next_cursor ?? null
+
+  async function loadMore() {
+    if (!current || !nextCursor) return
+    setLoadingMore(true)
+    try {
+      const more = await api.transactionsPage({ ...query, cursor: nextCursor })
+      setResult((r) => {
+        if (!r || r.key !== key || !r.rows) return r
+        const seen = new Set(r.rows.map((t) => t.id))
+        return { ...r, page: more, rows: [...r.rows, ...more.items.filter((t) => !seen.has(t.id))] }
+      })
+    } catch (err) {
+      notify(err instanceof ApiError ? err.message : 'No se han podido cargar más movimientos')
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
+  /** Sustituye una fila con lo que devuelve la API, sin volver a pedir la lista (OF-803). */
+  function replaceRow(updated: Transaction) {
+    setResult((r) => (r?.rows ? { ...r, rows: r.rows.map((t) => (t.id === updated.id ? updated : t)) } : r))
+  }
   const accountName = (id: string) => accounts.find((a) => a.id === id)?.name ?? ''
   const [openId, setOpenId] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -151,7 +187,13 @@ export function TransactionsPage() {
             ? `Categoría: ${category.name}`
             : 'Categoría quitada'
       notifyUndoable(notify, me, message, r.operation_id, refresh)
-      refresh()
+      // Si la regla ha clasificado más movimientos, o la fila ya no cumple el filtro, hay que
+      // volver a pedir; si no, basta con cambiar esta fila.
+      if (r.also_categorized > 0 || onlyUncategorized) refresh()
+      else {
+        replaceRow(r.transaction)
+        refreshUncategorized()
+      }
     } catch (err) {
       notify(err instanceof ApiError ? err.message : 'No se ha podido cambiar la categoría')
     } finally {
@@ -365,13 +407,20 @@ export function TransactionsPage() {
             </tbody>
           </table>
         )}
-        {rows && rows.length >= TRANSACTIONS_LIMIT && (
-          <p className="notice warn small">
-            Se muestran los {TRANSACTIONS_LIMIT} más recientes. Filtra por mes o busca para ver el resto.
-          </p>
+        {current?.page && rows && rows.length > 0 && (
+          <>
+            <p className="small muted">
+              {nextCursor
+                ? `Mostrando ${rows.length} de ${current.page.count} movimientos`
+                : `${current.page.count} movimientos`}
+            </p>
+            <p className="small muted">Suma del filtro: {formatMoney(current.page.total, { signed: true })}</p>
+          </>
         )}
-        {rows && rows.length > 0 && rows.length < TRANSACTIONS_LIMIT && (
-          <p className="small muted">{rows.length} movimientos</p>
+        {nextCursor && (
+          <button className="btn" type="button" disabled={loadingMore} onClick={() => void loadMore()}>
+            {loadingMore ? 'Cargando…' : 'Cargar más'}
+          </button>
         )}
       </div>
     </section>

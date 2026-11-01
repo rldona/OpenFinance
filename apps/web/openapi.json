@@ -128,6 +128,10 @@
             "title": "Category Id",
             "type": "string"
           },
+          "fixed": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Cuotas fijas de la categoría este mes, cobradas y por cobrar (OF-802)"
+          },
           "percent": {
             "title": "Percent",
             "type": "integer"
@@ -136,7 +140,7 @@
             "$ref": "#/components/schemas/MoneyOut"
           },
           "status": {
-            "description": "ok, warning (≥ 85 %) u over (> 100 %)",
+            "description": "ok, warning (≥ 85 % del margen que dejan las cuotas fijas) u over (> 100 %)",
             "title": "Status",
             "type": "string"
           }
@@ -146,7 +150,8 @@
           "amount",
           "spent",
           "percent",
-          "status"
+          "status",
+          "fixed"
         ],
         "title": "BudgetOut",
         "type": "object"
@@ -1038,6 +1043,11 @@
             "title": "Detail",
             "type": "string"
           },
+          "dismissed": {
+            "description": "El hogar la ha descartado; se puede recuperar (OF-806)",
+            "title": "Dismissed",
+            "type": "boolean"
+          },
           "evidence": {
             "title": "Evidence",
             "type": "string"
@@ -1065,7 +1075,8 @@
           "detail",
           "yearly_saving",
           "evidence",
-          "assumption"
+          "assumption",
+          "dismissed"
         ],
         "title": "IdeaOut",
         "type": "object"
@@ -1595,6 +1606,17 @@
             "title": "Days Elapsed",
             "type": "integer"
           },
+          "forecast": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Gasto con el que cerraría el mes en curso; null si hay pocos días de datos"
+          },
           "has_data": {
             "title": "Has Data",
             "type": "boolean"
@@ -1613,6 +1635,14 @@
           "month": {
             "title": "Month",
             "type": "string"
+          },
+          "pending_charges": {
+            "description": "Cuotas habituales que este mes aún no han llegado (solo el mes en curso)",
+            "items": {
+              "$ref": "#/components/schemas/PendingChargeOut"
+            },
+            "title": "Pending Charges",
+            "type": "array"
           },
           "previous_daily": {
             "items": {
@@ -1684,7 +1714,9 @@
           "changes",
           "currency",
           "daily",
-          "previous_daily"
+          "previous_daily",
+          "forecast",
+          "pending_charges"
         ],
         "title": "MonthOverviewOut",
         "type": "object"
@@ -1842,6 +1874,48 @@
           "direction"
         ],
         "title": "PatternOut",
+        "type": "object"
+      },
+      "PendingChargeOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "expected_day": {
+            "description": "Día del mes en que suele cobrarse",
+            "title": "Expected Day",
+            "type": "integer"
+          },
+          "late": {
+            "description": "Ya tocaba cobrarla este mes y no ha llegado; no se suma",
+            "title": "Late",
+            "type": "boolean"
+          },
+          "merchant": {
+            "title": "Merchant",
+            "type": "string"
+          }
+        },
+        "required": [
+          "merchant",
+          "category_id",
+          "amount",
+          "expected_day",
+          "late"
+        ],
+        "title": "PendingChargeOut",
         "type": "object"
       },
       "PreviewRowOut": {
@@ -2280,6 +2354,46 @@
           "note"
         ],
         "title": "TransactionOut",
+        "type": "object"
+      },
+      "TransactionPageOut": {
+        "properties": {
+          "count": {
+            "description": "Movimientos que cumplen el filtro en total",
+            "title": "Count",
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TransactionOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Pásalo como `cursor` para pedir la página siguiente; null en la última",
+            "title": "Next Cursor"
+          },
+          "total": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Suma con signo de todos los que cumplen el filtro"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor",
+          "count",
+          "total"
+        ],
+        "title": "TransactionPageOut",
         "type": "object"
       },
       "TrendCategoryOut": {
@@ -3853,6 +3967,76 @@
         ]
       }
     },
+    "/api/v1/savings/ideas/{idea_id}/dismissed": {
+      "delete": {
+        "description": "Recupera una idea descartada.",
+        "operationId": "restore_idea_api_v1_savings_ideas__idea_id__dismissed_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "idea_id",
+            "required": true,
+            "schema": {
+              "title": "Idea Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Restore Idea",
+        "tags": [
+          "savings"
+        ]
+      },
+      "put": {
+        "description": "Descarta una idea de ahorro para todo el hogar.",
+        "operationId": "dismiss_idea_api_v1_savings_ideas__idea_id__dismissed_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "idea_id",
+            "required": true,
+            "schema": {
+              "title": "Idea Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Dismiss Idea",
+        "tags": [
+          "savings"
+        ]
+      }
+    },
     "/api/v1/savings/overview": {
       "get": {
         "description": "Todo lo de la pantalla Ahorrar: medias, cuotas, ideas y objetivos.",
@@ -4103,6 +4287,149 @@
           }
         },
         "summary": "Categorize Many",
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
+    "/api/v1/transactions/page": {
+      "get": {
+        "description": "Movimientos de 50 en 50 con el total del filtro (OF-803). Mismo orden que el listado.",
+        "operationId": "page_transactions_api_v1_transactions_page_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(19|2\\d)\\d{2}-(0[1-9]|1[0-2])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "uncategorized",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Uncategorized",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Account Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category Id"
+            }
+          },
+          {
+            "description": "`next_cursor` anterior",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`next_cursor` anterior",
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionPageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Page Transactions",
         "tags": [
           "ledger"
         ]

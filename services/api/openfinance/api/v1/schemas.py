@@ -121,6 +121,15 @@ class TransactionOut(BaseModel):
         )
 
 
+class TransactionPageOut(BaseModel):
+    items: list[TransactionOut]
+    next_cursor: str | None = Field(
+        description="Pásalo como `cursor` para pedir la página siguiente; null en la última"
+    )
+    count: int = Field(description="Movimientos que cumplen el filtro en total")
+    total: MoneyOut = Field(description="Suma con signo de todos los que cumplen el filtro")
+
+
 class PreviewRowOut(BaseModel):
     line: int
     booked_at: datetime
@@ -397,6 +406,14 @@ class CategoryAmountOut(BaseModel):
     change: MoneyOut | None = Field(description="amount - reference")
 
 
+class PendingChargeOut(BaseModel):
+    merchant: str
+    category_id: UUID | None
+    amount: MoneyOut
+    expected_day: int = Field(description="Día del mes en que suele cobrarse")
+    late: bool = Field(description="Ya tocaba cobrarla este mes y no ha llegado; no se suma")
+
+
 class MonthOverviewOut(BaseModel):
     month: str
     has_data: bool
@@ -426,6 +443,12 @@ class MonthOverviewOut(BaseModel):
     currency: str
     daily: list[str] = Field(description="Gasto acumulado al final de cada día (decimal exacto)")
     previous_daily: list[str]
+    forecast: MoneyOut | None = Field(
+        description="Gasto con el que cerraría el mes en curso; null si hay pocos días de datos"
+    )
+    pending_charges: list[PendingChargeOut] = Field(
+        description="Cuotas habituales que este mes aún no han llegado (solo el mes en curso)"
+    )
 
 
 class MonthAmountOut(BaseModel):
@@ -491,11 +514,17 @@ class BudgetOut(BaseModel):
     amount: MoneyOut
     spent: MoneyOut
     percent: int
-    status: str = Field(description="ok, warning (≥ 85 %) u over (> 100 %)")
+    status: str = Field(
+        description="ok, warning (≥ 85 % del margen que dejan las cuotas fijas) u over (> 100 %)"
+    )
+    fixed: MoneyOut = Field(
+        description="Cuotas fijas de la categoría este mes, cobradas y por cobrar (OF-802)"
+    )
 
     @classmethod
     def of(cls, v: BudgetView) -> BudgetOut:
         return cls(
+            fixed=MoneyOut.of(v.fixed),
             category_id=v.budget.category_id,
             amount=MoneyOut.of(v.budget.amount),
             spent=MoneyOut.of(v.spent),
@@ -598,6 +627,7 @@ class IdeaOut(BaseModel):
     yearly_saving: MoneyOut
     evidence: str
     assumption: str | None
+    dismissed: bool = Field(description="El hogar la ha descartado; se puede recuperar (OF-806)")
 
 
 class CategoryAverageOut(BaseModel):

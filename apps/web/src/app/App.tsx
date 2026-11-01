@@ -18,7 +18,7 @@ import { SettingsPage } from '../features/settings/SettingsPage'
 import { TransactionsPage } from '../features/transactions/TransactionsPage'
 import { HouseholdProvider } from './household'
 import { useHousehold } from './household-context'
-import { ROUTES, type RouteId, useRoute } from './router'
+import { ROUTES, type RouteId, TITLES, routeHref, useRoute, useSharedParamsKey } from './router'
 
 type Session = { kind: 'loading' } | { kind: 'anonymous' } | { kind: 'error' } | { kind: 'ready'; me: Me }
 
@@ -92,14 +92,20 @@ export function App() {
 
 function Shell({ route, onLogout }: { route: RouteId; onLogout: () => void }) {
   const { me, uncategorized, notify } = useHousehold()
-  const tabs = useRef<HTMLElement>(null)
+  useSharedParamsKey() // el menú conserva el mes y la vista elegidos
+  const main = useRef<HTMLElement>(null)
+  const first = useRef(true)
 
-  // En móvil las pestañas se desplazan en horizontal: la activa queda a la vista.
+  // Cada pantalla pone su título a la pestaña y, al navegar, el foco pasa a su contenido para que
+  // un lector de pantalla anuncie el cambio y el teclado no se quede en el menú (OF-804).
   useEffect(() => {
-    const nav = tabs.current
-    const active = nav?.querySelector<HTMLElement>('[aria-current="page"]')
-    if (!nav || !active) return
-    nav.scrollLeft = active.offsetLeft - nav.offsetLeft - (nav.clientWidth - active.offsetWidth) / 2
+    document.title = `${TITLES[route]} · OpenFinance`
+    if (first.current) {
+      first.current = false
+      return
+    }
+    main.current?.focus({ preventScroll: true })
+    window.scrollTo(0, 0)
   }, [route])
 
   async function logout() {
@@ -112,49 +118,61 @@ function Shell({ route, onLogout }: { route: RouteId; onLogout: () => void }) {
   }
 
   return (
-    <>
+    <div className="app">
+      <a className="skip-link" href="#contenido" onClick={(e) => { e.preventDefault(); main.current?.focus() }}>
+        Saltar al contenido
+      </a>
       <header className="top">
         <div className="brand">
           OpenFinance<small>{me.household.name}</small>
         </div>
-        <nav className="tabs" aria-label="Secciones" ref={tabs}>
-          {ROUTES.map((r) => (
-            <a
-              key={r.id}
-              href={`#${r.id}`}
-              className={route === r.id ? 'active' : ''}
-              aria-current={route === r.id ? 'page' : undefined}
-            >
-              {r.label}
-              {r.id === 'movimientos' && uncategorized > 0 && (
-                <span className="badge" aria-label={`${uncategorized} sin categoría`}>
-                  {uncategorized}
-                </span>
-              )}
-            </a>
-          ))}
-        </nav>
-        <div className="people" title={me.members.map((m) => m.display_name).join(' y ')}>
-          {me.members.map((m, i) => (
-            <span key={m.id} style={{ background: COLORS[i % COLORS.length] }}>
-              {m.display_name.charAt(0)}
-            </span>
-          ))}
+        <div className="top-tools">
+          <div className="people" title={me.members.map((m) => m.display_name).join(' y ')}>
+            {me.members.map((m, i) => (
+              <span key={m.id} style={{ background: COLORS[i % COLORS.length] }}>
+                {m.display_name.charAt(0)}
+              </span>
+            ))}
+          </div>
+          <ExportMenu />
+          <a className={`btn small ${route === 'ajustes' ? 'active' : ''}`} href="#ajustes" aria-label="Ajustes" title="Ajustes">
+            ⚙️
+          </a>
+          <button className="btn small" type="button" onClick={() => void logout()}>
+            Salir
+          </button>
         </div>
-        <ExportMenu />
-        <a className={`btn small ${route === 'ajustes' ? 'active' : ''}`} href="#ajustes" aria-label="Ajustes" title="Ajustes">
-          ⚙️
-        </a>
-        <button className="btn small" type="button" onClick={() => void logout()}>
-          Salir
-        </button>
       </header>
-      <main>
+      {/* Barra inferior en el móvil, carril en la tableta y barra lateral en el escritorio (OF-801). */}
+      <nav className="nav" aria-label="Secciones">
+        {ROUTES.map((r) => (
+          <a
+            key={r.id}
+            href={routeHref(r.id)}
+            className={route === r.id ? 'active' : ''}
+            aria-current={route === r.id ? 'page' : undefined}
+          >
+            <span className="nav-icon" aria-hidden="true">
+              {r.icon}
+            </span>
+            <span className="nav-label nav-full">{r.label}</span>
+            <span className="nav-label nav-short" aria-hidden="true">
+              {r.short}
+            </span>
+            {r.id === 'movimientos' && uncategorized > 0 && (
+              <span className="badge" aria-label={`${uncategorized} sin categoría`}>
+                {uncategorized}
+              </span>
+            )}
+          </a>
+        ))}
+      </nav>
+      <main id="contenido" tabIndex={-1} ref={main}>
         {/* Por pestaña: si una falla, las demás siguen funcionando. */}
         <ErrorBoundary key={route}>
           <Page route={route} />
         </ErrorBoundary>
       </main>
-    </>
+    </div>
   )
 }

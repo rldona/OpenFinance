@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { ApiError, api, type Budgets, type SavingsOverview } from '../../api/client'
 import { useHousehold } from '../../app/household-context'
+import { FieldError } from '../../components/FieldError'
+import { invalid } from '../../lib/invalid'
 import { ErrorState, Loading } from '../../components/LoadState'
 import { useLoad } from '../../lib/useLoad'
 import { centsToAmount, formatMoneyRounded, parseAmountInput, toCents } from '../../lib/format'
@@ -22,27 +24,31 @@ function BudgetInput({
   suggestion: { amount: string; currency: string } | null
   onSaved: () => void
 }) {
-  const { notify } = useHousehold()
   const [value, setValue] = useState(current ?? '')
+  // El error se ve junto al campo y el texto se conserva para poder corregirlo.
+  const [error, setError] = useState<string | null>(null)
+  const errorId = `budget-error-${categoryId}`
 
   async function save(text: string) {
-    if ((current ?? '') === text) return
+    if ((current ?? '') === text) {
+      setError(null)
+      return
+    }
+    setError(null)
     try {
       if (!text.trim()) {
         if (current) await api.deleteBudget(categoryId)
       } else {
         const amount = parseAmountInput(text)
         if (amount === null || toCents(amount) === 0n) {
-          notify('Escribe un importe mayor que cero, por ejemplo 150')
-          setValue(current ?? '')
+          setError('Escribe un importe mayor que cero, por ejemplo 150')
           return
         }
         await api.setBudget(categoryId, amount)
       }
       onSaved()
     } catch (err) {
-      notify(err instanceof ApiError ? err.message : 'No se ha podido guardar')
-      setValue(current ?? '')
+      setError(err instanceof ApiError ? err.message : 'No se ha podido guardar')
     }
   }
 
@@ -57,7 +63,9 @@ function BudgetInput({
         onChange={(e) => setValue(e.target.value)}
         onBlur={() => void save(value.trim())}
         onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+        {...invalid(errorId, error)}
       />
+      <FieldError id={errorId} message={error} />
       {suggestion && !current && (
         <button
           className="btn small"

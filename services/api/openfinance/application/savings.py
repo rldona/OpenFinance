@@ -29,6 +29,8 @@ from openfinance.domain.savings import (
     budget_status,
     build_ideas,
     detect_recurring,
+    is_fixed,
+    pending_charges,
     project_goal,
 )
 from openfinance.domain.shared import Currency, Money
@@ -68,19 +70,37 @@ class BudgetView:
     spent: Money
     percent: int
     status: BudgetStatus
+    fixed: Money
+    """Cuotas fijas de la categoría este mes (cobradas y por cobrar): no avisan de «cerca»."""
 
 
-def list_budgets(uow: UnitOfWork, actor: Actor, month: Month) -> list[BudgetView]:
+def list_budgets(uow: UnitOfWork, actor: Actor, month: Month, today: date) -> list[BudgetView]:
     """Presupuestos con lo gastado en el mes (solo gastos de esa categoría y ese mes)."""
     scope = shared_scope(uow, actor)
-    txns = uow.transactions.in_range(actor.household_id, scope.accounts, month.start, month.end)
-    spent = spending_by_category(txns, scope.currency)
+    cur = scope.currency
+    history = uow.transactions.in_range(
+        actor.household_id, scope.accounts, month.shift(-HISTORY_MONTHS).start, month.end
+    )
+    txns = [t for t in history if Month.of(t.booked_at) == month]
+    spent = spending_by_category(txns, cur)
+    # Las cuotas fijas ya están comprometidas: solo cuentan para el aviso de «cerca».
+    recurring = detect_recurring(history, cur, today)
+    merchants = {r.merchant for r in recurring}
+    fixed: dict[CategoryId | None, Money] = {}
+    for t in txns:
+        if is_fixed(t, merchants):
+            fixed[t.category_id] = fixed.get(t.category_id, Money.zero(cur)) - t.amount
+    if month == Month.of(today):
+        for p in pending_charges(recurring, txns, today):
+            if not p.late:
+                fixed[p.category_id] = fixed.get(p.category_id, Money.zero(cur)) + p.amount
     order = {c.id: c.position for c in uow.categories.for_household(actor.household_id)}
     views = []
     for b in uow.budgets.for_household(actor.household_id):
-        s = spent.get(b.category_id, Money.zero(scope.currency))
-        percent, status = budget_status(s, b.amount)
-        views.append(BudgetView(b, s, percent, status))
+        s = spent.get(b.category_id, Money.zero(cur))
+        f = fixed.get(b.category_id, Money.zero(cur))
+        percent, status = budget_status(s, b.amount, f)
+        views.append(BudgetView(b, s, percent, status, f))
     views.sort(key=lambda v: order.get(v.budget.category_id, 1_000))
     return views
 
@@ -263,6 +283,8 @@ class SavingsOverview:
     recurring: list[RecurringCharge]
     recurring_total: Money
     ideas: list[Idea]
+    dismissed_ideas: set[str]
+    """Identificadores de las ideas que el hogar ha descartado (OF-806)."""
     goals: list[GoalView]
 
 
@@ -320,5 +342,23 @@ def savings_overview(uow: UnitOfWork, actor: Actor, today: date) -> SavingsOverv
         recurring=recurring,
         recurring_total=total,
         ideas=build_ideas(stats, recurring, subscriptions, len(months), cur),
+        dismissed_ideas=uow.dismissed_ideas.dismissed(actor.household_id),
         goals=list_goals(uow, actor, today),
     )
+
+
+# --- OF-806 · Ideas descartables ------------------------------------------------------------
+
+
+def set_idea_dismissed(
+    uow: UnitOfWork, actor: Actor, idea_id: str, dismissed: bool, today: date
+) -> None:
+    """Descarta (o recupera) una idea para todo el hogar. Solo valen las ideas que hoy existen."""
+    current = {i.id for i in savings_overview(uow, actor, today).ideas}
+    if idea_id not in current:
+        raise NotFoundError("Idea no encontrada")
+    if dismissed:
+        uow.dismissed_ideas.dismiss(actor.household_id, idea_id, actor.user_id)
+    else:
+        uow.dismissed_ideas.restore(actor.household_id, idea_id)
+    uow.commit()

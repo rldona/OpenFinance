@@ -1,6 +1,8 @@
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useRef, useState } from 'react'
 import { ApiError, api, type Account, type ManualTransactionResult } from '../../api/client'
 import { useHousehold } from '../../app/household-context'
+import { FieldError } from '../../components/FieldError'
+import { invalid } from '../../lib/invalid'
 import { parseAmountInput } from '../../lib/format'
 
 function today(): string {
@@ -28,15 +30,19 @@ export function ManualForm({
   const [kind, setKind] = useState<'expense' | 'income'>('expense')
   const [categoryId, setCategoryId] = useState('')
   const [saving, setSaving] = useState(false)
+  const [amountError, setAmountError] = useState<string | null>(null)
+  const amountInput = useRef<HTMLInputElement>(null)
   const account = accounts.find((a) => a.id === accountId)
 
   async function save(e: FormEvent) {
     e.preventDefault()
     const value = parseAmountInput(amount)
     if (!value) {
-      notify('Escribe un importe mayor que cero, por ejemplo 7,50')
+      setAmountError('Escribe un importe mayor que cero, por ejemplo 7,50')
+      amountInput.current?.focus()
       return
     }
+    setAmountError(null)
     setSaving(true)
     try {
       onSaved(
@@ -77,7 +83,16 @@ export function ManualForm({
         </label>
         <label className="small">
           Importe{' '}
-          <input className="field amount" required inputMode="decimal" placeholder="7,50" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <input
+            ref={amountInput}
+            className="field amount"
+            required
+            inputMode="decimal"
+            placeholder="7,50"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            {...invalid('manual-amount-error', amountError)}
+          />
         </label>
         <label className="small">
           Cuenta{' '}
@@ -105,6 +120,7 @@ export function ManualForm({
           </label>
         )}
       </div>
+      <FieldError id="manual-amount-error" message={amountError} />
       {account && account.institution !== 'other' && (
         <p className="small muted">
           «{account.name}» es una cuenta del banco: con un movimiento a mano, su saldo dejará de cuadrar con el extracto.

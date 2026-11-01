@@ -39,7 +39,7 @@ def list_budgets(
 ) -> BudgetsOut:
     """Presupuestos mensuales con lo gastado en el mes (conjunta y huchas)."""
     m = Month.parse(month) if month else Month.of(local_today())
-    views = savings.list_budgets(uow, actor, m)
+    views = savings.list_budgets(uow, actor, m, local_today())
     total_amount: Money | None = None
     total_spent: Money | None = None
     for v in views:
@@ -56,7 +56,7 @@ def list_budgets(
 @router.put("/budgets/{category_id}", response_model=BudgetOut)
 def set_budget(category_id: UUID, body: BudgetIn, actor: ActorDep, uow: UowDep) -> BudgetOut:
     savings.set_budget(uow, actor, CategoryId(category_id), body.amount)
-    views = savings.list_budgets(uow, actor, Month.of(local_today()))
+    views = savings.list_budgets(uow, actor, Month.of(local_today()), local_today())
     return BudgetOut.of(next(v for v in views if v.budget.category_id == category_id))
 
 
@@ -104,6 +104,18 @@ def delete_goal(goal_id: UUID, actor: ActorDep, uow: UowDep) -> None:
     savings.delete_goal(uow, actor, GoalId(goal_id))
 
 
+@router.put("/savings/ideas/{idea_id}/dismissed", status_code=status.HTTP_204_NO_CONTENT)
+def dismiss_idea(idea_id: str, actor: ActorDep, uow: UowDep) -> None:
+    """Descarta una idea de ahorro para todo el hogar."""
+    savings.set_idea_dismissed(uow, actor, idea_id, True, local_today())
+
+
+@router.delete("/savings/ideas/{idea_id}/dismissed", status_code=status.HTTP_204_NO_CONTENT)
+def restore_idea(idea_id: str, actor: ActorDep, uow: UowDep) -> None:
+    """Recupera una idea descartada."""
+    savings.set_idea_dismissed(uow, actor, idea_id, False, local_today())
+
+
 @router.get("/savings/overview", response_model=SavingsOverviewOut)
 def overview(actor: ActorDep, uow: UowDep) -> SavingsOverviewOut:
     """Todo lo de la pantalla Ahorrar: medias, cuotas, ideas y objetivos."""
@@ -143,6 +155,7 @@ def overview(actor: ActorDep, uow: UowDep) -> SavingsOverviewOut:
                 yearly_saving=MoneyOut.of(i.yearly_saving),
                 evidence=i.evidence,
                 assumption=i.assumption,
+                dismissed=i.id in o.dismissed_ideas,
             )
             for i in o.ideas
         ],

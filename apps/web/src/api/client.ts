@@ -4,6 +4,7 @@ type Schemas = components['schemas']
 export type Me = Schemas['MeOut']
 export type Account = Schemas['AccountOut']
 export type Transaction = Schemas['TransactionOut']
+export type TransactionPage = Schemas['TransactionPageOut']
 export type TransactionKind = Schemas['TransactionKind']
 export type Money = Schemas['MoneyOut']
 export type ImportPreview = Schemas['ImportPreviewOut']
@@ -98,8 +99,6 @@ async function request<T>(
   return data as T
 }
 
-export const TRANSACTIONS_LIMIT = 1000
-
 export const api = {
   me: (signal?: AbortSignal) => request<Me>('GET', '/api/v1/me', { signal }),
   login: (email: string, password: string) =>
@@ -110,6 +109,11 @@ export const api = {
     query: { month?: string; q?: string; uncategorized?: boolean; account_id?: string; category_id?: string; shared_only?: boolean; mine_only?: boolean },
     signal?: AbortSignal,
   ) => request<Transaction[]>('GET', '/api/v1/transactions', { query, signal }),
+  /** Movimientos de 50 en 50 con el total del filtro (OF-803). */
+  transactionsPage: (
+    query: { month?: string; q?: string; uncategorized?: boolean; account_id?: string; cursor?: string },
+    signal?: AbortSignal,
+  ) => request<TransactionPage>('GET', '/api/v1/transactions/page', { query, signal }),
   previewImport: (accountId: string, file: File) => {
     const form = new FormData()
     form.set('account_id', accountId)
@@ -175,6 +179,8 @@ export const api = {
       json: { clear_account: false, ...patch },
     }),
   deleteGoal: (id: string) => request<void>('DELETE', `/api/v1/goals/${encodeURIComponent(id)}`),
+  dismissIdea: (id: string) => request<void>('PUT', `/api/v1/savings/ideas/${encodeURIComponent(id)}/dismissed`),
+  restoreIdea: (id: string) => request<void>('DELETE', `/api/v1/savings/ideas/${encodeURIComponent(id)}/dismissed`),
   savingsOverview: (signal?: AbortSignal) => request<SavingsOverview>('GET', '/api/v1/savings/overview', { signal }),
   uncategorizedCount: (signal?: AbortSignal) =>
     request<{ count: number }>('GET', '/api/v1/transactions/uncategorized-count', { signal }),

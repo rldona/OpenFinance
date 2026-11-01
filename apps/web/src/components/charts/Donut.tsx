@@ -28,7 +28,7 @@ export function Donut({
   return (
     <ChartFigure label={label} rows={segments.map((s) => [s.label, s.valueText])} className="donut">
       <svg viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
-        <circle r={r} cx={c} cy={c} fill="none" stroke="#edf0f3" strokeWidth={thickness} />
+        <circle r={r} cx={c} cy={c} fill="none" style={{ stroke: 'var(--track)' }} strokeWidth={thickness} />
         <g transform={`rotate(-90 ${c} ${c})`}>
           {total > 0 &&
             visible.map((s) => {

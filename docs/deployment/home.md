@@ -53,6 +53,8 @@ OPENFINANCE_SESSION_COOKIE_SECURE=false       # se entra por http: la cookie no 
 
 `make up` de nuevo y abrid `http://192.168.1.20:8080` en el móvil (conviene fijar esa IP en el router). Si olvidáis `OPENFINANCE_SESSION_COOKIE_SECURE=false`, el login «funciona» pero el navegador no guarda la sesión; la API lo avisa en `docker compose logs api`.
 
+**Instalarla como app (OF-805).** Con HTTPS y dominio propio, el navegador del móvil ofrece «Añadir a la pantalla de inicio» (Chrome: menú ⋮ → *Instalar aplicación*; Safari: Compartir → *Añadir a pantalla de inicio*). Por `http://` en la red local solo se guarda un acceso directo, sin service worker. La app instalada guarda únicamente su carcasa: los datos siempre se piden al servidor. El tema claro u oscuro se elige en Ajustes → Apariencia.
+
 Así el tráfico va sin cifrar dentro de la red de casa: usadlo solo en una red de confianza.
 
 ## 5. Entrar desde fuera con HTTPS (dominio propio)

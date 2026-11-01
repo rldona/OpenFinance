@@ -16,7 +16,7 @@ Un ticket está terminado cuando cumple sus criterios de aceptación, tiene test
 | 5 · Uso real | Instalado en casa, con copias de seguridad | OF-501 … OF-504 | ✅ OF-501 a OF-503 (CI en verde, también `compose-e2e`) · OF-504 preparado: falta la etiqueta `v0.1.0` tras el mes de uso real |
 | 6 · Datos fiables | Que cualquier extracto real se importe sin errores ni entradas infladas | OF-601 … OF-608 | ✅ Hecha · falta reconocer los traspasos internos de OF-602 (pendiente de un extracto real) |
 | 7 · Corregir sin miedo | Editar, deshacer y ajustar desde la web, con historial | OF-701 … OF-706 | ✅ Hecha (falta probarla en el mes de uso real) |
-| 8 · Uso diario | Móvil, PWA, accesibilidad y mes en curso honesto (v0.2) | OF-801 … OF-806 | Pendiente |
+| 8 · Uso diario | Móvil, PWA, accesibilidad y mes en curso honesto (v0.2) | OF-801 … OF-806 | ✅ Hecha (falta probarla en un móvil real y pasar `make e2e`) |
 | 9 · Operación | Copias cifradas, dependencias y actualizaciones (v0.2) | OF-901 … OF-907 | Pendiente |
 | 10 – 17 | Del libro contable completo a la 1.0 | OF-1001 … OF-1705 | Ver [Después de v0.2](#después-de-v02) |
 
@@ -44,7 +44,6 @@ Estado a 1 de noviembre de 2026. Código en [github.com/rldona/OpenFinance](http
 ### Pendientes menores (no bloquean v0.1)
 
 - Revolut (ver [bancos.md](bancos.md)): confirmar si las horas están en hora local o en UTC, el signo de la comisión y cómo aparecen las huchas en el Excel en español. El extracto de octubre no tiene comisiones ni huchas, así que se confirmará con los próximos.
-- No se puede cambiar el tipo ni la persona de un movimiento ya importado. Si hace falta, merece su propio ticket.
 - «Cerrar todas las sesiones» desde la web, cuando exista el cambio de contraseña. Hoy solo existe en la CLI: `openfinance sessions revoke-all`.
 
 ### Notas de entorno
@@ -383,16 +382,42 @@ Cada ticket lleva sus tests negativos de privacidad (la pareja y otro hogar).
 
 ---
 
-## Fase 8 · Uso diario (v0.2)
+## Fase 8 · Uso diario (v0.2) ✅
 
-| ID | Ticket |
-| --- | --- |
-| OF-801 | Navegación adaptable (barra inferior en el móvil, carril en la tablet, barra lateral en el escritorio) y estado en la URL |
-| OF-802 | «Este mes» honesto: previsión de cierre y cargos pendientes; las cuotas fijas no disparan «cerca» |
-| OF-803 | Movimientos con paginación por cursor, total del filtro y actualización por fila |
-| OF-804 | Accesibilidad (foco, `document.title`, errores junto al campo, contraste) y tests de pantalla con axe |
-| OF-805 | Modo oscuro e instalable en el móvil (PWA) |
-| OF-806 | Simulador con todas las categorías e ideas descartables |
+Que la web se use cada día desde el móvil, el portátil o la tableta, sin sorpresas en los números del mes en curso. Sin ADR nuevo: cambia la presentación y añade lo mínimo en la API.
+
+### OF-801 · Navegación adaptable y estado en la URL ✅
+- ✅ Barra inferior en el móvil (< 640 px), carril a la izquierda en la tableta (640–1023 px) y barra lateral con los nombres completos en el escritorio. La cabecera conserva el nombre del hogar, Exportar, Ajustes y Salir. El aviso (toast) sube para no quedar detrás de la barra inferior.
+- ✅ El mes, «Hogar / Mío», la categoría elegida y los filtros de Movimientos (`q`, `cuenta`, `sin`, `todos`) viven en el hash de la URL (`#movimientos?mes=2026-09&q=luz`): se comparten con un enlace y sobreviven a recargar. Cambiar de filtro no añade entradas al historial. El menú arrastra el mes y la vista al cambiar de pantalla.
+- ✅ 🧪 Los filtros se leen y se escriben en la URL; un mes inválido se ignora; el menú conserva el mes; la pantalla actual lleva `aria-current`.
+- Pendiente de comprobar en un móvil real: `make e2e` (el test de objetivos táctiles ahora mide `.nav a`).
+
+### OF-802 · «Este mes» honesto ✅
+- ✅ `GET /api/v1/insights/month` añade `forecast` (gasto con el que cerraría el mes en curso) y `pending_charges` (cuotas habituales que aún no han llegado, con su día habitual; las que ya tocaban y no han llegado van como `late` y no se suman). Previsión = lo gastado + cuotas por llegar + ritmo diario del gasto variable (sin las cuotas ya cobradas) × días que quedan. Sin previsión antes del día 7 ni en meses cerrados.
+- ✅ Presupuestos: las cuotas fijas (cobradas o por cobrar) no disparan «cerca»; el aviso mira solo el margen que dejan para el gasto variable, y «pasado» sigue siendo siempre. `BudgetOut.fixed` lo enseña («120 € son cuotas fijas»).
+- ✅ 🧪 Previsión y pendientes con cuotas pagadas, por llegar y retrasadas; mes cerrado y pocos días sin previsión; la vista «Mío» no lista las cuotas de la pareja y otro hogar no se cuela; las cuotas fijas solas no dicen «cerca» pero el gasto variable sí y pasarse siempre avisa.
+
+### OF-803 · Movimientos con paginación por cursor ✅
+- ✅ `GET /api/v1/transactions/page`: 50 por página (hasta 200), cursor opaco (fecha + identificador, estable con empates), y en cada página `count` y `total` de todo el filtro. El listado simple `GET /api/v1/transactions` sigue para los gráficos.
+- ✅ En Movimientos, «Cargar más», «Mostrando 50 de 70 movimientos» y «Suma del filtro». Cambiar un filtro vuelve a la primera página. Cambiar una categoría actualiza solo esa fila (se vuelve a pedir la lista solo si la regla ha clasificado más movimientos o la fila deja de cumplir el filtro). Desaparece el tope de 1000 movimientos.
+- ✅ 🧪 Recorrer el cursor devuelve cada movimiento una vez y en el mismo orden que el listado; el total no cambia entre páginas ni cuenta los anulados; la cuenta personal de la pareja no entra en páginas ni totales (ni con un cursor ajeno ni pidiendo su `account_id`, 404); otro hogar no ve nada; cursor y límite inválidos dan 422.
+
+### OF-804 · Accesibilidad ✅
+- ✅ `document.title` por pantalla («Movimientos · OpenFinance»), enlace «Saltar al contenido», el foco pasa al contenido al cambiar de pantalla y anillo de foco visible.
+- ✅ Errores junto al campo (`aria-invalid` + `aria-describedby`, y el foco vuelve al campo): acceso, contraseña actual incorrecta, importe de «Añadir a mano» y presupuestos (se conserva lo escrito).
+- ✅ 🧪 axe-core (WCAG 2.1 A/AA) sin violaciones en las once pantallas y en el acceso. El contraste no se puede medir en jsdom: un test calcula la razón de cada par de colores de `index.css` en los tres temas (mínimo 4,5:1). Subió el fondo de las etiquetas verde y naranja, que quedaban en 4,3:1.
+- axe-core es MPL-2.0 y solo de desarrollo ([dependencias](../legal/dependencias.md)).
+
+### OF-805 · Modo oscuro e instalable en el móvil ✅
+- ✅ Tema oscuro por tokens de color: sigue al sistema y en Ajustes → Apariencia se fuerza «Claro» u «Oscuro» (se recuerda en el navegador; si no deja guardar, vale para la visita).
+- ✅ PWA: `manifest.webmanifest`, iconos propios (192, 512, maskable y de iOS; sustituyen el logotipo por defecto de Vite) y un service worker mínimo que guarda solo la carcasa de la app. Nunca toca `/api/` ni `/health`. Se registra solo en producción y con HTTPS.
+- ✅ 🧪 Elegir y recordar el tema; manifiesto con iconos existentes; `index.html` enlaza manifiesto, color y icono; el service worker excluye la API.
+- Sin acceso a datos sin conexión: sin red se abre la carcasa con el aviso de que no hay conexión.
+
+### OF-806 · Simulador con todas las categorías e ideas descartables ✅
+- ✅ El simulador ofrece todas las categorías con gasto (antes seis fijas), de mayor a menor media: se ven seis y «Mostrar las N restantes»; el total cuenta también las plegadas.
+- ✅ «Descartar» una idea la esconde para todo el hogar (`PUT/DELETE /api/v1/savings/ideas/{id}/dismissed`, migración `0008_dismissed_ideas`); «Ver N ideas descartadas» y «Recuperar». Solo valen ideas que existen (404 si no).
+- ✅ 🧪 Descartar y recuperar es idempotente y se ve igual desde la pareja; ideas inventadas dan 404; otro hogar no se ve afectado; sin sesión no se puede.
 
 ## Fase 9 · Operación (v0.2)
 

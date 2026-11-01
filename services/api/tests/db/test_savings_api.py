@@ -74,6 +74,7 @@ class TestBudgets:
                 "spent": eur("87.34"),
                 "percent": 87,
                 "status": "warning",
+                "fixed": eur("0.00"),
             }
         ]
         sep = as_raul.get("/api/v1/budgets", params={"month": "2026-09"}).json()["items"][0]
@@ -270,3 +271,52 @@ class TestOverview:
     def test_empty_household(self, as_ana) -> None:
         o = as_ana.get("/api/v1/savings/overview").json()
         assert o["recurring"] == [] and o["goals"] == []
+
+
+class TestDismissedIdeas:
+    """OF-806: una idea descartada se queda descartada para todo el hogar, y se puede recuperar."""
+
+    @pytest.fixture(autouse=True)
+    def with_ideas(self, as_raul, seed, add) -> None:
+        subs = slug(as_raul, "suscripciones")
+        for month, amount in ((7, "-13.99"), (8, "-13.99"), (9, "-17.99"), (10, "-17.99")):
+            add(
+                seed.joint,
+                month,
+                12,
+                "NETFLIX.COM",
+                amount,
+                CategoryId(__import__("uuid").UUID(subs)),
+            )
+
+    def ideas(self, client) -> dict[str, bool]:
+        return {
+            i["id"]: i["dismissed"] for i in client.get("/api/v1/savings/overview").json()["ideas"]
+        }
+
+    def test_dismiss_and_restore(self, as_raul) -> None:
+        assert set(self.ideas(as_raul).values()) == {False}
+        assert as_raul.put("/api/v1/savings/ideas/subscriptions/dismissed").status_code == 204
+        after = self.ideas(as_raul)
+        assert after["subscriptions"] is True
+        assert after["price-increases"] is False
+        # Idempotente.
+        assert as_raul.put("/api/v1/savings/ideas/subscriptions/dismissed").status_code == 204
+        assert as_raul.delete("/api/v1/savings/ideas/subscriptions/dismissed").status_code == 204
+        assert self.ideas(as_raul)["subscriptions"] is False
+
+    def test_the_partner_sees_it_dismissed_too(self, as_raul, as_elena) -> None:
+        as_raul.put("/api/v1/savings/ideas/cut-super/dismissed")
+        assert self.ideas(as_elena)["cut-super"] is True
+
+    def test_unknown_ideas_are_rejected(self, as_raul) -> None:
+        assert as_raul.put("/api/v1/savings/ideas/inventada/dismissed").status_code == 404
+        assert as_raul.delete("/api/v1/savings/ideas/inventada/dismissed").status_code == 404
+
+    def test_other_households_are_not_affected(self, as_raul, as_ana) -> None:
+        as_raul.put("/api/v1/savings/ideas/subscriptions/dismissed")
+        assert as_ana.put("/api/v1/savings/ideas/subscriptions/dismissed").status_code == 404
+        assert "subscriptions" not in self.ideas(as_ana)
+
+    def test_writes_need_the_csrf_header_and_a_session(self, client) -> None:
+        assert client.put("/api/v1/savings/ideas/subscriptions/dismissed").status_code in (401, 403)

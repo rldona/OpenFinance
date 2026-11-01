@@ -5,13 +5,17 @@ import { Donut, LineChart, geometry } from '../../components/charts'
 import { ErrorState, Loading } from '../../components/LoadState'
 import { useLoad } from '../../lib/useLoad'
 import { centsToAmount, formatMoney, formatMoneyRounded, monthLabel, shortMonth, toCents } from '../../lib/format'
+import { routeHref } from '../../app/router'
 import { Delta, MonthPicker, NoData, ViewPicker } from './common'
 import { sharePercent, useCategoryMeta } from './meta'
 
 const abs = (x: bigint) => (x < 0n ? -x : x)
 
+/** El detalle de una categoría va en la URL (`cat=none` es «sin categoría»), no en un estado oculto. */
+const categoryHref = (id: string | null) => routeHref('gastos', { cat: id ?? 'none' })
+
 export function MonthPage() {
-  const { me, month, view, uncategorized, setFocusCategory } = useHousehold()
+  const { me, month, view, uncategorized } = useHousehold()
   const meta = useCategoryMeta()
   const [budgets, setBudgets] = useState<Budgets | null>(null)
 
@@ -89,6 +93,12 @@ export function MonthPage() {
               <Delta now={o.spent} before={o.previous_spent} suffix="que el mes anterior" />
             )}
           </div>
+          {o.is_partial && o.forecast && (
+            <div className="small">
+              Al ritmo actual {mine ? 'cerrarías' : 'cerraríais'} el mes en torno a <strong>{formatMoneyRounded(o.forecast)}</strong>
+              {o.pending_charges.some((p) => !p.late) && ' (con las cuotas que faltan)'}.
+            </div>
+          )}
           {o.average_spent && (
             <div className="small muted">
               {mine ? 'Tu media' : 'Vuestra media'}: {formatMoneyRounded(o.average_spent)}/mes{o.is_partial ? ' (meses completos)' : ''}
@@ -130,6 +140,24 @@ export function MonthPage() {
         </div>
       </div>
 
+      {o.is_partial && o.pending_charges.length > 0 && (
+        <div className="card spaced-card">
+          <h2>Cargos que faltan este mes</h2>
+          <ul className="plain pending" aria-label="Cargos pendientes">
+            {o.pending_charges.map((p) => (
+              <li key={p.merchant} className={p.late ? 'late' : undefined}>
+                <span>{p.merchant}</span>
+                <span className="small muted">
+                  {p.late ? `solía llegar el día ${p.expected_day} y aún no ha llegado` : `suele llegar el día ${p.expected_day}`}
+                </span>
+                <strong className="num">{formatMoneyRounded(p.amount)}</strong>
+              </li>
+            ))}
+          </ul>
+          <p className="small muted">Las cuotas que aún no han llegado se suman a la previsión; las retrasadas, no.</p>
+        </div>
+      )}
+
       <div className="grid g12">
         <div className="card">
           <h2>¿En qué se ha ido?</h2>
@@ -153,11 +181,7 @@ export function MonthPage() {
               const m = meta(c.category_id)
               return (
                 <li key={m.id ?? 'none'}>
-                <a
-                  className="cat"
-                  href="#gastos"
-                  onClick={() => setFocusCategory(c.category_id)}
-                >
+                <a className="cat" href={categoryHref(c.category_id)}>
                   <span className="ic">{m.icon}</span>
                   <span>
                     <span className="name">
@@ -241,7 +265,7 @@ export function MonthPage() {
               const up = diff > 0n
               return (
                 <li key={m.id ?? 'none'}>
-                <a className="cat" href="#gastos" onClick={() => setFocusCategory(c.category_id)}>
+                <a className="cat" href={categoryHref(c.category_id)}>
                   <span className="ic">{m.icon}</span>
                   <span>
                     <span className="name">
@@ -293,6 +317,9 @@ export function MonthPage() {
                         {formatMoneyRounded(b.spent)} de {formatMoneyRounded(b.amount)}
                       </span>
                     </span>
+                    {toCents(b.fixed.amount) > 0n && (
+                      <span className="small muted block">{formatMoneyRounded(b.fixed)} son cuotas fijas</span>
+                    )}
                     <span
                       className="track"
                       role="meter"
