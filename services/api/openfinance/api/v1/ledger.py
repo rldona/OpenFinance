@@ -14,10 +14,14 @@ from openfinance.api.v1.schemas import (
     ManualTransactionOut,
     MoneyOut,
     OperationRefOut,
+    TagOut,
+    TagsIn,
+    TagsOut,
     TransactionOut,
     TransactionPageOut,
 )
 from openfinance.application import ledger, merchants, movements
+from openfinance.application import tags as tags_app
 from openfinance.application.ports import TransactionQuery
 from openfinance.domain.categories import CategoryId
 from openfinance.domain.shared.ids import AccountId, TransactionId
@@ -40,6 +44,7 @@ def list_transactions(
     uncategorized: bool = False,
     account_id: UUID | None = None,
     category_id: UUID | None = None,
+    tag: Annotated[str | None, Query(max_length=40, description="Solo con esta etiqueta")] = None,
     shared_only: Annotated[
         bool, Query(description="Solo cuentas del hogar (conjunta y huchas), como los gráficos")
     ] = False,
@@ -57,6 +62,7 @@ def list_transactions(
             uncategorized=uncategorized,
             account_id=AccountId(account_id) if account_id else None,
             category_id=CategoryId(category_id) if category_id else None,
+            tag=tag or None,
             shared_only=shared_only,
             mine_only=mine_only,
             limit=limit,
@@ -65,7 +71,8 @@ def list_transactions(
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
     found = ledger.list_transactions(uow, actor, query)
     names = merchants.names_for(uow, actor.household_id, found)
-    return [TransactionOut.of(t, names) for t in found]
+    tags = tags_app.tags_for(uow, actor.household_id, found)
+    return [TransactionOut.of(t, names, tags) for t in found]
 
 
 def _encode_cursor(at: datetime, last_id: UUID) -> str:
@@ -90,6 +97,7 @@ def page_transactions(
     uncategorized: bool = False,
     account_id: UUID | None = None,
     category_id: UUID | None = None,
+    tag: Annotated[str | None, Query(max_length=40, description="Solo con esta etiqueta")] = None,
     cursor: Annotated[
         str | None, Query(max_length=200, description="`next_cursor` anterior")
     ] = None,
@@ -105,6 +113,7 @@ def page_transactions(
             uncategorized=uncategorized,
             account_id=AccountId(account_id) if account_id else None,
             category_id=CategoryId(category_id) if category_id else None,
+            tag=tag or None,
             limit=limit,
             after=_decode_cursor(cursor) if cursor else None,
         )
@@ -112,8 +121,9 @@ def page_transactions(
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
     page = ledger.page_transactions(uow, actor, query)
     names = merchants.names_for(uow, actor.household_id, page.items)
+    tags = tags_app.tags_for(uow, actor.household_id, page.items)
     return TransactionPageOut(
-        items=[TransactionOut.of(t, names) for t in page.items],
+        items=[TransactionOut.of(t, names, tags) for t in page.items],
         next_cursor=_encode_cursor(*page.next_after) if page.next_after else None,
         count=page.count,
         total=MoneyOut.of(page.total),
@@ -165,3 +175,26 @@ def delete_manual(transaction_id: UUID, actor: ActorDep, uow: UowDep) -> Operati
     """Borra un movimiento manual: queda anulado y en el registro. Los importados no se borran."""
     op = movements.delete_manual(uow, actor, TransactionId(transaction_id), utc_now())
     return OperationRefOut(operation_id=op)
+
+
+@router.get("/tags", response_model=list[TagOut])
+def list_tags(actor: ActorDep, uow: UowDep) -> list[TagOut]:
+    """Las etiquetas de los movimientos que ves, con cuántos las llevan."""
+    return [TagOut(tag=t, count=n) for t, n in tags_app.list_tags(uow, actor)]
+
+
+@router.put("/transactions/{transaction_id}/tags", response_model=TagsOut)
+def set_tags(transaction_id: UUID, body: TagsIn, actor: ActorDep, uow: UowDep) -> TagsOut:
+    """Sustituye las etiquetas de un movimiento; se puede deshacer."""
+    result = tags_app.set_transaction_tags(
+        uow, actor, TransactionId(transaction_id), body.tags, utc_now()
+    )
+    t = result.transaction
+    return TagsOut(
+        transaction=TransactionOut.of(
+            t,
+            merchants.names_for(uow, actor.household_id, [t]),
+            {t.id: result.tags},
+        ),
+        operation_id=result.operation_id,
+    )

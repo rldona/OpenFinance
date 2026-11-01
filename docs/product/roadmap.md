@@ -451,7 +451,7 @@ Alcance en [ADR-0018](../adr/0018-libro-contable-completo.md) y [ADR-0019](../ad
 | ID | Ticket | Criterio de hecho |
 | --- | --- | --- |
 | OF-1001 ✅ | Comercios: entidad con variantes del banco, renombrar y fusionar | Fusionar dos comercios reclasifica sus movimientos y se deshace; el nombre visible sale en listados e informes |
-| OF-1002 | Etiquetas y notas largas en movimientos | Filtrar por etiqueta; las etiquetas son del hogar y heredan la visibilidad del movimiento |
+| OF-1002 ✅ | Etiquetas y notas largas en movimientos | Filtrar por etiqueta; las etiquetas son del hogar y heredan la visibilidad del movimiento |
 | OF-1003 | Dividir un movimiento en partes con categoría | La suma de las partes es el importe original; los informes usan las partes (test de propiedades: dividir no cambia el total) |
 | OF-1004 | Traspasos enlazados entre cuentas propias | Los dos lados se enlazan y ninguno cuenta como gasto ni ingreso; enlazar y desenlazar se deshace |
 | OF-1005 | Tipos de cuenta: efectivo, tarjeta, préstamo e inversión | El saldo de `card` y `loan` resta; no entran en gasto ni presupuestos; migración sin tocar cuentas existentes |

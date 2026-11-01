@@ -26,6 +26,7 @@ from openfinance.domain.imports.batch import ImportStatus
 from openfinance.domain.ledger import LedgerError, Transaction, TransactionKind
 from openfinance.domain.merchants import Merchant, MerchantId, join_keys, split_keys
 from openfinance.domain.shared.ids import AccountId, TransactionId, UserId
+from openfinance.domain.tags import join_tags, split_tags
 from openfinance.domain.workspaces import Actor
 
 MAX_SUMMARY = 200
@@ -247,20 +248,42 @@ def _apply_transaction(
     current = transaction_state(t)
     values: dict[str, Value] = {}
     kept: list[Change] = []
+    tag_changes = [c for c in changes if c.field == "tags"]
+    changes = [c for c in changes if c.field != "tags"]
     for c in changes:
         if current.get(c.field) == c.before and c.field not in values:
             values[c.field] = c.after
         else:
             kept.append(c)
+    applied_tags = _apply_tags(uow, actor, t, tag_changes, kept)
     if not values:
-        return 0, kept
+        return applied_tags, kept
     try:
         updated = with_state(t, values)
     except LedgerError:
         # Lo que queda no formaría un movimiento válido (p. ej. persona sin aportación).
         return 0, changes
     uow.transactions.save(updated)
-    return len(values), kept
+    return len(values) + applied_tags, kept
+
+
+def _apply_tags(
+    uow: UnitOfWork, actor: Actor, t: Transaction, changes: list[Change], kept: list[Change]
+) -> int:
+    """Etiquetas de un movimiento (OF-1002): «a|b|c», o ``None`` si no tiene ninguna."""
+    if not changes:
+        return 0
+    start = uow.tags.for_transactions(actor.household_id, [t.id]).get(t.id, ())
+    state, applied = join_tags(start) or None, 0
+    for c in changes:
+        if state == c.before:
+            state = None if c.after is None else str(c.after)
+            applied += 1
+        else:
+            kept.append(c)
+    if applied:
+        uow.tags.set(actor.household_id, t.id, split_tags(state or ""))
+    return applied
 
 
 def _apply_rule(

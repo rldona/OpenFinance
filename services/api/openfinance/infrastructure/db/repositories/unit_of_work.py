@@ -30,6 +30,7 @@ from openfinance.infrastructure.db.repositories.savings import (
     SqlGoalRepository,
     SqlIdeaDismissalRepository,
 )
+from openfinance.infrastructure.db.repositories.tags import SqlTagRepository
 
 
 class SqlUnitOfWork:
@@ -47,6 +48,7 @@ class SqlUnitOfWork:
         self.goals = SqlGoalRepository(session)
         self.dismissed_ideas = SqlIdeaDismissalRepository(session)
         self.merchants = SqlMerchantRepository(session)
+        self.tags = SqlTagRepository(session)
         self.member_patterns = SqlMemberPatternRepository(session)
         self.changes = SqlChangeRepository(session)
 

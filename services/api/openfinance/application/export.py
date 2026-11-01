@@ -20,6 +20,7 @@ from openfinance.application.savings import goal_saved
 from openfinance.domain.categories import HOUSEHOLD_SCOPE
 from openfinance.domain.imports import PatternDirection
 from openfinance.domain.ledger import account_balance
+from openfinance.domain.tags import join_tags
 from openfinance.domain.workspaces import Actor
 
 EXPORT_FORMAT_VERSION = 1
@@ -74,6 +75,8 @@ class ExportedTransaction:
     bank_type: str
     source: str
     note: str
+    tags: str
+    """Etiquetas separadas por «|» (OF-1002)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -152,6 +155,7 @@ def export_household(
     visible = visible_accounts(uow, actor)
     for account in visible:
         txns = uow.transactions.for_account(household_id, account.id)
+        tags = uow.tags.for_transactions(household_id, [t.id for t in txns])
         accounts.append(
             ExportedAccount(
                 id=account.id,
@@ -182,6 +186,7 @@ def export_household(
                 bank_type=t.bank_type,
                 source=t.source,
                 note=t.note,
+                tags=join_tags(tags.get(t.id, ())),
             )
             for t in txns
         )

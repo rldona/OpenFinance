@@ -29,6 +29,7 @@ from openfinance.domain.ledger import (
     LedgerError,
     Transaction,
     TransactionKind,
+    normalize_note,
 )
 from openfinance.domain.shared.ids import TransactionId, UserId, WorkspaceId
 from openfinance.domain.workspaces import Actor
@@ -214,7 +215,7 @@ def edit_transaction(
                 raise InvalidRequestError(f"La categoría «{category.name}» está oculta")
         category_id = edit.category_id
 
-    note = tx.note if edit.note is None else " ".join(edit.note.split())
+    note = tx.note if edit.note is None else normalize_note(edit.note)
     try:
         updated = replace(tx, kind=kind, member_id=member, category_id=category_id, note=note)
     except LedgerError as exc:

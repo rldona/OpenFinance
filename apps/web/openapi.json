@@ -305,7 +305,7 @@
           "note": {
             "anyOf": [
               {
-                "maxLength": 500,
+                "maxLength": 2000,
                 "type": "string"
               },
               {
@@ -1351,7 +1351,7 @@
           },
           "note": {
             "default": "",
-            "maxLength": 500,
+            "maxLength": 2000,
             "title": "Note",
             "type": "string"
           }
@@ -2380,6 +2380,68 @@
         "title": "SkippedRowOut",
         "type": "object"
       },
+      "TagOut": {
+        "properties": {
+          "count": {
+            "description": "Movimientos que la llevan, entre los que ves",
+            "title": "Count",
+            "type": "integer"
+          },
+          "tag": {
+            "title": "Tag",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "count"
+        ],
+        "title": "TagOut",
+        "type": "object"
+      },
+      "TagsIn": {
+        "properties": {
+          "tags": {
+            "description": "Sustituye las etiquetas del movimiento",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tags"
+        ],
+        "title": "TagsIn",
+        "type": "object"
+      },
+      "TagsOut": {
+        "properties": {
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "transaction": {
+            "$ref": "#/components/schemas/TransactionOut"
+          }
+        },
+        "required": [
+          "transaction",
+          "operation_id"
+        ],
+        "title": "TagsOut",
+        "type": "object"
+      },
       "TransactionKind": {
         "description": "Qué significa un movimiento para el hogar (ADR-0012).",
         "enum": [
@@ -2457,6 +2519,14 @@
             "title": "Source",
             "type": "string"
           },
+          "tags": {
+            "description": "Etiquetas del movimiento",
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
           "value_date": {
             "format": "date",
             "title": "Value Date",
@@ -2475,7 +2545,8 @@
           "merchant",
           "member_id",
           "source",
-          "note"
+          "note",
+          "tags"
         ],
         "title": "TransactionOut",
         "type": "object"
@@ -4341,6 +4412,32 @@
         ]
       }
     },
+    "/api/v1/tags": {
+      "get": {
+        "description": "Las etiquetas de los movimientos que ves, con cuántos las llevan.",
+        "operationId": "list_tags_api_v1_tags_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TagOut"
+                  },
+                  "title": "Response List Tags Api V1 Tags Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Tags",
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
     "/api/v1/transactions": {
       "get": {
         "operationId": "list_transactions_api_v1_transactions_get",
@@ -4421,6 +4518,25 @@
                 }
               ],
               "title": "Category Id"
+            }
+          },
+          {
+            "description": "Solo con esta etiqueta",
+            "in": "query",
+            "name": "tag",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Solo con esta etiqueta",
+              "title": "Tag"
             }
           },
           {
@@ -4658,6 +4774,25 @@
             }
           },
           {
+            "description": "Solo con esta etiqueta",
+            "in": "query",
+            "name": "tag",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Solo con esta etiqueta",
+              "title": "Tag"
+            }
+          },
+          {
             "description": "`next_cursor` anterior",
             "in": "query",
             "name": "cursor",
@@ -4879,6 +5014,60 @@
         "summary": "History",
         "tags": [
           "changes"
+        ]
+      }
+    },
+    "/api/v1/transactions/{transaction_id}/tags": {
+      "put": {
+        "description": "Sustituye las etiquetas de un movimiento; se puede deshacer.",
+        "operationId": "set_tags_api_v1_transactions__transaction_id__tags_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transaction_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transaction Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Tags",
+        "tags": [
+          "ledger"
         ]
       }
     },

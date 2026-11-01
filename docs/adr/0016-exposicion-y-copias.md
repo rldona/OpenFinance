@@ -39,6 +39,7 @@ La fase 5 (OF-501, OF-502) pone OpenFinance en uso real en un equipo de casa (x8
 
 - `GET /api/v1/export?format=json|csv` exporta **lo que ve quien la pide**: cuentas visibles (sin la personal de la otra persona) con sus movimientos y saldos, categorías, reglas del hogar y las personales propias, presupuestos, objetivos (sin la cuenta vinculada si no es visible), y los patrones propios y los de entrada de los demás. Nunca sesiones, hashes, lotes de importación ni huellas de movimientos. Se decide en un único caso de uso (`application/export.py`).
 - JSON: importes como texto decimal exacto (`"-12.30"`), fechas ISO 8601. CSV: un ZIP con `manifest.json` y un CSV por entidad (UTF-8 con BOM, RFC 4180 con todos los campos entre comillas, punto decimal); los textos que empiezan por `=`, `+`, `-`, `@`, tabulador o retorno de carro, o que tras un `;`, tabulador o salto de línea (y espacios) tienen uno de `=`, `+`, `-`, `@`, llevan delante un apóstrofo para que una hoja de cálculo (Excel en español separa con `;`) no los ejecute como fórmula. Importes y fechas nunca se tocan.
+- Desde OF-1002 cada movimiento lleva `tags` (etiquetas separadas por «|»). Añadir un campo no cambia `format_version`.
 - El archivo lleva `format_version` (hoy `1`): sube si cambia su forma. Las respuestas van con `Content-Disposition: attachment`, `Cache-Control: no-store` y `X-Content-Type-Options: nosniff`.
 
 ## Consecuencias

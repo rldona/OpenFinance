@@ -54,6 +54,7 @@ const tx = (id: string, description: string, amount: string, kind: string, extra
   member_id: null,
   source: 'import:revolut.csv',
   note: '',
+  tags: [],
   ...extra,
 })
 

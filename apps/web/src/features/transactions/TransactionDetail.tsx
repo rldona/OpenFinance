@@ -20,6 +20,7 @@ export function TransactionDetail({
   onSaved,
   onClose,
   onDelete,
+  onTagsSaved,
 }: {
   t: Transaction
   /** Cambia cuando el movimiento se ha corregido o deshecho, para recargar el historial. */
@@ -28,16 +29,41 @@ export function TransactionDetail({
   onClose: () => void
   /** Solo en los movimientos añadidos a mano (OF-705). */
   onDelete?: () => void
+  /** Tras guardar las etiquetas, con la operación para «Deshacer» (OF-1002). */
+  onTagsSaved?: (operationId: string | null) => void
 }) {
   const { me, notify } = useHousehold()
   const [kind, setKind] = useState<TransactionKind>(t.kind)
   const [memberId, setMemberId] = useState(t.member_id ?? me.user.id)
   const [note, setNote] = useState(t.note)
   const [saving, setSaving] = useState(false)
+  const [tagText, setTagText] = useState(t.tags.join(', '))
+  const [tagError, setTagError] = useState<string | null>(null)
   const history = useLoad<Operation[]>(`${t.id}|${version}`, (s) => api.transactionHistory(t.id, s))
   const memberName = (id: string) => me.members.find((m) => m.id === id)?.display_name ?? 'Alguien'
 
   const changed = kind !== t.kind || (kind === 'contribution' && memberId !== t.member_id) || note.trim() !== t.note
+
+  const newTags = tagText
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean)
+  const tagsChanged = newTags.join('|') !== t.tags.join('|')
+
+  async function saveTags(e: FormEvent) {
+    e.preventDefault()
+    if (!tagsChanged) return
+    setSaving(true)
+    setTagError(null)
+    try {
+      const r = await api.setTags(t.id, newTags)
+      onTagsSaved?.(r.operation_id)
+    } catch (err) {
+      setTagError(err instanceof ApiError ? err.message : 'No se han podido guardar las etiquetas')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   async function save(e: FormEvent) {
     e.preventDefault()
@@ -82,7 +108,7 @@ export function TransactionDetail({
         )}
         <label className="small grow">
           Nota{' '}
-          <input className="field" value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} />
+          <textarea className="field" rows={note.includes('\n') || note.length > 80 ? 4 : 1} value={note} maxLength={2000} onChange={(e) => setNote(e.target.value)} />
         </label>
         <button className="btn primary small" type="submit" disabled={!changed || saving}>
           Guardar
@@ -94,6 +120,31 @@ export function TransactionDetail({
           <button className="btn small danger" type="button" onClick={onDelete}>
             Borrar
           </button>
+        )}
+      </form>
+      <form className="toolbar wrap" onSubmit={(e) => void saveTags(e)} aria-label="Etiquetas">
+        <label className="small grow">
+          Etiquetas (separadas por comas){' '}
+          <input
+            className="field"
+            value={tagText}
+            maxLength={440}
+            placeholder="viaje, regalos"
+            onChange={(e) => {
+              setTagText(e.target.value)
+              setTagError(null)
+            }}
+            aria-invalid={tagError ? true : undefined}
+            aria-describedby={tagError ? `tags-error-${t.id}` : undefined}
+          />
+        </label>
+        <button className="btn small" type="submit" disabled={!tagsChanged || saving}>
+          Guardar etiquetas
+        </button>
+        {tagError && (
+          <p id={`tags-error-${t.id}`} className="error small" role="alert">
+            {tagError}
+          </p>
         )}
       </form>
       <p className="small muted">

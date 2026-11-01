@@ -121,7 +121,7 @@ class TestEdit:
             {"kind": "contribution"},  # sin persona
             {"kind": "income", "member_id": "PARTNER"},  # persona sin aportación
             {"kind": "income", "category_id": "SUPER"},  # categoría sin gasto
-            {"note": "x" * 501},
+            {"note": "x" * 2001},
             {"note": "con\x00control"},
         ],
     )

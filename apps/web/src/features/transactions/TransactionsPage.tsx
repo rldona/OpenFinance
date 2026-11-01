@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from 'react'
-import { ApiError, api, type Account, type Transaction, type TransactionPage } from '../../api/client'
+import { ApiError, api, type Account, type TagCount, type Transaction, type TransactionPage } from '../../api/client'
 import { useHousehold } from '../../app/household-context'
 import { useHashParam } from '../../app/router'
 import { ErrorState, Loading } from '../../components/LoadState'
@@ -46,6 +46,8 @@ export function TransactionsPage() {
   const [qParam, setQParam] = useHashParam('q')
   const [sinParam, setSinParam] = useHashParam('sin')
   const [accountParam, setAccountParam] = useHashParam('cuenta')
+  const [tagParam, setTagParam] = useHashParam('etiqueta')
+  const tag = tagParam ?? ''
   const allMonths = allParam === '1'
   const onlyUncategorized = sinParam === '1'
   const accountId = accountParam ?? ''
@@ -56,6 +58,7 @@ export function TransactionsPage() {
   const [q, setQ] = useState(qParam ?? '')
   const debouncedQ = (qParam ?? '').trim()
   const [accounts, setAccounts] = useState<Account[]>([])
+  const [tagList, setTagList] = useState<TagCount[]>([])
   const [version, setVersion] = useState(0)
   const [pending, setPending] = useState<string | null>(null)
   type Result = { key: string; page?: TransactionPage; rows?: Transaction[]; error?: string }
@@ -70,6 +73,7 @@ export function TransactionsPage() {
   useEffect(() => {
     const controller = new AbortController()
     api.accounts(controller.signal).then(setAccounts, () => undefined) // los nombres de cuenta son opcionales
+    api.tags(controller.signal).then(setTagList, () => undefined) // el filtro por etiqueta es opcional
     return () => controller.abort()
   }, [])
 
@@ -78,6 +82,7 @@ export function TransactionsPage() {
     q: debouncedQ || undefined,
     uncategorized: onlyUncategorized,
     account_id: accountId || undefined,
+    tag: tag || undefined,
   }
   // La clave lleva la consulta tal cual: la búsqueda puede contener cualquier carácter.
   const key = JSON.stringify([query, version])
@@ -261,6 +266,16 @@ export function TransactionsPage() {
               </option>
             ))}
           </select>
+          {(tagList.length > 0 || tag) && (
+            <select className="field" aria-label="Etiqueta" value={tag} onChange={(e) => setTagParam(e.target.value || null)}>
+              <option value="">Todas las etiquetas</option>
+              {tagList.map((x) => (
+                <option key={x.tag} value={x.tag}>
+                  #{x.tag} ({x.count})
+                </option>
+              ))}
+            </select>
+          )}
           <label className="small">
             <input
               type="checkbox"
@@ -366,7 +381,12 @@ export function TransactionsPage() {
                       </button>
                       <div className="small muted">
                         {t.description} · {accountName(t.account_id)}
-                        {t.note && <> · 📝 {t.note}</>}
+                        {t.note && <> · 📝 {t.note.split('\n')[0]}</>}
+                        {t.tags.map((x) => (
+                          <span key={x} className="tag-chip">
+                            #{x}
+                          </span>
+                        ))}
                       </div>
                     </td>
                     <td role="cell">
@@ -388,11 +408,16 @@ export function TransactionsPage() {
                     <tr role="row" className="detail-row">
                       <td role="cell" colSpan={onlyUncategorized ? 5 : 4}>
                         <TransactionDetail
-                          key={`${t.id}|${t.kind}|${t.member_id}|${t.note}`}
+                          key={`${t.id}|${t.kind}|${t.member_id}|${t.note}|${t.tags.join()}`}
                           t={t}
                           version={version}
                           onClose={() => setOpenId(null)}
                           onDelete={t.source === 'manual' ? () => void deleteManual(t) : undefined}
+                          onTagsSaved={(op) => {
+                            notifyUndoable(notify, me, 'Etiquetas guardadas', op, refresh)
+                            refresh()
+                            api.tags().then(setTagList, () => undefined)
+                          }}
                           onSaved={(r) => {
                             notifyUndoable(notify, me, 'Movimiento corregido', r.operation_id, refresh)
                             refresh()

@@ -24,6 +24,7 @@ from openfinance.infrastructure.db.repositories.savings import (
     SqlGoalRepository,
     SqlIdeaDismissalRepository,
 )
+from openfinance.infrastructure.db.repositories.tags import SqlTagRepository
 from openfinance.infrastructure.db.repositories.unit_of_work import SqlUnitOfWork
 
 __all__ = [
@@ -39,6 +40,7 @@ __all__ = [
     "SqlMerchantRepository",
     "SqlRuleRepository",
     "SqlSessionRepository",
+    "SqlTagRepository",
     "SqlTransactionRepository",
     "SqlUnitOfWork",
     "SqlUserRepository",

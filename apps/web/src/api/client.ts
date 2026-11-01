@@ -2,6 +2,8 @@ import type { components, operations } from './schema'
 
 type Schemas = components['schemas']
 export type Me = Schemas['MeOut']
+export type TagCount = Schemas['TagOut']
+export type TagsResult = Schemas['TagsOut']
 export type MerchantGroup = Schemas['MerchantGroupOut']
 export type MerchantChange = Schemas['MerchantChangeOut']
 export type VersionInfo = Schemas['VersionOut']
@@ -111,12 +113,12 @@ export const api = {
   version: (signal?: AbortSignal) => request<VersionInfo>('GET', '/api/v1/version', { signal }),
   accounts: (signal?: AbortSignal) => request<Account[]>('GET', '/api/v1/accounts', { signal }),
   transactions: (
-    query: { month?: string; q?: string; uncategorized?: boolean; account_id?: string; category_id?: string; shared_only?: boolean; mine_only?: boolean },
+    query: { month?: string; q?: string; uncategorized?: boolean; account_id?: string; category_id?: string; tag?: string; shared_only?: boolean; mine_only?: boolean },
     signal?: AbortSignal,
   ) => request<Transaction[]>('GET', '/api/v1/transactions', { query, signal }),
   /** Movimientos de 50 en 50 con el total del filtro (OF-803). */
   transactionsPage: (
-    query: { month?: string; q?: string; uncategorized?: boolean; account_id?: string; cursor?: string },
+    query: { month?: string; q?: string; uncategorized?: boolean; account_id?: string; tag?: string; cursor?: string },
     signal?: AbortSignal,
   ) => request<TransactionPage>('GET', '/api/v1/transactions/page', { query, signal }),
   previewImport: (accountId: string, file: File) => {
@@ -158,6 +160,10 @@ export const api = {
     request<MemberPattern>('POST', '/api/v1/me/patterns', { json: { pattern, direction } }),
   removePattern: (p: MemberPattern) =>
     request<void>('DELETE', `/api/v1/me/patterns/${p.direction}/${encodeURIComponent(p.pattern)}`),
+  /** Etiquetas de los movimientos que ves, con cuántos las llevan (OF-1002). */
+  tags: (signal?: AbortSignal) => request<TagCount[]>('GET', '/api/v1/tags', { signal }),
+  setTags: (transactionId: string, tags: string[]) =>
+    request<TagsResult>('PUT', `/api/v1/transactions/${encodeURIComponent(transactionId)}/tags`, { json: { tags } }),
   /** Comercios con sus variantes del banco (OF-1001). */
   merchants: (signal?: AbortSignal) => request<MerchantGroup[]>('GET', '/api/v1/merchants', { signal }),
   renameMerchant: (key: string, name: string) =>

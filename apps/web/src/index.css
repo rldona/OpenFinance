@@ -1552,3 +1552,14 @@ fieldset.appearance {
   margin-top: 12px;
   opacity: 0.85;
 }
+
+/* Etiquetas de un movimiento (OF-1002) */
+.tag-chip {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 8px;
+  border-radius: 99px;
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 11px;
+}

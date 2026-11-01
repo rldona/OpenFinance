@@ -26,9 +26,11 @@ from openfinance.domain.shared.ids import (
     UserId,
     WorkspaceId,
 )
+from openfinance.domain.tags import tag_key
 from openfinance.infrastructure.db.models import (
     AccountRow,
     TransactionRow,
+    TransactionTagRow,
 )
 from openfinance.infrastructure.db.repositories._common import (
     _AMOUNT_QUANTUM,
@@ -148,6 +150,15 @@ class SqlTransactionRepository:
             )
         if query.category_id is not None:
             stmt = stmt.where(TransactionRow.category_id == query.category_id)
+        if query.tag:
+            stmt = stmt.where(
+                TransactionRow.id.in_(
+                    select(TransactionTagRow.transaction_id).where(
+                        TransactionTagRow.household_id == household_id,
+                        TransactionTagRow.tag_key == tag_key(query.tag),
+                    )
+                )
+            )
         if query.uncategorized:
             stmt = stmt.where(
                 TransactionRow.kind == TransactionKind.EXPENSE.value,

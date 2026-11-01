@@ -120,7 +120,7 @@ class TransactionRow(Base):
     source: Mapped[str] = mapped_column(String(200), default="manual")
     fingerprint: Mapped[str | None] = mapped_column(String(64))
     import_id: Mapped[UUID | None] = mapped_column(ForeignKey("import_batches.id"), index=True)
-    note: Mapped[str] = mapped_column(String(500), default="", server_default="")
+    note: Mapped[str] = mapped_column(String(2000), default="", server_default="")
     voided: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa_false())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -177,6 +177,20 @@ class DismissedIdeaRow(Base):
     idea_id: Mapped[str] = mapped_column(String(60), primary_key=True)
     dismissed_by: Mapped[UUID] = mapped_column()
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class TransactionTagRow(Base):
+    """Etiqueta de un movimiento (OF-1002). Hereda la visibilidad del movimiento."""
+
+    __tablename__ = "transaction_tags"
+    __table_args__ = (Index("ix_transaction_tags_household_key", "household_id", "tag_key"),)
+
+    transaction_id: Mapped[UUID] = mapped_column(
+        ForeignKey("transactions.id", ondelete="CASCADE"), primary_key=True
+    )
+    tag_key: Mapped[str] = mapped_column(String(40), primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    tag: Mapped[str] = mapped_column(String(40))
 
 
 class MerchantRow(Base):

@@ -33,6 +33,8 @@ class TransactionQuery:
     uncategorized: bool = False
     account_id: AccountId | None = None
     category_id: CategoryId | None = None
+    tag: str | None = None
+    """Solo los movimientos con esta etiqueta (OF-1002)."""
     shared_only: bool = False
     """Solo cuentas del hogar (conjunta y huchas), como los gráficos."""
     mine_only: bool = False
@@ -188,6 +190,23 @@ class RuleRepository(Protocol):
     def delete(self, household_id: WorkspaceId, scope: str, merchant: str) -> None: ...
 
 
+class TagRepository(Protocol):
+    def for_transactions(
+        self, household_id: WorkspaceId, ids: list[TransactionId]
+    ) -> dict[TransactionId, tuple[str, ...]]:
+        """Las etiquetas de cada movimiento, en orden alfabético. Sin etiquetas = ausente."""
+        ...
+
+    def set(
+        self, household_id: WorkspaceId, transaction_id: TransactionId, tags: tuple[str, ...]
+    ) -> None: ...
+    def counts(
+        self, household_id: WorkspaceId, account_ids: list[AccountId]
+    ) -> list[tuple[str, int]]:
+        """(etiqueta, movimientos activos) solo de esas cuentas."""
+        ...
+
+
 class MerchantRepository(Protocol):
     def get(self, household_id: WorkspaceId, merchant_id: MerchantId) -> Merchant | None: ...
     def for_keys(self, household_id: WorkspaceId, keys: list[str]) -> dict[str, Merchant]:
@@ -340,6 +359,8 @@ class UnitOfWork(Protocol):
     def dismissed_ideas(self) -> IdeaDismissalRepository: ...
     @property
     def merchants(self) -> MerchantRepository: ...
+    @property
+    def tags(self) -> TagRepository: ...
     @property
     def member_patterns(self) -> MemberPatternRepository: ...
     @property

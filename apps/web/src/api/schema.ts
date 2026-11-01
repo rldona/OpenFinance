@@ -622,6 +622,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Tags
+         * @description Las etiquetas de los movimientos que ves, con cuántos las llevan.
+         */
+        get: operations["list_tags_api_v1_tags_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/transactions": {
         parameters: {
             query?: never;
@@ -739,6 +759,26 @@ export interface paths {
          */
         get: operations["history_api_v1_transactions__transaction_id__history_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/transactions/{transaction_id}/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Tags
+         * @description Sustituye las etiquetas de un movimiento; se puede deshacer.
+         */
+        put: operations["set_tags_api_v1_transactions__transaction_id__tags_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1705,6 +1745,30 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** TagOut */
+        TagOut: {
+            /**
+             * Count
+             * @description Movimientos que la llevan, entre los que ves
+             */
+            count: number;
+            /** Tag */
+            tag: string;
+        };
+        /** TagsIn */
+        TagsIn: {
+            /**
+             * Tags
+             * @description Sustituye las etiquetas del movimiento
+             */
+            tags: string[];
+        };
+        /** TagsOut */
+        TagsOut: {
+            /** Operation Id */
+            operation_id: string | null;
+            transaction: components["schemas"]["TransactionOut"];
+        };
         /**
          * TransactionKind
          * @description Qué significa un movimiento para el hogar (ADR-0012).
@@ -1748,6 +1812,11 @@ export interface components {
             note: string;
             /** Source */
             source: string;
+            /**
+             * Tags
+             * @description Etiquetas del movimiento
+             */
+            tags: string[];
             /**
              * Value Date
              * Format: date
@@ -2974,6 +3043,26 @@ export interface operations {
             };
         };
     };
+    list_tags_api_v1_tags_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TagOut"][];
+                };
+            };
+        };
+    };
     list_transactions_api_v1_transactions_get: {
         parameters: {
             query?: {
@@ -2982,6 +3071,8 @@ export interface operations {
                 uncategorized?: boolean;
                 account_id?: string | null;
                 category_id?: string | null;
+                /** @description Solo con esta etiqueta */
+                tag?: string | null;
                 /** @description Solo cuentas del hogar (conjunta y huchas), como los gráficos */
                 shared_only?: boolean;
                 /** @description Solo tus cuentas personales, como la vista «mío» */
@@ -3088,6 +3179,8 @@ export interface operations {
                 uncategorized?: boolean;
                 account_id?: string | null;
                 category_id?: string | null;
+                /** @description Solo con esta etiqueta */
+                tag?: string | null;
                 /** @description `next_cursor` anterior */
                 cursor?: string | null;
                 limit?: number;
@@ -3222,6 +3315,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OperationOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_tags_api_v1_transactions__transaction_id__tags_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transaction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TagsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TagsOut"];
                 };
             };
             /** @description Validation Error */

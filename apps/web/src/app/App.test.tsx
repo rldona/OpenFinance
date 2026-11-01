@@ -157,6 +157,73 @@ describe('Corregir un movimiento (OF-701)', () => {
   })
 })
 
+describe('Etiquetas y notas largas (OF-1002)', () => {
+  const TAGGED = TRANSACTIONS.map((t) => (t.id === 't4' ? { ...t, tags: ['Cena', 'Amigos'] } : t))
+
+  it('enseña las etiquetas del movimiento y permite filtrar por una', async () => {
+    window.location.hash = '#movimientos'
+    const calls = loggedIn({
+      'GET /api/v1/transactions/page': { body: page(TAGGED) },
+      'GET /api/v1/tags': { body: [{ tag: 'Amigos', count: 1 }, { tag: 'Cena', count: 1 }] },
+    })
+    render(<App />)
+    expect(await screen.findByText('#Cena')).toBeInTheDocument()
+    await userEvent.selectOptions(await screen.findByLabelText('Etiqueta'), 'Cena')
+    await waitFor(() =>
+      expect(calls.some((c) => c.url.pathname === '/api/v1/transactions/page' && c.url.searchParams.get('tag') === 'Cena')).toBe(true),
+    )
+    expect(window.location.hash).toContain('etiqueta=Cena')
+  })
+
+  it('guarda las etiquetas separadas por comas y avisa con «Deshacer»', async () => {
+    window.location.hash = '#movimientos'
+    const calls = loggedIn({
+      'GET /api/v1/transactions/t4/history': { body: [] },
+      'PUT /api/v1/transactions/t4/tags': { body: { transaction: TAGGED[3], operation_id: 'op-t' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Glovo' }))
+    await userEvent.type(await screen.findByLabelText(/Etiquetas \(separadas/), 'cena, #amigos ,')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar etiquetas' }))
+    const put = calls.find((c) => c.method === 'PUT')!
+    expect(JSON.parse(String(put.body))).toEqual({ tags: ['cena', '#amigos'] })
+    expect(await screen.findByText('Etiquetas guardadas')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Deshacer' })).toBeInTheDocument()
+  })
+
+  it('una etiqueta no válida se avisa junto al campo', async () => {
+    window.location.hash = '#movimientos'
+    loggedIn({
+      'GET /api/v1/transactions/t4/history': { body: [] },
+      'PUT /api/v1/transactions/t4/tags': { status: 422, body: { detail: 'Una etiqueta admite como máximo 40 caracteres' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Glovo' }))
+    const input = await screen.findByLabelText(/Etiquetas \(separadas/)
+    await userEvent.type(input, 'larga')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar etiquetas' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('como máximo 40 caracteres')
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('la nota admite varias líneas y la lista enseña solo la primera', async () => {
+    window.location.hash = '#movimientos'
+    const NOTED = TRANSACTIONS.map((t) => (t.id === 't4' ? { ...t, note: 'Primera línea\nSegunda línea' } : t))
+    loggedIn({
+      'GET /api/v1/transactions/page': { body: page(NOTED) },
+      'GET /api/v1/transactions/t4/history': { body: [] },
+    })
+    render(<App />)
+    expect(await screen.findByText(/📝 Primera línea/)).toBeInTheDocument()
+    expect(screen.queryByText(/Segunda línea/)).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'Detalle de Glovo' }))
+    const note = (await screen.findByLabelText('Nota')) as HTMLTextAreaElement
+    expect(note.tagName).toBe('TEXTAREA')
+    expect(note.value).toBe('Primera línea\nSegunda línea')
+    expect(note).toHaveAttribute('maxlength', '2000')
+  })
+})
+
 describe('Varios a la vez y efectivo (OF-705)', () => {
   it('pone la misma categoría a los seleccionados sin aprender reglas y se puede deshacer', async () => {
     const calls = loggedIn({

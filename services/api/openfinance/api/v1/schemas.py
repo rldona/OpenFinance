@@ -20,6 +20,7 @@ from openfinance.domain.ledger import (
     TransactionKind,
 )
 from openfinance.domain.shared import Money
+from openfinance.domain.shared.ids import TransactionId
 from openfinance.domain.workspaces import Household
 
 
@@ -103,9 +104,15 @@ class TransactionOut(BaseModel):
     member_id: UUID | None
     source: str
     note: str = Field(description="Nota de quien corrigió el movimiento")
+    tags: list[str] = Field(description="Etiquetas del movimiento")
 
     @classmethod
-    def of(cls, t: Transaction, names: Mapping[str, str] | None = None) -> TransactionOut:
+    def of(
+        cls,
+        t: Transaction,
+        names: Mapping[str, str] | None = None,
+        tags: Mapping[TransactionId, tuple[str, ...]] | None = None,
+    ) -> TransactionOut:
         """``names``: nombre propio de cada variante de comercio (OF-1001)."""
         return cls(
             id=t.id,
@@ -120,6 +127,7 @@ class TransactionOut(BaseModel):
             member_id=t.member_id,
             source=t.source,
             note=t.note,
+            tags=list((tags or {}).get(t.id, ())),
         )
 
 
@@ -302,7 +310,7 @@ class CategorizeIn(BaseModel):
     category_id: UUID | None = Field(default=None, description="null = quitar la categoría")
     kind: TransactionKind | None = None
     member_id: UUID | None = Field(default=None, description="Quién aporta, en una aportación")
-    note: str | None = Field(default=None, max_length=500)
+    note: str | None = Field(default=None, max_length=2000)
     learn: bool = Field(
         default=True,
         description="Guardar la regla «comercio → categoría» y aplicarla a los gastos sin ella",
@@ -353,7 +361,7 @@ class ManualTransactionIn(BaseModel):
     amount: str = Field(pattern=AMOUNT_PATTERN, description="Positivo; un gasto resta")
     kind: TransactionKind = TransactionKind.EXPENSE
     category_id: UUID | None = None
-    note: str = Field(default="", max_length=500)
+    note: str = Field(default="", max_length=2000)
 
 
 class ManualTransactionOut(BaseModel):
@@ -669,4 +677,18 @@ class MerchantMergeIn(BaseModel):
 class MerchantChangeOut(BaseModel):
     merchant: MerchantGroupOut
     reclassified: int = Field(description="Gastos sin categoría que han tomado la del destino")
+    operation_id: UUID | None
+
+
+class TagOut(BaseModel):
+    tag: str
+    count: int = Field(description="Movimientos que la llevan, entre los que ves")
+
+
+class TagsIn(BaseModel):
+    tags: list[str] = Field(max_length=10, description="Sustituye las etiquetas del movimiento")
+
+
+class TagsOut(BaseModel):
+    transaction: TransactionOut
     operation_id: UUID | None

@@ -32,7 +32,7 @@ class AccountKind(StrEnum):
     """Hucha o cuenta de ahorro del hogar: la ven todos los miembros."""
 
 
-MAX_NOTE = 500
+MAX_NOTE = 2000
 
 
 class TransactionKind(StrEnum):
@@ -75,6 +75,17 @@ class Account:
         return self.kind is not AccountKind.PERSONAL or self.owner_id == user_id
 
 
+def normalize_note(text: str) -> str:
+    """Nota con saltos de línea: espacios sobrantes fuera, sin líneas vacías seguidas ni al
+    principio o al final (OF-1002)."""
+    lines = [" ".join(line.split()) for line in text.replace("\r\n", "\n").split("\n")]
+    out: list[str] = []
+    for line in lines:
+        if line or (out and out[-1]):
+            out.append(line)
+    return "\n".join(out).strip("\n")
+
+
 @dataclass(frozen=True, slots=True)
 class Transaction:
     id: TransactionId
@@ -109,8 +120,8 @@ class Transaction:
             raise LedgerError("Solo las aportaciones indican persona")
         if self.amount.is_zero:
             raise LedgerError("Un movimiento no puede ser de importe cero")
-        if len(self.note) > MAX_NOTE or not self.note.isprintable():
-            raise LedgerError(f"La nota no puede superar {MAX_NOTE} caracteres ni llevar saltos")
+        if len(self.note) > MAX_NOTE or not self.note.replace("\n", "").isprintable():
+            raise LedgerError(f"La nota no puede superar {MAX_NOTE} caracteres")
         if self.category_id is not None and self.kind is not TransactionKind.EXPENSE:
             raise LedgerError("Solo los gastos tienen categoría")
         if not self.merchant:
