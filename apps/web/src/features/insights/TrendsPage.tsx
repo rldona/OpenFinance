@@ -69,7 +69,10 @@ export function TrendsPage() {
         <div className="card kpi">
           <div className="label">Gasto medio al mes</div>
           <div className="value">{t.average_spent ? formatMoneyRounded(t.average_spent) : '—'}</div>
-          <div className="small muted">{formatMoneyRounded(t.total_spent)} en total</div>
+          <div className="small muted">
+            {formatMoneyRounded(t.total_spent)} en total
+            {t.months.some((m) => m.is_partial) && ' · la media es de meses completos'}
+          </div>
         </div>
         <div className="card kpi">
           <div className="label">Mejor y peor mes</div>

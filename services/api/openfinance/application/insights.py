@@ -24,6 +24,7 @@ from openfinance.domain.insights import (
     daily_cumulative_spent,
     saving_rate,
     spending_by_category,
+    spending_by_category_until,
     top_merchants,
 )
 from openfinance.domain.ledger import AccountKind, Summary, summarize
@@ -33,6 +34,9 @@ from openfinance.domain.workspaces import Actor
 
 HISTORY_MONTHS = 12
 MERCHANT_MONTHS = 3
+MIN_CHANGE = Money.of("20", "EUR").amount
+"""Por debajo de esto (gasto y referencia), un cambio no se destaca en «Este mes»."""
+MAX_CHANGES = 4
 
 
 class View(StrEnum):
@@ -78,6 +82,25 @@ class CategoryAmount:
     category_id: CategoryId | None
     amount: Money
     average: Money | None
+    """Media de los meses completos anteriores con datos (hasta 12)."""
+    reference: Money | None
+    """Con qué se compara: la media, o en el mes en curso la media hasta el mismo día."""
+
+    @property
+    def change(self) -> Money | None:
+        return self.amount - self.reference if self.reference is not None else None
+
+
+def largest_changes(categories: list[CategoryAmount]) -> list[CategoryAmount]:
+    """Las categorías que más se alejan de su referencia, sin las de importes pequeños."""
+    relevant = [
+        c
+        for c in categories
+        if c.change is not None
+        and (c.amount.amount >= MIN_CHANGE or (c.reference and c.reference.amount >= MIN_CHANGE))
+    ]
+    relevant.sort(key=lambda c: -abs(c.change.amount) if c.change else 0)
+    return relevant[:MAX_CHANGES]
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,6 +122,8 @@ class MonthOverview:
     contributed: Money
     """Lo aportado desde estas cuentas a la conjunta. No es gasto."""
     categories: list[CategoryAmount]
+    changes: list[CategoryAmount]
+    """Las categorías que más cambian frente a su referencia (OF-608)."""
     daily: list[Money]
     previous_daily: list[Money]
 
@@ -119,21 +144,33 @@ def month_overview(
     summary = summarize(now, cur)
     spent_history = [summarize(months.get(m, []), cur).spent for m in history]
 
+    is_partial = month == Month.of(today)
+    days_elapsed = today.day if is_partial else month.days
+
     by_cat = spending_by_category(now, cur)
     hist_by_cat = [spending_by_category(months.get(m, []), cur) for m in history]
+    # En el mes en curso se compara con lo gastado hasta el mismo día de los meses anteriores:
+    # contra el mes entero, el día 1 todo parecería muy por debajo de su media.
+    hist_to_date = (
+        [
+            spending_by_category_until(months.get(m, []), min(days_elapsed, m.days), cur)
+            for m in history
+        ]
+        if is_partial
+        else hist_by_cat
+    )
     keys = set(by_cat) | {k for h in hist_by_cat for k in h}
+    zero = Money.zero(cur)
     categories = [
         CategoryAmount(
             k,
-            by_cat.get(k, Money.zero(cur)),
-            average([h.get(k, Money.zero(cur)) for h in hist_by_cat], cur),
+            by_cat.get(k, zero),
+            average([h.get(k, zero) for h in hist_by_cat], cur),
+            average([h.get(k, zero) for h in hist_to_date], cur),
         )
         for k in keys
     ]
     categories.sort(key=lambda c: (-c.amount.amount, -(c.average.amount if c.average else 0)))
-
-    is_partial = month == Month.of(today)
-    days_elapsed = today.day if is_partial else month.days
     prev_has_data = has_data(scope, prev_month)
     previous_daily = (
         daily_cumulative_spent(months.get(prev_month, []), prev_month, cur) if prev_has_data else []
@@ -154,6 +191,7 @@ def month_overview(
         contributions=contributions_by_member(now, cur),
         contributed=contributions_out(now, cur),
         categories=categories,
+        changes=largest_changes(categories),
         daily=daily_cumulative_spent(now, month, cur)[:days_elapsed],
         previous_daily=previous_daily,
     )
@@ -219,6 +257,8 @@ class TrendMonth:
     has_data: bool
     summary: Summary
     categories: dict[CategoryId | None, Money]
+    is_partial: bool = False
+    """Mes en curso: cuenta en los totales, no en las medias ni en el mejor o peor mes."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -236,23 +276,44 @@ class Trends:
     worst: TrendMonth | None
 
 
-def trends(uow: UnitOfWork, actor: Actor, month: Month, count: int = HISTORY_MONTHS) -> Trends:
+def trends(
+    uow: UnitOfWork, actor: Actor, month: Month, today: date, count: int = HISTORY_MONTHS
+) -> Trends:
+    """Evolución de ``count`` meses hasta ``month``.
+
+    Las medias son de meses completos: si el periodo llega al mes en curso, se toman los
+    ``count`` meses anteriores a él, como en «Este mes», para que las dos den la misma media.
+    """
     scope = shared_scope(uow, actor)
     cur = scope.currency
+    current = Month.of(today)
     first = month.shift(-(count - 1))
+    last_complete = month if month < current else current.shift(-1)
     months = by_month(
-        uow.transactions.in_range(actor.household_id, scope.accounts, first.start, month.end)
+        uow.transactions.in_range(
+            actor.household_id,
+            scope.accounts,
+            min(first, last_complete.shift(-(count - 1))).start,
+            month.end,
+        )
     )
-    items = [
-        TrendMonth(
+
+    def item(m: Month) -> TrendMonth:
+        txns = months.get(m, [])
+        return TrendMonth(
             m,
             has_data(scope, m),
-            summarize(months.get(m, []), cur),
-            spending_by_category(months.get(m, []), cur),
+            summarize(txns, cur),
+            spending_by_category(txns, cur),
+            is_partial=m == current,
         )
-        for m in (first.shift(i) for i in range(count))
-    ]
+
+    items = [item(first.shift(i)) for i in range(count)]
     with_data = [i for i in items if i.has_data]
+    complete = [i for i in with_data if not i.is_partial]
+    by_key = {i.month: i for i in items}
+    averaged_months = [last_complete.shift(-k) for k in range(count)]
+    averaged = [i for i in (by_key.get(m) or item(m) for m in averaged_months) if i.has_data]
     zero = Money.zero(cur)
     total_saved, total_inflow, total_spent = zero, zero, zero
     for i in with_data:
@@ -265,11 +326,11 @@ def trends(uow: UnitOfWork, actor: Actor, month: Month, count: int = HISTORY_MON
         total_saved=total_saved,
         total_inflow=total_inflow,
         total_spent=total_spent,
-        average_spent=average([i.summary.spent for i in with_data], cur),
-        average_saved=average([i.summary.saved for i in with_data], cur),
+        average_spent=average([i.summary.spent for i in averaged], cur),
+        average_saved=average([i.summary.saved for i in averaged], cur),
         saving_rate=saving_rate(
             Summary(total_spent, total_inflow, Money.zero(cur), Money.zero(cur))
         ),
-        best=max(with_data, key=lambda i: i.summary.saved.amount) if with_data else None,
-        worst=min(with_data, key=lambda i: i.summary.saved.amount) if with_data else None,
+        best=max(complete, key=lambda i: i.summary.saved.amount) if complete else None,
+        worst=min(complete, key=lambda i: i.summary.saved.amount) if complete else None,
     )

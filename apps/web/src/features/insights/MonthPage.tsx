@@ -8,7 +8,6 @@ import { centsToAmount, formatMoney, formatMoneyRounded, monthLabel, shortMonth,
 import { Delta, MonthPicker, NoData, ViewPicker } from './common'
 import { sharePercent, useCategoryMeta } from './meta'
 
-const MIN_CHANGE_CENTS = 2000n
 const abs = (x: bigint) => (x < 0n ? -x : x)
 
 export function MonthPage() {
@@ -37,15 +36,6 @@ export function MonthPage() {
   const topMeta = top ? meta(top.category_id) : null
   const memberName = (id: string) => me.members.find((m) => m.id === id)?.display_name ?? '—'
 
-  const changes = o.categories
-    .filter((c) => {
-      const now = toCents(c.amount.amount)
-      const avg = c.average ? toCents(c.average.amount) : 0n
-      return now >= MIN_CHANGE_CENTS || avg >= MIN_CHANGE_CENTS
-    })
-    .map((c) => ({ ...c, diff: toCents(c.amount.amount) - (c.average ? toCents(c.average.amount) : 0n) }))
-    .sort((a, b) => (abs(b.diff) === abs(a.diff) ? 0 : abs(b.diff) > abs(a.diff) ? 1 : -1))
-    .slice(0, 4)
 
   const days = Math.max(o.daily.length, o.previous_daily.length)
   const pad = (xs: string[]) => [...xs.map((x) => geometry(toCents(x))), ...Array<null>(days - xs.length).fill(null)]
@@ -243,11 +233,12 @@ export function MonthPage() {
           </div>
 
           <h2 className="spaced">Lo que más ha cambiado frente a {mine ? 'tu' : 'vuestra'} media</h2>
-          {changes.length === 0 && <p className="muted small">Aún no hay meses anteriores con los que comparar.</p>}
+          {o.changes.length === 0 && <p className="muted small">Aún no hay meses anteriores con los que comparar.</p>}
           <ul className="catlist plain" aria-label="Cambios frente a la media">
-            {changes.map((c) => {
+            {o.changes.map((c) => {
               const m = meta(c.category_id)
-              const up = c.diff > 0n
+              const diff = c.change ? toCents(c.change.amount) : 0n
+              const up = diff > 0n
               return (
                 <li key={m.id ?? 'none'}>
                 <a className="cat" href="#gastos" onClick={() => setFocusCategory(c.category_id)}>
@@ -257,11 +248,13 @@ export function MonthPage() {
                       <span>{m.name}</span>
                       <span className={up ? 'neg' : 'pos'}>
                         {up ? '+' : '−'}
-                        {formatMoneyRounded(money(centsToAmount(abs(c.diff))))}
+                        {formatMoneyRounded(money(centsToAmount(abs(diff))))}
                       </span>
                     </span>
                     <span className="small muted">
-                      {formatMoneyRounded(c.amount)} este mes · media {c.average ? formatMoneyRounded(c.average) : '—'}
+                      {formatMoneyRounded(c.amount)} este mes ·{' '}
+                      {o.is_partial ? `media hasta el día ${o.days_elapsed}` : 'media'}{' '}
+                      {c.reference ? formatMoneyRounded(c.reference) : '—'}
                     </span>
                   </span>
                   <span />

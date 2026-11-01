@@ -515,12 +515,17 @@ export interface components {
         /** CategoryAmountOut */
         CategoryAmountOut: {
             amount: components["schemas"]["MoneyOut"];
+            /** @description Media de los meses completos anteriores */
             average: components["schemas"]["MoneyOut"] | null;
             /**
              * Category Id
              * @description None = sin categoría
              */
             category_id: string | null;
+            /** @description amount - reference */
+            change: components["schemas"]["MoneyOut"] | null;
+            /** @description La media o, en el mes en curso, la media hasta el mismo día */
+            reference: components["schemas"]["MoneyOut"] | null;
         };
         /** CategoryAverageOut */
         CategoryAverageOut: {
@@ -846,6 +851,11 @@ export interface components {
             average_spent: components["schemas"]["MoneyOut"] | null;
             /** Categories */
             categories: components["schemas"]["CategoryAmountOut"][];
+            /**
+             * Changes
+             * @description Las categorías que más cambian frente a su referencia (máx. 4)
+             */
+            changes: components["schemas"]["CategoryAmountOut"][];
             /** @description Lo aportado a la conjunta desde estas cuentas (vista «mío»); no es gasto */
             contributed: components["schemas"]["MoneyOut"];
             /** Contributions */
@@ -1037,6 +1047,11 @@ export interface components {
             /** Has Data */
             has_data: boolean;
             inflow: components["schemas"]["MoneyOut"];
+            /**
+             * Is Partial
+             * @description Mes en curso: cuenta en los totales, no en las medias ni en el mejor o peor
+             */
+            is_partial: boolean;
             /** Month */
             month: string;
             saved: components["schemas"]["MoneyOut"];

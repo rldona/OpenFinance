@@ -14,7 +14,7 @@ Un ticket está terminado cuando cumple sus criterios de aceptación, tiene test
 | 3 · Gráficos | Este mes, ¿En qué gastamos? y Evolución | OF-301 … OF-305 | ✅ Hecha |
 | 4 · Ahorro | Presupuestos, objetivos, ideas y simulador | OF-401 … OF-405 | ✅ Hecha |
 | 5 · Uso real | Instalado en casa, con copias de seguridad | OF-501 … OF-504 | ✅ OF-501 a OF-503 (CI en verde, también `compose-e2e`) · OF-504 preparado: falta la etiqueta `v0.1.0` tras el mes de uso real |
-| 6 · Datos fiables | Que cualquier extracto real se importe sin errores ni entradas infladas | OF-601 … OF-608 | 🚧 En curso · OF-601 ✅ · OF-602 ✅ (salvo traspasos internos) · OF-603 ✅ · OF-604 ✅ · OF-605 ✅ · OF-606 ✅ · OF-607 ✅ |
+| 6 · Datos fiables | Que cualquier extracto real se importe sin errores ni entradas infladas | OF-601 … OF-608 | ✅ Hecha · falta reconocer los traspasos internos de OF-602 (pendiente de un extracto real) |
 | 7 · Corregir sin miedo | Editar, deshacer y ajustar desde la web, con historial | OF-701 … OF-706 | Pendiente |
 | 8 · Uso diario | Móvil, PWA, accesibilidad y mes en curso honesto (v0.2) | OF-801 … OF-806 | Pendiente |
 | 9 · Operación | Copias cifradas, dependencias y actualizaciones (v0.2) | OF-901 … OF-907 | Pendiente |
@@ -28,7 +28,7 @@ Estado a 1 de noviembre de 2026. Código en [github.com/rldona/OpenFinance](http
 
 ### Lo que falta para v0.1, en orden
 
-0. **Terminar la fase 6** (OF-608 y los traspasos internos de OF-602). Sin ella, el mes de uso real produciría datos que hoy no se pueden corregir. La fase 7 se puede hacer durante ese mes.
+0. ✅ **Fase 6 hecha.** Solo falta reconocer los traspasos internos de OF-602, que necesitan ver su texto en un extracto real: se puede cerrar con el primer extracto del paso 1. La fase 7 se puede hacer durante el mes de uso real.
 1. **Instalar en casa** siguiendo [Instalar en casa](../deployment/home.md), en modo HTTPS con dominio propio, en un equipo x86-64:
    1. Configurar el DNS del dominio y abrir los puertos 80 y 443 del router hacia el equipo.
    2. En `.env`: `COMPOSE_FILE=compose.yaml:compose.https.yaml`, `OPENFINANCE_DOMAIN` y una contraseña de PostgreSQL aleatoria.
@@ -313,10 +313,10 @@ Una verificación de tarjeta a 0,00 € pasaba la vista previa, pero al confirma
 - ✅ El archivo de una vista previa sin confirmar de más de 24 h se borra al arrancar la API, en cada inicio de sesión y en cada vista previa. `make backup` ejecuta `openfinance imports purge` antes de volcar. Si al arrancar la base de datos no responde, la API arranca igual y lo deja en el registro.
 - ✅ 🧪 Una vista previa de más de 24 h no conserva su contenido tras el siguiente login (de cualquier persona del hogar); ✅ 🧪 una reciente sí; ✅ 🧪 el arranque y `imports purge` también la borran.
 
-### OF-608 · El mes en curso en el Core
-- `insights/trends` excluye el mes en curso de las medias y del mejor y peor mes (hoy Evolución y Este mes dan medias distintas).
-- `insights/month` devuelve los cambios frente a la media calculados en el Core y prorrateados hasta el mismo día del mes (hoy los calcula el frontend contra meses completos).
-- 🧪 Evolución y Este mes dan la misma media; 🧪 el día 1 ninguna categoría aparece muy por debajo de su media.
+### OF-608 · El mes en curso en el Core ✅
+- ✅ `insights/trends` toma las medias de meses completos: si el periodo llega al mes en curso, de los 12 meses anteriores a él, igual que Este mes. El mes en curso cuenta en los totales, pero no en las medias ni en el mejor o peor mes, y se marca con `is_partial`.
+- ✅ `insights/month` devuelve para cada categoría su `reference` (la media o, en el mes en curso, la media de lo gastado hasta el mismo día) y su `change`, y la lista `changes` con las que más cambian (máx. 4, sin importes de menos de 20 €). El frontend ya no lo calcula.
+- ✅ 🧪 Evolución y Este mes dan la misma media; ✅ 🧪 el día 1 ninguna categoría aparece por debajo de su media; ✅ 🧪 el mejor y el peor mes no incluyen el mes en curso; ✅ 🧪 un mes pasado mantiene su ventana de 12 meses.
 
 ---
 

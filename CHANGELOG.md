@@ -8,7 +8,7 @@ Se publicará como **0.1.0**, la primera versión para usar en casa. Pasos en [d
 
 ### Pendiente antes de 0.1.0
 
-- Las fases 6 (datos fiables) y 7 (corregir sin miedo) del [roadmap](docs/product/roadmap.md).
+- La fase 7 (corregir sin miedo) del [roadmap](docs/product/roadmap.md). La fase 6 (datos fiables) está hecha salvo reconocer los traspasos de la conjunta a las cuentas personales, que necesitan un extracto real.
 - Un mes de uso real con vuestros datos (hito v0.1).
 - Instalarlo en casa y probarlo en un móvil real. La instalación de extremo a extremo (`compose-e2e`) ya pasa en verde en CI.
 - Pendientes de los extractos reales (ver [bancos.md](docs/product/bancos.md)): hora local o UTC, signo de la comisión y texto de las huchas en el Excel de Revolut en español.
@@ -35,6 +35,7 @@ Se publicará como **0.1.0**, la primera versión para usar en casa. Pasos en [d
 - **Clasificación** (OF-602): sacar dinero de una hucha («From pocket») ya no cuenta como ingreso; en Movimientos se lee «De la hucha». Los nombres y patrones se buscan por palabra completa: una transferencia de «Mariana» ya no es una aportación de Ana.
 - **Movimientos** (OF-603): buscar un texto con «#» ya no deja la lista congelada. Si una pantalla falla, aparece «Algo ha fallado» con un botón para recargar.
 - **Importar** (OF-604): un «1,234» del CSV de Revolut (mil doscientos treinta y cuatro) ya no se lee como 1,234 €. Cada banco tiene su formato de número; lo que no lo sigue, o se puede leer de dos maneras, aparece como fila descartada en vez de guardarse con un importe equivocado.
+- **Mes en curso** (OF-608): Evolución y Este mes dan la misma media, porque las dos solo cuentan meses completos. A mitad de mes cada categoría se compara con lo gastado hasta el mismo día de los meses anteriores, así que el día 1 ya no parece que todo esté muy por debajo de la media.
 - **Pantallas** (OF-605): si algo no carga, se ve el error con un botón **Reintentar**. Antes el panel de movimientos de una categoría se quedaba en «Cargando…» y Presupuestos no se recuperaba sin recargar la página.
 
 ### Security

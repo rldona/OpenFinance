@@ -292,6 +292,19 @@ describe('Errores de carga', () => {
 
 const eur = (amount: string) => ({ amount, currency: 'EUR' })
 
+const amountVsAverage = (category_id: string | null, amount: string, average: string, change: string) => ({
+  category_id,
+  amount: eur(amount),
+  average: eur(average),
+  reference: eur(average),
+  change: eur(change),
+})
+const CATEGORY_AMOUNTS = [
+  amountVsAverage('c-super', '600.00', '500.00', '100.00'),
+  amountVsAverage('c-rest', '300.00', '100.00', '200.00'),
+  amountVsAverage(null, '100.00', '0.00', '100.00'),
+]
+
 const OVERVIEW = {
   month: '2026-10',
   has_data: true,
@@ -311,11 +324,8 @@ const OVERVIEW = {
     { member_id: 'u-elena', amount: eur('1400.00') },
   ],
   contributed: eur('0.00'),
-  categories: [
-    { category_id: 'c-super', amount: eur('600.00'), average: eur('500.00') },
-    { category_id: 'c-rest', amount: eur('300.00'), average: eur('100.00') },
-    { category_id: null, amount: eur('100.00'), average: eur('0.00') },
-  ],
+  categories: CATEGORY_AMOUNTS,
+  changes: [CATEGORY_AMOUNTS[1], CATEGORY_AMOUNTS[2], CATEGORY_AMOUNTS[0]],
   currency: 'EUR',
   daily: Array.from({ length: 31 }, (_, i) => (i < 10 ? '100.00' : '1000.00')),
   previous_daily: Array.from({ length: 30 }, () => '800.00'),
@@ -337,6 +347,7 @@ const TRENDS = {
   months: Array.from({ length: 12 }, (_, i) => ({
     month: `${i < 2 ? 2025 : 2026}-${String(((i + 10) % 12) + 1).padStart(2, '0')}`,
     has_data: true,
+    is_partial: false,
     spent: eur('1000.00'),
     inflow: eur('3000.00'),
     saved: eur(i === 9 ? '-500.00' : '2000.00'),
@@ -437,6 +448,9 @@ describe('Gráficos (fase 3)', () => {
     expect(await screen.findByText(/mes en curso, hasta el día 10/)).toBeInTheDocument()
     expect(screen.getByText(/▲ 100 % que a estas alturas del mes anterior/)).toBeInTheDocument()
     expect(screen.getByText(/\(meses completos\)/)).toBeInTheDocument()
+    // Los cambios por categoría se comparan con lo gastado hasta el mismo día (OF-608).
+    const changes = screen.getByRole('list', { name: 'Cambios frente a la media' })
+    expect(within(changes).getAllByText(/media hasta el día 10/)).toHaveLength(3)
   })
 
   it('«Mío» enseña tu gasto y lo aportado a la conjunta aparte (OF-108)', async () => {
