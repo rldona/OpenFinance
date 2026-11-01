@@ -40,6 +40,8 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $of_proto;
+        # El mismo identificador en el log de nginx y en el de la API; el del cliente se ignora.
+        proxy_set_header X-Request-ID $request_id;
     }
 
     location ^~ /api/ {
@@ -51,12 +53,16 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $of_proto;
+        # El mismo identificador en el log de nginx y en el de la API; el del cliente se ignora.
+        proxy_set_header X-Request-ID $request_id;
     }
 
     location = /health {
         proxy_pass http://api:8000;
         proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $of_proto;
+        # El mismo identificador en el log de nginx y en el de la API; el del cliente se ignora.
+        proxy_set_header X-Request-ID $request_id;
     }
 
     # Los ficheros de /assets/ llevan un hash en el nombre: nunca cambian.

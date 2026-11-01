@@ -148,3 +148,10 @@ make up                       # reconstruye; las migraciones se aplican al arran
 | `ports: !reset` no válido | Docker Compose anterior a 2.24 |
 | Caddy no obtiene el certificado | DNS no apunta a casa o los puertos 80/443 no llegan al equipo |
 | `Demasiados intentos` | Límite de intentos de login: esperad 15 minutos |
+
+## Logs y comprobaciones de estado
+
+- `docker compose logs -f api` enseña una línea por petición: `fecha NIVEL nombre [id-de-petición] GET /ruta -> estado en N ms`. No lleva la query de la URL, cuerpos, cookies ni cabeceras. El nivel se cambia con `OPENFINANCE_LOG_LEVEL` (`DEBUG`, `INFO`, `WARNING`, `ERROR`).
+- Cada respuesta lleva `X-Request-ID`: si algo falla, dad ese identificador y se busca la línea exacta. El identificador lo pone nginx y llega a la API.
+- Los logs de cada contenedor rotan solos: 5 ficheros de 10 MB.
+- `/health` dice que la API está viva; `/ready` (solo dentro de Compose) comprueba además que la base de datos contesta. El `healthcheck` de la API usa `/ready`.

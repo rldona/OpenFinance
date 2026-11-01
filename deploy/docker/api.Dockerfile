@@ -22,4 +22,5 @@ EXPOSE 8000
 
 # --proxy-headers con cualquier origen es seguro aquí: la API no publica puertos y solo la
 # alcanza nginx por la red interna, que sobrescribe X-Forwarded-For y X-Forwarded-Proto.
-CMD ["sh", "-c", "alembic upgrade head && exec uvicorn openfinance.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips '*'"]
+# --no-access-log: la API escribe su propia línea de acceso (sin la query de la URL, OF-904).
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn openfinance.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips '*' --no-access-log"]

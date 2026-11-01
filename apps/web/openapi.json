@@ -4602,6 +4602,7 @@
     },
     "/health": {
       "get": {
+        "description": "Está vivo: responde sin tocar la base de datos.",
         "operationId": "health_health_get",
         "responses": {
           "200": {
@@ -4616,6 +4617,28 @@
           }
         },
         "summary": "Health",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/ready": {
+      "get": {
+        "description": "Está listo: la base de datos contesta. El detalle de un fallo va al log.",
+        "operationId": "ready_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ready",
         "tags": [
           "system"
         ]

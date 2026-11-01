@@ -1,9 +1,12 @@
+import logging
 from functools import lru_cache
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_LEVELS = (logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL)
 
 
 class Settings(BaseSettings):
@@ -28,6 +31,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _check(self) -> "Settings":
+        if logging.getLevelName(self.log_level.upper()) not in _LEVELS:
+            raise ValueError(f"OPENFINANCE_LOG_LEVEL no válido: {self.log_level}")
         try:
             ZoneInfo(self.timezone)
         except (ZoneInfoNotFoundError, ValueError) as exc:
