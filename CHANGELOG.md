@@ -41,5 +41,6 @@ Se publicará como **0.1.0**, la primera versión para usar en casa. Pasos en [d
 
 - Contraseñas con Argon2id, sesiones en el servidor con cookie `HttpOnly` y límite de intentos de inicio de sesión. Las escrituras de la API exigen una cabecera contra CSRF.
 - Ni la base de datos ni la API se publican fuera del equipo. La IP que ve la API no se puede falsificar.
+- Un extracto subido y no confirmado se borra a las 24 h aunque nadie vuelva a importar: al arrancar, al iniciar sesión y antes de cada `make backup` (OF-607).
 - Los extractos se leen con límites de tamaño y sin ejecutar fórmulas. La exportación CSV va protegida frente a fórmulas.
 - Los datos de un hogar y las cuentas personales de cada persona están aislados, y hay tests que lo comprueban.

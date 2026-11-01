@@ -66,6 +66,8 @@ def login(
     if previous_token:
         uow.sessions.delete(_hash_token(previous_token))
     uow.sessions.delete_expired(now)
+    # El extracto de una vista previa no confirmada no se guarda más de lo necesario (OF-607).
+    uow.imports.purge_expired_content(now)
     token = secrets.token_urlsafe(32)
     session = StoredSession(_hash_token(token), user.id, households[0], now + ttl)
     uow.sessions.add(session)

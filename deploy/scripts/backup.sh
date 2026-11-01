@@ -21,6 +21,10 @@ name="openfinance-$(date +%Y%m%d-%H%M%S).dump"
 part="$dir/$name.part"
 trap 'rm -f "$part"' EXIT
 
+# Antes de volcar, se borran los extractos de vistas previas caducadas (OF-607): la copia no
+# debe llevarse archivos que la aplicación ya no tiene por qué guardar.
+docker compose exec -T api openfinance imports purge
+
 # shellcheck disable=SC2016 # las variables se expanden dentro del contenedor
 docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > "$part"
 

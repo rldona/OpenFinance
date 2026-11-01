@@ -305,3 +305,14 @@ def commit_import(
     uow.imports.save_committed(done)
     uow.commit()
     return ImportResult(done, done.created_count, done.duplicate_count, done.skipped_count)
+
+
+def purge_expired_imports(uow: UnitOfWork, now: datetime) -> int:
+    """Borra el archivo de las vistas previas caducadas. Devuelve cuántas había (OF-607).
+
+    También ocurre en cada vista previa y en cada inicio de sesión; esto lo usan el
+    arranque de la API y ``make backup``, para que la copia no se lleve extractos viejos.
+    """
+    purged = uow.imports.purge_expired_content(now)
+    uow.commit()
+    return purged

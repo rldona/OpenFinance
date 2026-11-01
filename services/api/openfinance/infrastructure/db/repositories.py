@@ -673,8 +673,8 @@ class SqlImportBatchRepository:
         )
         return bool(getattr(result, "rowcount", 0))
 
-    def purge_expired_content(self, now: datetime) -> None:
-        self._s.execute(
+    def purge_expired_content(self, now: datetime) -> int:
+        result = self._s.execute(
             update(ImportBatchRow)
             .where(
                 ImportBatchRow.status == ImportStatus.PREVIEW.value,
@@ -683,6 +683,7 @@ class SqlImportBatchRepository:
             )
             .values(content=None)
         )
+        return int(getattr(result, "rowcount", 0) or 0)
 
     def save_committed(self, batch: ImportBatch) -> None:
         row = self._s.get(ImportBatchRow, batch.id)

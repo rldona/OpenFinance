@@ -41,6 +41,7 @@ from openfinance.domain.shared.text import normalize_text
 from openfinance.infrastructure.db.repositories import SqlUnitOfWork
 from openfinance.infrastructure.db.session import get_session_factory
 from openfinance.infrastructure.security import Argon2PasswordHasher
+from openfinance.infrastructure.time import utc_now
 
 Prompt = Callable[[str], str]
 
@@ -143,7 +144,6 @@ def _demo(args: argparse.Namespace) -> int:
 
 def _member_patterns(args: argparse.Namespace) -> int:
     from openfinance.application import member_patterns as mp
-    from openfinance.infrastructure.time import utc_now
 
     direction = PatternDirection.OUTFLOW if args.outflow else PatternDirection.INFLOW
     with get_session_factory()() as session:
@@ -168,9 +168,21 @@ def _member_patterns(args: argparse.Namespace) -> int:
     return 0
 
 
+def _imports(_: argparse.Namespace) -> int:
+    from openfinance.application.imports import purge_expired_imports
+
+    with get_session_factory()() as session:
+        purged = purge_expired_imports(SqlUnitOfWork(session), utc_now())
+    print(
+        "1 vista previa caducada purgada"
+        if purged == 1
+        else f"{purged} vistas previas caducadas purgadas"
+    )
+    return 0
+
+
 def _sessions(_: argparse.Namespace) -> int:
     from openfinance.application.identity import revoke_all_sessions
-    from openfinance.infrastructure.time import utc_now
 
     with get_session_factory()() as session:
         revoked = revoke_all_sessions(SqlUnitOfWork(session), utc_now())
@@ -351,6 +363,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         "revoke-all", help="Cerrar todas las sesiones e imprimir cuántas había"
     )
     sessions.set_defaults(func=_sessions)
+
+    imports = sub.add_parser("imports", help="Importaciones de extractos")
+    import_actions = imports.add_subparsers(dest="action", required=True)
+    import_actions.add_parser(
+        "purge", help="Borrar el archivo de las vistas previas de más de 24 h sin confirmar"
+    )
+    imports.set_defaults(func=_imports)
 
     users = sub.add_parser("users", help="Personas del hogar")
     user_actions = users.add_subparsers(dest="action", required=True)
