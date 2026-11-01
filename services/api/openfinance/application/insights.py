@@ -28,6 +28,13 @@ from openfinance.domain.insights import (
     top_merchants,
 )
 from openfinance.domain.ledger import AccountKind, Summary, summarize
+from openfinance.domain.savings import (
+    PendingCharge,
+    detect_recurring,
+    forecast_month_end,
+    is_fixed,
+    pending_charges,
+)
 from openfinance.domain.shared import Currency, Money
 from openfinance.domain.shared.ids import AccountId, UserId
 from openfinance.domain.workspaces import Actor
@@ -126,6 +133,10 @@ class MonthOverview:
     """Las categorías que más cambian frente a su referencia (OF-608)."""
     daily: list[Money]
     previous_daily: list[Money]
+    forecast: Money | None
+    """Gasto con el que cerraría el mes en curso (OF-802); ``None`` si hay pocos días."""
+    pending: list[PendingCharge]
+    """Cuotas habituales que este mes todavía no han llegado (solo el mes en curso)."""
 
 
 def month_overview(
@@ -175,6 +186,19 @@ def month_overview(
     previous_daily = (
         daily_cumulative_spent(months.get(prev_month, []), prev_month, cur) if prev_has_data else []
     )
+    pending: list[PendingCharge] = []
+    forecast: Money | None = None
+    if is_partial:
+        recurring = detect_recurring(txns, cur, today)
+        pending = pending_charges(recurring, now, today)
+        merchants = {r.merchant for r in recurring}
+        fixed_paid = Money.zero(cur)
+        for t in now:
+            if is_fixed(t, merchants):
+                fixed_paid = fixed_paid - t.amount
+        forecast = forecast_month_end(
+            summary.spent, fixed_paid, pending, days_elapsed, month.days, cur
+        )
     return MonthOverview(
         month=month,
         currency=cur,
@@ -194,6 +218,8 @@ def month_overview(
         changes=largest_changes(categories),
         daily=daily_cumulative_spent(now, month, cur)[:days_elapsed],
         previous_daily=previous_daily,
+        forecast=forecast,
+        pending=pending,
     )
 
 
