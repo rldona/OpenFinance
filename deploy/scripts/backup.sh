@@ -104,14 +104,25 @@ echo "Copia guardada en $dir/$name"
 # Rotación: se conservan las $keep más recientes. Solo se tocan ficheros con el nombre exacto
 # que pone este script; el nombre lleva la fecha, así que ordenar por nombre es ordenar por edad.
 if [ "$keep" -gt 0 ]; then
+  # Los nombres llevan la fecha y la hora: en orden alfabético inverso, de más nueva a más vieja.
+  copies=()
+  for f in "$dir"/openfinance-*.dump "$dir"/openfinance-*.dump.age; do
+    [ -f "$f" ] || continue
+    case "$(basename "$f")" in
+      openfinance-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9].dump | \
+        openfinance-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9].dump.age)
+        copies+=("$f")
+        ;;
+    esac
+  done
   count=0
   while IFS= read -r old; do
     count=$((count + 1))
     if [ "$count" -gt "$keep" ]; then
-      rm -f -- "$dir/$old"
-      echo "Copia antigua borrada: $old"
+      rm -f -- "$old"
+      echo "Copia antigua borrada: $(basename "$old")"
     fi
-  done < <(ls -1 "$dir" | grep -E '^openfinance-[0-9]{8}-[0-9]{6}\.dump(\.age)?$' | sort -r)
+  done < <(printf '%s\n' "${copies[@]}" | awk -F/ '{print $NF "\t" $0}' | sort -r | cut -f2-)
 fi
 
 if [ "$plaintext" = "1" ]; then

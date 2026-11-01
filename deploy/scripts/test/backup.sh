@@ -65,7 +65,8 @@ file="$(ls "$work"/b2/openfinance-*.dump.age)"
 [ "$(stat -c %a "$file" 2> /dev/null || stat -f %Lp "$file")" = "600" ] || fail "permisos distintos de 600"
 head -n 1 "$file" | grep -q '^AGE:age1clave$' || fail "no está cifrada para la clave pública"
 grep -q 'PGDMP' <(head -n 1 "$file") && fail "el volcado está en claro"
-[ "$(ls "$work/b2" | wc -l)" -eq 1 ] || fail "quedan ficheros temporales: $(ls "$work/b2")"
+left_b2=("$work"/b2/*)
+[ "${#left_b2[@]}" -eq 1 ] || fail "quedan ficheros temporales: ${left_b2[*]}"
 
 # 3. Sin cifrar solo si se pide a propósito.
 OPENFINANCE_BACKUP_PLAINTEXT=1 run_backup "$work/b3"

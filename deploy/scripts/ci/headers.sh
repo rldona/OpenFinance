@@ -17,7 +17,7 @@ fail() { echo "FALLA: $*" >&2; exit 1; }
 headers() {
   local url="$1"
   shift
-  curl "${opts[@]}" --output /dev/null "$@" "$url" | tr -d '\r' | tr 'A-Z' 'a-z'
+  curl "${opts[@]}" --output /dev/null "$@" "$url" | tr -d '\r' | tr '[:upper:]' '[:lower:]'
 }
 has() { grep -qiE "$2" <<< "$1" || fail "$3"; }
 
