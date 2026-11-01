@@ -1,6 +1,6 @@
 # ADR-0018: Alcance del libro contable completo
 
-- Estado: Proposed
+- Estado: Accepted
 - Fecha: 2026-11-01
 
 ## Contexto

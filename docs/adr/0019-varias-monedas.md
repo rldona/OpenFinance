@@ -1,6 +1,6 @@
 # ADR-0019: Varias monedas
 
-- Estado: Proposed
+- Estado: Accepted
 - Fecha: 2026-11-01
 
 ## Contexto

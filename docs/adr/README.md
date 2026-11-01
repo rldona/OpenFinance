@@ -23,5 +23,5 @@ Formato: contexto → decisión → consecuencias. Un ADR aceptado no se edita; 
 | [0015](0015-patrones-por-persona-y-xlsx.md) | Patrones de aportación por persona y extractos en Excel | Accepted |
 | [0016](0016-exposicion-y-copias.md) | Exposición en casa, copias de seguridad y exportación | Accepted |
 | [0017](0017-registro-de-cambios.md) | Registro de cambios con deshacer y rehacer | Accepted |
-| [0018](0018-libro-contable-completo.md) | Alcance del libro contable completo | Proposed |
-| [0019](0019-varias-monedas.md) | Varias monedas | Proposed |
+| [0018](0018-libro-contable-completo.md) | Alcance del libro contable completo | Accepted |
+| [0019](0019-varias-monedas.md) | Varias monedas | Accepted |

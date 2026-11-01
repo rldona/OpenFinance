@@ -446,7 +446,7 @@ Notas de la implementación (sin probar en un equipo con Docker; lo comprueban l
 
 ## Fase 10 · Libro contable completo (v0.3)
 
-Alcance en [ADR-0018](../adr/0018-libro-contable-completo.md) y [ADR-0019](../adr/0019-varias-monedas.md), ambos *Proposed* hasta que se aprueben. Cada ticket lleva su migración, su cambio de OpenAPI (`make openapi`), tests de privacidad negativos y registro de cambios con deshacer.
+Alcance en [ADR-0018](../adr/0018-libro-contable-completo.md) y [ADR-0019](../adr/0019-varias-monedas.md), ambos aceptados el 1 de noviembre de 2026. Cada ticket lleva su migración, su cambio de OpenAPI (`make openapi`), tests de privacidad negativos y registro de cambios con deshacer.
 
 | ID | Ticket | Criterio de hecho |
 | --- | --- | --- |
