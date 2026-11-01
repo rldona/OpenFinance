@@ -32,6 +32,8 @@ from openfinance.domain.shared.text import normalize_text
 from openfinance.infrastructure.importers import xlsx
 from openfinance.infrastructure.importers.common import (
     INVALID_AMOUNT,
+    MISSING_AMOUNT,
+    ZERO_AMOUNT,
     Cell,
     ImportFormatError,
     Rows,
@@ -112,6 +114,9 @@ def parse_bankinter(content: bytes, account_key: str, rules: ClassificationRules
         if not any(cell_text(c) for c in row):
             continue
         description = cell_text(cell(row, "description"))[:_MAX_DESCRIPTION]
+        if not cell_text(cell(row, "amount")):
+            result.skipped.append(SkippedRow(line, MISSING_AMOUNT, description))
+            continue
         try:
             booked_at = _date(cell(row, "booked"))
             raw_value = cell(row, "value")
@@ -127,6 +132,9 @@ def parse_bankinter(content: bytes, account_key: str, rules: ClassificationRules
             continue
         except ArithmeticError:
             result.skipped.append(SkippedRow(line, INVALID_AMOUNT, description))
+            continue
+        if amount.is_zero:
+            result.skipped.append(SkippedRow(line, ZERO_AMOUNT, description))
             continue
         parsed.append((line, booked_at, value_date, description, amount, balance))
 

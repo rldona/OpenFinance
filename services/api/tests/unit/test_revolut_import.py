@@ -108,3 +108,18 @@ def test_invalid_row_is_skipped_not_fatal() -> None:
     result = parse_revolut_csv(bad, PROFILE)
     assert result.rows == []
     assert result.skipped[0].reason.startswith("fila no válida: fecha no válida")
+
+
+def test_zero_and_missing_amounts_are_skipped_without_breaking_the_balance() -> None:
+    lines = FIXTURE.read_text(encoding="utf-8").splitlines()
+    when = "2026-10-12 09:00:00,2026-10-12 09:00:01"
+    extra = [
+        f"CARD_PAYMENT,Current,{when},Card check,0.00,0.00,EUR,COMPLETED,2619.69",
+        f"CARD_PAYMENT,Current,{when},No amount,,0.00,EUR,COMPLETED,2619.69",
+    ]
+    result = parse_revolut_csv("\n".join([*lines, *extra]), PROFILE)
+    assert len(result.rows) == 10
+    reasons = {s.description: s.reason for s in result.skipped}
+    assert reasons["Card check"] == "importe cero: no mueve dinero"
+    assert reasons["No amount"] == "fila no válida: falta el importe"
+    assert result.balance_mismatches == []

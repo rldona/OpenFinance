@@ -149,3 +149,16 @@ def test_absurd_amount_is_a_skipped_row(amount) -> None:
     bad = [*MOVEMENTS, ["04/10/2026", "04/10/2026", "ENORME", amount, 1, "EUR"]]
     result = parse_bankinter(statement(bad), "k", RULES)
     assert [s.description for s in result.skipped if "importe" in s.reason] == ["ENORME"]
+
+
+def test_zero_and_missing_amounts_are_skipped_without_breaking_the_balance() -> None:
+    extra = [
+        ["04/10/2026", "04/10/2026", "VERIFICACION TARJETA", 0, 1506.4, "EUR"],
+        ["04/10/2026", "04/10/2026", "SIN IMPORTE", None, 1506.4, "EUR"],
+    ]
+    result = parse_bankinter(statement([*MOVEMENTS, *extra]), "k", RULES)
+    assert len(result.rows) == len(MOVEMENTS)
+    reasons = {s.description: s.reason for s in result.skipped}
+    assert reasons["VERIFICACION TARJETA"] == "importe cero: no mueve dinero"
+    assert reasons["SIN IMPORTE"] == "fila no válida: falta el importe"
+    assert result.balance_mismatches == []

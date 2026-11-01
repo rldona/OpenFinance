@@ -8,6 +8,7 @@ Se publicará como **0.1.0**, la primera versión para usar en casa. Pasos en [d
 
 ### Pendiente antes de 0.1.0
 
+- Las fases 6 (datos fiables) y 7 (corregir sin miedo) del [roadmap](docs/product/roadmap.md).
 - Un mes de uso real con vuestros datos (hito v0.1).
 - Instalarlo en casa y probarlo en un móvil real. La instalación de extremo a extremo (`compose-e2e`) ya pasa en verde en CI.
 - Pendientes de los extractos reales (ver [bancos.md](docs/product/bancos.md)): hora local o UTC, signo de la comisión y texto de las huchas en el Excel de Revolut en español.
@@ -26,6 +27,10 @@ Se publicará como **0.1.0**, la primera versión para usar en casa. Pasos en [d
 - **Instalación en casa** (OF-502): Docker Compose para usarlo en la red local o desde fuera con HTTPS y dominio propio. Guía: [Instalar en casa](docs/deployment/home.md).
 - **Móvil** (OF-503): todas las pantallas y los gráficos se usan bien en el móvil.
 - **Licencia** (OF-504, [ADR-0008](docs/adr/0008-licencia-agpl.md)): AGPL-3.0-or-later, con dependencias auditadas ([docs/legal/dependencias.md](docs/legal/dependencias.md)) y contribuciones con DCO ([CONTRIBUTING.md](CONTRIBUTING.md)).
+
+### Fixed
+
+- **Importar** (OF-601): un extracto con una fila de 0,00 € (por ejemplo, una verificación de tarjeta) ya se puede confirmar. Esas filas, y las que no traen importe, aparecen como descartadas con su motivo.
 
 ### Security
 

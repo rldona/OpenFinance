@@ -34,6 +34,8 @@ from openfinance.domain.shared.text import normalize_text
 from openfinance.infrastructure.importers import common, xlsx
 from openfinance.infrastructure.importers.common import (
     INVALID_AMOUNT,
+    MISSING_AMOUNT,
+    ZERO_AMOUNT,
     Cell,
     ImportFormatError,
     Rows,
@@ -203,6 +205,9 @@ def _parse_rows(
             reason = f"producto {product.lower()} (hucha o ahorro)"
             result.skipped.append(SkippedRow(line, reason, description))
             continue
+        if not cell_text(cell(row, "amount")):
+            result.skipped.append(SkippedRow(line, MISSING_AMOUNT, description))
+            continue
         try:
             booked_at = _datetime(cell(row, "started"))
             completed = cell(row, "completed")
@@ -220,6 +225,9 @@ def _parse_rows(
             continue
         except ArithmeticError:
             result.skipped.append(SkippedRow(line, INVALID_AMOUNT, description))
+            continue
+        if amount.is_zero:
+            result.skipped.append(SkippedRow(line, ZERO_AMOUNT, description))
             continue
 
         bank_type = text(row, "type").upper()[:_MAX_BANK_TYPE]

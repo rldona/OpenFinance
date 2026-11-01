@@ -20,6 +20,9 @@ MAX_AMOUNT = Decimal(10) ** 15
 """Las columnas de importe son ``Numeric(19, 4)``: 15 cifras enteras."""
 _MIN_EXPONENT = -20
 INVALID_AMOUNT = "fila no válida: importe no válido"
+MISSING_AMOUNT = "fila no válida: falta el importe"
+ZERO_AMOUNT = "importe cero: no mueve dinero"
+"""Verificaciones de tarjeta y similares: no son movimientos (un ``Transaction`` no puede ser 0)."""
 
 
 class ImportFormatError(ValueError):
