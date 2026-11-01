@@ -315,6 +315,20 @@ class SqlTransactionRepository:
         )
         return [_transaction(r) for r in rows]
 
+    def accounts_of(
+        self, household_id: WorkspaceId, ids: list[TransactionId]
+    ) -> dict[TransactionId, AccountId]:
+        out: dict[TransactionId, AccountId] = {}
+        for i in range(0, len(ids), 500):
+            rows = self._s.execute(
+                select(TransactionRow.id, TransactionRow.account_id).where(
+                    TransactionRow.household_id == household_id,
+                    TransactionRow.id.in_(ids[i : i + 500]),
+                )
+            )
+            out.update({TransactionId(r.id): AccountId(r.account_id) for r in rows})
+        return out
+
     def voided_with_fingerprints(
         self, household_id: WorkspaceId, account_id: AccountId, fingerprints: list[str]
     ) -> dict[str, Transaction]:

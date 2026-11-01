@@ -8,7 +8,7 @@ Se publicará como **0.1.0**, la primera versión para usar en casa. Pasos en [d
 
 ### Pendiente antes de 0.1.0
 
-- La fase 7 (corregir sin miedo) del [roadmap](docs/product/roadmap.md). La fase 6 (datos fiables) está hecha salvo reconocer los traspasos de la conjunta a las cuentas personales, que necesitan un extracto real.
+- Reconocer los traspasos de la conjunta a las cuentas personales (fase 6), que necesitan ver su texto en un extracto real.
 - Un mes de uso real con vuestros datos (hito v0.1).
 - Instalarlo en casa y probarlo en un móvil real. La instalación de extremo a extremo (`compose-e2e`) ya pasa en verde en CI.
 - Pendientes de los extractos reales (ver [bancos.md](docs/product/bancos.md)): hora local o UTC, signo de la comisión y texto de las huchas en el Excel de Revolut en español.
@@ -34,6 +34,7 @@ Se publicará como **0.1.0**, la primera versión para usar en casa. Pasos en [d
 - **Reglas** (OF-702): la pantalla Reglas enseña qué comercios se clasifican solos, en qué categoría y cuántos movimientos tienen; se pueden borrar. Al categorizar, el aviso dice cuántos ha clasificado la regla y permite deshacerlo todo. Los Bizum y las transferencias a personas ya no crean reglas.
 - **Historial de importaciones** (OF-703): Importar enseña qué extractos se han importado, quién y cuántos movimientos trajo cada uno. La última importación de cada cuenta se puede deshacer; sus movimientos quedan anulados (no borrados) y volver a importar el archivo los recupera con sus correcciones.
 - **Ajustes** (OF-704): ⚙️ en la cabecera para cambiar tu contraseña, cerrar tus sesiones en otros dispositivos y guardar la tarjeta con la que recargas la conjunta. Si alguien no la tiene guardada, Importar lo avisa antes de confirmar.
+- **Mis cambios** (OF-706): desde Ajustes, tus últimas correcciones con «Deshacer» y «Rehacer». Deshacer nunca pisa lo que alguien cambió después; lo respeta y te dice quién fue. Cada persona solo ve y deshace lo suyo.
 
 ### Fixed
 

@@ -166,7 +166,7 @@ export function TransactionsPage() {
           <h1>Movimientos</h1>
           <p className="lead">
             Cambia la categoría en la tabla y OpenFinance aprende la regla para ese comercio.{' '}
-            <a href="#categorias">Gestionar categorías</a> · <a href="#reglas">Reglas</a>
+            <a href="#categorias">Gestionar categorías</a> · <a href="#reglas">Reglas</a> · <a href="#cambios">Mis cambios</a>
           </p>
         </div>
         <div className="page-tools">

@@ -391,7 +391,7 @@ def undo_import(uow: UnitOfWork, actor: Actor, import_id: UUID, now: datetime) -
         )
     )
     count = len(changes) - 1
-    summary = f"Importación deshecha: {batch.filename} ({count} movimientos)"
+    summary = f"Importación deshecha: {batch.filename}"
     operation = record(uow, actor, "import.undo", summary, changes, now)
     uow.commit()
     return UndoImportResult(count, operation.id if operation else None)

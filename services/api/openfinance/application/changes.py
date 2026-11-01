@@ -130,9 +130,32 @@ def recent_operations(uow: UnitOfWork, actor: Actor) -> list[Operation]:
     return uow.changes.for_actor(actor.household_id, actor.user_id, RECENT_OPERATIONS)
 
 
+def display_summary(operation: Operation, visible: set[str] | None = None) -> str:
+    """El resumen con el número de movimientos que puede ver quien lo lee.
+
+    ``visible`` son los movimientos que ve (``None`` = todos, para su autor). Una regla del
+    hogar aprendida por la pareja también clasifica sus cuentas personales: contarlos aquí
+    revelaría cuántos movimientos tiene allí (ADR-0013).
+    """
+    ids = list(
+        dict.fromkeys(c.entity_id for c in operation.changes if c.entity is Entity.TRANSACTION)
+    )
+    n = len(ids) if visible is None else sum(1 for i in ids if i in visible)
+    base = operation.summary
+    if operation.action == "transaction.edit" and n > 1:
+        return f"{base} y {n - 1} más"
+    if operation.action == "transactions.categorize":
+        return f"{n} {'gasto' if n == 1 else 'gastos'} {base}"
+    if operation.action == "import.undo":
+        return f"{base} ({n} movimientos)"
+    return base
+
+
 @dataclass(frozen=True, slots=True)
 class HistoryItem:
     operation: Operation
+    summary: str
+    """Contado solo sobre lo que ve quien pregunta."""
     changes: list[Change]
     """Solo los cambios de ese movimiento."""
 
@@ -143,11 +166,26 @@ def transaction_history(
     """Correcciones de un movimiento, de cualquier persona, si quien pregunta lo puede ver."""
     _visible_transaction(uow, actor, transaction_id)
     key = str(transaction_id)
+    operations = uow.changes.touching(actor.household_id, Entity.TRANSACTION, [key])
+    ids = {
+        TransactionId(UUID(c.entity_id))
+        for o in operations
+        for c in o.changes
+        if c.entity is Entity.TRANSACTION
+    }
+    accounts = {a.id for a in visible_accounts(uow, actor)}
+    visible = {
+        str(t)
+        for t, account in uow.transactions.accounts_of(actor.household_id, list(ids)).items()
+        if account in accounts
+    }
     return [
         HistoryItem(
-            o, [c for c in o.changes if c.entity is Entity.TRANSACTION and c.entity_id == key]
+            o,
+            display_summary(o, None if o.actor_id == actor.user_id else visible),
+            [c for c in o.changes if c.entity is Entity.TRANSACTION and c.entity_id == key],
         )
-        for o in uow.changes.touching(actor.household_id, Entity.TRANSACTION, [key])
+        for o in operations
     ]
 
 

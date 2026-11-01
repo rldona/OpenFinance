@@ -5,6 +5,7 @@ import { Toast } from '../components/Toast'
 import { useToast } from '../components/useToast'
 import { LoginPage } from '../features/auth/LoginPage'
 import { CategoriesPage } from '../features/categories/CategoriesPage'
+import { ChangesPage } from '../features/changes/ChangesPage'
 import { RulesPage } from '../features/categories/RulesPage'
 import { ExportMenu } from '../features/export/ExportMenu'
 import { ImportPage } from '../features/import/ImportPage'
@@ -45,6 +46,8 @@ function Page({ route }: { route: RouteId }) {
       return <RulesPage />
     case 'ajustes':
       return <SettingsPage />
+    case 'cambios':
+      return <ChangesPage />
   }
 }
 

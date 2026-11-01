@@ -12,13 +12,15 @@ from openfinance.infrastructure.time import utc_now
 router = APIRouter(tags=["changes"])
 
 
-def _operation(o: Operation, only: list[Change] | None = None) -> OperationOut:
+def _operation(
+    o: Operation, only: list[Change] | None = None, summary: str | None = None
+) -> OperationOut:
     return OperationOut(
         id=o.id,
         actor_id=o.actor_id,
         created_at=o.created_at,
         action=o.action,
-        summary=o.summary,
+        summary=summary if summary is not None else changes.display_summary(o),
         undone=o.is_undone,
         changes=[
             ChangeOut(entity=c.entity.value, field=c.field, before=c.before, after=c.after)
@@ -54,4 +56,4 @@ def redo(operation_id: UUID, actor: ActorDep, uow: UowDep) -> RevertOut:
 def history(transaction_id: UUID, actor: ActorDep, uow: UowDep) -> list[OperationOut]:
     """Correcciones de un movimiento, de cualquier persona, de la más antigua a la más reciente."""
     items = changes.transaction_history(uow, actor, TransactionId(transaction_id))
-    return [_operation(i.operation, i.changes) for i in items]
+    return [_operation(i.operation, i.changes, i.summary) for i in items]

@@ -261,3 +261,51 @@ def test_undoing_every_operation_in_reverse_restores_the_initial_state(
     for who, op in reversed(done):
         assert who.post(f"/api/v1/changes/{op}/undo").json()["kept"] == 0
     assert state(as_raul) == initial
+
+
+class TestNoLeaks:
+    """OF-706: deshacer y el historial no exponen datos de una cuenta personal ajena."""
+
+    def test_partner_rule_over_her_personal_account_is_not_counted_for_me(
+        self, as_raul, as_elena, seed, session_factory
+    ) -> None:
+        with session_factory() as s:
+            uow = SqlUnitOfWork(s)
+            when = datetime(2026, 10, 14, 18)  # noqa: DTZ001
+            uow.transactions.add(_tx(seed.joint, "-5.00", "Kiosko Paco", when))
+            secret = _tx(seed.elena_personal, "-9.00", "Kiosko Paco", when)
+            uow.transactions.add(secret)
+            uow.transactions.add(_tx(seed.elena_personal, "-3.00", "Kiosko Paco", when))
+            uow.commit()
+        joint = next(
+            t
+            for t in as_elena.get("/api/v1/transactions", params={"q": "Kiosko"}).json()
+            if t["account_id"] == str(seed.joint.id)
+        )
+        r = patch(as_elena, joint["id"], category_id=category(as_elena, "ocio")).json()
+        assert r["also_categorized"] == 2  # la regla del hogar llega a sus cuentas personales
+        # Elena ve la cuenta completa; Raúl ve la misma corrección sin rastro de lo personal.
+        mine = as_elena.get(f"/api/v1/transactions/{joint['id']}/history").json()
+        assert mine[0]["summary"] == "Kiosko Paco: Sin categoría → Ocio y 2 más"
+        response = as_raul.get(f"/api/v1/transactions/{joint['id']}/history")
+        assert response.json()[0]["summary"] == "Kiosko Paco: Sin categoría → Ocio"
+        assert str(secret.id) not in response.text
+        assert as_raul.get(f"/api/v1/transactions/{secret.id}/history").status_code == 404
+
+    def test_undo_result_only_names_people_not_data(self, as_raul, as_elena) -> None:
+        glovo = tx_id(as_raul, "Glovo")
+        op = patch(as_raul, glovo, note="cena").json()["operation_id"]
+        patch(as_elena, glovo, note="cena con amigos")
+        r = as_raul.post(f"/api/v1/changes/{op}/undo")
+        body = r.json()
+        assert body["kept"] == 1
+        assert "cena con amigos" not in r.text  # no enseña el valor que puso la pareja
+
+
+class TestMyChanges:
+    def test_lists_own_operations_newest_first_with_their_state(self, as_raul) -> None:
+        first = patch(as_raul, tx_id(as_raul, "Glovo"), note="uno").json()["operation_id"]
+        second = patch(as_raul, tx_id(as_raul, "Mercadona"), note="dos").json()["operation_id"]
+        as_raul.post(f"/api/v1/changes/{first}/undo")
+        ops = as_raul.get("/api/v1/changes").json()
+        assert [(o["id"], o["undone"]) for o in ops] == [(second, False), (first, True)]

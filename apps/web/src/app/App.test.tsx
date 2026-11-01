@@ -325,6 +325,37 @@ describe('Ajustes (OF-704)', () => {
   })
 })
 
+describe('Mis cambios (OF-706)', () => {
+  const OP = { id: 'op-a', actor_id: 'u-raul', created_at: '2026-11-01T10:00:00Z', action: 'transaction.edit', changes: [] }
+
+  it('deshace y rehace las operaciones propias', async () => {
+    window.location.hash = '#cambios'
+    let undone = false
+    const calls = loggedIn({
+      'GET /api/v1/changes': () => ({ body: [{ ...OP, summary: 'Glovo: Sin categoría → Restaurantes', undone }] }),
+      'POST /api/v1/changes/op-a/undo': () => {
+        undone = true
+        return { body: { operation: { ...OP, summary: 'x', undone: true }, applied: 1, kept: 0, kept_by: [] } }
+      },
+      'POST /api/v1/changes/op-a/redo': () => {
+        undone = false
+        return { body: { operation: { ...OP, summary: 'x', undone: false }, applied: 1, kept: 0, kept_by: [] } }
+      },
+    })
+    render(<App />)
+    const list = await screen.findByRole('list', { name: 'Mis cambios' })
+    expect(within(list).getByText('Glovo: Sin categoría → Restaurantes')).toBeInTheDocument()
+    await userEvent.click(within(list).getByRole('button', { name: 'Deshacer' }))
+    expect(await screen.findByText('Deshecho')).toBeInTheDocument()
+    await userEvent.click(await within(list).findByRole('button', { name: 'Rehacer' }))
+    expect(await screen.findByText('Rehecho')).toBeInTheDocument()
+    expect(calls.filter((c) => c.method === 'POST').map((c) => c.url.pathname)).toEqual([
+      '/api/v1/changes/op-a/undo',
+      '/api/v1/changes/op-a/redo',
+    ])
+  })
+})
+
 describe('Búsqueda', () => {
   it.each(['#1', '%', '"comillas"', "l'oreal"])('busca «%s» sin romper la pantalla', async (text) => {
     const calls = loggedIn()

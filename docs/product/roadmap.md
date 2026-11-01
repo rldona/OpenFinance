@@ -15,7 +15,7 @@ Un ticket está terminado cuando cumple sus criterios de aceptación, tiene test
 | 4 · Ahorro | Presupuestos, objetivos, ideas y simulador | OF-401 … OF-405 | ✅ Hecha |
 | 5 · Uso real | Instalado en casa, con copias de seguridad | OF-501 … OF-504 | ✅ OF-501 a OF-503 (CI en verde, también `compose-e2e`) · OF-504 preparado: falta la etiqueta `v0.1.0` tras el mes de uso real |
 | 6 · Datos fiables | Que cualquier extracto real se importe sin errores ni entradas infladas | OF-601 … OF-608 | ✅ Hecha · falta reconocer los traspasos internos de OF-602 (pendiente de un extracto real) |
-| 7 · Corregir sin miedo | Editar, deshacer y ajustar desde la web, con historial | OF-701 … OF-706 | 🚧 En curso · base del registro ✅ · OF-701 ✅ · OF-702 ✅ · OF-703 ✅ · OF-704 ✅ · OF-705 ✅ |
+| 7 · Corregir sin miedo | Editar, deshacer y ajustar desde la web, con historial | OF-701 … OF-706 | ✅ Hecha (falta probarla en el mes de uso real) |
 | 8 · Uso diario | Móvil, PWA, accesibilidad y mes en curso honesto (v0.2) | OF-801 … OF-806 | Pendiente |
 | 9 · Operación | Copias cifradas, dependencias y actualizaciones (v0.2) | OF-901 … OF-907 | Pendiente |
 | 10 – 17 | Del libro contable completo a la 1.0 | OF-1001 … OF-1705 | Ver [Después de v0.2](#después-de-v02) |
@@ -28,7 +28,7 @@ Estado a 1 de noviembre de 2026. Código en [github.com/rldona/OpenFinance](http
 
 ### Lo que falta para v0.1, en orden
 
-0. ✅ **Fase 6 hecha.** Solo falta reconocer los traspasos internos de OF-602, que necesitan ver su texto en un extracto real: se puede cerrar con el primer extracto del paso 1. La fase 7 se puede hacer durante el mes de uso real.
+0. ✅ **Fases 6 y 7 hechas.** Solo falta reconocer los traspasos internos de OF-602, que necesitan ver su texto en un extracto real: se puede cerrar con el primer extracto del paso 1. Lo que salga del mes de uso real se corrige ya desde la web, con historial y deshacer.
 1. **Instalar en casa** siguiendo [Instalar en casa](../deployment/home.md), en modo HTTPS con dominio propio, en un equipo x86-64:
    1. Configurar el DNS del dominio y abrir los puertos 80 y 443 del router hacia el equipo.
    2. En `.env`: `COMPOSE_FILE=compose.yaml:compose.https.yaml`, `OPENFINANCE_DOMAIN` y una contraseña de PostgreSQL aleatoria.
@@ -365,9 +365,11 @@ Que cualquier error de datos se arregle desde la web, quede trazado y se pueda d
 - ✅ «Borrar» en el detalle de un movimiento manual (`DELETE /api/v1/transactions/{id}`): queda anulado y en el registro, y se puede deshacer. Los importados no se borran (422): se deshace su importación (OF-703).
 - ✅ 🧪 Un movimiento manual cuenta en los totales y al borrarlo deja de contar (ni en listados ni en la exportación), con su alta y su baja en el historial; ✅ 🧪 los importados no se borran; ✅ 🧪 la pareja no añade ni borra en la cuenta personal del otro, ni otro hogar.
 
-### OF-706 · Registro de cambios con deshacer y rehacer
-- Lo que falta sobre la base: pantalla «Mis cambios» con deshacer y rehacer, y que reglas, importaciones y movimientos manuales escriban en el registro.
-- 🧪 Deshacer no expone datos de una cuenta personal ajena.
+### OF-706 · Registro de cambios con deshacer y rehacer ✅
+- ✅ Sobre la base de arriba: correcciones, reglas, clasificar varios, movimientos manuales e importaciones escriben en el registro, y todo se deshace con la misma regla.
+- ✅ Pantalla «Mis cambios» (`#cambios`, desde Ajustes y Movimientos): tus últimas 50 operaciones con «Deshacer» o «Rehacer».
+- ✅ Los resúmenes se guardan sin recuentos y se cuentan al leerlos sobre lo que ve quien lee: una regla del hogar que aprende la pareja también clasifica sus cuentas personales, y contarlas en el historial de la conjunta revelaría cuántos movimientos tiene allí.
+- ✅ 🧪 Deshacer no expone datos de una cuenta personal ajena: ni identificadores ni recuentos en el historial, y el resultado de deshacer solo dice quién cambió algo después, no qué puso; ✅ 🧪 cada persona solo lista sus operaciones, de la más reciente a la más antigua.
 
 --- | --- | --- |
 | OF-701 | Editar tipo, persona y nota de un movimiento, con historial de correcciones (`transaction_corrections`) | L |

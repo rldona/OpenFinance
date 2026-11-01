@@ -189,6 +189,9 @@ export function SettingsPage() {
               <li>
                 <a href="#reglas">Reglas</a>
               </li>
+              <li>
+                <a href="#cambios">Mis cambios</a> · deshacer y rehacer lo que has corregido
+              </li>
             </ul>
           </div>
         </div>

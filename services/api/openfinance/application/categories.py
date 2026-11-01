@@ -256,15 +256,17 @@ def edit_transaction(
             )
         changes += [Change(Entity.TRANSACTION, str(i), "category_id", None, after) for i in others]
 
-    operation = record(
-        uow, actor, "transaction.edit", _summary(uow, tx, updated, len(others)), changes, now
-    )
+    operation = record(uow, actor, "transaction.edit", _summary(uow, tx, updated), changes, now)
     uow.commit()
     return CategorizeResult(updated, rule, len(others), operation.id if operation else None)
 
 
-def _summary(uow: UnitOfWork, before: Transaction, after: Transaction, others: int) -> str:
-    """Resumen legible: «Mercadona: Sin categoría → Supermercado y 3 más»."""
+def _summary(uow: UnitOfWork, before: Transaction, after: Transaction) -> str:
+    """Resumen legible: «Mercadona: Sin categoría → Supermercado».
+
+    Sin contar los demás que clasificó la regla: ese número depende de quién lo lee
+    (``changes.display_summary``), porque puede incluir cuentas personales.
+    """
     what = merchant_label(before.merchant) or before.description
     parts: list[str] = []
     if before.kind is not after.kind or before.member_id != after.member_id:
@@ -273,8 +275,7 @@ def _summary(uow: UnitOfWork, before: Transaction, after: Transaction, others: i
         parts.append(f"{_category_name(uow, before)} → {_category_name(uow, after)}")
     if before.note != after.note:
         parts.append("nota")
-    text = f"{what}: {', '.join(parts) or 'sin cambios'}"
-    return f"{text} y {others} más" if others else text
+    return f"{what}: {', '.join(parts) or 'sin cambios'}"
 
 
 def _kind_label(uow: UnitOfWork, t: Transaction) -> str:

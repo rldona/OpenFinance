@@ -69,7 +69,7 @@ def categorize_many(
         )
         uow.transactions.save(updated)
     count = len(changes)
-    summary = f"{count} {'gasto' if count == 1 else 'gastos'} → {name}"
+    summary = f"→ {name}"  # el número de gastos lo pone display_summary
     operation = record(uow, actor, "transactions.categorize", summary, changes, now)
     uow.commit()
     return BulkResult(count, operation.id if operation else None)
