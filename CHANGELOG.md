@@ -31,6 +31,7 @@ Se publicará como **0.1.0**, la primera versión para usar en casa. Pasos en [d
 ### Fixed
 
 - **Importar** (OF-601): un extracto con una fila de 0,00 € (por ejemplo, una verificación de tarjeta) ya se puede confirmar. Esas filas, y las que no traen importe, aparecen como descartadas con su motivo.
+- **Clasificación** (OF-602): sacar dinero de una hucha («From pocket») ya no cuenta como ingreso; en Movimientos se lee «De la hucha». Los nombres y patrones se buscan por palabra completa: una transferencia de «Mariana» ya no es una aportación de Ana.
 
 ### Security
 

@@ -14,7 +14,7 @@ Un ticket está terminado cuando cumple sus criterios de aceptación, tiene test
 | 3 · Gráficos | Este mes, ¿En qué gastamos? y Evolución | OF-301 … OF-305 | ✅ Hecha |
 | 4 · Ahorro | Presupuestos, objetivos, ideas y simulador | OF-401 … OF-405 | ✅ Hecha |
 | 5 · Uso real | Instalado en casa, con copias de seguridad | OF-501 … OF-504 | ✅ OF-501 a OF-503 (CI en verde, también `compose-e2e`) · OF-504 preparado: falta la etiqueta `v0.1.0` tras el mes de uso real |
-| 6 · Datos fiables | Que cualquier extracto real se importe sin errores ni entradas infladas | OF-601 … OF-608 | 🚧 En curso · OF-601 ✅ |
+| 6 · Datos fiables | Que cualquier extracto real se importe sin errores ni entradas infladas | OF-601 … OF-608 | 🚧 En curso · OF-601 ✅ · OF-602 ✅ (salvo traspasos internos) |
 | 7 · Corregir sin miedo | Editar, deshacer y ajustar desde la web, con historial | OF-701 … OF-706 | Pendiente |
 | 8 · Uso diario | Móvil, PWA, accesibilidad y mes en curso honesto (v0.2) | OF-801 … OF-806 | Pendiente |
 | 9 · Operación | Copias cifradas, dependencias y actualizaciones (v0.2) | OF-901 … OF-907 | Pendiente |
@@ -28,7 +28,7 @@ Estado a 1 de noviembre de 2026. Código en [github.com/rldona/OpenFinance](http
 
 ### Lo que falta para v0.1, en orden
 
-0. **Terminar la fase 6** (OF-602 … OF-608). Sin ella, el mes de uso real produciría datos que hoy no se pueden corregir. La fase 7 se puede hacer durante ese mes.
+0. **Terminar la fase 6** (OF-603 … OF-608, y los traspasos internos de OF-602). Sin ella, el mes de uso real produciría datos que hoy no se pueden corregir. La fase 7 se puede hacer durante ese mes.
 1. **Instalar en casa** siguiendo [Instalar en casa](../deployment/home.md), en modo HTTPS con dominio propio, en un equipo x86-64:
    1. Configurar el DNS del dominio y abrir los puertos 80 y 443 del router hacia el equipo.
    2. En `.env`: `COMPOSE_FILE=compose.yaml:compose.https.yaml`, `OPENFINANCE_DOMAIN` y una contraseña de PostgreSQL aleatoria.
@@ -282,11 +282,11 @@ Una verificación de tarjeta a 0,00 € pasaba la vista previa, pero al confirma
 - ✅ Si al confirmar el dominio rechaza una fila, la API responde 422 y no guarda nada: el lote no queda reclamado y se puede volver a confirmar.
 - ✅ 🧪 Un extracto con una verificación de tarjeta a 0,00 se previsualiza y se confirma; 🧪 un error del dominio al confirmar da 422 y deja la importación intacta.
 
-### OF-602 · Clasificación: huchas en los dos sentidos, nombres por palabra completa y traspasos internos
-- Patrones de hucha «To pocket» y «From pocket» (y sus textos en español en cuanto se vean en un extracto real; ver [bancos.md](bancos.md)). Sacar de la hucha es `savings_transfer` positivo, no ingreso.
-- Los nombres de las personas se buscan por palabra completa tras normalizar: «MARIANA» no es aportación de Ana.
-- `internal_patterns` se rellena con las recargas de la conjunta hacia las cuentas personales conocidas.
-- 🧪 «From pocket EUR Viaje» no cuenta como entrada; 🧪 «Transferencia de MARIANA LOPEZ» no es aportación de Ana; 🧪 las huellas ya guardadas no cambian.
+### OF-602 · Clasificación: huchas en los dos sentidos, nombres por palabra completa y traspasos internos ✅ (salvo traspasos internos)
+- ✅ Patrones de hucha «To pocket» y «From pocket». Sacar de la hucha es `savings_transfer` positivo: no cuenta como ingreso, resta de lo traspasado al ahorro y en Movimientos se lee «De la hucha». Los textos en español siguen pendientes de un extracto real ([bancos.md](bancos.md)).
+- ✅ Todos los patrones (nombres, patrones por persona, huchas) se buscan por palabra completa tras normalizar: «MARIANA» no es aportación de Ana y «\*1234» no reconoce «\*12345». Solo se exige frontera en el extremo que es letra o cifra, así que «REVOLUT\*\*» sigue reconociendo «Revolut\*\*9876\*».
+- ⏳ `internal_patterns` con las recargas de la conjunta hacia las cuentas personales: **pendiente de ver el texto en un extracto real**. Inventarlo clasificaría mal movimientos reales que luego no se pueden reclasificar (hasta OF-701).
+- ✅ 🧪 «From pocket EUR Viaje» no cuenta como entrada; ✅ 🧪 «Transferencia de MARIANA LOPEZ» no es aportación de Ana; ✅ 🧪 las huellas ya guardadas no cambian (la de la muestra queda fijada en el test y no depende de las reglas).
 
 ### OF-603 · Búsqueda con «#» y ErrorBoundary global
 - La consulta de Movimientos se guarda en el estado, sin pasarla por un texto que luego se parte por «#» (hoy lanza un `SyntaxError` y la lista se queda congelada).

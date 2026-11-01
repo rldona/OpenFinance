@@ -42,7 +42,8 @@ from openfinance.domain.shared.text import normalize_text
 from openfinance.domain.workspaces import Actor
 
 # Pendiente de validar con extractos reales (docs/product/bancos.md).
-DEFAULT_SAVINGS_PATTERNS = ("To pocket",)
+DEFAULT_SAVINGS_PATTERNS = ("To pocket", "From pocket")
+"""Revolut: meter en la hucha (importe negativo) y sacar de ella (positivo, no es ingreso)."""
 DEFAULT_OUTFLOW_CONTRIBUTION_PATTERNS = ("REVOLUT**",)
 """Salidas de una cuenta personal de Bankinter hacia Revolut: la recarga de la conjunta
 (ADR-0015). En otras entidades ese texto no tiene por qué significar lo mismo."""

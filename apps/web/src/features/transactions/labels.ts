@@ -14,7 +14,7 @@ export function kindLabel(
       return { text: `Aportación de ${who}`, tone: 'in' }
     }
     case 'savings_transfer':
-      return { text: 'A la hucha', tone: 'save' }
+      return { text: toCents(t.amount.amount) > 0n ? 'De la hucha' : 'A la hucha', tone: 'save' }
     case 'income':
       return { text: 'Ingreso', tone: 'in' }
     case 'internal_transfer':

@@ -58,8 +58,8 @@ class MemberPattern:
 class ClassificationRules:
     """Cómo reconocer aportaciones y traspasos a ahorro en los conceptos del banco.
 
-    Los patrones se comparan como subcadenas sobre el concepto normalizado
-    (mayúsculas, sin tildes).
+    Los patrones se buscan por palabra completa sobre el concepto normalizado
+    (mayúsculas, sin tildes): «ANA» no está en «MARIANA» ni «*1234» en «*12345».
     """
 
     member_patterns: Mapping[str, Sequence[str]] = field(default_factory=dict)
@@ -71,9 +71,26 @@ class ClassificationRules:
     """Persona → patrones de salidas de su cuenta que son su aportación al hogar."""
 
 
+def _contains_word(text: str, pattern: str) -> bool:
+    """``pattern`` aparece en ``text`` sin letras ni cifras pegadas a sus extremos.
+
+    Solo se exige frontera en el extremo que es letra o cifra: «REVOLUT**» sigue
+    reconociendo «REVOLUT**9876*».
+    """
+    start = text.find(pattern)
+    while start != -1:
+        end = start + len(pattern)
+        before_ok = start == 0 or not (pattern[0].isalnum() and text[start - 1].isalnum())
+        after_ok = end == len(text) or not (pattern[-1].isalnum() and text[end].isalnum())
+        if before_ok and after_ok:
+            return True
+        start = text.find(pattern, start + 1)
+    return False
+
+
 def _matches(description: str, patterns: Sequence[str]) -> bool:
     text = normalize_text(description)
-    return any(normalize_text(p) in text for p in patterns if p.strip())
+    return any(_contains_word(text, normalize_text(p)) for p in patterns if p.strip())
 
 
 def _member(description: str, by_member: Mapping[str, Sequence[str]]) -> str | None:

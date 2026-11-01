@@ -85,3 +85,16 @@ def test_joint_uses_names_and_inflow_patterns_of_members_only() -> None:
     assert kind_of(joint, "Recarga de *1234", True, stored)[1] == str(LUIS.id)
     assert kind_of(joint, "Recarga de *9999", True, stored) == (TransactionKind.INCOME, None)
     assert kind_of(joint, "Revolut**1234*", False, stored) == (TransactionKind.EXPENSE, None)
+
+
+def test_names_match_whole_words_only() -> None:
+    joint = account(Institution.REVOLUT, AccountKind.JOINT)
+    assert kind_of(joint, "Transferencia de MARIANA LOPEZ", True) == (TransactionKind.INCOME, None)
+    assert kind_of(joint, "Transferencia de ANA LOPEZ", True)[1] == str(ANA.id)
+
+
+@pytest.mark.parametrize("kind", [AccountKind.JOINT, AccountKind.PERSONAL])
+def test_money_from_a_pocket_is_a_savings_transfer_not_income(kind) -> None:
+    acc = account(Institution.REVOLUT, kind)
+    assert kind_of(acc, "From pocket EUR Viaje", True) == (TransactionKind.SAVINGS_TRANSFER, None)
+    assert kind_of(acc, "To pocket EUR Viaje", False) == (TransactionKind.SAVINGS_TRANSFER, None)

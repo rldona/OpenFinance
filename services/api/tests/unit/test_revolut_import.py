@@ -14,6 +14,8 @@ from openfinance.infrastructure.importers.revolut import (
 # Muestra sintética con el formato público de Revolut. Sustituir por una muestra real
 # anonimizada cuando esté disponible (OF-104).
 FIXTURE = Path(__file__).parents[1] / "fixtures" / "revolut_joint_synthetic.csv"
+# Huella de la primera fila de la muestra: si cambia, las importaciones ya guardadas se duplicarían.
+FIRST_FINGERPRINT = "54bf843dc07c2532cf9c715b8d46c83d4e6f3ab183c6043703b9ef4e1c82ac36"
 
 PROFILE = RevolutProfile(
     account_key="revolut-conjunta",
@@ -123,3 +125,27 @@ def test_zero_and_missing_amounts_are_skipped_without_breaking_the_balance() -> 
     assert reasons["Card check"] == "importe cero: no mueve dinero"
     assert reasons["No amount"] == "fila no válida: falta el importe"
     assert result.balance_mismatches == []
+
+
+def test_from_pocket_is_a_savings_transfer_and_keeps_the_balance() -> None:
+    lines = FIXTURE.read_text(encoding="utf-8").splitlines()
+    when = "2026-10-12 09:00:00,2026-10-12 09:00:01"
+    extra = f"TRANSFER,Current,{when},From pocket EUR Viaje,100.00,0.00,EUR,COMPLETED,2719.69"
+    profile = RevolutProfile(
+        "revolut-conjunta", ClassificationRules(savings_patterns=["To pocket", "From pocket"])
+    )
+    result = parse_revolut_csv("\n".join([*lines, extra]), profile)
+    back = result.rows[-1]
+    assert (back.suggested_kind, back.amount) == (
+        TransactionKind.SAVINGS_TRANSFER,
+        Money.of("100.00", "EUR"),
+    )
+    assert result.balance_mismatches == []
+
+
+def test_fingerprints_do_not_depend_on_classification_rules(result) -> None:
+    # Cambiar cómo se clasifica no puede cambiar las huellas ya guardadas (OF-602).
+    other = RevolutProfile(account_key=PROFILE.account_key, rules=ClassificationRules())
+    again = parse_revolut_csv(FIXTURE.read_bytes(), other)
+    assert [r.fingerprint for r in again.rows] == [r.fingerprint for r in result.rows]
+    assert result.rows[0].fingerprint == FIRST_FINGERPRINT
