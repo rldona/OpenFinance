@@ -52,4 +52,4 @@ OpenFinance es un monolito modular: `services/api` (Python 3.12, FastAPI, SQLAlc
 
 - Python: `ruff` (formato y lint), `mypy` estricto en `domain` y `application`.
 - TypeScript: `oxlint`, `strict: true`. Código de features en `src/features/<feature>/`. Usa `src/api/client.ts` y los tipos generados en `src/api/schema.ts` (no los edites a mano).
-- Commits con Conventional Commits. No crees directorios vacíos para contextos no implementados.
+- Commits con Conventional Commits y firmados con DCO (`git commit -s`, ver [CONTRIBUTING.md](CONTRIBUTING.md)). No crees directorios vacíos para contextos no implementados.

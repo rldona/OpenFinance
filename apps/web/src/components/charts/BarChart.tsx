@@ -1,9 +1,8 @@
 import { ChartFigure } from './ChartFigure'
 import { niceMax } from './scale'
+import { labelStep, labelWidth, showLabel, useChartWidth } from './useChartWidth'
 
 export type Bar = { label: string; value: number; valueText: string; color?: string }
-
-const W = 640
 
 export function BarChart({
   data,
@@ -22,6 +21,7 @@ export function BarChart({
   color?: string
   negativeColor?: string
 }) {
+  const [figure, W] = useChartWidth<HTMLElement>()
   const pad = { l: 8, r: 8, t: 18, b: 26 }
   const ref = reference?.value ?? 0
   const hasNeg = data.some((d) => d.value < 0) || ref < 0
@@ -31,8 +31,9 @@ export function BarChart({
   const scale = plot / (maxPos + maxNeg)
   const zeroY = pad.t + maxPos * scale
   const bw = (W - pad.l - pad.r) / Math.max(data.length, 1)
+  const step = labelStep(bw, Math.max(0, ...data.map((d) => labelWidth(d.label))))
   return (
-    <ChartFigure label={label} rows={data.map((d) => [d.label, d.valueText])}>
+    <ChartFigure label={label} rows={data.map((d) => [d.label, d.valueText])} measureRef={figure}>
       <svg viewBox={`0 0 ${W} ${height}`} aria-hidden="true">
         {hasNeg && <line x1={pad.l} x2={W - pad.r} y1={zeroY} y2={zeroY} className="zero" />}
         {data.map((d, i) => {
@@ -53,9 +54,11 @@ export function BarChart({
               >
                 <title>{`${d.label}: ${d.valueText}`}</title>
               </rect>
-              <text x={x + bw * 0.32} y={height - 8} textAnchor="middle" className="axis">
-                {d.label}
-              </text>
+              {showLabel(i, data.length, step) && (
+                <text x={x + bw * 0.32} y={height - 8} textAnchor="middle" className="axis">
+                  {d.label}
+                </text>
+              )}
             </g>
           )
         })}

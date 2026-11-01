@@ -15,7 +15,7 @@ from openfinance.application.insights import shared_scope
 from openfinance.application.ports import UnitOfWork
 from openfinance.domain.categories import Category, CategoryId
 from openfinance.domain.insights import Month, average, by_month, spending_by_category
-from openfinance.domain.ledger import AccountKind, account_balance, summarize
+from openfinance.domain.ledger import Account, AccountKind, account_balance, summarize
 from openfinance.domain.savings import (
     Budget,
     BudgetStatus,
@@ -112,12 +112,27 @@ class GoalView:
     projection: GoalProjection
 
 
-def _saved(uow: UnitOfWork, actor: Actor, goal: Goal) -> Money:
+def _linkable_account(uow: UnitOfWork, actor: Actor, account_id: AccountId) -> Account | None:
+    """Una hucha compartida del hogar: nunca una cuenta personal, ni la propia (ADR-0013)."""
+    account = next(
+        (a for a in uow.accounts.for_household(actor.household_id) if a.id == account_id), None
+    )
+    if (
+        account is None
+        or account.kind is not AccountKind.SAVINGS
+        or account.owner_id is not None
+        or not account.visible_to(actor.user_id)
+    ):
+        return None
+    return account
+
+
+def goal_saved(uow: UnitOfWork, actor: Actor, goal: Goal) -> Money:
+    """Lo ahorrado que se muestra: el saldo de la hucha vinculada o, si no la hay (o no es
+    una hucha compartida), lo anotado a mano."""
     if goal.account_id is None:
         return goal.saved
-    account = next(
-        (a for a in uow.accounts.for_household(actor.household_id) if a.id == goal.account_id), None
-    )
+    account = _linkable_account(uow, actor, goal.account_id)
     if account is None:
         return goal.saved
     balance = account_balance(account, uow.transactions.for_account(actor.household_id, account.id))
@@ -125,19 +140,14 @@ def _saved(uow: UnitOfWork, actor: Actor, goal: Goal) -> Money:
 
 
 def _check_account(uow: UnitOfWork, actor: Actor, account_id: AccountId | None) -> None:
-    if account_id is None:
-        return
-    account = next(
-        (a for a in uow.accounts.for_household(actor.household_id) if a.id == account_id), None
-    )
-    if account is None or account.kind is not AccountKind.SAVINGS:
+    if account_id is not None and _linkable_account(uow, actor, account_id) is None:
         raise InvalidRequestError("Solo se puede vincular una hucha o cuenta de ahorro del hogar")
 
 
 def list_goals(uow: UnitOfWork, actor: Actor, today: date) -> list[GoalView]:
     month = Month.of(today)
     return [
-        GoalView(g, project_goal(g, _saved(uow, actor, g), month))
+        GoalView(g, project_goal(g, goal_saved(uow, actor, g), month))
         for g in uow.goals.for_household(actor.household_id)
     ]
 
@@ -203,7 +213,7 @@ def create_goal(uow: UnitOfWork, actor: Actor, data: GoalInput, today: date) -> 
     goal = _apply(base, data, currency)
     uow.goals.add(goal)
     uow.commit()
-    return GoalView(goal, project_goal(goal, _saved(uow, actor, goal), Month.of(today)))
+    return GoalView(goal, project_goal(goal, goal_saved(uow, actor, goal), Month.of(today)))
 
 
 def update_goal(
@@ -216,7 +226,7 @@ def update_goal(
     goal = _apply(current, data, _currency(uow, actor))
     uow.goals.update(goal)
     uow.commit()
-    return GoalView(goal, project_goal(goal, _saved(uow, actor, goal), Month.of(today)))
+    return GoalView(goal, project_goal(goal, goal_saved(uow, actor, goal), Month.of(today)))
 
 
 def delete_goal(uow: UnitOfWork, actor: Actor, goal_id: GoalId) -> None:

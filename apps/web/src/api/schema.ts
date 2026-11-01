@@ -131,6 +131,28 @@ export interface paths {
         patch: operations["update_category_api_v1_categories__category_id__patch"];
         trace?: never;
     };
+    "/api/v1/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export
+         * @description Descarga los datos del hogar: JSON o ZIP con un CSV por entidad (OF-501).
+         *
+         *     Incluye lo que ve quien la pide; la cuenta personal de la otra persona no sale.
+         */
+        get: operations["export_api_v1_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/goals": {
         parameters: {
             query?: never;
@@ -1307,6 +1329,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CategoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_api_v1_export_get: {
+        parameters: {
+            query?: {
+                format?: "json" | "csv";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Archivo con los datos del hogar que ve quien lo pide */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                    "application/zip": unknown;
                 };
             };
             /** @description Validation Error */

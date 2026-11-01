@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
@@ -9,6 +10,18 @@ from openfinance.application.errors import AuthenticationError
 from openfinance.infrastructure.time import utc_now
 
 router = APIRouter(tags=["auth"])
+logger = logging.getLogger(__name__)
+
+_LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+
+
+def _warn_secure_cookie_over_http(request: Request, secure: bool) -> None:
+    """El navegador descarta una cookie Secure recibida por http (salvo en localhost)."""
+    if secure and request.url.scheme == "http" and request.url.hostname not in _LOCAL_HOSTS:
+        logger.warning(
+            "Cookie de sesión Secure sobre http: el navegador no guardará la sesión. "
+            "Sirve por HTTPS o pon OPENFINANCE_SESSION_COOKIE_SECURE=false dentro de casa."
+        )
 
 
 @router.post("/auth/login", response_model=MeOut)
@@ -43,6 +56,7 @@ def login(
         throttle.record_failure(body.email, ip, now)
         raise
     throttle.reset(body.email)
+    _warn_secure_cookie_over_http(request, settings.cookie_secure)
     response.set_cookie(
         settings.session_cookie_name,
         session.token,

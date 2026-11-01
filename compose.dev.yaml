@@ -1,0 +1,11 @@
+# Desarrollo: publica solo PostgreSQL en el propio equipo para `make api` (make db).
+services:
+  db:
+    ports:
+      - "127.0.0.1:5432:5432"
+    networks:
+      - data
+      - dev
+
+networks:
+  dev: {}

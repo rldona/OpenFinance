@@ -1,4 +1,4 @@
-import type { components } from './schema'
+import type { components, operations } from './schema'
 
 type Schemas = components['schemas']
 export type Me = Schemas['MeOut']
@@ -21,6 +21,13 @@ export type Goal = Schemas['GoalOut']
 export type GoalInput = Schemas['GoalIn']
 export type GoalPatch = Schemas['GoalPatch']
 export type SavingsOverview = Schemas['SavingsOverviewOut']
+
+export type ExportFormat = NonNullable<
+  NonNullable<operations['export_api_v1_export_get']['parameters']['query']>['format']
+>
+
+/** Descarga directa (GET con la cookie de sesión): no pasa por fetch. */
+export const exportUrl = (format: ExportFormat) => `/api/v1/export?format=${format}`
 
 export const CSRF_HEADER = { 'X-Requested-With': 'OpenFinance' } as const
 

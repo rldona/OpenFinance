@@ -2250,6 +2250,51 @@
         ]
       }
     },
+    "/api/v1/export": {
+      "get": {
+        "description": "Descarga los datos del hogar: JSON o ZIP con un CSV por entidad (OF-501).\n\nIncluye lo que ve quien la pide; la cuenta personal de la otra persona no sale.",
+        "operationId": "export_api_v1_export_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "json",
+              "enum": [
+                "json",
+                "csv"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {},
+              "application/zip": {}
+            },
+            "description": "Archivo con los datos del hogar que ve quien lo pide"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export",
+        "tags": [
+          "export"
+        ]
+      }
+    },
     "/api/v1/goals": {
       "get": {
         "operationId": "list_goals_api_v1_goals_get",

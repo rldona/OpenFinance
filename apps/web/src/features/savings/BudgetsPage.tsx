@@ -109,25 +109,25 @@ export function BudgetsPage() {
         media de los últimos meses. <a href="#mes">Volver a Este mes</a>
       </p>
       <div className="card">
-        <table>
-          <thead>
-            <tr>
-              <th>Categoría</th>
-              <th className="num">Vuestra media</th>
-              <th>Presupuesto mensual</th>
+        <table role="table" className="rows budget-table">
+          <thead role="rowgroup">
+            <tr role="row">
+              <th role="columnheader">Categoría</th>
+              <th role="columnheader" className="num">Vuestra media</th>
+              <th role="columnheader">Presupuesto mensual</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody role="rowgroup">
             {visible.map((c) => {
               const avg = averages.get(c.id)
               const avgCents = avg ? toCents(avg.amount) : 0n
               return (
-                <tr key={`${c.id}-${byCategory.get(c.id)?.amount.amount ?? ''}`}>
-                  <td>
+                <tr role="row" key={`${c.id}-${byCategory.get(c.id)?.amount.amount ?? ''}`}>
+                  <td role="cell">
                     {c.icon} {c.name}
                   </td>
-                  <td className="num muted">{avg && avgCents > 0n ? `${formatMoneyRounded(avg)}/mes` : '—'}</td>
-                  <td>
+                  <td role="cell" className="num muted">{avg && avgCents > 0n ? `${formatMoneyRounded(avg)}/mes` : '—'}</td>
+                  <td role="cell">
                     <BudgetInput
                       categoryId={c.id}
                       name={c.name}

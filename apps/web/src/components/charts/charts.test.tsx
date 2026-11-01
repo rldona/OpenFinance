@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { BarChart, Donut, LineChart, Ring, StackedBars, geometry, niceMax } from '.'
+import { labelStep, labelWidth, showLabel } from './useChartWidth'
 
 describe('gráficos (ADR-0014)', () => {
   it('niceMax redondea el eje', () => {
@@ -117,6 +118,16 @@ describe('gráficos (ADR-0014)', () => {
     expect(now.getAttribute('points')!.split(' ')).toHaveLength(2)
     expect(container.querySelector('[data-series="now"] polygon')).not.toBeNull()
     expect(container.querySelector('[data-series="prev"] polyline')).toHaveAttribute('stroke-dasharray', '6 5')
+  })
+
+  it('en estrecho se escriben menos etiquetas y siempre la del último dato (OF-503)', () => {
+    // 12 meses en 330 px: cada hueco mide 26 px y «sept» necesita más.
+    const step = labelStep(26, labelWidth('sept'))
+    expect(step).toBe(2)
+    const shown = Array.from({ length: 12 }, (_, i) => showLabel(i, 12, step))
+    expect(shown.filter(Boolean)).toHaveLength(6)
+    expect(shown[11]).toBe(true)
+    expect(labelStep(60, labelWidth('sept'))).toBe(1)
   })
 
   it('el anillo limita el porcentaje', () => {

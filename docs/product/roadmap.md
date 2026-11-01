@@ -13,7 +13,7 @@ Un ticket está terminado cuando cumple sus criterios de aceptación, tiene test
 | 2 · Categorías | Que cada gasto tenga su categoría casi sin esfuerzo | OF-201 … OF-203 | ✅ Hecha |
 | 3 · Gráficos | Este mes, ¿En qué gastamos? y Evolución | OF-301 … OF-305 | ✅ Hecha |
 | 4 · Ahorro | Presupuestos, objetivos, ideas y simulador | OF-401 … OF-405 | ✅ Hecha |
-| 5 · Uso real | Instalado en casa, con copias de seguridad | OF-501 … OF-504 | Pendiente |
+| 5 · Uso real | Instalado en casa, con copias de seguridad | OF-501 … OF-504 | En curso · OF-501 a OF-503 implementados (Compose y Playwright se verifican en CI) · OF-504 preparado: falta la etiqueta `v0.1.0` tras el mes de uso real y OF-108 |
 
 **Hito v0.1:** fin de la fase 5, con al menos un mes de uso real con vuestros datos.
 
@@ -24,7 +24,7 @@ Un ticket está terminado cuando cumple sus criterios de aceptación, tiene test
 | ID | Ticket | Estado |
 | --- | --- | --- |
 | OF-001 | Monorepo: `services/api` (FastAPI) y `apps/web` (React) con capas y `import-linter` | ✅ |
-| OF-002 | Entorno: Docker Compose, `.env.example`, `Makefile` | ✅ (Compose sin probar: falta Docker en local; se prueba en OF-502) |
+| OF-002 | Entorno: Docker Compose, `.env.example`, `Makefile` | ✅ (Compose revisado en OF-502 y probado de extremo a extremo en CI: job `compose-e2e`) |
 | OF-003 | CI: lint, tipos, tests, build y migraciones sobre PostgreSQL | ✅ |
 
 ---
@@ -95,7 +95,7 @@ Versión real de las pantallas del prototipo.
 - ✅ **Importar** en 3 pasos: elegir cuenta y extracto; revisar nuevos, ya importados, descartados y si el saldo cuadra con el banco; confirmar.
 - ✅ Cliente de API tipado con tipos generados desde OpenAPI (`make openapi`); CI falla si el contrato o los tipos no están al día (ADR-0009).
 - ✅ Importes formateados desde el decimal exacto, sin `float`, también en el navegador.
-- Pendiente: probar en un navegador real con Playwright (OF-503) y las pestañas de gráficos (fase 3).
+- ✅ Probadas en navegadores reales con Playwright (OF-503), junto con las pestañas de gráficos (fase 3).
 
 ### OF-107 · Lector de Bankinter (cuentas personales) ✅
 - ✅ Lector `parse_bankinter` del Excel de movimientos, validado con un extracto real: salta el preámbulo y los filtros, descarta los pendientes con su motivo e invierte el orden (el banco lista del más reciente al más antiguo) para que cuadre el saldo.
@@ -204,19 +204,28 @@ El Core calcula y el frontend solo pinta. Los totales del hogar usan solo la con
 
 ## Fase 5 · Uso real
 
-### OF-501 · Exportación y copia de seguridad
-- Exportación completa en CSV y JSON, y copia de seguridad y restauración de PostgreSQL con un comando.
-- 🧪 Restaurar una copia en una instalación limpia deja los mismos saldos.
+### OF-501 · Exportación y copia de seguridad ✅ (pendiente de la primera ejecución verde de `compose-e2e`)
+- ✅ `GET /api/v1/export?format=json|csv`: lo que ve quien la pide (nunca la cuenta personal de la otra persona, sesiones, hashes ni huellas), con `format_version` 1, importes exactos como texto y CSV protegidos frente a fórmulas. Botón **Exportar** en la cabecera.
+- ✅ 🧪 Tests negativos de visibilidad: cuenta personal, reglas y patrones de salida de la pareja, y otro hogar.
+- ✅ `make backup` y `make restore FILE=…` ([ADR-0016](../adr/0016-exposicion-y-copias.md)); restaurar aplica migraciones y cierra todas las sesiones (`openfinance sessions revoke-all`).
+- ✅ 🧪 Restaurar una copia en una instalación limpia deja los mismos saldos (CI, `compose-e2e`).
 
-### OF-502 · Instalación en casa
-- Docker Compose probado de principio a fin, con guía para un equipo de casa o una NAS.
-- Acceso desde el móvil en la red local; HTTPS si se expone fuera de casa.
+### OF-502 · Instalación en casa ✅ (pendiente de la primera ejecución verde de `compose-e2e`)
+- ✅ Docker Compose probado de principio a fin en CI en dos modos: `direct` (red local por http) y `caddy` (HTTPS con dominio propio). Ni PostgreSQL ni la API publican puertos.
+- ✅ La IP real llega a la API sin que el cliente pueda falsificarla (nginx sobrescribe `X-Forwarded-For`); aviso en el log si la cookie `Secure` llega por http.
+- ✅ Guía: [Instalar en casa](../deployment/home.md) (móvil en la red local, HTTPS, copias programadas y actualización).
 
-### OF-503 · Móvil
-- Las 6 pantallas se pueden usar en un móvil, con los gráficos legibles en pantalla estrecha.
+### OF-503 · Móvil ✅ (pendiente de la primera ejecución verde de `compose-e2e` y de probarlo en un móvil real)
+- ✅ Las 6 pantallas, el acceso, Categorías y Presupuestos se usan en un móvil: pestañas en una fila desplazable, tablas en filas compactas, objetivos táctiles de al menos 40 px y campos de 16 px para que iOS no amplíe la página.
+- ✅ Gráficos legibles en pantalla estrecha: se dibujan al ancho real (el texto no encoge con el `viewBox`) y escriben menos etiquetas cuando no caben. Siguen alimentándose de los agregados del Core.
+- ✅ 🧪 Playwright (`apps/web/e2e`, `make e2e`) en Chrome a 360 px, Safari (WebKit) a 390 px y escritorio: sin scroll horizontal, gráficos dentro de la pantalla con etiquetas de al menos 11 px y sin solapes, pestañas alcanzables, Importar en 3 pasos con un extracto sintético y descarga de la exportación. En CI contra Docker Compose (`compose-e2e`, modo `direct`).
 
-### OF-504 · Release v0.1
-- Revisión de licencias de las dependencias, fichero `LICENSE` (ADR-0008), `CHANGELOG` y etiqueta `v0.1.0`.
+### OF-504 · Release v0.1 — preparado (falta la etiqueta tras el mes de uso real y OF-108)
+- ✅ Licencias de las dependencias auditadas ([docs/legal/dependencias.md](../legal/dependencias.md)): todas compatibles con AGPL-3.0; psycopg es LGPL-3.0-only y no plantea problemas. `make licenses` las lista y el job `licenses` de CI falla si una dependencia de producción sale de la lista permitida.
+- ✅ `LICENSE` con el texto literal de la AGPL-3.0 y [ADR-0008](../adr/0008-licencia-agpl.md) aceptado: AGPL-3.0-or-later, contribuciones con DCO (`git commit -s`, [CONTRIBUTING.md](../../CONTRIBUTING.md)), sin CLA y sin cabeceras SPDX por fichero.
+- ✅ [CHANGELOG.md](../../CHANGELOG.md) (Keep a Changelog) con las fases 0 a 5 y lo pendiente.
+- ✅ Checklist de release: [docs/development/release.md](../development/release.md).
+- Pendiente: subir las versiones a 0.1.0 y crear la etiqueta anotada `v0.1.0` con su release en GitHub, **después de un mes de uso real y de OF-108**. Decidido así a propósito.
 
 ---
 

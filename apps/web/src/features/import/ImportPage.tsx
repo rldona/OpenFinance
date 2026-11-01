@@ -159,29 +159,31 @@ export function ImportPage() {
         )}
 
         <div className="card">
-          <table>
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Concepto</th>
-                <th>Tipo</th>
-                <th className="num">Importe</th>
-                <th />
+          <table role="table" className="rows preview">
+            <thead role="rowgroup">
+              <tr role="row">
+                <th role="columnheader">Fecha</th>
+                <th role="columnheader">Concepto</th>
+                <th role="columnheader">Tipo</th>
+                <th role="columnheader" className="num">Importe</th>
+                <th role="columnheader">
+                  <span className="sr-only">Estado</span>
+                </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               {p.rows.map((r) => {
                 const label = kindLabel(r, me, categoryById)
                 return (
-                  <tr key={r.line} className={r.duplicate ? 'dim' : ''}>
-                    <td className="muted small">{formatDate(r.booked_at)}</td>
-                    <td>{r.description}</td>
-                    <td>
+                  <tr role="row" key={r.line} className={r.duplicate ? 'dim' : ''}>
+                    <td role="cell" className="muted small">{formatDate(r.booked_at)}</td>
+                    <td role="cell">{r.description}</td>
+                    <td role="cell">
                       <span className={`tag tag-${label.tone}`}>{label.text}</span>
                       {r.category_id && <span className="small muted"> · regla</span>}
                     </td>
-                    <td className="num">{formatMoney(r.amount, { signed: true })}</td>
-                    <td className="small muted">{r.duplicate ? 'Ya importado' : 'Nuevo'}</td>
+                    <td role="cell" className="num">{formatMoney(r.amount, { signed: true })}</td>
+                    <td role="cell" className="small muted">{r.duplicate ? 'Ya importado' : 'Nuevo'}</td>
                   </tr>
                 )
               })}

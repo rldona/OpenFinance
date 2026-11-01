@@ -1,5 +1,11 @@
 name: openfinance
 
+# Instalación doméstica. Dos modos (docs/deployment/home.md):
+#   direct (por defecto): el navegador entra a nginx en ${OPENFINANCE_BIND}:${OPENFINANCE_PORT}.
+#   caddy: añade compose.https.yaml (COMPOSE_FILE=compose.yaml:compose.https.yaml en .env)
+#          y todo entra por Caddy con HTTPS y dominio propio.
+# Ni la base de datos ni la API publican puertos.
+
 services:
   db:
     image: postgres:16-alpine
@@ -9,13 +15,14 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-openfinance}
     volumes:
       - db-data:/var/lib/postgresql/data
-    ports:
-      - "127.0.0.1:5432:5432"
+    networks:
+      - data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
       retries: 10
+    restart: unless-stopped
 
   api:
     build:
@@ -24,23 +31,56 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-openfinance}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-openfinance}
       OPENFINANCE_ENVIRONMENT: ${OPENFINANCE_ENVIRONMENT:-production}
-      OPENFINANCE_CORS_ORIGINS: '["http://localhost:8080"]'
-      # Secure por defecto en producción; pon false solo si entras por http dentro de casa
+      OPENFINANCE_TIMEZONE: ${OPENFINANCE_TIMEZONE:-Europe/Madrid}
+      OPENFINANCE_LOG_LEVEL: ${OPENFINANCE_LOG_LEVEL:-INFO}
+      # Web y API comparten origen detrás de nginx: no hace falta CORS.
+      OPENFINANCE_CORS_ORIGINS: "[]"
+      # Secure por defecto; pon false solo si entras por http dentro de casa (modo direct).
       OPENFINANCE_SESSION_COOKIE_SECURE: ${OPENFINANCE_SESSION_COOKIE_SECURE:-true}
+      OPENFINANCE_SESSION_TTL_DAYS: ${OPENFINANCE_SESSION_TTL_DAYS:-30}
     depends_on:
       db:
         condition: service_healthy
-    ports:
-      - "127.0.0.1:8000:8000"
+    networks:
+      - data
+      - app
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
 
   web:
     build:
       context: .
       dockerfile: deploy/docker/web.Dockerfile
+    environment:
+      # Fijo: solo compose.https.yaml lo cambia a caddy (con nginx sin puertos publicados).
+      OPENFINANCE_PROXY_MODE: direct
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+    networks:
+      - app
     ports:
-      - "127.0.0.1:8080:80"
+      - "${OPENFINANCE_BIND:-127.0.0.1}:${OPENFINANCE_PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+networks:
+  data:
+    internal: true
+  app: {}
 
 volumes:
   db-data:

@@ -108,7 +108,7 @@ function CategoryPanel({ categoryId, month }: { categoryId: string | null; month
             <tbody>
               {txns.data.map((t) => (
                 <tr key={t.id}>
-                  <td className="muted small">{formatDate(t.booked_at)}</td>
+                  <td className="muted small nowrap">{formatDate(t.booked_at)}</td>
                   <td>
                     {t.merchant || t.description}
                     <div className="small muted">{t.description}</div>

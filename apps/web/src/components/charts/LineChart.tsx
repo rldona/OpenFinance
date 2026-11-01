@@ -1,5 +1,6 @@
 import { ChartFigure } from './ChartFigure'
 import { niceMax } from './scale'
+import { labelWidth, useChartWidth } from './useChartWidth'
 
 export type Series = {
   id: string
@@ -10,8 +11,6 @@ export type Series = {
   area?: boolean
   summary: string
 }
-
-const W = 640
 
 export function LineChart({
   series,
@@ -26,14 +25,21 @@ export function LineChart({
   height?: number
   reference?: { value: number; label: string }
 }) {
+  const [figure, W] = useChartWidth<HTMLElement>()
   const pad = { l: 8, r: 8, t: 16, b: 24 }
   const n = Math.max(2, ...series.map((s) => s.points.length))
   const values = series.flatMap((s) => s.points.filter((v): v is number => v !== null))
   const max = niceMax(Math.max(0, ...values, reference?.value ?? 0))
   const X = (i: number) => pad.l + (i / (n - 1)) * (W - pad.l - pad.r)
   const Y = (v: number) => height - pad.b - (Math.max(v, 0) / max) * (height - pad.t - pad.b)
+  // Sin solapes: se descarta la etiqueta que pisaría a la anterior escrita.
+  const ticks = xLabels.reduce<[number, string][]>((shown, tick) => {
+    const prev = shown.at(-1)
+    const gap = prev ? X(tick[0]) - X(prev[0]) : Infinity
+    return prev && gap < (labelWidth(prev[1]) + labelWidth(tick[1])) / 2 ? shown : [...shown, tick]
+  }, [])
   return (
-    <ChartFigure label={label} rows={series.map((s) => [s.label, s.summary])}>
+    <ChartFigure label={label} rows={series.map((s) => [s.label, s.summary])} measureRef={figure}>
       <svg viewBox={`0 0 ${W} ${height}`} aria-hidden="true">
         {reference && reference.value > 0 && (
           <g className="reference">
@@ -74,7 +80,7 @@ export function LineChart({
             </g>
           )
         })}
-        {xLabels.map(([i, l]) => (
+        {ticks.map(([i, l]) => (
           <text key={`${i}-${l}`} x={X(i)} y={height - 6} textAnchor="middle" className="axis">
             {l}
           </text>

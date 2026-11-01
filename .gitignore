@@ -31,3 +31,8 @@ backups/
 *.dump
 # Extractos bancarios reales: nunca se suben al repositorio
 /Extractos/
+
+# Playwright (OF-503)
+test-results/
+playwright-report/
+blob-report/

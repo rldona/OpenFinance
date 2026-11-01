@@ -183,28 +183,28 @@ export function TransactionsPage() {
           </div>
         )}
         {rows && rows.length > 0 && (
-          <table className={stale ? 'stale' : ''} aria-busy={stale}>
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Concepto</th>
-                <th>Categoría</th>
-                <th className="num">Importe</th>
+          <table role="table" className={`rows tx${stale ? ' stale' : ''}`} aria-busy={stale}>
+            <thead role="rowgroup">
+              <tr role="row">
+                <th role="columnheader">Fecha</th>
+                <th role="columnheader">Concepto</th>
+                <th role="columnheader">Categoría</th>
+                <th role="columnheader" className="num">Importe</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               {rows.map((t) => {
                 const label = kindLabel(t, me, categoryById)
                 return (
-                  <tr key={t.id}>
-                    <td className="muted small">{formatDate(t.booked_at)}</td>
-                    <td>
+                  <tr role="row" key={t.id}>
+                    <td role="cell" className="muted small">{formatDate(t.booked_at)}</td>
+                    <td role="cell">
                       {t.merchant || t.description}
                       <div className="small muted">
                         {t.description} · {accountName(t.account_id)}
                       </div>
                     </td>
-                    <td>
+                    <td role="cell">
                       {t.kind === 'expense' ? (
                         <CategorySelect
                           t={t}
@@ -215,7 +215,7 @@ export function TransactionsPage() {
                         <span className={`tag tag-${label.tone}`}>{label.text}</span>
                       )}
                     </td>
-                    <td className={`num ${t.amount.amount.startsWith('-') ? '' : 'pos'}`}>
+                    <td role="cell" className={`num ${t.amount.amount.startsWith('-') ? '' : 'pos'}`}>
                       {formatMoney(t.amount, { signed: true })}
                     </td>
                   </tr>

@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ApiError, api, setUnauthorizedHandler, type Me } from '../api/client'
 import { Toast } from '../components/Toast'
 import { useToast } from '../components/useToast'
 import { LoginPage } from '../features/auth/LoginPage'
 import { CategoriesPage } from '../features/categories/CategoriesPage'
+import { ExportMenu } from '../features/export/ExportMenu'
 import { ImportPage } from '../features/import/ImportPage'
 import { MonthPage } from '../features/insights/MonthPage'
 import { SpendingPage } from '../features/insights/SpendingPage'
@@ -81,6 +82,15 @@ export function App() {
 
 function Shell({ route, onLogout }: { route: RouteId; onLogout: () => void }) {
   const { me, uncategorized, notify } = useHousehold()
+  const tabs = useRef<HTMLElement>(null)
+
+  // En móvil las pestañas se desplazan en horizontal: la activa queda a la vista.
+  useEffect(() => {
+    const nav = tabs.current
+    const active = nav?.querySelector<HTMLElement>('[aria-current="page"]')
+    if (!nav || !active) return
+    nav.scrollLeft = active.offsetLeft - nav.offsetLeft - (nav.clientWidth - active.offsetWidth) / 2
+  }, [route])
 
   async function logout() {
     try {
@@ -97,7 +107,7 @@ function Shell({ route, onLogout }: { route: RouteId; onLogout: () => void }) {
         <div className="brand">
           OpenFinance<small>{me.household.name}</small>
         </div>
-        <nav className="tabs" aria-label="Secciones">
+        <nav className="tabs" aria-label="Secciones" ref={tabs}>
           {ROUTES.map((r) => (
             <a
               key={r.id}
@@ -121,6 +131,7 @@ function Shell({ route, onLogout }: { route: RouteId; onLogout: () => void }) {
             </span>
           ))}
         </div>
+        <ExportMenu />
         <button className="btn small" type="button" onClick={() => void logout()}>
           Salir
         </button>

@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest",
+    "e2e": "playwright test",
     "gen:api": "npx --yes -p openapi-typescript@7.13.0 -p typescript@5.9.3 openapi-typescript openapi.json -o src/api/schema.ts"
   },
   "dependencies": {
@@ -17,6 +18,7 @@
     "react-dom": "^19.3.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.8",

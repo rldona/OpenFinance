@@ -77,3 +77,144 @@ jobs:
       - run: npm run typecheck
       - run: npm test -- --run
       - run: npm run build
+
+  # OF-504: las dependencias que se distribuyen tienen licencias compatibles con AGPL-3.0.
+  licenses:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+        working-directory: apps/web
+      - run: deploy/scripts/licenses.sh --check
+
+  # OF-501/OF-502: la instalación con Docker Compose en sus dos modos, de extremo a extremo.
+  compose-e2e:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [direct, https]
+    env:
+      E2E_EMAIL: raul@demo.openfinance
+      E2E_PASSWORD: demo-openfinance
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Shellcheck de los scripts
+        run: shellcheck deploy/scripts/*.sh deploy/scripts/ci/*.sh
+
+      - name: Configuración (.env)
+        run: |
+          password="$(openssl rand -hex 24)"
+          echo "::add-mask::$password"
+          {
+            echo "POSTGRES_PASSWORD=$password"
+            echo "OPENFINANCE_ENVIRONMENT=production"
+            if [ "${{ matrix.mode }}" = "direct" ]; then
+              echo "OPENFINANCE_SESSION_COOKIE_SECURE=false"
+            else
+              echo "COMPOSE_FILE=compose.yaml:compose.https.yaml"
+              echo "OPENFINANCE_DOMAIN=localhost"
+            fi
+          } > .env
+          if [ "${{ matrix.mode }}" = "direct" ]; then
+            echo "BASE_URL=http://127.0.0.1:8080" >> "$GITHUB_ENV"
+          else
+            echo "BASE_URL=https://localhost" >> "$GITHUB_ENV"
+            echo "INSECURE=1" >> "$GITHUB_ENV"
+          fi
+
+      - name: Arrancar
+        run: |
+          docker compose version
+          docker compose config --quiet
+          docker compose up --build -d --wait
+
+      - name: Puertos publicados
+        run: deploy/scripts/ci/ports.sh ${{ matrix.mode }}
+
+      - name: Datos de demostración
+        run: docker compose exec -T api openfinance demo --force
+
+      - name: Cookie Secure detrás de Caddy
+        if: matrix.mode == 'https'
+        run: |
+          jq -n --arg e "$E2E_EMAIL" --arg p "$E2E_PASSWORD" '{email: $e, password: $p}' \
+            | curl -fsSk -o /dev/null -D headers.txt \
+              -H 'X-Requested-With: OpenFinance' -H 'Content-Type: application/json' \
+              --data-binary @- "$BASE_URL/api/v1/auth/login"
+          grep -i '^set-cookie: of_session=' headers.txt | grep -qi '; *secure'
+          rm headers.txt
+
+      - uses: actions/setup-node@v4
+        if: matrix.mode == 'direct'
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      # OF-503. Antes de guardar los saldos: el flujo Importar añade movimientos a la cuenta
+      # conjunta, y la copia que se restaura después ya los incluye. Inicia sesión una sola vez
+      # (proyecto setup) para no chocar con el límite de nginx en /api/v1/auth/login.
+      - name: Playwright (móvil y escritorio)
+        if: matrix.mode == 'direct'
+        working-directory: apps/web
+        env:
+          E2E_BASE_URL: ${{ env.BASE_URL }}
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium webkit
+          npm run e2e
+
+      - name: Saldos y exportación (antes)
+        run: deploy/scripts/ci/balances.sh "$BASE_URL" before.json cookies-before.txt
+
+      - name: IP falsificada en X-Forwarded-For
+        run: deploy/scripts/ci/forged-ip.sh "$BASE_URL"
+
+      - name: Copia, borrado y restauración (OF-501)
+        if: matrix.mode == 'direct'
+        run: |
+          make backup
+          dump="$(ls backups/openfinance-*.dump)"
+          [ "$(stat -c %a "$dump")" = "600" ]
+          docker compose down -v
+          docker compose up -d --wait
+          make restore FILE="$dump" YES=1
+          code="$(curl -s -o /dev/null -w '%{http_code}' -b cookies-before.txt "$BASE_URL/api/v1/me")"
+          [ "$code" = "401" ] || { echo "La sesión anterior sigue valiendo ($code)" >&2; exit 1; }
+          deploy/scripts/ci/balances.sh "$BASE_URL" after.json cookies-after.txt
+          diff before.json after.json
+
+      - name: Sin secretos en los logs
+        run: deploy/scripts/ci/assert-no-secrets.sh cookies-*.txt
+
+      - name: Logs de los contenedores
+        if: failure()
+        run: docker compose logs --no-color > compose-logs.txt
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: compose-e2e-${{ matrix.mode }}
+          path: |
+            compose-logs.txt
+            apps/web/playwright-report/
+            apps/web/test-results/
+            !apps/web/test-results/.auth/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Parar y borrar volúmenes
+        if: always()
+        run: docker compose down -v

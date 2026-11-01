@@ -16,9 +16,11 @@ Gestor económico open source para el hogar: una pareja, una cuenta común y gr�
 ```
 apps/web/          Aplicación web (React + TypeScript + Vite)
 services/api/      OpenFinance Core: dominio, casos de uso, persistencia y API (FastAPI)
-deploy/docker/     Imágenes de contenedor
-docs/              Producto, arquitectura, ADRs y guías de desarrollo
-compose.yaml       Entorno self-hosted con PostgreSQL
+deploy/docker/     Imágenes de contenedor y configuración de nginx
+deploy/caddy/      HTTPS con dominio propio (opcional)
+deploy/scripts/    Copias de seguridad, restauración y licencias
+docs/              Producto, arquitectura, ADRs y guías
+compose.yaml       Instalación self-hosted (compose.https.yaml añade HTTPS)
 ```
 
 ## Empezar
@@ -32,14 +34,22 @@ make check     # lint, tipos, tests y build
 
 Guía completa: [docs/development/getting-started.md](docs/development/getting-started.md).
 
+Para instalarlo en casa (Docker Compose, acceso desde el móvil, HTTPS y copias de seguridad): [docs/deployment/home.md](docs/deployment/home.md).
+
 ## Documentación
 
 - [Visión de producto](docs/product/vision.md)
 - [Roadmap y backlog](docs/product/roadmap.md)
 - [Prototipos](docs/product/prototypes/index.html)
 - [Arquitectura](docs/architecture/overview.md)
+- [Instalar en casa](docs/deployment/home.md)
 - [Decisiones de arquitectura (ADRs)](docs/adr/README.md)
+- [Cambios (CHANGELOG)](CHANGELOG.md)
+- [Preparar una release](docs/development/release.md)
 
 ## Licencia
 
-Candidata: [AGPL-3.0-or-later](docs/adr/0008-licencia-agpl.md), pendiente de revisión de dependencias antes del primer release público.
+[AGPL-3.0-or-later](LICENSE) ([ADR-0008](docs/adr/0008-licencia-agpl.md)). Puedes usarlo, modificarlo y ofrecerlo como servicio; si lo modificas y lo ofreces por red, debes publicar tus cambios bajo la misma licencia.
+
+- Licencias de las dependencias: [docs/legal/dependencias.md](docs/legal/dependencias.md) (`make licenses`).
+- Contribuciones con DCO (`git commit -s`), sin CLA: [CONTRIBUTING.md](CONTRIBUTING.md).

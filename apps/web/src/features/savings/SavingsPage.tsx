@@ -345,35 +345,35 @@ export function SavingsPage() {
       <div className="card spaced-card">
         <h2>Cuotas fijas: {formatMoney(o.recurring_total)} al mes</h2>
         {o.recurring.length === 0 && <p className="muted">No se han detectado cargos que se repitan cada mes.</p>}
-        <table>
+        <table role="table" className="rows recurring">
           <caption className="sr-only">Cargos que se repiten cada mes</caption>
-          <thead>
-            <tr>
-              <th>Comercio</th>
-              <th>Cambios de precio</th>
-              <th className="num">Cuota</th>
+          <thead role="rowgroup">
+            <tr role="row">
+              <th role="columnheader">Comercio</th>
+              <th role="columnheader">Cambios de precio</th>
+              <th role="columnheader" className="num">Cuota</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody role="rowgroup">
             {o.recurring.map((r) => {
               const m = meta(r.category_id)
               const last = r.changes[r.changes.length - 1]
               return (
-                <tr key={`${r.merchant}-${r.last_date}-${r.amount.amount}`}>
-                  <td>
+                <tr role="row" key={`${r.merchant}-${r.last_date}-${r.amount.amount}`}>
+                  <td role="cell">
                     {m.icon} {r.merchant}
                     <div className="small muted">
                       {m.name} · {r.months} meses
                     </div>
                   </td>
-                  <td>
+                  <td role="cell">
                     {last && (
                       <span className={`pill ${toCents(last.after.amount) > toCents(last.before.amount) ? 'up' : 'down'}`}>
                         {formatMoney(last.before)} → {formatMoney(last.after)} en {monthLabel(last.month)}
                       </span>
                     )}
                   </td>
-                  <td className="num">{formatMoney(r.amount)}/mes</td>
+                  <td role="cell" className="num">{formatMoney(r.amount)}/mes</td>
                 </tr>
               )
             })}

@@ -1,0 +1,10 @@
+# Caddy obtiene y renueva el certificado del dominio y reenvía todo a nginx (web).
+# Sobrescribe X-Forwarded-For y X-Forwarded-Proto con la IP real y https.
+{$OPENFINANCE_DOMAIN} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	reverse_proxy web:80
+}

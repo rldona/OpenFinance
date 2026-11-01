@@ -21,8 +21,8 @@ function CategoryRow({ c }: { c: Category }) {
   }
 
   return (
-    <tr className={c.hidden ? 'dim' : ''}>
-      <td>
+    <tr role="row" className={c.hidden ? 'dim' : ''}>
+      <td role="cell">
         <input
           className="field icon-field"
           aria-label={`Icono de ${c.name}`}
@@ -32,7 +32,7 @@ function CategoryRow({ c }: { c: Category }) {
           onBlur={() => icon.trim() && icon !== c.icon && void save({ icon })}
         />
       </td>
-      <td>
+      <td role="cell">
         <input
           className="field"
           aria-label={`Nombre de ${c.name}`}
@@ -44,7 +44,7 @@ function CategoryRow({ c }: { c: Category }) {
         />
         {c.slug && <span className="small muted"> · de serie</span>}
       </td>
-      <td>
+      <td role="cell">
         <input
           type="color"
           aria-label={`Color de ${c.name}`}
@@ -53,7 +53,7 @@ function CategoryRow({ c }: { c: Category }) {
           onBlur={() => color !== c.color && void save({ color })}
         />
       </td>
-      <td>
+      <td role="cell">
         <label className="small">
           <input type="checkbox" checked={c.hidden} onChange={(e) => void save({ hidden: e.target.checked })} /> Oculta
         </label>
@@ -88,16 +88,18 @@ export function CategoriesPage() {
         categoría. <a href="#movimientos">Volver a movimientos</a>
       </p>
       <div className="card">
-        <table>
-          <thead>
-            <tr>
-              <th>Icono</th>
-              <th>Nombre</th>
-              <th>Color</th>
-              <th />
+        <table role="table" className="rows cats">
+          <thead role="rowgroup">
+            <tr role="row">
+              <th role="columnheader">Icono</th>
+              <th role="columnheader">Nombre</th>
+              <th role="columnheader">Color</th>
+              <th role="columnheader">
+                <span className="sr-only">Oculta</span>
+              </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody role="rowgroup">
             {categories.map((c) => (
               <CategoryRow key={`${c.id}-${c.name}-${c.icon}-${c.color}`} c={c} />
             ))}

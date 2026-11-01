@@ -1,0 +1,45 @@
+# Modo caddy: HTTPS con dominio propio. Actívalo en .env con
+#   COMPOSE_FILE=compose.yaml:compose.https.yaml
+#   OPENFINANCE_DOMAIN=finanzas.example.org
+# Requiere Docker Compose >= 2.24 (`!reset`). Abre los puertos 80 y 443 del router hacia
+# este equipo y apunta el DNS del dominio a tu IP pública.
+
+services:
+  api:
+    environment:
+      OPENFINANCE_SESSION_COOKIE_SECURE: "true"
+
+  web:
+    environment:
+      OPENFINANCE_PROXY_MODE: caddy
+    # Solo se entra por Caddy: nginx no publica puertos.
+    ports: !reset []
+    networks:
+      - app
+      - edge
+
+  caddy:
+    image: caddy:2.10-alpine
+    environment:
+      OPENFINANCE_DOMAIN: ${OPENFINANCE_DOMAIN:?Define OPENFINANCE_DOMAIN en .env}
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    depends_on:
+      web:
+        condition: service_healthy
+    networks:
+      - edge
+    restart: unless-stopped
+
+networks:
+  edge: {}
+
+volumes:
+  caddy-data:
+  caddy-config:

@@ -11,6 +11,7 @@
 ```bash
 cp .env.example .env          # ajusta DATABASE_URL
 make setup
+make db                       # opcional: PostgreSQL en Docker, publicado en 127.0.0.1:5432
 make migrate                  # requiere PostgreSQL accesible en DATABASE_URL
 make bootstrap                # alta del hogar: dos personas, cuenta conjunta y cuentas personales
 make api                      # http://localhost:8000 · OpenAPI en /docs
@@ -46,6 +47,7 @@ Para ver los gráficos sin datos reales: `make demo` crea un hogar ficticio con 
 | `GET` / `POST` | `/api/v1/goals` | Objetivos de ahorro con su proyección / crear uno |
 | `PATCH` / `DELETE` | `/api/v1/goals/{id}` | Actualizar o borrar un objetivo |
 | `GET` | `/api/v1/savings/overview` | Pantalla Ahorrar: medias, cuotas fijas, ideas y objetivos |
+| `GET` | `/api/v1/export?format=json\|csv` | Descarga lo que ve quien la pide: JSON o ZIP con un CSV por entidad |
 
 Todas las peticiones que escriben (`POST`, `PUT`, `PATCH`, `DELETE`) deben llevar la cabecera `X-Requested-With: OpenFinance`; el cliente de la web la añade solo.
 
@@ -63,12 +65,10 @@ make up                       # db + api + web
 ```
 
 - Web (nginx con el build de producción y proxy a la API): http://localhost:8080
-- API: http://localhost:8000
 - Alta del hogar: `docker compose exec api openfinance bootstrap`
+- Ni PostgreSQL ni la API publican puertos; para desarrollar contra el PostgreSQL de Docker usa `make db`.
 
-Los puertos solo se publican en `127.0.0.1`. `make down` para parar; los datos persisten en el volumen `db-data`.
-
-En producción la cookie de sesión es `Secure`: funciona por HTTPS y en `http://localhost`. Si entráis desde otro equipo de casa por `http://` (p. ej. `http://192.168.1.20:8080`), poned `OPENFINANCE_SESSION_COOKIE_SECURE=false` en `.env`; fuera de casa, usad siempre HTTPS.
+`make down` para parar; los datos persisten en el volumen `db-data`. Acceso desde el móvil, HTTPS con dominio propio, copias (`make backup`, `make restore`) y actualización: [Instalar en casa](../deployment/home.md).
 
 ## Calidad
 
@@ -78,3 +78,21 @@ make test      # solo tests
 ```
 
 CI (`.github/workflows/ci.yml`) ejecuta lo mismo, pero los tests de base de datos corren contra PostgreSQL (`TEST_DATABASE_URL`) en lugar de SQLite. Además aplica las migraciones y verifica con `alembic check` que el modelo y las migraciones coinciden.
+
+### Pruebas en navegador (Playwright)
+
+`make e2e` ejecuta `apps/web/e2e` contra una instancia en marcha con los datos de `openfinance demo`: comprueba que las pantallas se usan en un móvil (Chrome a 360 px y Safari/WebKit a 390 px) y en escritorio, que los gráficos caben y se leen, el flujo Importar y la exportación. No forma parte de `make check`. La primera vez instala los navegadores con `cd apps/web && npx playwright install chromium webkit`.
+
+```bash
+# Sin Docker: SQLite desechable, API, demo y vite (cada uno en su terminal)
+export DATABASE_URL=sqlite:////tmp/openfinance-e2e.db
+make migrate && make demo && make api
+make web
+E2E_BASE_URL=http://localhost:5173 make e2e
+```
+
+Por defecto apunta a `http://127.0.0.1:8080`, la instalación de Docker Compose en modo directo; así lo ejecuta CI sobre una instalación desechable (`openfinance demo --force`).
+
+Variables: `E2E_BASE_URL`, `E2E_EMAIL` y `E2E_PASSWORD` (por defecto las del demo), `E2E_INSECURE_TLS=1` para el certificado interno de Caddy y `E2E_SCREENSHOTS=<dir>` para guardar capturas de cada pantalla. Cada ejecución importa movimientos nuevos en la cuenta conjunta: úsalo con datos de prueba, nunca contra vuestra instalación real. El inicio de sesión se hace una sola vez por ejecución (nginx limita los intentos).
+
+El job `compose-e2e` levanta la instalación de Docker Compose en sus dos modos (`direct` y `https` con Caddy) y comprueba puertos, IP falsificada, cookie `Secure`, Playwright, exportación, copia y restauración con los mismos saldos y que los logs no contienen secretos (`deploy/scripts/ci/`). Sin Docker en local, esa parte solo se verifica en CI.

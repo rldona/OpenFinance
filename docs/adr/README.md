@@ -13,7 +13,7 @@ Formato: contexto → decisión → consecuencias. Un ADR aceptado no se edita; 
 | [0005](0005-aprobacion-humana.md) | Aprobación humana para operaciones preparadas por agentes | Deferred (0012) |
 | [0006](0006-modulos-oficiales-primero.md) | Módulos oficiales primero; SDK público después | Deferred (0012) |
 | [0007](0007-local-first-self-hosted.md) | Local-first y self-hosted con servicios externos opcionales | Accepted |
-| [0008](0008-licencia-agpl.md) | AGPL-3.0 como licencia de distribución | Proposed |
+| [0008](0008-licencia-agpl.md) | AGPL-3.0 como licencia de distribución | Accepted |
 | [0009](0009-openapi-contrato.md) | OpenAPI como contrato entre frontend y backend | Proposed |
 | [0010](0010-sin-sincronizacion-mvp.md) | Sin sincronización bidireccional en el MVP | Proposed |
 | [0011](0011-perfiles-compartidos-reparto.md) | Perfiles compartidos y reparto de gastos | Deferred (0012) |
@@ -21,3 +21,4 @@ Formato: contexto → decisión → consecuencias. Un ADR aceptado no se edita; 
 | [0013](0013-cuentas-personales-privadas.md) | Cuentas personales en el hogar, privadas por defecto | Accepted |
 | [0014](0014-graficos-svg-propios.md) | Gráficos SVG propios en React | Accepted |
 | [0015](0015-patrones-por-persona-y-xlsx.md) | Patrones de aportación por persona y extractos en Excel | Accepted |
+| [0016](0016-exposicion-y-copias.md) | Exposición en casa, copias de seguridad y exportación | Accepted |

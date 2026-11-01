@@ -1,7 +1,10 @@
 from datetime import UTC, datetime, timedelta
 
+from fastapi.testclient import TestClient
+
 from openfinance.api import deps
-from tests.db.conftest import PASSWORD, login
+from openfinance.infrastructure.config import Settings, get_settings
+from tests.db.conftest import CSRF, PASSWORD, login
 
 
 def test_login_sets_http_only_session_cookie(client, seed) -> None:
@@ -46,3 +49,28 @@ def test_expired_session_is_rejected(as_raul, monkeypatch) -> None:
     future = datetime.now(UTC) + timedelta(days=31)
     monkeypatch.setattr(deps, "utc_now", lambda: future)
     assert as_raul.get("/api/v1/me").status_code == 401
+
+
+def _secure_cookie(app) -> None:
+    app.dependency_overrides[get_settings] = lambda: Settings(session_cookie_secure=True)
+
+
+def test_secure_cookie_over_http_logs_a_warning(app, seed, caplog) -> None:
+    _secure_cookie(app)
+    client = TestClient(app, base_url="http://192.168.1.20:8080", headers=CSRF)
+    with caplog.at_level("WARNING", logger="openfinance.api.v1.auth"):
+        assert login(client, "raul@example.org").status_code == 200
+    assert "Secure sobre http" in caplog.text
+    assert PASSWORD not in caplog.text
+    assert "raul@example.org" not in caplog.text
+
+
+def test_secure_cookie_over_https_or_localhost_is_quiet(app, seed, caplog) -> None:
+    _secure_cookie(app)
+    with caplog.at_level("WARNING", logger="openfinance.api.v1.auth"):
+        for base in ("https://casa.example.org", "http://localhost:8080"):
+            assert (
+                login(TestClient(app, base_url=base, headers=CSRF), "raul@example.org").status_code
+                == 200
+            )
+    assert "Secure sobre http" not in caplog.text

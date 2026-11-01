@@ -10,3 +10,11 @@
 .env
 .env.*
 docs
+# Datos reales y copias: nunca entran en una imagen
+Extractos
+backups
+data
+*.dump
+*.dump.part
+**/test-results
+**/playwright-report

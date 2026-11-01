@@ -85,6 +85,17 @@ def logout(uow: UnitOfWork, token: str) -> None:
         uow.commit()
 
 
+def revoke_all_sessions(uow: UnitOfWork, now: datetime) -> int:
+    """Cierra todas las sesiones y purga el contenido caducado de importaciones.
+
+    Se usa tras restaurar una copia: las cookies emitidas antes dejan de valer.
+    """
+    revoked = uow.sessions.delete_all()
+    uow.imports.purge_expired_content(now)
+    uow.commit()
+    return revoked
+
+
 def me(uow: UnitOfWork, actor: Actor) -> Me:
     user = uow.users.get(actor.user_id)
     household = uow.households.get(actor.household_id)

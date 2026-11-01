@@ -397,6 +397,10 @@ class SqlSessionRepository:
         result = self._s.execute(delete(SessionRow).where(SessionRow.expires_at <= now))
         return int(getattr(result, "rowcount", 0) or 0)
 
+    def delete_all(self) -> int:
+        result = self._s.execute(delete(SessionRow))
+        return int(getattr(result, "rowcount", 0) or 0)
+
 
 def _category(row: CategoryRow) -> Category:
     return Category(

@@ -5,7 +5,8 @@ público: el alta se hace una vez desde el servidor.
 
 ``openfinance member-patterns`` guarda los textos del banco que identifican la aportación
 de cada persona, y ``openfinance statement-check`` comprueba un extracto sin base de datos
-mostrando solo recuentos.
+mostrando solo recuentos. ``openfinance sessions revoke-all`` cierra todas las sesiones (se
+usa tras restaurar una copia).
 """
 
 from __future__ import annotations
@@ -163,6 +164,16 @@ def _member_patterns(args: argparse.Namespace) -> int:
     return 0
 
 
+def _sessions(_: argparse.Namespace) -> int:
+    from openfinance.application.identity import revoke_all_sessions
+    from openfinance.infrastructure.time import utc_now
+
+    with get_session_factory()() as session:
+        revoked = revoke_all_sessions(SqlUnitOfWork(session), utc_now())
+    print(revoked)
+    return 0
+
+
 _KNOWN_BANK_TYPES = {
     "PAGO CON TARJETA": "pago con tarjeta",
     "CARD_PAYMENT": "pago con tarjeta",
@@ -291,6 +302,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     listing.add_argument("email", help="Email de alguien del hogar")
     listing.set_defaults(outflow=False)
     patterns.set_defaults(func=_member_patterns)
+
+    sessions = sub.add_parser("sessions", help="Sesiones abiertas")
+    session_actions = sessions.add_subparsers(dest="action", required=True)
+    session_actions.add_parser(
+        "revoke-all", help="Cerrar todas las sesiones e imprimir cuántas había"
+    )
+    sessions.set_defaults(func=_sessions)
 
     check = sub.add_parser(
         "statement-check",

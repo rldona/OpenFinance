@@ -19,6 +19,7 @@ from openfinance.domain.ledger import (
     Transaction,
     TransactionKind,
 )
+from openfinance.domain.savings import Goal, GoalId
 from openfinance.domain.shared import Money
 from openfinance.domain.shared.ids import AccountId, TransactionId
 from openfinance.infrastructure.db.repositories import SqlUnitOfWork
@@ -237,6 +238,34 @@ class TestOverview:
         for account in (seed.other_joint.id, seed.raul_personal.id, seed.elena_personal.id):
             r = as_raul.patch(f"/api/v1/goals/{gid}", json={"account_id": str(account)})
             assert r.status_code == 422, account
+
+    @pytest.mark.parametrize("owner", ["raul", "elena"])
+    def test_goal_never_shows_the_balance_of_a_personal_account(
+        self, as_raul, as_elena, seed, session_factory, owner
+    ) -> None:
+        """Datos antiguos con un objetivo vinculado a una cuenta personal (ADR-0013): nadie ve
+        su saldo, ni siquiera su titular; se muestra lo anotado a mano."""
+        personal = seed.raul_personal if owner == "raul" else seed.elena_personal
+        with session_factory() as s:
+            uow = SqlUnitOfWork(s)
+            uow.goals.add(
+                Goal(
+                    id=GoalId(uuid4()),
+                    household_id=seed.joint.household_id,
+                    name="Antiguo",
+                    icon="🎯",
+                    target=Money.of("5000", "EUR"),
+                    monthly=Money.of("0", "EUR"),
+                    saved=Money.of("12.34", "EUR"),
+                    account_id=personal.id,
+                )
+            )
+            uow.commit()
+        for client in (as_raul, as_elena):
+            (goal,) = client.get("/api/v1/goals").json()
+            assert goal["saved"] == eur("12.34")
+            (goal,) = client.get("/api/v1/savings/overview").json()["goals"]
+            assert goal["saved"] == eur("12.34")
 
     def test_empty_household(self, as_ana) -> None:
         o = as_ana.get("/api/v1/savings/overview").json()
