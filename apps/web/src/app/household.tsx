@@ -3,6 +3,9 @@ import { api, type Category, type InsightsView, type Me } from '../api/client'
 import type { Notify } from '../components/useToast'
 import { currentMonth } from '../lib/format'
 import { HouseholdContext } from './household-context'
+import { useHashParam } from './router'
+
+const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/
 
 export function HouseholdProvider({
   me,
@@ -18,9 +21,19 @@ export function HouseholdProvider({
   const [uncategorized, setUncategorized] = useState(0)
   const [categoriesVersion, setCategoriesVersion] = useState(0)
   const [countVersion, setCountVersion] = useState(0)
-  const [month, setMonth] = useState(currentMonth)
-  const [view, setView] = useState<InsightsView>('household')
-  const [focusCategory, setFocusCategory] = useState<string | null | undefined>(undefined)
+  // Mes, vista y categoría viven en la URL (OF-801): se pueden compartir y sobreviven a recargar.
+  const [monthParam, setMonthParam] = useHashParam('mes')
+  const [viewParam, setViewParam] = useHashParam('vista')
+  const [catParam, setCatParam] = useHashParam('cat')
+  const month = monthParam && MONTH.test(monthParam) ? monthParam : currentMonth()
+  const view: InsightsView = viewParam === 'mine' ? 'mine' : 'household'
+  const focusCategory = catParam === null ? undefined : catParam === 'none' ? null : catParam
+  const setMonth = useCallback((m: string) => setMonthParam(m === currentMonth() ? null : m), [setMonthParam])
+  const setView = useCallback((v: InsightsView) => setViewParam(v === 'mine' ? 'mine' : null), [setViewParam])
+  const setFocusCategory = useCallback(
+    (id: string | null | undefined) => setCatParam(id === undefined ? null : id === null ? 'none' : id),
+    [setCatParam],
+  )
 
   useEffect(() => {
     const controller = new AbortController()
@@ -72,8 +85,11 @@ export function HouseholdProvider({
       refreshUncategorized,
       notify,
       month,
+      setMonth,
       view,
+      setView,
       focusCategory,
+      setFocusCategory,
     ],
   )
   return <HouseholdContext.Provider value={value}>{children}</HouseholdContext.Provider>
