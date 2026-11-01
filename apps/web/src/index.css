@@ -717,3 +717,144 @@ ul.plain {
   padding: 0;
   margin-bottom: 0;
 }
+
+.budgets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px 24px;
+}
+
+.budget {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.budget .name {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.budget .track > i {
+  background: var(--accent);
+}
+
+.budget-warning .track > i {
+  background: #d97706;
+}
+
+.budget-over .track > i {
+  background: var(--neg);
+}
+
+.budget-over .num {
+  color: var(--neg);
+  font-weight: 600;
+}
+
+.g2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.goal {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.goal h2 {
+  margin: 0 0 4px;
+}
+
+.goal .toolbar {
+  margin: 8px 0 0;
+}
+
+.field.amount {
+  width: 110px;
+}
+
+.toolbar.inline {
+  margin: 0;
+}
+
+.insight {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.insight:last-child {
+  border-bottom: 0;
+}
+
+.insight .ic {
+  font-size: 22px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+}
+
+.save {
+  font-weight: 800;
+  color: var(--pos);
+  white-space: nowrap;
+}
+
+.sim-row {
+  display: grid;
+  grid-template-columns: 26px 160px 1fr 56px 110px;
+  gap: 12px;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.sim-row input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.sim-total {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.sim-total strong {
+  font-size: 18px;
+  color: var(--accent);
+}
+
+@media (max-width: 800px) {
+  .g2 {
+    grid-template-columns: 1fr;
+  }
+
+  .sim-row {
+    grid-template-columns: 26px 1fr 56px;
+  }
+
+  .sim-row input[type='range'],
+  .sim-row > span:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+.block {
+  display: block;
+}

@@ -27,6 +27,11 @@ def test_demo_household_has_twelve_months_of_consistent_data(session_factory, ap
     o = c.get("/api/v1/insights/month", params={"month": "2026-10"}).json()
     assert o["inflow"] == {"amount": "3000.00", "currency": "EUR"}
     assert len(o["categories"]) >= 8
+    assert len(c.get("/api/v1/budgets").json()["items"]) == 10
+    assert [g["name"] for g in c.get("/api/v1/goals").json()] == [
+        "Fondo de emergencia",
+        "Vacaciones de verano",
+    ]
 
 
 def test_demo_stops_today(session_factory) -> None:

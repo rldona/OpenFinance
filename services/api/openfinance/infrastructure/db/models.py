@@ -158,6 +158,47 @@ class CategoryRuleRow(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class BudgetRow(Base):
+    __tablename__ = "budgets"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["category_id", "household_id"],
+            ["categories.id", "categories.household_id"],
+            name="fk_budgets_category_household",
+        ),
+        CheckConstraint("amount > 0", name="amount_positive"),
+    )
+
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"), primary_key=True)
+    category_id: Mapped[UUID] = mapped_column(primary_key=True)
+    amount: Mapped[Decimal] = mapped_column(AMOUNT)
+    currency: Mapped[str] = mapped_column(String(3))
+
+
+class GoalRow(Base):
+    __tablename__ = "goals"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["account_id", "household_id"],
+            ["accounts.id", "accounts.household_id"],
+            name="fk_goals_account_household",
+        ),
+        CheckConstraint("target > 0", name="target_positive"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"), index=True)
+    name: Mapped[str] = mapped_column(String(60))
+    icon: Mapped[str] = mapped_column(String(16))
+    target: Mapped[Decimal] = mapped_column(AMOUNT)
+    monthly: Mapped[Decimal] = mapped_column(AMOUNT)
+    saved: Mapped[Decimal] = mapped_column(AMOUNT)
+    currency: Mapped[str] = mapped_column(String(3))
+    deadline: Mapped[str | None] = mapped_column(String(7))
+    account_id: Mapped[UUID | None] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class ImportBatchRow(Base):
     __tablename__ = "import_batches"
     __table_args__ = (

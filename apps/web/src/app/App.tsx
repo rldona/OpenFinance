@@ -8,7 +8,8 @@ import { ImportPage } from '../features/import/ImportPage'
 import { MonthPage } from '../features/insights/MonthPage'
 import { SpendingPage } from '../features/insights/SpendingPage'
 import { TrendsPage } from '../features/insights/TrendsPage'
-import { ComingSoon } from '../features/placeholder/ComingSoon'
+import { BudgetsPage } from '../features/savings/BudgetsPage'
+import { SavingsPage } from '../features/savings/SavingsPage'
 import { TransactionsPage } from '../features/transactions/TransactionsPage'
 import { HouseholdProvider } from './household'
 import { useHousehold } from './household-context'
@@ -33,7 +34,9 @@ function Page({ route }: { route: RouteId }) {
     case 'evolucion':
       return <TrendsPage />
     case 'ahorrar':
-      return <ComingSoon title="Ahorrar" ticket="OF-401 … OF-405" />
+      return <SavingsPage />
+    case 'presupuestos':
+      return <BudgetsPage />
   }
 }
 

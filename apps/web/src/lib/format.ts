@@ -74,3 +74,15 @@ export function monthLabel(month: string): string {
   const [y, m] = month.split('-').map(Number)
   return new Date(y, m - 1, 1).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
 }
+
+/** Texto escrito por el usuario («45,90») → decimal para la API, o null si no es válido. */
+export function parseAmountInput(text: string): string | null {
+  const t = text.trim().replace(/\s/g, '')
+  if (!/^\d{1,9}([.,]\d{1,2})?$/.test(t)) return null
+  return t.replace(',', '.')
+}
+
+/** División entera hacia arriba con BigInt. */
+export function ceilDiv(a: bigint, b: bigint): bigint {
+  return (a + b - 1n) / b
+}

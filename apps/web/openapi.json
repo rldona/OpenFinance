@@ -100,6 +100,100 @@
         "title": "Body_create_import_api_v1_imports_post",
         "type": "object"
       },
+      "BudgetIn": {
+        "properties": {
+          "amount": {
+            "examples": [
+              "550",
+              "550.00"
+            ],
+            "pattern": "^\\d{1,9}([.,]\\d{1,2})?$",
+            "title": "Amount",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount"
+        ],
+        "title": "BudgetIn",
+        "type": "object"
+      },
+      "BudgetOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "category_id": {
+            "format": "uuid",
+            "title": "Category Id",
+            "type": "string"
+          },
+          "percent": {
+            "title": "Percent",
+            "type": "integer"
+          },
+          "spent": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "status": {
+            "description": "ok, warning (≥ 85 %) u over (> 100 %)",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "category_id",
+          "amount",
+          "spent",
+          "percent",
+          "status"
+        ],
+        "title": "BudgetOut",
+        "type": "object"
+      },
+      "BudgetsOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "month": {
+            "title": "Month",
+            "type": "string"
+          },
+          "total_amount": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total_spent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "month",
+          "items",
+          "total_amount",
+          "total_spent"
+        ],
+        "title": "BudgetsOut",
+        "type": "object"
+      },
       "CategorizeIn": {
         "properties": {
           "category_id": {
@@ -190,6 +284,31 @@
           "average"
         ],
         "title": "CategoryAmountOut",
+        "type": "object"
+      },
+      "CategoryAverageOut": {
+        "properties": {
+          "average": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          }
+        },
+        "required": [
+          "category_id",
+          "average"
+        ],
+        "title": "CategoryAverageOut",
         "type": "object"
       },
       "CategoryDetailOut": {
@@ -388,6 +507,286 @@
         "title": "CountOut",
         "type": "object"
       },
+      "GoalIn": {
+        "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "pattern": "^(19|2\\d)\\d{2}-(0[1-9]|1[0-2])$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deadline"
+          },
+          "icon": {
+            "default": "🎯",
+            "maxLength": 8,
+            "minLength": 1,
+            "title": "Icon",
+            "type": "string"
+          },
+          "monthly": {
+            "default": "0",
+            "pattern": "^\\d{1,9}([.,]\\d{1,2})?$",
+            "title": "Monthly",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "saved": {
+            "default": "0",
+            "pattern": "^\\d{1,9}([.,]\\d{1,2})?$",
+            "title": "Saved",
+            "type": "string"
+          },
+          "target": {
+            "pattern": "^\\d{1,9}([.,]\\d{1,2})?$",
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "target"
+        ],
+        "title": "GoalIn",
+        "type": "object"
+      },
+      "GoalOut": {
+        "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deadline"
+          },
+          "eta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eta"
+          },
+          "icon": {
+            "title": "Icon",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "monthly": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "months_to_go": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Months To Go"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "needed_monthly": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "on_track": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On Track"
+          },
+          "progress": {
+            "title": "Progress",
+            "type": "integer"
+          },
+          "remaining": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "saved": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Lo ahorrado (saldo de la hucha si está vinculada)"
+          },
+          "target": {
+            "$ref": "#/components/schemas/MoneyOut"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "icon",
+          "target",
+          "monthly",
+          "saved",
+          "deadline",
+          "account_id",
+          "remaining",
+          "progress",
+          "months_to_go",
+          "eta",
+          "needed_monthly",
+          "on_track"
+        ],
+        "title": "GoalOut",
+        "type": "object"
+      },
+      "GoalPatch": {
+        "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "clear_account": {
+            "default": false,
+            "title": "Clear Account",
+            "type": "boolean"
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "pattern": "^$|^(19|2\\d)\\d{2}-(0[1-9]|1[0-2])$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "AAAA-MM; vacío para quitarla",
+            "title": "Deadline"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "maxLength": 8,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
+          },
+          "monthly": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{1,9}([.,]\\d{1,2})?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "saved": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{1,9}([.,]\\d{1,2})?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saved"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{1,9}([.,]\\d{1,2})?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          }
+        },
+        "title": "GoalPatch",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -441,6 +840,55 @@
           "currency"
         ],
         "title": "HouseholdOut",
+        "type": "object"
+      },
+      "IdeaOut": {
+        "properties": {
+          "assumption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assumption"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "evidence": {
+            "title": "Evidence",
+            "type": "string"
+          },
+          "icon": {
+            "title": "Icon",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "yearly_saving": {
+            "$ref": "#/components/schemas/MoneyOut"
+          }
+        },
+        "required": [
+          "id",
+          "icon",
+          "title",
+          "detail",
+          "yearly_saving",
+          "evidence",
+          "assumption"
+        ],
+        "title": "IdeaOut",
         "type": "object"
       },
       "ImportPreviewOut": {
@@ -963,6 +1411,80 @@
         "title": "PreviewRowOut",
         "type": "object"
       },
+      "PriceChangeOut": {
+        "properties": {
+          "after": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "before": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "month": {
+            "title": "Month",
+            "type": "string"
+          }
+        },
+        "required": [
+          "month",
+          "before",
+          "after"
+        ],
+        "title": "PriceChangeOut",
+        "type": "object"
+      },
+      "RecurringOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/PriceChangeOut"
+            },
+            "title": "Changes",
+            "type": "array"
+          },
+          "first_amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "last_date": {
+            "format": "date",
+            "title": "Last Date",
+            "type": "string"
+          },
+          "merchant": {
+            "title": "Merchant",
+            "type": "string"
+          },
+          "months": {
+            "title": "Months",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "merchant",
+          "category_id",
+          "amount",
+          "first_amount",
+          "last_date",
+          "months",
+          "changes"
+        ],
+        "title": "RecurringOut",
+        "type": "object"
+      },
       "RuleOut": {
         "properties": {
           "category_id": {
@@ -980,6 +1502,76 @@
           "category_id"
         ],
         "title": "RuleOut",
+        "type": "object"
+      },
+      "SavingsOverviewOut": {
+        "properties": {
+          "average_saved": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "averages": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryAverageOut"
+            },
+            "title": "Averages",
+            "type": "array"
+          },
+          "goals": {
+            "items": {
+              "$ref": "#/components/schemas/GoalOut"
+            },
+            "title": "Goals",
+            "type": "array"
+          },
+          "ideas": {
+            "items": {
+              "$ref": "#/components/schemas/IdeaOut"
+            },
+            "title": "Ideas",
+            "type": "array"
+          },
+          "month": {
+            "description": "Mes en curso según el servidor",
+            "title": "Month",
+            "type": "string"
+          },
+          "months": {
+            "description": "Meses completos usados para las medias",
+            "items": {
+              "type": "string"
+            },
+            "title": "Months",
+            "type": "array"
+          },
+          "recurring": {
+            "items": {
+              "$ref": "#/components/schemas/RecurringOut"
+            },
+            "title": "Recurring",
+            "type": "array"
+          },
+          "recurring_total": {
+            "$ref": "#/components/schemas/MoneyOut"
+          }
+        },
+        "required": [
+          "month",
+          "months",
+          "average_saved",
+          "averages",
+          "recurring",
+          "recurring_total",
+          "ideas",
+          "goals"
+        ],
+        "title": "SavingsOverviewOut",
         "type": "object"
       },
       "SkippedRowOut": {
@@ -1402,6 +1994,144 @@
         ]
       }
     },
+    "/api/v1/budgets": {
+      "get": {
+        "description": "Presupuestos mensuales con lo gastado en el mes (conjunta y huchas).",
+        "operationId": "list_budgets_api_v1_budgets_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(19|2\\d)\\d{2}-(0[1-9]|1[0-2])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Budgets",
+        "tags": [
+          "savings"
+        ]
+      }
+    },
+    "/api/v1/budgets/{category_id}": {
+      "delete": {
+        "operationId": "delete_budget_api_v1_budgets__category_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "category_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Category Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Budget",
+        "tags": [
+          "savings"
+        ]
+      },
+      "put": {
+        "operationId": "set_budget_api_v1_budgets__category_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "category_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Category Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BudgetIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Budget",
+        "tags": [
+          "savings"
+        ]
+      }
+    },
     "/api/v1/categories": {
       "get": {
         "operationId": "list_categories_api_v1_categories_get",
@@ -1517,6 +2247,157 @@
         "summary": "Update Category",
         "tags": [
           "categories"
+        ]
+      }
+    },
+    "/api/v1/goals": {
+      "get": {
+        "operationId": "list_goals_api_v1_goals_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GoalOut"
+                  },
+                  "title": "Response List Goals Api V1 Goals Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Goals",
+        "tags": [
+          "savings"
+        ]
+      },
+      "post": {
+        "operationId": "create_goal_api_v1_goals_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoalIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Goal",
+        "tags": [
+          "savings"
+        ]
+      }
+    },
+    "/api/v1/goals/{goal_id}": {
+      "delete": {
+        "operationId": "delete_goal_api_v1_goals__goal_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "goal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Goal Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Goal",
+        "tags": [
+          "savings"
+        ]
+      },
+      "patch": {
+        "operationId": "update_goal_api_v1_goals__goal_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "goal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Goal Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoalPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Goal",
+        "tags": [
+          "savings"
         ]
       }
     },
@@ -1835,6 +2716,28 @@
         "summary": "Get Meta",
         "tags": [
           "meta"
+        ]
+      }
+    },
+    "/api/v1/savings/overview": {
+      "get": {
+        "description": "Todo lo de la pantalla Ahorrar: medias, cuotas, ideas y objetivos.",
+        "operationId": "overview_api_v1_savings_overview_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavingsOverviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Overview",
+        "tags": [
+          "savings"
         ]
       }
     },

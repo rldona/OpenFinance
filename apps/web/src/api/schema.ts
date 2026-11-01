@@ -55,6 +55,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/budgets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Budgets
+         * @description Presupuestos mensuales con lo gastado en el mes (conjunta y huchas).
+         */
+        get: operations["list_budgets_api_v1_budgets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/budgets/{category_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set Budget */
+        put: operations["set_budget_api_v1_budgets__category_id__put"];
+        post?: never;
+        /** Delete Budget */
+        delete: operations["delete_budget_api_v1_budgets__category_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/categories": {
         parameters: {
             query?: never;
@@ -91,6 +129,42 @@ export interface paths {
          * @description Renombrar, cambiar icono o color, u ocultar. Las categorías no se borran.
          */
         patch: operations["update_category_api_v1_categories__category_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/goals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Goals */
+        get: operations["list_goals_api_v1_goals_get"];
+        put?: never;
+        /** Create Goal */
+        post: operations["create_goal_api_v1_goals_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/goals/{goal_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Goal */
+        delete: operations["delete_goal_api_v1_goals__goal_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Goal */
+        patch: operations["update_goal_api_v1_goals__goal_id__patch"];
         trace?: never;
     };
     "/api/v1/imports": {
@@ -227,6 +301,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/savings/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Overview
+         * @description Todo lo de la pantalla Ahorrar: medias, cuotas, ideas y objetivos.
+         */
+        get: operations["overview_api_v1_savings_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/transactions": {
         parameters: {
             query?: never;
@@ -343,6 +437,41 @@ export interface components {
              */
             file: string;
         };
+        /** BudgetIn */
+        BudgetIn: {
+            /**
+             * Amount
+             * @example 550
+             * @example 550.00
+             */
+            amount: string;
+        };
+        /** BudgetOut */
+        BudgetOut: {
+            amount: components["schemas"]["MoneyOut"];
+            /**
+             * Category Id
+             * Format: uuid
+             */
+            category_id: string;
+            /** Percent */
+            percent: number;
+            spent: components["schemas"]["MoneyOut"];
+            /**
+             * Status
+             * @description ok, warning (≥ 85 %) u over (> 100 %)
+             */
+            status: string;
+        };
+        /** BudgetsOut */
+        BudgetsOut: {
+            /** Items */
+            items: components["schemas"]["BudgetOut"][];
+            /** Month */
+            month: string;
+            total_amount: components["schemas"]["MoneyOut"] | null;
+            total_spent: components["schemas"]["MoneyOut"] | null;
+        };
         /** CategorizeIn */
         CategorizeIn: {
             /** Category Id */
@@ -369,6 +498,12 @@ export interface components {
              * Category Id
              * @description None = sin categoría
              */
+            category_id: string | null;
+        };
+        /** CategoryAverageOut */
+        CategoryAverageOut: {
+            average: components["schemas"]["MoneyOut"];
+            /** Category Id */
             category_id: string | null;
         };
         /** CategoryDetailOut */
@@ -435,6 +570,87 @@ export interface components {
             /** Count */
             count: number;
         };
+        /** GoalIn */
+        GoalIn: {
+            /** Account Id */
+            account_id?: string | null;
+            /** Deadline */
+            deadline?: string | null;
+            /**
+             * Icon
+             * @default 🎯
+             */
+            icon: string;
+            /**
+             * Monthly
+             * @default 0
+             */
+            monthly: string;
+            /** Name */
+            name: string;
+            /**
+             * Saved
+             * @default 0
+             */
+            saved: string;
+            /** Target */
+            target: string;
+        };
+        /** GoalOut */
+        GoalOut: {
+            /** Account Id */
+            account_id: string | null;
+            /** Deadline */
+            deadline: string | null;
+            /** Eta */
+            eta: string | null;
+            /** Icon */
+            icon: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            monthly: components["schemas"]["MoneyOut"];
+            /** Months To Go */
+            months_to_go: number | null;
+            /** Name */
+            name: string;
+            needed_monthly: components["schemas"]["MoneyOut"] | null;
+            /** On Track */
+            on_track: boolean | null;
+            /** Progress */
+            progress: number;
+            remaining: components["schemas"]["MoneyOut"];
+            /** @description Lo ahorrado (saldo de la hucha si está vinculada) */
+            saved: components["schemas"]["MoneyOut"];
+            target: components["schemas"]["MoneyOut"];
+        };
+        /** GoalPatch */
+        GoalPatch: {
+            /** Account Id */
+            account_id?: string | null;
+            /**
+             * Clear Account
+             * @default false
+             */
+            clear_account: boolean;
+            /**
+             * Deadline
+             * @description AAAA-MM; vacío para quitarla
+             */
+            deadline?: string | null;
+            /** Icon */
+            icon?: string | null;
+            /** Monthly */
+            monthly?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Saved */
+            saved?: string | null;
+            /** Target */
+            target?: string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -458,6 +674,22 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+        };
+        /** IdeaOut */
+        IdeaOut: {
+            /** Assumption */
+            assumption: string | null;
+            /** Detail */
+            detail: string;
+            /** Evidence */
+            evidence: string;
+            /** Icon */
+            icon: string;
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            yearly_saving: components["schemas"]["MoneyOut"];
         };
         /** ImportPreviewOut */
         ImportPreviewOut: {
@@ -657,6 +889,31 @@ export interface components {
             /** Member Id */
             member_id: string | null;
         };
+        /** PriceChangeOut */
+        PriceChangeOut: {
+            after: components["schemas"]["MoneyOut"];
+            before: components["schemas"]["MoneyOut"];
+            /** Month */
+            month: string;
+        };
+        /** RecurringOut */
+        RecurringOut: {
+            amount: components["schemas"]["MoneyOut"];
+            /** Category Id */
+            category_id: string | null;
+            /** Changes */
+            changes: components["schemas"]["PriceChangeOut"][];
+            first_amount: components["schemas"]["MoneyOut"];
+            /**
+             * Last Date
+             * Format: date
+             */
+            last_date: string;
+            /** Merchant */
+            merchant: string;
+            /** Months */
+            months: number;
+        };
         /** RuleOut */
         RuleOut: {
             /**
@@ -666,6 +923,29 @@ export interface components {
             category_id: string;
             /** Merchant */
             merchant: string;
+        };
+        /** SavingsOverviewOut */
+        SavingsOverviewOut: {
+            average_saved: components["schemas"]["MoneyOut"] | null;
+            /** Averages */
+            averages: components["schemas"]["CategoryAverageOut"][];
+            /** Goals */
+            goals: components["schemas"]["GoalOut"][];
+            /** Ideas */
+            ideas: components["schemas"]["IdeaOut"][];
+            /**
+             * Month
+             * @description Mes en curso según el servidor
+             */
+            month: string;
+            /**
+             * Months
+             * @description Meses completos usados para las medias
+             */
+            months: string[];
+            /** Recurring */
+            recurring: components["schemas"]["RecurringOut"][];
+            recurring_total: components["schemas"]["MoneyOut"];
         };
         /** SkippedRowOut */
         SkippedRowOut: {
@@ -857,6 +1137,101 @@ export interface operations {
             };
         };
     };
+    list_budgets_api_v1_budgets_get: {
+        parameters: {
+            query?: {
+                month?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_budget_api_v1_budgets__category_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BudgetIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_budget_api_v1_budgets__category_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_categories_api_v1_categories_get: {
         parameters: {
             query?: never;
@@ -932,6 +1307,123 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CategoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_goals_api_v1_goals_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoalOut"][];
+                };
+            };
+        };
+    };
+    create_goal_api_v1_goals_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoalIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoalOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_goal_api_v1_goals__goal_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                goal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_goal_api_v1_goals__goal_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                goal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoalPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoalOut"];
                 };
             };
             /** @description Validation Error */
@@ -1144,6 +1636,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MetaResponse"];
+                };
+            };
+        };
+    };
+    overview_api_v1_savings_overview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavingsOverviewOut"];
                 };
             };
         };

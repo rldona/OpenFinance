@@ -15,6 +15,12 @@ export type CategorizeResult = Schemas['CategorizeOut']
 export type MonthOverview = Schemas['MonthOverviewOut']
 export type CategoryDetail = Schemas['CategoryDetailOut']
 export type Trends = Schemas['TrendsOut']
+export type Budgets = Schemas['BudgetsOut']
+export type Budget = Schemas['BudgetOut']
+export type Goal = Schemas['GoalOut']
+export type GoalInput = Schemas['GoalIn']
+export type GoalPatch = Schemas['GoalPatch']
+export type SavingsOverview = Schemas['SavingsOverviewOut']
 
 export const CSRF_HEADER = { 'X-Requested-With': 'OpenFinance' } as const
 
@@ -48,7 +54,7 @@ export function setUnauthorizedHandler(handler: (() => void) | null): void {
 type Query = Record<string, string | number | boolean | undefined | null>
 
 async function request<T>(
-  method: 'GET' | 'POST' | 'PATCH',
+  method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE',
   path: string,
   options: { query?: Query; json?: unknown; form?: FormData; signal?: AbortSignal } = {},
 ): Promise<T> {
@@ -111,6 +117,18 @@ export const api = {
     }),
   insightsTrends: (month: string, signal?: AbortSignal) =>
     request<Trends>('GET', '/api/v1/insights/trends', { query: { month, months: 12 }, signal }),
+  budgets: (month: string, signal?: AbortSignal) =>
+    request<Budgets>('GET', '/api/v1/budgets', { query: { month }, signal }),
+  setBudget: (categoryId: string, amount: string) =>
+    request<Budget>('PUT', `/api/v1/budgets/${encodeURIComponent(categoryId)}`, { json: { amount } }),
+  deleteBudget: (categoryId: string) => request<void>('DELETE', `/api/v1/budgets/${encodeURIComponent(categoryId)}`),
+  createGoal: (input: GoalInput) => request<Goal>('POST', '/api/v1/goals', { json: input }),
+  updateGoal: (id: string, patch: Partial<GoalPatch>) =>
+    request<Goal>('PATCH', `/api/v1/goals/${encodeURIComponent(id)}`, {
+      json: { clear_account: false, ...patch },
+    }),
+  deleteGoal: (id: string) => request<void>('DELETE', `/api/v1/goals/${encodeURIComponent(id)}`),
+  savingsOverview: (signal?: AbortSignal) => request<SavingsOverview>('GET', '/api/v1/savings/overview', { signal }),
   uncategorizedCount: (signal?: AbortSignal) =>
     request<{ count: number }>('GET', '/api/v1/transactions/uncategorized-count', { signal }),
 }

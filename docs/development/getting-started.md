@@ -41,6 +41,11 @@ Para ver los gráficos sin datos reales: `make demo` crea un hogar ficticio con 
 | `GET` | `/api/v1/insights/month?month=AAAA-MM` | Resumen del mes para «Este mes» |
 | `GET` | `/api/v1/insights/category?month=&category_id=` | Una categoría en 12 meses y sus comercios |
 | `GET` | `/api/v1/insights/trends?month=&months=12` | Evolución mensual |
+| `GET` | `/api/v1/budgets?month=` | Presupuestos con lo gastado y su estado |
+| `PUT` / `DELETE` | `/api/v1/budgets/{category_id}` | Poner o quitar el presupuesto de una categoría |
+| `GET` / `POST` | `/api/v1/goals` | Objetivos de ahorro con su proyección / crear uno |
+| `PATCH` / `DELETE` | `/api/v1/goals/{id}` | Actualizar o borrar un objetivo |
+| `GET` | `/api/v1/savings/overview` | Pantalla Ahorrar: medias, cuotas fijas, ideas y objetivos |
 
 Todas las peticiones que escriben (`POST`, `PUT`, `PATCH`, `DELETE`) deben llevar la cabecera `X-Requested-With: OpenFinance`; el cliente de la web la añade solo.
 

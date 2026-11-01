@@ -22,6 +22,7 @@ from openfinance.application.ports import PasswordHasher, UnitOfWork
 from openfinance.domain.categories import CategoryId
 from openfinance.domain.insights import Month
 from openfinance.domain.ledger import AccountKind, Institution, Transaction, TransactionKind
+from openfinance.domain.savings import Budget, Goal, GoalId
 from openfinance.domain.shared import Money
 from openfinance.domain.shared.ids import TransactionId, UserId
 
@@ -212,6 +213,31 @@ def create_demo(uow: UnitOfWork, hasher: PasswordHasher, today: date) -> DemoRes
 
     for t in rows:
         uow.transactions.add(t)
+
+    budgets = {
+        "vivienda": 78500, "super": 55000, "suministros": 18000, "restaurantes": 18000,
+        "transporte": 20000, "suscripciones": 6000, "salud": 11000, "ocio": 10000,
+        "ropa": 12000, "hogar": 10000,
+    }  # fmt: skip
+    for slug, cents in budgets.items():
+        uow.budgets.upsert(Budget(household.id, cats[slug], _cents(cents)))
+    holidays = Month(last.year + 1, 7) if last.month >= 7 else Month(last.year, 7)
+    for name, icon, target, saved, monthly, deadline in (
+        ("Fondo de emergencia", "🛟", 900000, 612000, 20000, None),
+        ("Vacaciones de verano", "🏖️", 250000, 88000, 10000, holidays),
+    ):
+        uow.goals.add(
+            Goal(
+                GoalId(uuid4()),
+                household.id,
+                name,
+                icon,
+                _cents(target),
+                _cents(monthly),
+                _cents(saved),
+                deadline,
+            )
+        )
     uow.commit()
     return DemoResult(
         household.name, DEMO_EMAILS, DEMO_PASSWORD, len(rows), (str(months[0]), str(last))

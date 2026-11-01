@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ACCOUNTS, CATEGORIES, ME, PREVIEW, TRANSACTIONS, mockApi } from '../test/api'
@@ -6,8 +6,14 @@ import { App } from './App'
 
 beforeEach(() => {
   window.location.hash = '#movimientos'
+  // Fecha fija: las pantallas parten del mes en curso y los datos simulados son de octubre.
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(2026, 9, 15, 12))
 })
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => {
+  vi.useRealTimers()
+  vi.restoreAllMocks()
+})
 
 const loggedIn = (extra: Parameters<typeof mockApi>[0] = {}) =>
   mockApi({
@@ -399,5 +405,222 @@ describe('Gráficos (fase 3)', () => {
     loggedIn({ 'GET /api/v1/insights/month': { body: { ...OVERVIEW, has_data: false } } })
     render(<App />)
     expect(await screen.findByText(/No hay movimientos de la cuenta conjunta/)).toBeInTheDocument()
+  })
+})
+
+const BUDGETS = {
+  month: '2026-10',
+  items: [
+    { category_id: 'c-super', amount: eur('550.00'), spent: eur('600.00'), percent: 109, status: 'over' },
+    { category_id: 'c-rest', amount: eur('350.00'), spent: eur('300.00'), percent: 86, status: 'warning' },
+  ],
+  total_amount: eur('900.00'),
+  total_spent: eur('900.00'),
+}
+
+const GOAL = {
+  id: 'g1',
+  name: 'Fondo de emergencia',
+  icon: '🛟',
+  target: eur('9000.00'),
+  monthly: eur('200.00'),
+  saved: eur('6120.00'),
+  deadline: null,
+  account_id: null,
+  remaining: eur('2880.00'),
+  progress: 68,
+  months_to_go: 15,
+  eta: '2028-01',
+  needed_monthly: null,
+  on_track: null,
+}
+
+const SAVINGS = {
+  month: '2026-10',
+  months: ['2026-08', '2026-09', '2026-10'],
+  average_saved: eur('588.03'),
+  averages: [
+    { category_id: 'c-super', average: eur('520.00') },
+    { category_id: 'c-rest', average: eur('216.00') },
+  ],
+  recurring: [
+    {
+      merchant: 'Netflix',
+      category_id: null,
+      amount: eur('17.99'),
+      first_amount: eur('13.99'),
+      last_date: '2026-10-12',
+      months: 12,
+      changes: [{ month: '2026-07', before: eur('13.99'), after: eur('17.99') }],
+    },
+  ],
+  recurring_total: eur('17.99'),
+  ideas: [
+    {
+      id: 'cut-restaurantes',
+      icon: '🍽️',
+      title: 'Restaurantes y comida a domicilio: 216,00 € al mes',
+      detail: 'Cambiar una cena fuera a la semana por cocinar en casa supone:',
+      yearly_saving: eur('648.00'),
+      evidence: '48 movimientos de los últimos 3 meses',
+      assumption: 'Estimación orientativa: -25 %',
+    },
+  ],
+  goals: [
+    GOAL,
+    {
+      ...GOAL,
+      id: 'g2',
+      name: 'Vacaciones',
+      icon: '🏖️',
+      target: eur('2500.00'),
+      saved: eur('880.00'),
+      monthly: eur('100.00'),
+      remaining: eur('1620.00'),
+      progress: 35,
+      deadline: '2027-07',
+      eta: '2028-03',
+      needed_monthly: eur('180.00'),
+      on_track: false,
+    },
+  ],
+}
+
+const CATS_WITH_SLUGS = [
+  ...CATEGORIES,
+  { id: 'c-ocio', name: 'Ocio', icon: '🎟️', color: '#0891b2', hidden: false, slug: 'ocio' },
+]
+
+describe('Ahorro (fase 4)', () => {
+  it('Este mes enseña los presupuestos y su línea en el ritmo de gasto', async () => {
+    window.location.hash = '#mes'
+    loggedIn({
+      // todo el gasto está presupuestado: se dibuja la línea del total
+      'GET /api/v1/insights/month': { body: { ...OVERVIEW, categories: OVERVIEW.categories.slice(0, 2) } },
+      'GET /api/v1/budgets': { body: BUDGETS },
+    })
+    render(<App />)
+    expect(await screen.findByText(/Presupuesto 900/)).toBeInTheDocument()
+    expect(screen.getByRole('meter', { name: 'Supermercado: 109 % del presupuesto' })).toBeInTheDocument()
+    expect(screen.getByText('600 € de 550 €').closest('li')).toHaveClass('budget-over')
+    expect(screen.getByText('300 € de 350 €').closest('li')).toHaveClass('budget-warning')
+    expect(screen.getByText(/86 % · cerca/)).toBeInTheDocument()
+    expect(screen.getByText(/109 % · pasado/)).toBeInTheDocument()
+  })
+
+  it('sin presupuesto para todo el gasto no dibuja la línea del total', async () => {
+    window.location.hash = '#mes'
+    loggedIn({
+      'GET /api/v1/insights/month': { body: OVERVIEW },
+      'GET /api/v1/budgets': { body: BUDGETS },
+    })
+    render(<App />)
+    expect(await screen.findByText('600 € de 550 €')).toBeInTheDocument()
+    expect(screen.queryByText(/Presupuesto 900/)).toBeNull()
+    expect(screen.getByRole('link', { name: 'Editar presupuestos' })).toHaveAttribute('href', '#presupuestos')
+  })
+
+  it('Presupuestos guarda, propone la media y quita límites', async () => {
+    window.location.hash = '#presupuestos'
+    const calls = loggedIn({
+      'GET /api/v1/categories': { body: CATS_WITH_SLUGS },
+      'GET /api/v1/budgets': { body: { ...BUDGETS, items: [BUDGETS.items[0]] } },
+      'GET /api/v1/savings/overview': { body: SAVINGS },
+      'PUT /api/v1/budgets/c-super': { body: BUDGETS.items[0] },
+      'PUT /api/v1/budgets/c-rest': { body: BUDGETS.items[1] },
+      'PUT /api/v1/budgets/c-ocio': { body: BUDGETS.items[1] },
+      'DELETE /api/v1/budgets/c-super': { status: 204 },
+    })
+    render(<App />)
+    const sup = await screen.findByLabelText('Presupuesto de Supermercado')
+    expect(sup).toHaveValue('550.00')
+    // la media de restaurantes (216 €) se redondea hacia arriba a 220 €
+    await userEvent.click(screen.getByRole('button', { name: /Usar 220/ }))
+    await userEvent.type(screen.getByLabelText('Presupuesto de Ocio'), '75,5{Enter}')
+    await userEvent.clear(sup)
+    sup.blur()
+    await waitFor(() => expect(calls.some((c) => c.method === 'DELETE')).toBe(true))
+    const writes = calls.filter((c) => c.method === 'PUT').map((c) => [c.url.pathname, JSON.parse(String(c.body))])
+    expect(writes).toEqual([
+      ['/api/v1/budgets/c-rest', { amount: '220.00' }],
+      ['/api/v1/budgets/c-ocio', { amount: '75.5' }],
+    ])
+  })
+
+  it('Ahorrar enseña objetivos, ideas y cuotas fijas', async () => {
+    window.location.hash = '#ahorrar'
+    loggedIn({
+      'GET /api/v1/categories': { body: CATS_WITH_SLUGS },
+      'GET /api/v1/savings/overview': { body: SAVINGS },
+    })
+    render(<App />)
+    expect(await screen.findByText(/Ahorráis de media/)).toHaveTextContent('588 €')
+    const fund = screen.getByRole('article', { name: 'Fondo de emergencia' })
+    expect(within(fund).getByRole('img', { name: 'Fondo de emergencia: 68 %' })).toBeInTheDocument()
+    expect(fund).toHaveTextContent('lo alcanzáis en enero de 2028')
+    const holidays = screen.getByRole('article', { name: 'Vacaciones' })
+    expect(holidays).toHaveTextContent('haría falta apartar 180 €/mes')
+    expect(screen.getByText('648 €/año')).toBeInTheDocument()
+    expect(screen.getByText(/13,99 € → 17,99 € en julio de 2026/)).toBeInTheDocument()
+  })
+
+  it('avisa cuando la fecha límite ya ha llegado', async () => {
+    window.location.hash = '#ahorrar'
+    const late = { ...GOAL, id: 'g3', name: 'Sofá', deadline: '2026-10', needed_monthly: null, on_track: false }
+    loggedIn({ 'GET /api/v1/savings/overview': { body: { ...SAVINGS, goals: [late] } } })
+    render(<App />)
+    const card = await screen.findByRole('article', { name: 'Sofá' })
+    expect(card).toHaveTextContent(/La fecha límite ya ha llegado y aún faltan 2880 €|2\.880 €/)
+  })
+
+  it('el simulador calcula el ahorro extra y adelanta el objetivo', async () => {
+    window.location.hash = '#ahorrar'
+    loggedIn({
+      'GET /api/v1/categories': {
+        body: [
+          { ...CATEGORIES[0], slug: 'super' },
+          { ...CATEGORIES[1], slug: 'restaurantes' },
+        ],
+      },
+      'GET /api/v1/savings/overview': { body: SAVINGS },
+    })
+    render(<App />)
+    // por defecto: restaurantes −25 % (54 €) y super −10 % (52 €) = 106 €/mes
+    const total = await screen.findByText(/Ahorro extra/)
+    const box = total.closest('.sim-total')!
+    expect(box).toHaveTextContent(/106 €\/mes · 1272 €\/año|106 €\/mes · 1\.272 €\/año/)
+    // 2880 € pendientes: 200 €/mes → 15 meses; 306 €/mes → 10 meses
+    expect(box).toHaveTextContent('(5 meses antes)')
+    fireEvent.change(screen.getByLabelText('Recorte en Restaurantes'), { target: { value: '50' } })
+    // 108 + 52 = 160 €/mes → 360 €/mes → 8 meses
+    expect(box).toHaveTextContent('160 €/mes')
+    expect(box).toHaveTextContent('(7 meses antes)')
+  })
+
+  it('crea y actualiza objetivos', async () => {
+    window.location.hash = '#ahorrar'
+    const calls = loggedIn({
+      'GET /api/v1/savings/overview': { body: SAVINGS },
+      'POST /api/v1/goals': { status: 201, body: GOAL },
+      'PATCH /api/v1/goals/g1': { body: GOAL },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: '+ Nuevo objetivo' }))
+    await userEvent.type(screen.getByLabelText('Nombre del objetivo'), 'Coche')
+    await userEvent.type(screen.getByLabelText('Meta'), '12000')
+    await userEvent.type(screen.getByLabelText('Al mes'), '250,50')
+    await userEvent.click(screen.getByRole('button', { name: 'Crear objetivo' }))
+    const fund = screen.getByRole('article', { name: 'Fondo de emergencia' })
+    await userEvent.click(within(fund).getByRole('button', { name: 'Actualizar' }))
+    const monthly = within(fund).getByDisplayValue('200.00')
+    await userEvent.clear(monthly)
+    await userEvent.type(monthly, '300')
+    await userEvent.click(within(fund).getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true))
+    const writes = calls.filter((c) => c.method !== 'GET').map((c) => [c.method, JSON.parse(String(c.body))])
+    expect(writes).toEqual([
+      ['POST', { name: 'Coche', icon: '🎯', target: '12000', monthly: '250.50', saved: '0', deadline: null }],
+      ['PATCH', { clear_account: false, monthly: '300', saved: '6120.00' }],
+    ])
   })
 })

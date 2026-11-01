@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ApiError, api, type MonthOverview } from '../../api/client'
+import { ApiError, api, type Budgets, type MonthOverview } from '../../api/client'
 import { useHousehold } from '../../app/household-context'
 import { Donut, LineChart, geometry } from '../../components/charts'
 import { centsToAmount, formatMoney, formatMoneyRounded, monthLabel, shortMonth, toCents } from '../../lib/format'
@@ -13,6 +13,14 @@ export function MonthPage() {
   const { me, month, uncategorized, setFocusCategory } = useHousehold()
   const meta = useCategoryMeta()
   const [result, setResult] = useState<{ month: string; data?: MonthOverview; error?: string } | null>(null)
+  const [budgets, setBudgets] = useState<Budgets | null>(null)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    // Los presupuestos son un complemento: si fallan, la pantalla sigue funcionando sin ellos.
+    api.budgets(month, controller.signal).then(setBudgets, () => undefined)
+    return () => controller.abort()
+  }, [month])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -55,6 +63,12 @@ export function MonthPage() {
 
   const days = Math.max(o.daily.length, o.previous_daily.length)
   const pad = (xs: string[]) => [...xs.map((x) => geometry(toCents(x))), ...Array<null>(days - xs.length).fill(null)]
+  const currentBudgets = budgets?.month === month ? budgets : null
+  // La línea de presupuesto total solo tiene sentido si cubre todo lo que se gasta.
+  const budgeted = new Set(currentBudgets?.items.map((b) => b.category_id) ?? [])
+  const budgetCoversSpending =
+    !!currentBudgets?.total_amount &&
+    o.categories.every((c) => toCents(c.amount.amount) <= 0n || (c.category_id !== null && budgeted.has(c.category_id)))
   const base = positive.reduce((s, c) => s + toCents(c.amount.amount), 0n)
   const share = (amount: string) => sharePercent(toCents(amount), base)
 
@@ -199,6 +213,14 @@ export function MonthPage() {
                 summary: formatMoney(o.spent),
               },
             ]}
+            reference={
+              budgetCoversSpending && currentBudgets?.total_amount
+                ? {
+                    value: geometry(toCents(currentBudgets.total_amount.amount)),
+                    label: `Presupuesto ${formatMoneyRounded(currentBudgets.total_amount)}`,
+                  }
+                : undefined
+            }
             xLabels={[
               [0, '1'],
               [9, '10'],
@@ -248,6 +270,51 @@ export function MonthPage() {
             })}
           </ul>
         </div>
+      </div>
+
+      <div className="card spaced-card">
+        <div className="page-head">
+          <h2>Presupuestos del mes</h2>
+          <a href="#presupuestos">{currentBudgets?.items.length ? 'Editar presupuestos' : 'Poner presupuestos'}</a>
+        </div>
+        {currentBudgets && currentBudgets.items.length === 0 && (
+          <p className="muted small">
+            Aún no tenéis presupuestos. Poned un límite mensual a las categorías que queráis vigilar.
+          </p>
+        )}
+        <ul className="plain budgets">
+          {currentBudgets?.items.map((b) => {
+            const m = meta(b.category_id)
+            return (
+              <li key={b.category_id} className={`budget budget-${b.status}`}>
+                <span className="ic" aria-hidden="true">
+                  {m.icon}
+                </span>
+                <span>
+                  <span className="name">
+                    <span>{m.name}</span>
+                    <span className="small">
+                      {formatMoneyRounded(b.spent)} de {formatMoneyRounded(b.amount)}
+                    </span>
+                  </span>
+                  <span
+                    className="track"
+                    role="meter"
+                    aria-label={`${m.name}: ${b.percent} % del presupuesto`}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={Math.min(b.percent, 100)}
+                  >
+                    <i style={{ width: `${Math.min(b.percent, 100)}%` }} />
+                  </span>
+                </span>
+                <span className="small num">
+                  {b.percent} %{b.status === 'over' ? ' · pasado' : b.status === 'warning' ? ' · cerca' : ''}
+                </span>
+              </li>
+            )
+          })}
+        </ul>
       </div>
     </section>
   )

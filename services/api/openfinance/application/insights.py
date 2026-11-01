@@ -33,14 +33,14 @@ MERCHANT_MONTHS = 3
 
 
 @dataclass(frozen=True, slots=True)
-class _Scope:
+class SharedScope:
     currency: Currency
     accounts: list[AccountId]
     first: Month | None
     """Primer mes con movimientos en las cuentas del hogar."""
 
 
-def _scope(uow: UnitOfWork, actor: Actor) -> _Scope:
+def shared_scope(uow: UnitOfWork, actor: Actor) -> SharedScope:
     household = uow.households.get(actor.household_id)
     if household is None:
         raise NotFoundError("Hogar no encontrado")
@@ -50,10 +50,10 @@ def _scope(uow: UnitOfWork, actor: Actor) -> _Scope:
         if a.kind in (AccountKind.JOINT, AccountKind.SAVINGS)
     ]
     first = uow.transactions.first_booked_at(actor.household_id, shared)
-    return _Scope(household.currency, shared, Month.of(first) if first else None)
+    return SharedScope(household.currency, shared, Month.of(first) if first else None)
 
 
-def _has_data(scope: _Scope, month: Month) -> bool:
+def has_data(scope: SharedScope, month: Month) -> bool:
     return scope.first is not None and month >= scope.first
 
 
@@ -86,7 +86,7 @@ class MonthOverview:
 
 
 def month_overview(uow: UnitOfWork, actor: Actor, month: Month, today: date) -> MonthOverview:
-    scope = _scope(uow, actor)
+    scope = shared_scope(uow, actor)
     start = month.shift(-HISTORY_MONTHS)
     txns = uow.transactions.in_range(actor.household_id, scope.accounts, start.start, month.end)
     months = by_month(txns)
@@ -94,7 +94,7 @@ def month_overview(uow: UnitOfWork, actor: Actor, month: Month, today: date) -> 
     now = months.get(month, [])
     prev_month = month.shift(-1)
     history = [
-        m for m in (month.shift(-i) for i in range(1, HISTORY_MONTHS + 1)) if _has_data(scope, m)
+        m for m in (month.shift(-i) for i in range(1, HISTORY_MONTHS + 1)) if has_data(scope, m)
     ]
     summary = summarize(now, cur)
     spent_history = [summarize(months.get(m, []), cur).spent for m in history]
@@ -114,14 +114,14 @@ def month_overview(uow: UnitOfWork, actor: Actor, month: Month, today: date) -> 
 
     is_partial = month == Month.of(today)
     days_elapsed = today.day if is_partial else month.days
-    prev_has_data = _has_data(scope, prev_month)
+    prev_has_data = has_data(scope, prev_month)
     previous_daily = (
         daily_cumulative_spent(months.get(prev_month, []), prev_month, cur) if prev_has_data else []
     )
     return MonthOverview(
         month=month,
         currency=cur,
-        has_data=_has_data(scope, month),
+        has_data=has_data(scope, month),
         summary=summary,
         previous_spent=previous_daily[-1] if previous_daily else None,
         is_partial=is_partial,
@@ -160,7 +160,7 @@ def category_detail(
 ) -> CategoryDetail:
     if category_id is not None and uow.categories.get(actor.household_id, category_id) is None:
         raise NotFoundError("Categoría no encontrada")
-    scope = _scope(uow, actor)
+    scope = shared_scope(uow, actor)
     cur = scope.currency
     first = month.shift(-(HISTORY_MONTHS - 1))
     txns = [
@@ -175,7 +175,7 @@ def category_detail(
         MonthAmount(
             m,
             spending_by_category(months.get(m, []), cur).get(category_id, Money.zero(cur)),
-            _has_data(scope, m),
+            has_data(scope, m),
         )
         for m in (first.shift(i) for i in range(HISTORY_MONTHS))
     ]
@@ -212,7 +212,7 @@ class Trends:
 
 
 def trends(uow: UnitOfWork, actor: Actor, month: Month, count: int = HISTORY_MONTHS) -> Trends:
-    scope = _scope(uow, actor)
+    scope = shared_scope(uow, actor)
     cur = scope.currency
     first = month.shift(-(count - 1))
     months = by_month(
@@ -221,7 +221,7 @@ def trends(uow: UnitOfWork, actor: Actor, month: Month, count: int = HISTORY_MON
     items = [
         TrendMonth(
             m,
-            _has_data(scope, m),
+            has_data(scope, m),
             summarize(months.get(m, []), cur),
             spending_by_category(months.get(m, []), cur),
         )

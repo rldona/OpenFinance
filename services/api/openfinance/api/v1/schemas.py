@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field
 
 from openfinance.application.imports import ImportPreview, ImportResult
+from openfinance.application.savings import BudgetView, GoalView
 from openfinance.domain.categories import Category, merchant_label
 from openfinance.domain.identity import User
 from openfinance.domain.ledger import (
@@ -346,3 +347,140 @@ class TrendsOut(BaseModel):
     saving_rate: int | None
     best: MonthSavedOut | None
     worst: MonthSavedOut | None
+
+
+AMOUNT_PATTERN = r"^\d{1,9}([.,]\d{1,2})?$"
+
+
+class BudgetIn(BaseModel):
+    amount: str = Field(pattern=AMOUNT_PATTERN, examples=["550", "550.00"])
+
+
+class BudgetOut(BaseModel):
+    category_id: UUID
+    amount: MoneyOut
+    spent: MoneyOut
+    percent: int
+    status: str = Field(description="ok, warning (≥ 85 %) u over (> 100 %)")
+
+    @classmethod
+    def of(cls, v: BudgetView) -> BudgetOut:
+        return cls(
+            category_id=v.budget.category_id,
+            amount=MoneyOut.of(v.budget.amount),
+            spent=MoneyOut.of(v.spent),
+            percent=v.percent,
+            status=v.status.value,
+        )
+
+
+class BudgetsOut(BaseModel):
+    month: str
+    items: list[BudgetOut]
+    total_amount: MoneyOut | None
+    total_spent: MoneyOut | None
+
+
+MONTH_PATTERN = r"^(19|2\d)\d{2}-(0[1-9]|1[0-2])$"
+
+
+class GoalIn(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
+    icon: str = Field(default="🎯", min_length=1, max_length=8)
+    target: str = Field(pattern=AMOUNT_PATTERN)
+    monthly: str = Field(default="0", pattern=AMOUNT_PATTERN)
+    saved: str = Field(default="0", pattern=AMOUNT_PATTERN)
+    deadline: str | None = Field(default=None, pattern=MONTH_PATTERN)
+    account_id: UUID | None = None
+
+
+class GoalPatch(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=60)
+    icon: str | None = Field(default=None, min_length=1, max_length=8)
+    target: str | None = Field(default=None, pattern=AMOUNT_PATTERN)
+    monthly: str | None = Field(default=None, pattern=AMOUNT_PATTERN)
+    saved: str | None = Field(default=None, pattern=AMOUNT_PATTERN)
+    deadline: str | None = Field(
+        default=None, pattern=r"^$|" + MONTH_PATTERN, description="AAAA-MM; vacío para quitarla"
+    )
+    account_id: UUID | None = None
+    clear_account: bool = False
+
+
+class GoalOut(BaseModel):
+    id: UUID
+    name: str
+    icon: str
+    target: MoneyOut
+    monthly: MoneyOut
+    saved: MoneyOut = Field(description="Lo ahorrado (saldo de la hucha si está vinculada)")
+    deadline: str | None
+    account_id: UUID | None
+    remaining: MoneyOut
+    progress: int
+    months_to_go: int | None
+    eta: str | None
+    needed_monthly: MoneyOut | None
+    on_track: bool | None
+
+    @classmethod
+    def of(cls, v: GoalView) -> GoalOut:
+        g, p = v.goal, v.projection
+        return cls(
+            id=g.id,
+            name=g.name,
+            icon=g.icon,
+            target=MoneyOut.of(g.target),
+            monthly=MoneyOut.of(g.monthly),
+            saved=MoneyOut.of(p.saved),
+            deadline=str(g.deadline) if g.deadline else None,
+            account_id=g.account_id,
+            remaining=MoneyOut.of(p.remaining),
+            progress=p.progress,
+            months_to_go=p.months_to_go,
+            eta=str(p.eta) if p.eta else None,
+            needed_monthly=MoneyOut.of(p.needed_monthly) if p.needed_monthly else None,
+            on_track=p.on_track,
+        )
+
+
+class PriceChangeOut(BaseModel):
+    month: str
+    before: MoneyOut
+    after: MoneyOut
+
+
+class RecurringOut(BaseModel):
+    merchant: str
+    category_id: UUID | None
+    amount: MoneyOut
+    first_amount: MoneyOut
+    last_date: date
+    months: int
+    changes: list[PriceChangeOut]
+
+
+class IdeaOut(BaseModel):
+    id: str
+    icon: str
+    title: str
+    detail: str
+    yearly_saving: MoneyOut
+    evidence: str
+    assumption: str | None
+
+
+class CategoryAverageOut(BaseModel):
+    category_id: UUID | None
+    average: MoneyOut
+
+
+class SavingsOverviewOut(BaseModel):
+    month: str = Field(description="Mes en curso según el servidor")
+    months: list[str] = Field(description="Meses completos usados para las medias")
+    average_saved: MoneyOut | None
+    averages: list[CategoryAverageOut]
+    recurring: list[RecurringOut]
+    recurring_total: MoneyOut
+    ideas: list[IdeaOut]
+    goals: list[GoalOut]

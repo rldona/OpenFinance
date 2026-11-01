@@ -12,7 +12,7 @@ Un ticket está terminado cuando cumple sus criterios de aceptación, tiene test
 | 1 · Datos | Meter los movimientos reales de Revolut (conjunta) y Bankinter (personales) | OF-101 … OF-107 | 🚧 OF-101 a 103, 105 y 106 ✅ · OF-104 y 107 esperan extractos reales |
 | 2 · Categorías | Que cada gasto tenga su categoría casi sin esfuerzo | OF-201 … OF-203 | ✅ Hecha |
 | 3 · Gráficos | Este mes, ¿En qué gastamos? y Evolución | OF-301 … OF-305 | ✅ Hecha |
-| 4 · Ahorro | Presupuestos, objetivos, ideas y simulador | OF-401 … OF-405 | Pendiente |
+| 4 · Ahorro | Presupuestos, objetivos, ideas y simulador | OF-401 … OF-405 | ✅ Hecha |
 | 5 · Uso real | Instalado en casa, con copias de seguridad | OF-501 … OF-504 | Pendiente |
 
 **Hito v0.1:** fin de la fase 5, con al menos un mes de uso real con vuestros datos.
@@ -164,27 +164,31 @@ El Core calcula y el frontend solo pinta. Los totales del hogar usan solo la con
 
 ## Fase 4 · Ahorro
 
-### OF-401 · Presupuestos
-Límite mensual por categoría, con avisos al 85 % y al 100 %.
-- 🧪 El porcentaje consumido usa solo gastos de esa categoría y ese mes.
+### OF-401 · Presupuestos ✅
+- ✅ Límite mensual por categoría (`GET /api/v1/budgets?month=`, `PUT/DELETE /api/v1/budgets/{category_id}`), con aviso al 85 % («cerca») y al pasarse («pasado»).
+- ✅ 🧪 El porcentaje usa solo gastos de esa categoría y ese mes, de la conjunta y las huchas. Se redondea hacia abajo y el estado se decide con los importes exactos.
+- ✅ «Este mes» muestra las barras de presupuesto. La línea de presupuesto total en el ritmo de gasto solo aparece si todo lo gastado tiene presupuesto.
+- ✅ Pantalla **Presupuestos** (`#presupuestos`) con vuestra media de cada categoría y un botón para usarla, redondeada hacia arriba a decenas.
 
-### OF-402 · Objetivos de ahorro
-Nombre, meta, ahorrado y aportación mensual; calcula la fecha estimada.
-- Lo ahorrado puede ir ligado al saldo de la cuenta de ahorro o introducirse a mano.
+### OF-402 · Objetivos de ahorro ✅
+- ✅ Nombre, icono, meta, ahorrado (a mano o el saldo de una hucha vinculada), aportación mensual y fecha límite opcional (`/api/v1/goals`).
+- ✅ Proyección: progreso, meses que faltan, fecha estimada y, con fecha límite, lo que haría falta apartar al mes y si se llega a tiempo.
+- ✅ Solo se pueden vincular huchas del propio hogar (nunca cuentas personales ni de otro hogar).
 
-### OF-403 · Cargos recurrentes
-- Detección de suscripciones y cuotas (mismo comercio, periodicidad mensual e importe estable) y de sus subidas de precio.
-- 🧪 Detecta la subida de Netflix del conjunto de datos de prueba.
+### OF-403 · Cargos recurrentes ✅
+- ✅ Detecta cuotas: mismo comercio en al menos 3 meses (≥ 75 % del periodo), sin más de 2 cargos al mes, importe que se repite (±1 %) y activas en los últimos 45 días. Una cuota cobrada en dos veces cuenta como una.
+- ✅ Importe y subidas de precio calculados con meses completos (el mes en curso solo confirma que sigue activa).
+- ✅ 🧪 Detecta la subida de Netflix del conjunto de datos de prueba.
 
-### OF-404 · Ideas de ahorro
-Ideas deterministas, sin IA, cada una con la cifra que la respalda (movimientos y periodo).
-- Primeras ideas: suscripciones, restaurantes, frecuencia de compra en el supermercado y variación de la luz.
-- Los porcentajes de mejora son configurables y se muestran como estimación.
-- Depende de: OF-301, OF-403.
+### OF-404 · Ideas de ahorro ✅
+- ✅ Ideas deterministas, sin IA, cada una con su respaldo (movimientos y periodo) y la estimación en la que se basa:
+  - cuotas que han subido de precio;
+  - suscripciones;
+  - restaurantes (−25 %), supermercado (−10 %) y suministros (−10 %).
+- ✅ Medias solo con meses completos: se excluye el mes en curso y el primer mes importado si empieza a mitad de mes. Sin meses completos no se proyecta nada.
 
-### OF-405 · Simulador de recortes
-- Deslizadores por categoría que calculan el ahorro extra al mes y al año y cuánto se adelanta la fecha del objetivo.
-- Depende de: OF-301, OF-402.
+### OF-405 · Simulador de recortes ✅
+- ✅ Deslizadores por categoría que calculan el ahorro extra al mes y al año (céntimos exactos con BigInt) y cuántos meses antes se alcanza el primer objetivo pendiente.
 
 ---
 
