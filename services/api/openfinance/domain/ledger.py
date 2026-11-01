@@ -32,6 +32,9 @@ class AccountKind(StrEnum):
     """Hucha o cuenta de ahorro del hogar: la ven todos los miembros."""
 
 
+MAX_NOTE = 500
+
+
 class TransactionKind(StrEnum):
     """Qué significa un movimiento para el hogar (ADR-0012)."""
 
@@ -94,6 +97,10 @@ class Transaction:
     """Importación de la que procede, si viene de un extracto."""
     merchant: str = ""
     """Comercio normalizado; se calcula a partir del concepto si no se indica."""
+    note: str = ""
+    """Nota de quien corrige el movimiento (OF-701)."""
+    voided: bool = False
+    """Anulado (borrado o importación deshecha): no cuenta en nada, pero no se borra (ADR-0017)."""
 
     def __post_init__(self) -> None:
         if self.kind is TransactionKind.CONTRIBUTION and self.member_id is None:
@@ -102,6 +109,8 @@ class Transaction:
             raise LedgerError("Solo las aportaciones indican persona")
         if self.amount.is_zero:
             raise LedgerError("Un movimiento no puede ser de importe cero")
+        if len(self.note) > MAX_NOTE or not self.note.isprintable():
+            raise LedgerError(f"La nota no puede superar {MAX_NOTE} caracteres ni llevar saltos")
         if self.category_id is not None and self.kind is not TransactionKind.EXPENSE:
             raise LedgerError("Solo los gastos tienen categoría")
         if not self.merchant:

@@ -15,7 +15,7 @@ Un ticket está terminado cuando cumple sus criterios de aceptación, tiene test
 | 4 · Ahorro | Presupuestos, objetivos, ideas y simulador | OF-401 … OF-405 | ✅ Hecha |
 | 5 · Uso real | Instalado en casa, con copias de seguridad | OF-501 … OF-504 | ✅ OF-501 a OF-503 (CI en verde, también `compose-e2e`) · OF-504 preparado: falta la etiqueta `v0.1.0` tras el mes de uso real |
 | 6 · Datos fiables | Que cualquier extracto real se importe sin errores ni entradas infladas | OF-601 … OF-608 | ✅ Hecha · falta reconocer los traspasos internos de OF-602 (pendiente de un extracto real) |
-| 7 · Corregir sin miedo | Editar, deshacer y ajustar desde la web, con historial | OF-701 … OF-706 | Pendiente |
+| 7 · Corregir sin miedo | Editar, deshacer y ajustar desde la web, con historial | OF-701 … OF-706 | 🚧 En curso · base del registro ✅ · OF-701 ✅ |
 | 8 · Uso diario | Móvil, PWA, accesibilidad y mes en curso honesto (v0.2) | OF-801 … OF-806 | Pendiente |
 | 9 · Operación | Copias cifradas, dependencias y actualizaciones (v0.2) | OF-901 … OF-907 | Pendiente |
 | 10 – 17 | Del libro contable completo a la 1.0 | OF-1001 … OF-1705 | Ver [Después de v0.2](#después-de-v02) |
@@ -322,10 +322,50 @@ Una verificación de tarjeta a 0,00 € pasaba la vista previa, pero al confirma
 
 ## Fase 7 · Corregir sin miedo
 
-Que cualquier error de datos se arregle desde la web, quede trazado y se pueda deshacer. Se hace durante el mes de uso real; al terminarla se etiqueta `v0.1.0`.
+Que cualquier error de datos se arregle desde la web, quede trazado y se pueda deshacer. Se hace durante el mes de uso real; al terminarla se etiqueta `v0.1.0`. Cada ticket lleva sus tests negativos de privacidad (la pareja y otro hogar).
 
-| ID | Ticket | Tamaño |
-| --- | --- | --- |
+**Decisión de diseño ([ADR-0017](../adr/0017-registro-de-cambios.md)):** el registro general de OF-706 se construye primero y OF-701 lo usa desde el principio, en lugar de crear `transaction_corrections` y migrarlo después. Nada se borra: anular un movimiento es `voided = true`, con su entrada en el registro.
+
+### Base del registro de cambios (de OF-706) ✅
+- ✅ Tablas `change_operations` (autor, fecha, tipo, resumen, deshecha) y `change_entries` (entidad, campo, antes y después en JSON). Migración `0007_change_log`, que añade también `note` y `voided` a los movimientos.
+- ✅ Todas las consultas de movimientos ignoran los anulados: listados, totales, gráficos, saldos, huellas y exportación.
+- ✅ `POST /api/v1/changes/{id}/undo` y `/redo`: solo las operaciones propias (las de la pareja dan 404). Deshacer pone el valor anterior solo donde el actual sigue siendo el que dejó la operación; lo que alguien cambió después se respeta y la respuesta dice quién fue.
+- ✅ 🧪 Propiedad: para 12 secuencias aleatorias de correcciones de las dos personas, deshacer todas en orden inverso devuelve el estado inicial.
+
+### OF-701 · Editar tipo, persona y nota de un movimiento, con historial ✅
+- ✅ `PATCH /api/v1/transactions/{id}` acepta `kind`, `member_id`, `note` y `category_id` (solo cambia lo que se envía), con las invariantes del dominio: persona solo en aportaciones y del mismo hogar, categoría solo en gastos. Un movimiento que deja de ser gasto pierde su categoría, y el cambio queda registrado.
+- ✅ El importe, la fecha, el concepto y la huella nunca cambian.
+- ✅ `GET /api/v1/transactions/{id}/history`: quién, cuándo y qué («Bizum de E M: Ingreso → Aportación de Elena»).
+- ✅ En Movimientos, el concepto abre el detalle: tipo, persona, nota e historial. Cada corrección avisa con «Deshacer» durante 8 s.
+- ✅ 🧪 La pareja no puede editar ni ver el historial de una cuenta personal ajena (404), ni otro hogar; ✅ 🧪 corregir un ingreso a aportación cambia las entradas del mes; ✅ 🧪 cada corrección deja una fila de historial con su autor.
+
+### OF-702 · Reglas visibles: confirmar, deshacer y gestionar
+- Al categorizar, un aviso con «Deshacer» durante 8 s que dice cuántos movimientos ha clasificado la regla; deshacer los revierte.
+- Los Bizum y las transferencias a personas no aprenden reglas por defecto.
+- Pantalla Reglas (`GET/DELETE /api/v1/rules`): comercio, categoría, cuántos movimientos clasifica y si es personal o del hogar.
+- 🧪 Deshacer devuelve a «sin categoría» solo los movimientos que la regla había clasificado; 🧪 la pareja no ve las reglas personales del otro.
+
+### OF-703 · Historial de importaciones y deshacer una importación
+- Lista de importaciones: archivo, cuenta, quién, cuándo, nuevos, duplicados y descartados.
+- «Deshacer importación», con confirmación en la propia pantalla: anula sus movimientos (con registro) si es la última de esa cuenta.
+- 🧪 Deshacer y volver a importar el mismo archivo da el mismo resultado; 🧪 no se puede deshacer una importación de la cuenta personal de la pareja.
+
+### OF-704 · Ajustes: cuenta propia, sesiones y recargas de la conjunta
+- Cambiar la contraseña (pide la actual) y «Cerrar todas mis sesiones».
+- «Recargas de la conjunta»: cada persona guarda su `*NNNN` desde la web (revisa ADR-0015). Importar en la conjunta avisa de forma bloqueante si alguna persona no lo tiene.
+- Entradas visibles a Categorías, Presupuestos y Reglas.
+- 🧪 Cambiar la contraseña revoca las demás sesiones; 🧪 una persona no puede editar los patrones de la otra.
+
+### OF-705 · Clasificar varios a la vez y movimientos de efectivo
+- Selección múltiple en «Solo sin categoría» → «Poner categoría», sin aprender reglas y como una sola operación.
+- Alta manual de un gasto (efectivo), con procedencia `manual` y su historial.
+- 🧪 Un movimiento manual cuenta en los totales y se puede borrar, dejando registro; los importados no se borran.
+
+### OF-706 · Registro de cambios con deshacer y rehacer
+- Lo que falta sobre la base: pantalla «Mis cambios» con deshacer y rehacer, y que reglas, importaciones y movimientos manuales escriban en el registro.
+- 🧪 Deshacer no expone datos de una cuenta personal ajena.
+
+--- | --- | --- |
 | OF-701 | Editar tipo, persona y nota de un movimiento, con historial de correcciones (`transaction_corrections`) | L |
 | OF-702 | Reglas visibles: aviso con «Deshacer», pantalla Reglas (`GET/DELETE /api/v1/rules`), los Bizum no aprenden reglas | M |
 | OF-703 | Historial de importaciones y deshacer una importación (anulación trazada, nunca borrado silencioso) | M |
@@ -368,11 +408,11 @@ Inspirado en Wallet, Spendee, Fintonic y Actual Budget. Cada fase empieza con su
 
 | Fase | Versión | Qué consigue | Tickets | Esfuerzo |
 | --- | --- | --- | --- | --- |
-| 10 · Libro contable completo | v0.3 | ADR-0017 (nuevo alcance), comercios con renombrar y fusionar, dividir movimientos, traspasos enlazados, conciliación, efectivo, tarjeta, préstamo e inversión, varias monedas (ADR-0018), etiquetas, notas y adjuntos | OF-1001 … OF-1008 | 8 semanas |
-| 11 · Reglas e importación universal | v0.4 | Motor de reglas con condiciones, acciones y fases (ADR-0019), vista previa y aplicar a lo existente, OFX, QIF y CAMT.053, CSV de cualquier banco con perfiles | OF-1101 … OF-1105 | 5 semanas |
-| 12 · Planificar | v0.5 | Pagos programados (ADR-0020), previsión de saldo, presupuestos con límites o sobres y arrastre (ADR-0021), plantillas, «hoy podéis gastar», objetivos v2 | OF-1201 … OF-1206 | 7 semanas |
-| 13 · Alertas | v0.6 | Avisos deterministas (comisiones, duplicados, recibos que suben…), notificaciones Web Push o ntfy (ADR-0022), resumen semanal | OF-1301 … OF-1303 | 4 semanas |
-| 14 · Conexión con el banco | v0.7 | Agregador PSD2 con cuenta propia (ADR-0023), sincronización por la misma tubería que la importación, consentimientos y conciliación automática | OF-1401 … OF-1404 | 6 semanas |
+| 10 · Libro contable completo | v0.3 | ADR-0018 (nuevo alcance), comercios con renombrar y fusionar, dividir movimientos, traspasos enlazados, conciliación, efectivo, tarjeta, préstamo e inversión, varias monedas (ADR-0019), etiquetas, notas y adjuntos | OF-1001 … OF-1008 | 8 semanas |
+| 11 · Reglas e importación universal | v0.4 | Motor de reglas con condiciones, acciones y fases (ADR-0020), vista previa y aplicar a lo existente, OFX, QIF y CAMT.053, CSV de cualquier banco con perfiles | OF-1101 … OF-1105 | 5 semanas |
+| 12 · Planificar | v0.5 | Pagos programados (ADR-0021), previsión de saldo, presupuestos con límites o sobres y arrastre (ADR-0022), plantillas, «hoy podéis gastar», objetivos v2 | OF-1201 … OF-1206 | 7 semanas |
+| 13 · Alertas | v0.6 | Avisos deterministas (comisiones, duplicados, recibos que suben…), notificaciones Web Push o ntfy (ADR-0023), resumen semanal | OF-1301 … OF-1303 | 4 semanas |
+| 14 · Conexión con el banco | v0.7 | Agregador PSD2 con cuenta propia (ADR-0024), sincronización por la misma tubería que la importación, consentimientos y conciliación automática | OF-1401 … OF-1404 | 6 semanas |
 | 15 · Informes y patrimonio | v0.8 | Patrimonio neto, flujo de caja, informes a medida y exportación v2 | OF-1501 … OF-1504 | 4 semanas |
 | 16 · Hogar ampliado | v0.9 | Más personas con roles mínimos (ADR-0002), reparto de gastos (ADR-0011), viajes y eventos | OF-1601 … OF-1603 | 5 semanas |
 | 17 · Plataforma 1.0 | v1.0 | API con tokens, servidor MCP de lectura, asistente con aprobación (ADR-0004, ADR-0005), auditoría externa de seguridad | OF-1701 … OF-1705 | 6 semanas |

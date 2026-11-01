@@ -19,6 +19,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
+from sqlalchemy import false as sa_false
 from sqlalchemy.orm import Mapped, mapped_column
 
 from openfinance.infrastructure.db.base import Base
@@ -119,6 +120,8 @@ class TransactionRow(Base):
     source: Mapped[str] = mapped_column(String(200), default="manual")
     fingerprint: Mapped[str | None] = mapped_column(String(64))
     import_id: Mapped[UUID | None] = mapped_column(ForeignKey("import_batches.id"), index=True)
+    note: Mapped[str] = mapped_column(String(500), default="", server_default="")
+    voided: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa_false())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -253,3 +256,45 @@ class SessionRow(Base):
     household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ChangeOperationRow(Base):
+    """Una acción de una persona en el registro de cambios (ADR-0017)."""
+
+    __tablename__ = "change_operations"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["household_id", "actor_id"],
+            ["memberships.household_id", "memberships.user_id"],
+            name="fk_change_operations_actor_membership",
+        ),
+        Index("ix_change_operations_household_actor", "household_id", "actor_id", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    actor_id: Mapped[UUID] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    action: Mapped[str] = mapped_column(String(40))
+    summary: Mapped[str] = mapped_column(String(200))
+    undone_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    undone_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
+
+
+class ChangeEntryRow(Base):
+    __tablename__ = "change_entries"
+    __table_args__ = (
+        Index("ix_change_entries_entity", "entity", "entity_id"),
+        CheckConstraint("entity IN ('transaction', 'rule', 'import')", name="entity_valid"),
+    )
+
+    operation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("change_operations.id", ondelete="CASCADE"), primary_key=True
+    )
+    position: Mapped[int] = mapped_column(Integer, primary_key=True)
+    entity: Mapped[str] = mapped_column(String(20))
+    entity_id: Mapped[str] = mapped_column(String(150))
+    field: Mapped[str] = mapped_column(String(30))
+    before: Mapped[str] = mapped_column(String(600))
+    """Valor anterior en JSON (``null``, ``true``, ``"texto"``)."""
+    after: Mapped[str] = mapped_column(String(600))

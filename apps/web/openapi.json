@@ -195,6 +195,7 @@
         "type": "object"
       },
       "CategorizeIn": {
+        "description": "Corrección de un movimiento: solo cambia lo que se envía (OF-701).",
         "properties": {
           "category_id": {
             "anyOf": [
@@ -206,18 +207,51 @@
                 "type": "null"
               }
             ],
+            "description": "null = quitar la categoría",
             "title": "Category Id"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TransactionKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "learn": {
             "default": true,
             "description": "Guardar la regla «comercio → categoría» y aplicarla a los gastos sin ella",
             "title": "Learn",
             "type": "boolean"
+          },
+          "member_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Quién aporta, en una aportación",
+            "title": "Member Id"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
           }
         },
-        "required": [
-          "category_id"
-        ],
         "title": "CategorizeIn",
         "type": "object"
       },
@@ -226,6 +260,19 @@
           "also_categorized": {
             "title": "Also Categorized",
             "type": "integer"
+          },
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Para deshacer la corrección (ADR-0017)",
+            "title": "Operation Id"
           },
           "rule": {
             "anyOf": [
@@ -244,7 +291,8 @@
         "required": [
           "transaction",
           "rule",
-          "also_categorized"
+          "also_categorized",
+          "operation_id"
         ],
         "title": "CategorizeOut",
         "type": "object"
@@ -517,6 +565,54 @@
           }
         },
         "title": "CategoryPatch",
+        "type": "object"
+      },
+      "ChangeOut": {
+        "properties": {
+          "after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "entity": {
+            "title": "Entity",
+            "type": "string"
+          },
+          "field": {
+            "title": "Field",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entity",
+          "field",
+          "before",
+          "after"
+        ],
+        "title": "ChangeOut",
         "type": "object"
       },
       "CountOut": {
@@ -1386,6 +1482,56 @@
         "title": "MonthSavedOut",
         "type": "object"
       },
+      "OperationOut": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "actor_id": {
+            "format": "uuid",
+            "title": "Actor Id",
+            "type": "string"
+          },
+          "changes": {
+            "description": "En el historial de un movimiento, solo los suyos",
+            "items": {
+              "$ref": "#/components/schemas/ChangeOut"
+            },
+            "title": "Changes",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "undone": {
+            "title": "Undone",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "actor_id",
+          "created_at",
+          "action",
+          "summary",
+          "undone",
+          "changes"
+        ],
+        "title": "OperationOut",
+        "type": "object"
+      },
       "PreviewRowOut": {
         "properties": {
           "amount": {
@@ -1522,6 +1668,38 @@
           "changes"
         ],
         "title": "RecurringOut",
+        "type": "object"
+      },
+      "RevertOut": {
+        "properties": {
+          "applied": {
+            "title": "Applied",
+            "type": "integer"
+          },
+          "kept": {
+            "description": "Cambios respetados porque alguien los hizo después",
+            "title": "Kept",
+            "type": "integer"
+          },
+          "kept_by": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Kept By",
+            "type": "array"
+          },
+          "operation": {
+            "$ref": "#/components/schemas/OperationOut"
+          }
+        },
+        "required": [
+          "operation",
+          "applied",
+          "kept",
+          "kept_by"
+        ],
+        "title": "RevertOut",
         "type": "object"
       },
       "RuleOut": {
@@ -1704,6 +1882,11 @@
             "title": "Merchant",
             "type": "string"
           },
+          "note": {
+            "description": "Nota de quien corrigió el movimiento",
+            "title": "Note",
+            "type": "string"
+          },
           "source": {
             "title": "Source",
             "type": "string"
@@ -1725,7 +1908,8 @@
           "category_id",
           "merchant",
           "member_id",
-          "source"
+          "source",
+          "note"
         ],
         "title": "TransactionOut",
         "type": "object"
@@ -2300,6 +2484,119 @@
         "summary": "Update Category",
         "tags": [
           "categories"
+        ]
+      }
+    },
+    "/api/v1/changes": {
+      "get": {
+        "description": "Tus últimas operaciones (nunca las de otra persona), de la más reciente a la más antigua.",
+        "operationId": "recent_api_v1_changes_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OperationOut"
+                  },
+                  "title": "Response Recent Api V1 Changes Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Recent",
+        "tags": [
+          "changes"
+        ]
+      }
+    },
+    "/api/v1/changes/{operation_id}/redo": {
+      "post": {
+        "operationId": "redo_api_v1_changes__operation_id__redo_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Operation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevertOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Redo",
+        "tags": [
+          "changes"
+        ]
+      }
+    },
+    "/api/v1/changes/{operation_id}/undo": {
+      "post": {
+        "description": "Deshace una operación tuya. Lo que alguien cambió después no se toca.",
+        "operationId": "undo_api_v1_changes__operation_id__undo_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Operation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevertOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Undo",
+        "tags": [
+          "changes"
         ]
       }
     },
@@ -3035,7 +3332,7 @@
     },
     "/api/v1/transactions/{transaction_id}": {
       "patch": {
-        "description": "Pone o quita la categoría de un gasto y, por defecto, aprende la regla.",
+        "description": "Corrige un movimiento: categoría (y, por defecto, aprende la regla), tipo, persona o nota.\n\nSolo cambia lo que se envía. Todo queda en el registro de cambios y se puede deshacer.",
         "operationId": "categorize_api_v1_transactions__transaction_id__patch",
         "parameters": [
           {
@@ -3084,6 +3381,54 @@
         "summary": "Categorize",
         "tags": [
           "categories"
+        ]
+      }
+    },
+    "/api/v1/transactions/{transaction_id}/history": {
+      "get": {
+        "description": "Correcciones de un movimiento, de cualquier persona, de la más antigua a la más reciente.",
+        "operationId": "history_api_v1_transactions__transaction_id__history_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transaction_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transaction Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OperationOut"
+                  },
+                  "title": "Response History Api V1 Transactions  Transaction Id  History Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "History",
+        "tags": [
+          "changes"
         ]
       }
     },

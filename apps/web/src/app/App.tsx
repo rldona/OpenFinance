@@ -45,7 +45,7 @@ function Page({ route }: { route: RouteId }) {
 export function App() {
   const [session, setSession] = useState<Session>({ kind: 'loading' })
   const route = useRoute()
-  const [toast, notify] = useToast()
+  const [toast, notify, dismissToast] = useToast()
 
   useEffect(() => {
     setUnauthorizedHandler(() => setSession({ kind: 'anonymous' }))
@@ -76,7 +76,7 @@ export function App() {
   return (
     <HouseholdProvider me={session.me} notify={notify}>
       <Shell route={route} onLogout={() => setSession({ kind: 'anonymous' })} />
-      <Toast message={toast} />
+      <Toast notice={toast} onDismiss={dismissToast} />
     </HouseholdProvider>
   )
 }

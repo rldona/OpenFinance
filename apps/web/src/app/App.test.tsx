@@ -104,6 +104,56 @@ describe('Movimientos', () => {
   })
 })
 
+describe('Corregir un movimiento (OF-701)', () => {
+  const HISTORY = [
+    {
+      id: 'op-1',
+      actor_id: 'u-elena',
+      created_at: '2026-11-03T10:00:00Z',
+      action: 'transaction.edit',
+      summary: 'Glovo: Ingreso → Gasto',
+      undone: false,
+      changes: [],
+    },
+  ]
+
+  it('cambia el tipo a aportación de la pareja, enseña el historial y se puede deshacer', async () => {
+    const calls = loggedIn({
+      'GET /api/v1/transactions/t4/history': { body: HISTORY },
+      'PATCH /api/v1/transactions/t4': {
+        body: { transaction: TRANSACTIONS[3], rule: null, also_categorized: 0, operation_id: 'op-2' },
+      },
+      'POST /api/v1/changes/op-2/undo': {
+        body: { operation: { ...HISTORY[0], id: 'op-2', undone: true }, applied: 2, kept: 1, kept_by: ['u-elena'] },
+      },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Glovo' }))
+    expect(await screen.findByText(/Glovo: Ingreso → Gasto/)).toHaveTextContent('Elena')
+    await userEvent.selectOptions(screen.getByLabelText('Tipo'), 'contribution')
+    await userEvent.selectOptions(screen.getByLabelText('De'), 'u-elena')
+    await userEvent.type(screen.getByLabelText('Nota'), 'Su parte')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    const edit = calls.find((c) => c.method === 'PATCH')!
+    expect(JSON.parse(String(edit.body))).toEqual({ kind: 'contribution', member_id: 'u-elena', note: 'Su parte' })
+    expect(await screen.findByText('Movimiento corregido')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Deshacer' }))
+    expect(await screen.findByText('Deshecho. 1 cambio se ha respetado (lo cambió después Elena)')).toBeInTheDocument()
+    expect(calls.some((c) => c.method === 'POST' && c.url.pathname === '/api/v1/changes/op-2/undo')).toBe(true)
+  })
+
+  it('el importe y el concepto no se pueden editar', async () => {
+    loggedIn({ 'GET /api/v1/transactions/t4/history': { body: [] } })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Glovo' }))
+    expect(await screen.findByText('Sin correcciones.')).toBeInTheDocument()
+    expect(screen.getByText(/no se cambian/)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Importe/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled()
+  })
+})
+
 describe('Búsqueda', () => {
   it.each(['#1', '%', '"comillas"', "l'oreal"])('busca «%s» sin romper la pantalla', async (text) => {
     const calls = loggedIn()

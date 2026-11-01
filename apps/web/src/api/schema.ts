@@ -131,6 +131,63 @@ export interface paths {
         patch: operations["update_category_api_v1_categories__category_id__patch"];
         trace?: never;
     };
+    "/api/v1/changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recent
+         * @description Tus últimas operaciones (nunca las de otra persona), de la más reciente a la más antigua.
+         */
+        get: operations["recent_api_v1_changes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/changes/{operation_id}/redo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Redo */
+        post: operations["redo_api_v1_changes__operation_id__redo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/changes/{operation_id}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Undo
+         * @description Deshace una operación tuya. Lo que alguien cambió después no se toca.
+         */
+        post: operations["undo_api_v1_changes__operation_id__undo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/export": {
         parameters: {
             query?: never;
@@ -392,9 +449,31 @@ export interface paths {
         head?: never;
         /**
          * Categorize
-         * @description Pone o quita la categoría de un gasto y, por defecto, aprende la regla.
+         * @description Corrige un movimiento: categoría (y, por defecto, aprende la regla), tipo, persona o nota.
+         *
+         *     Solo cambia lo que se envía. Todo queda en el registro de cambios y se puede deshacer.
          */
         patch: operations["categorize_api_v1_transactions__transaction_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/transactions/{transaction_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * History
+         * @description Correcciones de un movimiento, de cualquier persona, de la más antigua a la más reciente.
+         */
+        get: operations["history_api_v1_transactions__transaction_id__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/health": {
@@ -494,21 +573,40 @@ export interface components {
             total_amount: components["schemas"]["MoneyOut"] | null;
             total_spent: components["schemas"]["MoneyOut"] | null;
         };
-        /** CategorizeIn */
+        /**
+         * CategorizeIn
+         * @description Corrección de un movimiento: solo cambia lo que se envía (OF-701).
+         */
         CategorizeIn: {
-            /** Category Id */
-            category_id: string | null;
+            /**
+             * Category Id
+             * @description null = quitar la categoría
+             */
+            category_id?: string | null;
+            kind?: components["schemas"]["TransactionKind"] | null;
             /**
              * Learn
              * @description Guardar la regla «comercio → categoría» y aplicarla a los gastos sin ella
              * @default true
              */
             learn: boolean;
+            /**
+             * Member Id
+             * @description Quién aporta, en una aportación
+             */
+            member_id?: string | null;
+            /** Note */
+            note?: string | null;
         };
         /** CategorizeOut */
         CategorizeOut: {
             /** Also Categorized */
             also_categorized: number;
+            /**
+             * Operation Id
+             * @description Para deshacer la corrección (ADR-0017)
+             */
+            operation_id: string | null;
             rule: components["schemas"]["RuleOut"] | null;
             transaction: components["schemas"]["TransactionOut"];
         };
@@ -591,6 +689,17 @@ export interface components {
             icon?: string | null;
             /** Name */
             name?: string | null;
+        };
+        /** ChangeOut */
+        ChangeOut: {
+            /** After */
+            after: string | boolean | null;
+            /** Before */
+            before: string | boolean | null;
+            /** Entity */
+            entity: string;
+            /** Field */
+            field: string;
         };
         /** CountOut */
         CountOut: {
@@ -900,6 +1009,35 @@ export interface components {
             month: string;
             saved: components["schemas"]["MoneyOut"];
         };
+        /** OperationOut */
+        OperationOut: {
+            /** Action */
+            action: string;
+            /**
+             * Actor Id
+             * Format: uuid
+             */
+            actor_id: string;
+            /**
+             * Changes
+             * @description En el historial de un movimiento, solo los suyos
+             */
+            changes: components["schemas"]["ChangeOut"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Summary */
+            summary: string;
+            /** Undone */
+            undone: boolean;
+        };
         /** PreviewRowOut */
         PreviewRowOut: {
             amount: components["schemas"]["MoneyOut"];
@@ -947,6 +1085,19 @@ export interface components {
             merchant: string;
             /** Months */
             months: number;
+        };
+        /** RevertOut */
+        RevertOut: {
+            /** Applied */
+            applied: number;
+            /**
+             * Kept
+             * @description Cambios respetados porque alguien los hizo después
+             */
+            kept: number;
+            /** Kept By */
+            kept_by: string[];
+            operation: components["schemas"]["OperationOut"];
         };
         /** RuleOut */
         RuleOut: {
@@ -1026,6 +1177,11 @@ export interface components {
              * @description Comercio normalizado y legible, p. ej. «Mercadona»
              */
             merchant: string;
+            /**
+             * Note
+             * @description Nota de quien corrigió el movimiento
+             */
+            note: string;
             /** Source */
             source: string;
             /**
@@ -1351,6 +1507,88 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CategoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recent_api_v1_changes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationOut"][];
+                };
+            };
+        };
+    };
+    redo_api_v1_changes__operation_id__redo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevertOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    undo_api_v1_changes__operation_id__undo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevertOut"];
                 };
             };
             /** @description Validation Error */
@@ -1822,6 +2060,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CategorizeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    history_api_v1_transactions__transaction_id__history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transaction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationOut"][];
                 };
             };
             /** @description Validation Error */

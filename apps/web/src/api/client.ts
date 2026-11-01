@@ -12,6 +12,9 @@ export type Category = Schemas['CategoryOut']
 export type CategoryInput = Schemas['CategoryIn']
 export type CategoryPatch = Schemas['CategoryPatch']
 export type CategorizeResult = Schemas['CategorizeOut']
+export type TransactionPatch = Schemas['CategorizeIn']
+export type Operation = Schemas['OperationOut']
+export type RevertResult = Schemas['RevertOut']
 export type MonthOverview = Schemas['MonthOverviewOut']
 export type CategoryDetail = Schemas['CategoryDetailOut']
 export type Trends = Schemas['TrendsOut']
@@ -117,6 +120,13 @@ export const api = {
     request<CategorizeResult>('PATCH', `/api/v1/transactions/${encodeURIComponent(transactionId)}`, {
       json: { category_id: categoryId, learn },
     }),
+  editTransaction: (transactionId: string, patch: Partial<TransactionPatch>) =>
+    request<CategorizeResult>('PATCH', `/api/v1/transactions/${encodeURIComponent(transactionId)}`, { json: patch }),
+  transactionHistory: (transactionId: string, signal?: AbortSignal) =>
+    request<Operation[]>('GET', `/api/v1/transactions/${encodeURIComponent(transactionId)}/history`, { signal }),
+  changes: (signal?: AbortSignal) => request<Operation[]>('GET', '/api/v1/changes', { signal }),
+  undo: (operationId: string) => request<RevertResult>('POST', `/api/v1/changes/${encodeURIComponent(operationId)}/undo`),
+  redo: (operationId: string) => request<RevertResult>('POST', `/api/v1/changes/${encodeURIComponent(operationId)}/redo`),
   insightsMonth: (month: string, view: InsightsView, signal?: AbortSignal) =>
     request<MonthOverview>('GET', '/api/v1/insights/month', { query: { month, view }, signal }),
   insightsCategory: (month: string, categoryId: string | null, view: InsightsView, signal?: AbortSignal) =>

@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { ApiError, TRANSACTIONS_LIMIT, api, type Account, type Transaction } from '../../api/client'
 import { useHousehold } from '../../app/household-context'
 import { ErrorState, Loading } from '../../components/LoadState'
 import { formatDate, formatMoney } from '../../lib/format'
+import { notifyUndoable } from '../../lib/undo'
 import { MonthPicker } from '../insights/common'
 import { kindLabel } from './labels'
+import { TransactionDetail } from './TransactionDetail'
 
 function CategorySelect({
   t,
@@ -87,20 +89,26 @@ export function TransactionsPage() {
   const rows = current?.rows ?? (stale && !result?.error ? (result?.rows ?? null) : null)
   const error = current?.error ?? null
   const accountName = (id: string) => accounts.find((a) => a.id === id)?.name ?? ''
+  const [openId, setOpenId] = useState<string | null>(null)
+
+  function refresh() {
+    setVersion((v) => v + 1)
+    refreshUncategorized()
+  }
 
   async function changeCategory(t: Transaction, categoryId: string | null) {
     setPending(t.id)
     try {
       const r = await api.categorize(t.id, categoryId)
       const category = categoryId ? categoryById.get(categoryId) : undefined
-      if (r.rule && category) {
-        const more = r.also_categorized ? ` · ${r.also_categorized} más clasificados` : ''
-        notify(`Regla guardada: «${r.rule.merchant}» → ${category.name}${more}`)
-      } else {
-        notify(category ? `Categoría: ${category.name}` : 'Categoría quitada')
-      }
-      setVersion((v) => v + 1)
-      refreshUncategorized()
+      const message =
+        r.rule && category
+          ? `Regla guardada: «${r.rule.merchant}» → ${category.name}${r.also_categorized ? ` · ${r.also_categorized} más clasificados` : ''}`
+          : category
+            ? `Categoría: ${category.name}`
+            : 'Categoría quitada'
+      notifyUndoable(notify, me, message, r.operation_id, refresh)
+      refresh()
     } catch (err) {
       notify(err instanceof ApiError ? err.message : 'No se ha podido cambiar la categoría')
     } finally {
@@ -193,13 +201,24 @@ export function TransactionsPage() {
             <tbody role="rowgroup">
               {rows.map((t) => {
                 const label = kindLabel(t, me, categoryById)
+                const open = openId === t.id
                 return (
-                  <tr role="row" key={t.id}>
+                  <Fragment key={t.id}>
+                  <tr role="row">
                     <td role="cell" className="muted small">{formatDate(t.booked_at)}</td>
                     <td role="cell">
-                      {t.merchant || t.description}
+                      <button
+                        type="button"
+                        className="linkish"
+                        aria-expanded={open}
+                        aria-label={`Detalle de ${t.description}`}
+                        onClick={() => setOpenId(open ? null : t.id)}
+                      >
+                        {t.merchant || t.description}
+                      </button>
                       <div className="small muted">
                         {t.description} · {accountName(t.account_id)}
+                        {t.note && <> · 📝 {t.note}</>}
                       </div>
                     </td>
                     <td role="cell">
@@ -217,6 +236,23 @@ export function TransactionsPage() {
                       {formatMoney(t.amount, { signed: true })}
                     </td>
                   </tr>
+                  {open && (
+                    <tr role="row" className="detail-row">
+                      <td role="cell" colSpan={4}>
+                        <TransactionDetail
+                          key={`${t.id}|${t.kind}|${t.member_id}|${t.note}`}
+                          t={t}
+                          version={version}
+                          onClose={() => setOpenId(null)}
+                          onSaved={(r) => {
+                            notifyUndoable(notify, me, 'Movimiento corregido', r.operation_id, refresh)
+                            refresh()
+                          }}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 )
               })}
             </tbody>

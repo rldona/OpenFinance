@@ -557,6 +557,18 @@ tr.dim {
 .toast.show {
   opacity: 1;
   transform: none;
+  pointer-events: auto;
+}
+
+.toast-action {
+  margin-left: 12px;
+  background: none;
+  border: 0;
+  color: #93c5fd;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 2px;
 }
 
 table.stale {
@@ -1162,4 +1174,42 @@ ul.plain {
     flex: 1;
     min-width: 0;
   }
+}
+
+.linkish {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.linkish:hover,
+.linkish[aria-expanded='true'] {
+  text-decoration: underline;
+}
+
+.detail-row > td {
+  background: var(--surface-2, rgba(0, 0, 0, 0.03));
+}
+.tx-detail .toolbar.wrap {
+  flex-wrap: wrap;
+}
+.tx-detail .grow {
+  flex: 1 1 220px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.tx-detail .grow .field {
+  flex: 1;
+}
+.history li {
+  padding: 4px 0;
+  font-size: 0.9em;
+}
+.history li.undone {
+  opacity: 0.6;
+  text-decoration: line-through;
 }

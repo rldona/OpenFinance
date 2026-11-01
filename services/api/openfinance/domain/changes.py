@@ -1,0 +1,84 @@
+"""Registro de cambios: qué se corrigió, quién, cuándo, y cómo deshacerlo (ADR-0017)."""
+
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+from datetime import datetime
+from enum import StrEnum
+from uuid import UUID
+
+from openfinance.domain.shared.ids import UserId, WorkspaceId
+
+Value = str | bool | None
+"""Valor de un campo tal como se guarda en el registro (JSON): texto, sí/no o nada."""
+
+
+class Entity(StrEnum):
+    TRANSACTION = "transaction"
+    RULE = "rule"
+    """Regla «comercio → categoría». Su identificador es ``ámbito|comercio``."""
+    IMPORT = "import"
+
+
+TRANSACTION_FIELDS = ("kind", "member_id", "category_id", "note", "voided")
+"""Campos corregibles de un movimiento. El importe, la fecha y el concepto nunca cambian."""
+
+
+@dataclass(frozen=True, slots=True)
+class Change:
+    entity: Entity
+    entity_id: str
+    field: str
+    before: Value
+    after: Value
+
+    @property
+    def key(self) -> tuple[Entity, str, str]:
+        return self.entity, self.entity_id, self.field
+
+    def inverse(self) -> Change:
+        return Change(self.entity, self.entity_id, self.field, self.after, self.before)
+
+
+@dataclass(frozen=True, slots=True)
+class Operation:
+    """Una acción de una persona: uno o varios cambios que se deshacen juntos."""
+
+    id: UUID
+    household_id: WorkspaceId
+    actor_id: UserId
+    created_at: datetime
+    action: str
+    summary: str
+    changes: tuple[Change, ...]
+    undone_at: datetime | None = None
+    undone_by: UserId | None = None
+
+    @property
+    def is_undone(self) -> bool:
+        return self.undone_at is not None
+
+
+def diff(
+    entity: Entity, entity_id: str, before: Mapping[str, Value], after: Mapping[str, Value]
+) -> list[Change]:
+    """Los cambios entre dos estados, solo de los campos que difieren."""
+    return [
+        Change(entity, entity_id, field, before.get(field), after.get(field))
+        for field in after
+        if before.get(field) != after.get(field)
+    ]
+
+
+def rule_entity_id(scope: str, merchant: str) -> str:
+    return f"{scope}|{merchant}"
+
+
+def split_rule_entity_id(entity_id: str) -> tuple[str, str]:
+    scope, _, merchant = entity_id.partition("|")
+    return scope, merchant
+
+
+def touched(changes: Sequence[Change]) -> set[tuple[Entity, str]]:
+    return {(c.entity, c.entity_id) for c in changes}

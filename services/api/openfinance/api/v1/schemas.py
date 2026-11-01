@@ -99,6 +99,7 @@ class TransactionOut(BaseModel):
     merchant: str = Field(description="Comercio normalizado y legible, p. ej. «Mercadona»")
     member_id: UUID | None
     source: str
+    note: str = Field(description="Nota de quien corrigió el movimiento")
 
     @classmethod
     def of(cls, t: Transaction) -> TransactionOut:
@@ -114,6 +115,7 @@ class TransactionOut(BaseModel):
             merchant=merchant_label(t.merchant),
             member_id=t.member_id,
             source=t.source,
+            note=t.note,
         )
 
 
@@ -240,7 +242,12 @@ class CategoryPatch(BaseModel):
 
 
 class CategorizeIn(BaseModel):
-    category_id: UUID | None
+    """Corrección de un movimiento: solo cambia lo que se envía (OF-701)."""
+
+    category_id: UUID | None = Field(default=None, description="null = quitar la categoría")
+    kind: TransactionKind | None = None
+    member_id: UUID | None = Field(default=None, description="Quién aporta, en una aportación")
+    note: str | None = Field(default=None, max_length=500)
     learn: bool = Field(
         default=True,
         description="Guardar la regla «comercio → categoría» y aplicarla a los gastos sin ella",
@@ -256,6 +263,31 @@ class CategorizeOut(BaseModel):
     transaction: TransactionOut
     rule: RuleOut | None
     also_categorized: int
+    operation_id: UUID | None = Field(description="Para deshacer la corrección (ADR-0017)")
+
+
+class ChangeOut(BaseModel):
+    entity: str
+    field: str
+    before: str | bool | None
+    after: str | bool | None
+
+
+class OperationOut(BaseModel):
+    id: UUID
+    actor_id: UUID
+    created_at: datetime
+    action: str
+    summary: str
+    undone: bool
+    changes: list[ChangeOut] = Field(description="En el historial de un movimiento, solo los suyos")
+
+
+class RevertOut(BaseModel):
+    operation: OperationOut
+    applied: int
+    kept: int = Field(description="Cambios respetados porque alguien los hizo después")
+    kept_by: list[UUID]
 
 
 class CountOut(BaseModel):

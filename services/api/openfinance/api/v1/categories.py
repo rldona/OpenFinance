@@ -15,7 +15,7 @@ from openfinance.api.v1.schemas import (
 )
 from openfinance.application import categories
 from openfinance.domain.categories import CategoryId, merchant_label
-from openfinance.domain.shared.ids import TransactionId
+from openfinance.domain.shared.ids import TransactionId, UserId
 from openfinance.infrastructure.time import utc_now
 
 router = APIRouter(tags=["categories"])
@@ -58,15 +58,20 @@ def uncategorized_count(actor: ActorDep, uow: UowDep) -> CountOut:
 def categorize(
     transaction_id: UUID, body: CategorizeIn, actor: ActorDep, uow: UowDep
 ) -> CategorizeOut:
-    """Pone o quita la categoría de un gasto y, por defecto, aprende la regla."""
-    result = categories.categorize_transaction(
-        uow,
-        actor,
-        TransactionId(transaction_id),
-        CategoryId(body.category_id) if body.category_id else None,
-        utc_now(),
+    """Corrige un movimiento: categoría (y, por defecto, aprende la regla), tipo, persona o nota.
+
+    Solo cambia lo que se envía. Todo queda en el registro de cambios y se puede deshacer.
+    """
+    sent = body.model_fields_set
+    edit = categories.TransactionEdit(
+        kind=body.kind,
+        member_id=UserId(body.member_id) if body.member_id else None,
+        note=body.note,
+        set_category="category_id" in sent,
+        category_id=CategoryId(body.category_id) if body.category_id else None,
         learn=body.learn,
     )
+    result = categories.edit_transaction(uow, actor, TransactionId(transaction_id), edit, utc_now())
     rule = (
         RuleOut(merchant=merchant_label(result.rule.merchant), category_id=result.rule.category_id)
         if result.rule
@@ -76,4 +81,5 @@ def categorize(
         transaction=TransactionOut.of(result.transaction),
         rule=rule,
         also_categorized=result.also_categorized,
+        operation_id=result.operation_id,
     )
