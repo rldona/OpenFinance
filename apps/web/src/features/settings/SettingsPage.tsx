@@ -36,7 +36,7 @@ function PasswordForm() {
   }
 
   return (
-    <form className="card stack" aria-label="Cambiar la contraseña" onSubmit={(e) => void save(e)}>
+    <form className="card settings-form" aria-label="Cambiar la contraseña" onSubmit={(e) => void save(e)}>
       <h2>Tu contraseña</h2>
       <label>
         Contraseña actual

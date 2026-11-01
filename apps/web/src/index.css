@@ -1240,3 +1240,31 @@ ul.plain {
 .imports li.undone {
   opacity: 0.6;
 }
+
+.settings-form {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+.settings-form label {
+  display: grid;
+  gap: 6px;
+}
+.settings-form h2,
+.settings-form p {
+  margin: 0;
+}
+.links li {
+  padding: 3px 0;
+}
+
+/* En un móvil estrecho las iniciales del hogar no caben junto a Exportar, Ajustes y Salir:
+   son decorativas (el nombre del hogar sigue a la vista). */
+@media (max-width: 480px) {
+  .top .people {
+    display: none;
+  }
+  .top {
+    gap: 10px;
+  }
+}
