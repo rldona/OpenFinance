@@ -3,6 +3,7 @@
 #
 #   deploy/scripts/restore.sh FICHERO [--yes]
 #
+# Una copia cifrada (.dump.age) pide la clave privada de age: OPENFINANCE_BACKUP_IDENTITY=fichero.
 # Sustituye TODOS los datos actuales. Restaura con la misma versión de OpenFinance que hizo
 # la copia o una más nueva: después se aplican las migraciones pendientes. Al terminar se
 # cierran todas las sesiones, así que hay que volver a entrar.
@@ -24,6 +25,29 @@ if [ ! -f "$file" ] || [ ! -r "$file" ]; then
 fi
 file="$(cd "$(dirname "$file")" && pwd)/$(basename "$file")"
 
+identity="${OPENFINANCE_BACKUP_IDENTITY:-}"
+encrypted=0
+case "$file" in *.age) encrypted=1 ;; esac
+if [ "$encrypted" = 1 ]; then
+  command -v age > /dev/null || { echo "Falta «age» en este equipo (apt install age)." >&2; exit 1; }
+  if [ -z "$identity" ] || [ ! -r "$identity" ]; then
+    echo "La copia está cifrada: indica la clave privada con OPENFINANCE_BACKUP_IDENTITY=fichero." >&2
+    exit 1
+  fi
+fi
+
+# La copia en claro. Si viene cifrada se descifra una vez a un fichero temporal (permisos 600,
+# borrado al salir): pg_restore puede dejar de leer antes de tiempo y cortar una tubería.
+plain="$file"
+if [ "$encrypted" = 1 ]; then
+  plain="$(mktemp)"
+  trap 'rm -f "$plain"' EXIT
+  if ! age --decrypt -i "$identity" -o "$plain" -- "$file"; then
+    echo "No se ha podido descifrar la copia (¿es la clave privada correcta?). No se ha cambiado nada." >&2
+    exit 1
+  fi
+fi
+
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$root"
 
@@ -38,7 +62,7 @@ if [ "$yes" != "--yes" ]; then
 fi
 
 # Antes de tocar nada: la copia tiene que poder leerse.
-if ! docker compose exec -T db pg_restore --list < "$file" > /dev/null; then
+if ! docker compose exec -T db pg_restore --list < "$plain" > /dev/null; then
   echo "La copia no es válida (pg_restore --list ha fallado). No se ha cambiado nada." >&2
   exit 1
 fi
@@ -61,7 +85,7 @@ step="restaurar la copia"
 # shellcheck disable=SC2016 # las variables se expanden dentro del contenedor
 docker compose exec -T db sh -c \
   'pg_restore --clean --if-exists --no-owner --single-transaction -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
-  < "$file"
+  < "$plain"
 
 # Las sesiones de la copia dejan de valer en cuanto existen: se borran antes de migrar.
 step="borrar las sesiones restauradas"

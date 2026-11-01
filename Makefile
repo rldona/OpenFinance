@@ -1,7 +1,7 @@
 API_DIR := services/api
 WEB_DIR := apps/web
 
-.PHONY: setup api web test lint typecheck check up down db migrate bootstrap openapi demo backup restore e2e licenses
+.PHONY: setup api web test scripts-test lint typecheck check up down db migrate bootstrap openapi demo backup restore e2e licenses
 
 setup:
 	cd $(API_DIR) && uv sync
@@ -17,6 +17,10 @@ test:
 	cd $(API_DIR) && uv run pytest
 	cd $(WEB_DIR) && npm test -- --run
 
+# Scripts de despliegue (copias y restauración) con docker y age simulados
+scripts-test:
+	deploy/scripts/test/backup.sh
+
 lint:
 	cd $(API_DIR) && uv run ruff check . && uv run ruff format --check . && uv run lint-imports
 	cd $(WEB_DIR) && npm run lint
@@ -25,7 +29,7 @@ typecheck:
 	cd $(API_DIR) && uv run mypy openfinance
 	cd $(WEB_DIR) && npm run typecheck
 
-check: lint typecheck test
+check: lint typecheck test scripts-test
 	cd $(WEB_DIR) && npm run build
 
 up:
@@ -38,11 +42,12 @@ down:
 db:
 	docker compose -f compose.yaml -f compose.dev.yaml up -d db
 
-# Copia de la base de datos en backups/ (o DIR=...). Contiene todo y no va cifrada.
+# Copia cifrada con age de la base de datos en backups/ (o DIR=...). Necesita
+# OPENFINANCE_BACKUP_RECIPIENT (clave pública); ver docs/deployment/home.md.
 backup:
 	deploy/scripts/backup.sh "$(DIR)"
 
-# make restore FILE=backups/openfinance-....dump [YES=1]
+# make restore FILE=backups/openfinance-....dump.age [YES=1] (cifrada: OPENFINANCE_BACKUP_IDENTITY=clave.txt)
 restore:
 	@test -n "$(FILE)" || { echo "Indica la copia: make restore FILE=backups/openfinance-....dump" >&2; exit 2; }
 	deploy/scripts/restore.sh "$(FILE)" $(if $(YES),--yes,)

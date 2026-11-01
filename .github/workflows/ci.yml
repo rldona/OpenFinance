@@ -191,9 +191,15 @@ jobs:
       - name: Copia, borrado y restauración (OF-501)
         if: matrix.mode == 'direct'
         run: |
+          # Copia cifrada con age (OF-901): la clave privada no se queda en la carpeta de copias.
+          sudo apt-get install -y --no-install-recommends age
+          age-keygen -o "$RUNNER_TEMP/age-key.txt" 2> "$RUNNER_TEMP/age-pub.txt"
+          export OPENFINANCE_BACKUP_RECIPIENT="$(sed -n 's/^Public key: //p' "$RUNNER_TEMP/age-pub.txt")"
+          export OPENFINANCE_BACKUP_IDENTITY="$RUNNER_TEMP/age-key.txt"
           make backup
-          dump="$(ls backups/openfinance-*.dump)"
+          dump="$(ls backups/openfinance-*.dump.age)"
           [ "$(stat -c %a "$dump")" = "600" ]
+          ! head -c 5 "$dump" | grep -q PGDMP
           docker compose down -v
           docker compose up -d --wait
           make restore FILE="$dump" YES=1

@@ -72,26 +72,56 @@ y quitad `OPENFINANCE_SESSION_COOKIE_SECURE=false` si lo teníais. `make up` arr
 
 ## 6. Copias de seguridad
 
+Las copias van **cifradas con [age](https://github.com/FiloSottile/age)**: sin la clave privada no se pueden abrir, así que pueden salir de casa sin riesgo. El equipo solo guarda la clave **pública**; la privada se guarda fuera y solo hace falta para restaurar.
+
+Una sola vez:
+
 ```bash
-make backup                   # backups/openfinance-AAAAmmdd-HHMMSS.dump (permisos 600)
+sudo apt install age          # o: brew install age
+age-keygen -o clave.txt       # imprime «Public key: age1...»
+```
+
+Guardad `clave.txt` **fuera del equipo** (gestor de contraseñas, papel en un sitio seguro, la otra persona): si la perdéis, las copias no se pueden recuperar. En `.env` poned solo la clave pública:
+
+```dotenv
+OPENFINANCE_BACKUP_RECIPIENT=age1...
+OPENFINANCE_BACKUP_KEEP=30     # copias que se conservan (por defecto 30; 0 = no borrar)
+```
+
+(Para cifrar a varias claves, `OPENFINANCE_BACKUP_RECIPIENTS_FILE=fichero` con una clave pública por línea.)
+
+```bash
+make backup                   # backups/openfinance-AAAAmmdd-HHMMSS.dump.age (permisos 600)
 make backup DIR=/mnt/disco    # en otra carpeta
 ```
 
-La copia contiene **todo**: las cuentas personales de ambas personas y los hashes de las contraseñas. **No va cifrada.** Guardadla fuera del equipo (disco externo, otra máquina) y cifradla si sale de casa.
+Sin clave pública, `make backup` se niega a hacer la copia. Solo se puede hacer en claro a sabiendas, con `OPENFINANCE_BACKUP_PLAINTEXT=1`. La copia contiene **todo**: las cuentas personales de ambas personas y los hashes de las contraseñas. Antes de cifrar se comprueba que el volcado se puede leer; el volcado en claro se escribe un instante en la misma carpeta con permisos 600 y se borra enseguida.
 
-Copia diaria con `cron` (`crontab -e`), a las 3:30, conservando 30 días:
+Tras cada copia se borran las más antiguas hasta dejar `OPENFINANCE_BACKUP_KEEP`. Solo se tocan ficheros con el nombre exacto `openfinance-AAAAmmdd-HHMMSS.dump[.age]`.
+
+### Guardarlas fuera del equipo
+
+Una copia en el mismo disco no sirve si el disco falla. Con las copias cifradas, cualquiera de estas vale, porque quien las robe no puede leerlas:
+
+- **Otro disco o equipo de casa**: `make backup DIR=/mnt/disco/openfinance` (o `rsync -a backups/ otro-equipo:openfinance/`).
+- **Almacenamiento en la nube** con [rclone](https://rclone.org/): `rclone copy backups remoto:openfinance --include 'openfinance-*.dump.age'`.
+- **Un disco USB** que cambiéis de sitio de vez en cuando.
+
+Copia diaria con `cron` (`crontab -e`), a las 3:30; la rotación ya la hace el script:
 
 ```cron
-30 3 * * * cd /ruta/a/openfinance && make backup DIR=/mnt/disco/openfinance >> /var/log/openfinance-backup.log 2>&1 && find /mnt/disco/openfinance -name 'openfinance-*.dump' -mtime +30 -delete
+30 3 * * * cd /ruta/a/openfinance && make backup DIR=/mnt/disco/openfinance >> /var/log/openfinance-backup.log 2>&1
 ```
+
+Probad una restauración al menos una vez (sección siguiente): una copia que nunca se ha restaurado no es una copia.
 
 ### Restaurar
 
 ```bash
-make restore FILE=backups/openfinance-20261101-033000.dump
+make restore FILE=backups/openfinance-20261101-033000.dump.age OPENFINANCE_BACKUP_IDENTITY=clave.txt
 ```
 
-Primero comprueba que la copia se puede leer; luego pide escribir «restaurar» y sustituye **todos** los datos actuales. Restaurad con la misma versión de OpenFinance que hizo la copia o una más nueva: después se aplican las migraciones pendientes. Al terminar se cierran todas las sesiones y hay que volver a entrar.
+Si la copia está cifrada hay que dar la clave privada (`OPENFINANCE_BACKUP_IDENTITY`); se descifra a un fichero temporal con permisos 600 que se borra al terminar. Primero comprueba que la copia se puede leer; luego pide escribir «restaurar» y sustituye **todos** los datos actuales. Restaurad con la misma versión de OpenFinance que hizo la copia o una más nueva: después se aplican las migraciones pendientes. Al terminar se cierran todas las sesiones y hay que volver a entrar.
 
 > **Restaurad solo copias vuestras** (hechas con `make backup` en vuestra instalación). `pg_restore` se ejecuta con el usuario de PostgreSQL de la instalación, que es superusuario de la base de datos: una copia manipulada podría ejecutar SQL arbitrario con esos permisos.
 
