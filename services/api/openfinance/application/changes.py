@@ -24,6 +24,7 @@ from openfinance.domain.changes import (
 )
 from openfinance.domain.imports.batch import ImportStatus
 from openfinance.domain.ledger import LedgerError, Transaction, TransactionKind
+from openfinance.domain.merchants import Merchant, MerchantId, join_keys, split_keys
 from openfinance.domain.shared.ids import AccountId, TransactionId, UserId
 from openfinance.domain.workspaces import Actor
 
@@ -222,6 +223,8 @@ def _apply(
             done, rest = _apply_transaction(uow, actor, visible, entity_id, changes)
         elif entity is Entity.RULE:
             done, rest = _apply_rule(uow, actor, entity_id, changes, now)
+        elif entity is Entity.MERCHANT:
+            done, rest = _apply_merchant(uow, actor, entity_id, changes)
         else:
             done, rest = _apply_import(uow, actor, entity_id, changes)
         applied += done
@@ -281,6 +284,42 @@ def _apply_rule(
                 now,
             )
         applied += 1
+    return applied, kept
+
+
+def _apply_merchant(
+    uow: UnitOfWork, actor: Actor, entity_id: str, changes: list[Change]
+) -> tuple[int, list[Change]]:
+    """Nombre y variantes de un comercio (OF-1001). ``name`` = ``None`` es «no existe».
+
+    Los cambios se recorren en orden sobre un estado en memoria y el resultado se escribe una
+    sola vez: así da igual en qué orden lleguen el nombre y las variantes de un mismo comercio.
+    """
+    merchant_id = MerchantId(UUID(entity_id))
+    merchant = uow.merchants.get(actor.household_id, merchant_id)
+    start_name = merchant.name if merchant else None
+    start_keys = join_keys(merchant.keys) if merchant else None
+    name, keys = start_name, start_keys
+    applied, kept = 0, []
+    for c in changes:
+        if c.field == "name" and name == c.before:
+            name = None if c.after is None else str(c.after)
+            applied += 1
+        elif c.field == "keys" and keys == c.before:
+            keys = None if c.after is None else str(c.after)
+            applied += 1
+        else:
+            kept.append(c)
+    if name is None:
+        if merchant is not None:
+            uow.merchants.delete(actor.household_id, merchant_id)
+        return applied, kept
+    if merchant is None:
+        uow.merchants.add(Merchant(merchant_id, actor.household_id, name, ()))
+    elif name != start_name:
+        uow.merchants.set_name(actor.household_id, merchant_id, name)
+    if keys is not None and keys != start_keys:
+        uow.merchants.set_keys(actor.household_id, merchant_id, split_keys(keys))
     return applied, kept
 
 

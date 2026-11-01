@@ -24,6 +24,7 @@ from openfinance.infrastructure.db.repositories.ledger import (
     SqlAccountRepository,
     SqlTransactionRepository,
 )
+from openfinance.infrastructure.db.repositories.merchants import SqlMerchantRepository
 from openfinance.infrastructure.db.repositories.savings import (
     SqlBudgetRepository,
     SqlGoalRepository,
@@ -45,6 +46,7 @@ class SqlUnitOfWork:
         self.budgets = SqlBudgetRepository(session)
         self.goals = SqlGoalRepository(session)
         self.dismissed_ideas = SqlIdeaDismissalRepository(session)
+        self.merchants = SqlMerchantRepository(session)
         self.member_patterns = SqlMemberPatternRepository(session)
         self.changes = SqlChangeRepository(session)
 

@@ -8,6 +8,7 @@ from openfinance.api.v1 import (
     imports,
     insights,
     ledger,
+    merchants,
     meta,
     savings,
     settings,
@@ -15,6 +16,7 @@ from openfinance.api.v1 import (
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(meta.router)
+router.include_router(merchants.router)
 router.include_router(auth.router)
 router.include_router(categories.router)
 router.include_router(ledger.router)

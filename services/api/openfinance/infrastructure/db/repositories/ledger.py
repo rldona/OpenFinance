@@ -325,6 +325,34 @@ class SqlTransactionRepository:
             _ACTIVE,
         )
 
+    def merchant_totals(
+        self, household_id: WorkspaceId, account_ids: list[AccountId]
+    ) -> list[tuple[str, int, Decimal]]:
+        if not account_ids:
+            return []
+        rows = self._s.execute(
+            select(TransactionRow.merchant, func.count(), func.sum(TransactionRow.amount))
+            .where(
+                TransactionRow.household_id == household_id,
+                TransactionRow.account_id.in_(account_ids),
+                TransactionRow.merchant != "",
+                _ACTIVE,
+            )
+            .group_by(TransactionRow.merchant)
+        )
+        return [(m, int(n), Decimal(str(t or 0)).quantize(_AMOUNT_QUANTUM)) for m, n, t in rows]
+
+    def uncategorized_with_merchant(
+        self, household_id: WorkspaceId, account_ids: list[AccountId], key: str
+    ) -> list[Transaction]:
+        rows = self._s.scalars(
+            select(TransactionRow).where(
+                *self._uncategorized(household_id, account_ids),
+                TransactionRow.merchant == key,
+            )
+        )
+        return [_transaction(r) for r in rows]
+
     def uncategorized_with_merchant_word(
         self, household_id: WorkspaceId, account_ids: list[AccountId], first_word: str
     ) -> list[Transaction]:

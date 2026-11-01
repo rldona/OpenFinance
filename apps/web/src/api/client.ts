@@ -2,6 +2,8 @@ import type { components, operations } from './schema'
 
 type Schemas = components['schemas']
 export type Me = Schemas['MeOut']
+export type MerchantGroup = Schemas['MerchantGroupOut']
+export type MerchantChange = Schemas['MerchantChangeOut']
 export type VersionInfo = Schemas['VersionOut']
 export type Account = Schemas['AccountOut']
 export type Transaction = Schemas['TransactionOut']
@@ -156,6 +158,12 @@ export const api = {
     request<MemberPattern>('POST', '/api/v1/me/patterns', { json: { pattern, direction } }),
   removePattern: (p: MemberPattern) =>
     request<void>('DELETE', `/api/v1/me/patterns/${p.direction}/${encodeURIComponent(p.pattern)}`),
+  /** Comercios con sus variantes del banco (OF-1001). */
+  merchants: (signal?: AbortSignal) => request<MerchantGroup[]>('GET', '/api/v1/merchants', { signal }),
+  renameMerchant: (key: string, name: string) =>
+    request<MerchantChange>('POST', '/api/v1/merchants/rename', { json: { key, name } }),
+  mergeMerchants: (targetKey: string, sourceKey: string) =>
+    request<MerchantChange>('POST', '/api/v1/merchants/merge', { json: { target_key: targetKey, source_key: sourceKey } }),
   rules: (signal?: AbortSignal) => request<RuleView[]>('GET', '/api/v1/rules', { signal }),
   deleteRule: (scope: RuleView['scope'], key: string) =>
     request<{ operation_id: string | null }>('DELETE', `/api/v1/rules/${scope}/${encodeURIComponent(key)}`),

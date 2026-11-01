@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
@@ -104,7 +105,8 @@ class TransactionOut(BaseModel):
     note: str = Field(description="Nota de quien corrigió el movimiento")
 
     @classmethod
-    def of(cls, t: Transaction) -> TransactionOut:
+    def of(cls, t: Transaction, names: Mapping[str, str] | None = None) -> TransactionOut:
+        """``names``: nombre propio de cada variante de comercio (OF-1001)."""
         return cls(
             id=t.id,
             account_id=t.account_id,
@@ -114,7 +116,7 @@ class TransactionOut(BaseModel):
             amount=MoneyOut.of(t.amount),
             kind=t.kind,
             category_id=t.category_id,
-            merchant=merchant_label(t.merchant),
+            merchant=(names or {}).get(t.merchant) or merchant_label(t.merchant),
             member_id=t.member_id,
             source=t.source,
             note=t.note,
@@ -644,3 +646,27 @@ class SavingsOverviewOut(BaseModel):
     recurring_total: MoneyOut
     ideas: list[IdeaOut]
     goals: list[GoalOut]
+
+
+class MerchantGroupOut(BaseModel):
+    id: UUID | None = Field(description="Nulo mientras nadie le haya puesto nombre propio")
+    name: str
+    keys: list[str] = Field(description="Variantes del banco que aparecen en tus cuentas")
+    count: int
+    total: MoneyOut = Field(description="Suma de sus movimientos; los gastos suman en negativo")
+
+
+class MerchantRenameIn(BaseModel):
+    key: str = Field(min_length=1, max_length=100, description="Cualquier variante del comercio")
+    name: str = Field(min_length=1, max_length=60)
+
+
+class MerchantMergeIn(BaseModel):
+    target_key: str = Field(min_length=1, max_length=100, description="Comercio que se queda")
+    source_key: str = Field(min_length=1, max_length=100, description="Comercio que se absorbe")
+
+
+class MerchantChangeOut(BaseModel):
+    merchant: MerchantGroupOut
+    reclassified: int = Field(description="Gastos sin categoría que han tomado la del destino")
+    operation_id: UUID | None

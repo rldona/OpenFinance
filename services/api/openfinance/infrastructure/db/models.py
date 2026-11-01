@@ -179,6 +179,37 @@ class DismissedIdeaRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class MerchantRow(Base):
+    """Comercio con nombre propio (OF-1001). Los que nadie ha tocado no tienen fila."""
+
+    __tablename__ = "merchants"
+    __table_args__ = (UniqueConstraint("id", "household_id", name="uq_merchants_id_household"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    name: Mapped[str] = mapped_column(String(60))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class MerchantKeyRow(Base):
+    """Variante del banco («MERCADONA») que pertenece a un comercio."""
+
+    __tablename__ = "merchant_keys"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["merchant_id", "household_id"],
+            ["merchants.id", "merchants.household_id"],
+            name="fk_merchant_keys_merchant_household",
+            ondelete="CASCADE",
+        ),
+        Index("ix_merchant_keys_merchant", "merchant_id"),
+    )
+
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"), primary_key=True)
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    merchant_id: Mapped[UUID] = mapped_column()
+
+
 class BudgetRow(Base):
     __tablename__ = "budgets"
     __table_args__ = (
@@ -303,7 +334,11 @@ class ChangeEntryRow(Base):
     __tablename__ = "change_entries"
     __table_args__ = (
         Index("ix_change_entries_entity", "entity", "entity_id"),
-        CheckConstraint("entity IN ('transaction', 'rule', 'import')", name="entity_valid"),
+        CheckConstraint(
+            "entity IN ('transaction', 'rule', 'import', 'merchant', 'tag', 'split', 'link', "
+            "'account', 'attachment', 'reconciliation', 'rate')",
+            name="entity_valid",
+        ),
     )
 
     operation_id: Mapped[UUID] = mapped_column(

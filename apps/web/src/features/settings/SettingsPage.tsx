@@ -279,6 +279,9 @@ export function SettingsPage() {
                 <a href="#reglas">Reglas</a>
               </li>
               <li>
+                <a href="#comercios">Comercios</a> · renombrar y fusionar los nombres que escribe el banco
+              </li>
+              <li>
                 <a href="#cambios">Mis cambios</a> · deshacer y rehacer lo que has corregido
               </li>
             </ul>

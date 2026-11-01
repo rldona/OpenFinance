@@ -17,7 +17,7 @@ from openfinance.api.v1.schemas import (
     TransactionOut,
     TransactionPageOut,
 )
-from openfinance.application import ledger, movements
+from openfinance.application import ledger, merchants, movements
 from openfinance.application.ports import TransactionQuery
 from openfinance.domain.categories import CategoryId
 from openfinance.domain.shared.ids import AccountId, TransactionId
@@ -63,7 +63,9 @@ def list_transactions(
         )
     except ValueError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
-    return [TransactionOut.of(t) for t in ledger.list_transactions(uow, actor, query)]
+    found = ledger.list_transactions(uow, actor, query)
+    names = merchants.names_for(uow, actor.household_id, found)
+    return [TransactionOut.of(t, names) for t in found]
 
 
 def _encode_cursor(at: datetime, last_id: UUID) -> str:
@@ -109,8 +111,9 @@ def page_transactions(
     except ValueError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
     page = ledger.page_transactions(uow, actor, query)
+    names = merchants.names_for(uow, actor.household_id, page.items)
     return TransactionPageOut(
-        items=[TransactionOut.of(t) for t in page.items],
+        items=[TransactionOut.of(t, names) for t in page.items],
         next_cursor=_encode_cursor(*page.next_after) if page.next_after else None,
         count=page.count,
         total=MoneyOut.of(page.total),
@@ -150,7 +153,10 @@ def add_manual(body: ManualTransactionIn, actor: ActorDep, uow: UowDep) -> Manua
         utc_now(),
     )
     return ManualTransactionOut(
-        transaction=TransactionOut.of(r.transaction), operation_id=r.operation_id
+        transaction=TransactionOut.of(
+            r.transaction, merchants.names_for(uow, actor.household_id, [r.transaction])
+        ),
+        operation_id=r.operation_id,
     )
 
 

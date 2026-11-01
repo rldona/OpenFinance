@@ -470,6 +470,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/merchants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Merchants */
+        get: operations["list_merchants_api_v1_merchants_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchants/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Merge Merchants */
+        post: operations["merge_merchants_api_v1_merchants_merge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchants/rename": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rename Merchant */
+        post: operations["rename_merchant_api_v1_merchants_rename_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/meta": {
         parameters: {
             query?: never;
@@ -1278,6 +1329,49 @@ export interface components {
              */
             id: string;
         };
+        /** MerchantChangeOut */
+        MerchantChangeOut: {
+            merchant: components["schemas"]["MerchantGroupOut"];
+            /** Operation Id */
+            operation_id: string | null;
+            /**
+             * Reclassified
+             * @description Gastos sin categoría que han tomado la del destino
+             */
+            reclassified: number;
+        };
+        /** MerchantGroupOut */
+        MerchantGroupOut: {
+            /** Count */
+            count: number;
+            /**
+             * Id
+             * @description Nulo mientras nadie le haya puesto nombre propio
+             */
+            id: string | null;
+            /**
+             * Keys
+             * @description Variantes del banco que aparecen en tus cuentas
+             */
+            keys: string[];
+            /** Name */
+            name: string;
+            /** @description Suma de sus movimientos; los gastos suman en negativo */
+            total: components["schemas"]["MoneyOut"];
+        };
+        /** MerchantMergeIn */
+        MerchantMergeIn: {
+            /**
+             * Source Key
+             * @description Comercio que se absorbe
+             */
+            source_key: string;
+            /**
+             * Target Key
+             * @description Comercio que se queda
+             */
+            target_key: string;
+        };
         /** MerchantOut */
         MerchantOut: {
             amount: components["schemas"]["MoneyOut"];
@@ -1285,6 +1379,16 @@ export interface components {
             count: number;
             /** Merchant */
             merchant: string;
+        };
+        /** MerchantRenameIn */
+        MerchantRenameIn: {
+            /**
+             * Key
+             * @description Cualquier variante del comercio
+             */
+            key: string;
+            /** Name */
+            name: string;
         };
         /** MetaResponse */
         MetaResponse: {
@@ -2630,6 +2734,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RevokedOut"];
+                };
+            };
+        };
+    };
+    list_merchants_api_v1_merchants_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MerchantGroupOut"][];
+                };
+            };
+        };
+    };
+    merge_merchants_api_v1_merchants_merge_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MerchantMergeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MerchantChangeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rename_merchant_api_v1_merchants_rename_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MerchantRenameIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MerchantChangeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

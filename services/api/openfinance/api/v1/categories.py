@@ -16,7 +16,7 @@ from openfinance.api.v1.schemas import (
     RuleViewOut,
     TransactionOut,
 )
-from openfinance.application import categories
+from openfinance.application import categories, merchants
 from openfinance.domain.categories import CategoryId, merchant_label
 from openfinance.domain.shared.ids import TransactionId, UserId
 from openfinance.infrastructure.time import utc_now
@@ -81,7 +81,9 @@ def categorize(
         else None
     )
     return CategorizeOut(
-        transaction=TransactionOut.of(result.transaction),
+        transaction=TransactionOut.of(
+            result.transaction, merchants.names_for(uow, actor.household_id, [result.transaction])
+        ),
         rule=rule,
         also_categorized=result.also_categorized,
         operation_id=result.operation_id,

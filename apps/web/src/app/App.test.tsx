@@ -241,6 +241,69 @@ describe('Reglas (OF-702)', () => {
   })
 })
 
+describe('Comercios (OF-1001)', () => {
+  const GROUPS = [
+    { id: null, name: 'Mercadona', keys: ['MERCADONA'], count: 5, total: { amount: '-147.34', currency: 'EUR' } },
+    { id: null, name: 'Mercadona Valencia', keys: ['MERCADONA VALENCIA'], count: 2, total: { amount: '-20.00', currency: 'EUR' } },
+    { id: 'm-1', name: 'Super', keys: ['A', 'B'], count: 3, total: { amount: '-9.00', currency: 'EUR' } },
+  ]
+
+  it('lista los comercios con sus variantes y totales', async () => {
+    window.location.hash = '#comercios'
+    loggedIn({ 'GET /api/v1/merchants': { body: GROUPS } })
+    render(<App />)
+    const row = (await screen.findByRole('cell', { name: 'Mercadona Valencia' })).closest('tr')!
+    expect(row).toHaveTextContent('2')
+    expect(screen.getByText(/2 variantes del banco: A, B/)).toBeInTheDocument()
+  })
+
+  it('renombra un comercio y se puede deshacer', async () => {
+    window.location.hash = '#comercios'
+    const calls = loggedIn({
+      'GET /api/v1/merchants': { body: GROUPS },
+      'POST /api/v1/merchants/rename': {
+        body: { merchant: { ...GROUPS[0], name: 'El Mercadona' }, reclassified: 0, operation_id: 'op-m' },
+      },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Renombrar Mercadona' }))
+    const input = screen.getByLabelText('Nombre')
+    await userEvent.clear(input)
+    await userEvent.type(input, 'El Mercadona')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    const call = calls.find((c) => c.url.pathname === '/api/v1/merchants/rename')!
+    expect(JSON.parse(String(call.body))).toEqual({ key: 'MERCADONA', name: 'El Mercadona' })
+    expect(await screen.findByText('«Mercadona» ahora es «El Mercadona»')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Deshacer' })).toBeInTheDocument()
+  })
+
+  it('un nombre repetido se avisa junto al campo', async () => {
+    window.location.hash = '#comercios'
+    loggedIn({
+      'GET /api/v1/merchants': { body: GROUPS },
+      'POST /api/v1/merchants/rename': { status: 409, body: { detail: 'Ya hay un comercio con ese nombre: fusiónalos si son el mismo' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Renombrar Mercadona' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Ya hay un comercio con ese nombre')
+    expect(screen.getByLabelText('Nombre')).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('fusiona otro comercio en este y cuenta los gastos clasificados', async () => {
+    window.location.hash = '#comercios'
+    const calls = loggedIn({
+      'GET /api/v1/merchants': { body: GROUPS },
+      'POST /api/v1/merchants/merge': { body: { merchant: GROUPS[0], reclassified: 2, operation_id: 'op-f' } },
+    })
+    render(<App />)
+    await userEvent.selectOptions(await screen.findByLabelText('Fusionar otro comercio en Mercadona'), 'MERCADONA VALENCIA')
+    const call = calls.find((c) => c.url.pathname === '/api/v1/merchants/merge')!
+    expect(JSON.parse(String(call.body))).toEqual({ target_key: 'MERCADONA', source_key: 'MERCADONA VALENCIA' })
+    expect(await screen.findByText(/«Mercadona Valencia» fusionado en «Mercadona» · 2 gastos clasificados/)).toBeInTheDocument()
+  })
+})
+
 describe('Historial de importaciones (OF-703)', () => {
   const ITEM = {
     id: 'imp-9',
@@ -1148,6 +1211,10 @@ describe('Este mes honesto (OF-802)', () => {
 })
 
 describe('Accesibilidad (OF-804)', () => {
+  const MERCHANTS = [
+    { id: null, name: 'Mercadona', keys: ['MERCADONA'], count: 5, total: { amount: '-147.34', currency: 'EUR' } },
+    { id: null, name: 'Mercadona Valencia', keys: ['MERCADONA VALENCIA'], count: 2, total: { amount: '-20.00', currency: 'EUR' } },
+  ]
   const RULES = [{ key: 'MERCADONA', merchant: 'Mercadona', category_id: 'c-super', scope: 'household', matches: 12 }]
   const OP = { id: 'op-a', actor_id: 'u-raul', created_at: '2026-11-01T10:00:00Z', action: 'transaction.edit', changes: [], summary: 'Glovo → Restaurantes', undone: false }
   const mocks = () => ({
@@ -1158,6 +1225,7 @@ describe('Accesibilidad (OF-804)', () => {
     'GET /api/v1/budgets': { body: BUDGETS },
     'GET /api/v1/savings/overview': { body: SAVINGS },
     'GET /api/v1/rules': { body: RULES },
+    'GET /api/v1/merchants': { body: MERCHANTS },
     'GET /api/v1/changes': { body: [OP] },
     'GET /api/v1/me/patterns': { body: [] },
   })
@@ -1181,6 +1249,7 @@ describe('Accesibilidad (OF-804)', () => {
     ['categorias', 'Categorías', 'heading'],
     ['presupuestos', 'Presupuestos', 'heading'],
     ['reglas', 'Reglas', 'heading'],
+    ['comercios', 'Comercios', 'heading'],
     ['ajustes', 'Ajustes', 'heading'],
     ['cambios', 'Mis cambios', 'heading'],
   ]

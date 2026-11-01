@@ -9,6 +9,7 @@ import { ChangesPage } from '../features/changes/ChangesPage'
 import { RulesPage } from '../features/categories/RulesPage'
 import { ExportMenu } from '../features/export/ExportMenu'
 import { ImportPage } from '../features/import/ImportPage'
+import { MerchantsPage } from '../features/merchants/MerchantsPage'
 import { UpdateNotice } from '../features/updates/UpdateNotice'
 import { MonthPage } from '../features/insights/MonthPage'
 import { SpendingPage } from '../features/insights/SpendingPage'
@@ -47,6 +48,8 @@ function Page({ route }: { route: RouteId }) {
       return <RulesPage />
     case 'ajustes':
       return <SettingsPage />
+    case 'comercios':
+      return <MerchantsPage />
     case 'cambios':
       return <ChangesPage />
   }

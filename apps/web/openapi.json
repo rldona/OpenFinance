@@ -1451,6 +1451,107 @@
         "title": "MemberOut",
         "type": "object"
       },
+      "MerchantChangeOut": {
+        "properties": {
+          "merchant": {
+            "$ref": "#/components/schemas/MerchantGroupOut"
+          },
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "reclassified": {
+            "description": "Gastos sin categoría que han tomado la del destino",
+            "title": "Reclassified",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "merchant",
+          "reclassified",
+          "operation_id"
+        ],
+        "title": "MerchantChangeOut",
+        "type": "object"
+      },
+      "MerchantGroupOut": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Nulo mientras nadie le haya puesto nombre propio",
+            "title": "Id"
+          },
+          "keys": {
+            "description": "Variantes del banco que aparecen en tus cuentas",
+            "items": {
+              "type": "string"
+            },
+            "title": "Keys",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "total": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Suma de sus movimientos; los gastos suman en negativo"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "keys",
+          "count",
+          "total"
+        ],
+        "title": "MerchantGroupOut",
+        "type": "object"
+      },
+      "MerchantMergeIn": {
+        "properties": {
+          "source_key": {
+            "description": "Comercio que se absorbe",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Source Key",
+            "type": "string"
+          },
+          "target_key": {
+            "description": "Comercio que se queda",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Target Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target_key",
+          "source_key"
+        ],
+        "title": "MerchantMergeIn",
+        "type": "object"
+      },
       "MerchantOut": {
         "properties": {
           "amount": {
@@ -1471,6 +1572,29 @@
           "count"
         ],
         "title": "MerchantOut",
+        "type": "object"
+      },
+      "MerchantRenameIn": {
+        "properties": {
+          "key": {
+            "description": "Cualquier variante del comercio",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name"
+        ],
+        "title": "MerchantRenameIn",
         "type": "object"
       },
       "MetaResponse": {
@@ -3912,6 +4036,113 @@
         "summary": "Revoke Other Sessions",
         "tags": [
           "settings"
+        ]
+      }
+    },
+    "/api/v1/merchants": {
+      "get": {
+        "operationId": "list_merchants_api_v1_merchants_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MerchantGroupOut"
+                  },
+                  "title": "Response List Merchants Api V1 Merchants Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Merchants",
+        "tags": [
+          "merchants"
+        ]
+      }
+    },
+    "/api/v1/merchants/merge": {
+      "post": {
+        "operationId": "merge_merchants_api_v1_merchants_merge_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MerchantMergeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantChangeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Merge Merchants",
+        "tags": [
+          "merchants"
+        ]
+      }
+    },
+    "/api/v1/merchants/rename": {
+      "post": {
+        "operationId": "rename_merchant_api_v1_merchants_rename_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MerchantRenameIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantChangeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rename Merchant",
+        "tags": [
+          "merchants"
         ]
       }
     },

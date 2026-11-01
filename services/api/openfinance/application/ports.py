@@ -19,6 +19,7 @@ from openfinance.domain.imports import (
 )
 from openfinance.domain.imports.batch import ImportBatch, ImportStatus
 from openfinance.domain.ledger import Account, Institution, Transaction
+from openfinance.domain.merchants import Merchant, MerchantId
 from openfinance.domain.savings import Budget, Goal, GoalId
 from openfinance.domain.shared.ids import AccountId, TransactionId, UserId, WorkspaceId
 from openfinance.domain.workspaces import Household
@@ -131,6 +132,18 @@ class TransactionRepository(Protocol):
     def set_category(
         self, household_id: WorkspaceId, ids: list[TransactionId], category_id: CategoryId | None
     ) -> None: ...
+    def merchant_totals(
+        self, household_id: WorkspaceId, account_ids: list[AccountId]
+    ) -> list[tuple[str, int, Decimal]]:
+        """(variante, cuántos movimientos, suma) por variante, solo de esas cuentas (OF-1001)."""
+        ...
+
+    def uncategorized_with_merchant(
+        self, household_id: WorkspaceId, account_ids: list[AccountId], key: str
+    ) -> list[Transaction]:
+        """Gastos sin categoría de exactamente esa variante."""
+        ...
+
     def uncategorized_with_merchant_word(
         self, household_id: WorkspaceId, account_ids: list[AccountId], first_word: str
     ) -> list[Transaction]:
@@ -173,6 +186,24 @@ class RuleRepository(Protocol):
     def upsert(self, rule: CategoryRule, now: datetime) -> None: ...
     def get(self, household_id: WorkspaceId, scope: str, merchant: str) -> CategoryRule | None: ...
     def delete(self, household_id: WorkspaceId, scope: str, merchant: str) -> None: ...
+
+
+class MerchantRepository(Protocol):
+    def get(self, household_id: WorkspaceId, merchant_id: MerchantId) -> Merchant | None: ...
+    def for_keys(self, household_id: WorkspaceId, keys: list[str]) -> dict[str, Merchant]:
+        """Los comercios con nombre propio de esas variantes, por variante."""
+        ...
+
+    def all(self, household_id: WorkspaceId) -> list[Merchant]: ...
+    def add(self, merchant: Merchant) -> None: ...
+    def set_name(self, household_id: WorkspaceId, merchant_id: MerchantId, name: str) -> None: ...
+    def set_keys(self, household_id: WorkspaceId, merchant_id: MerchantId, keys: list[str]) -> None:
+        """Sustituye las variantes del comercio por estas."""
+        ...
+
+    def delete(self, household_id: WorkspaceId, merchant_id: MerchantId) -> None:
+        """Borra el comercio y libera sus variantes."""
+        ...
 
 
 class BudgetRepository(Protocol):
@@ -307,6 +338,8 @@ class UnitOfWork(Protocol):
     def goals(self) -> GoalRepository: ...
     @property
     def dismissed_ideas(self) -> IdeaDismissalRepository: ...
+    @property
+    def merchants(self) -> MerchantRepository: ...
     @property
     def member_patterns(self) -> MemberPatternRepository: ...
     @property

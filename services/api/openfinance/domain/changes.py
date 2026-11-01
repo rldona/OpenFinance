@@ -19,6 +19,9 @@ class Entity(StrEnum):
     RULE = "rule"
     """Regla «comercio → categoría». Su identificador es ``ámbito|comercio``."""
     IMPORT = "import"
+    MERCHANT = "merchant"
+    """Comercio con nombre propio (OF-1001). Campos: ``name`` y ``keys`` (variantes con «|»);
+    ``None`` en ``name`` significa que el comercio no existe."""
 
 
 TRANSACTION_FIELDS = ("kind", "member_id", "category_id", "note", "voided")

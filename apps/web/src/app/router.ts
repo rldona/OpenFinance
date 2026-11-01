@@ -10,7 +10,7 @@ export const ROUTES = [
   { id: 'importar', label: 'Importar', short: 'Importar', icon: '⬆️' },
 ] as const
 
-const HIDDEN_ROUTES = ['categorias', 'presupuestos', 'reglas', 'ajustes', 'cambios'] as const
+const HIDDEN_ROUTES = ['categorias', 'presupuestos', 'reglas', 'ajustes', 'cambios', 'comercios'] as const
 
 export type RouteId = (typeof ROUTES)[number]['id'] | (typeof HIDDEN_ROUTES)[number]
 
@@ -27,6 +27,7 @@ export const TITLES: Record<RouteId, string> = {
   reglas: 'Reglas',
   ajustes: 'Ajustes',
   cambios: 'Mis cambios',
+  comercios: 'Comercios',
 }
 
 const PARAMS_EVENT = 'of-hash-params'
