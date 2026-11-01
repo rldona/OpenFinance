@@ -154,6 +154,66 @@ describe('Corregir un movimiento (OF-701)', () => {
   })
 })
 
+describe('Varios a la vez y efectivo (OF-705)', () => {
+  it('pone la misma categoría a los seleccionados sin aprender reglas y se puede deshacer', async () => {
+    const calls = loggedIn({
+      'POST /api/v1/transactions/categorize': { body: { updated: 2, operation_id: 'op-9' } },
+      'POST /api/v1/changes/op-9/undo': {
+        body: { operation: { id: 'op-9', actor_id: 'u-raul', created_at: '2026-11-01T10:00:00Z', action: 'x', summary: 'x', undone: true, changes: [] }, applied: 2, kept: 0, kept_by: [] },
+      },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByLabelText(/Solo sin categoría/))
+    await userEvent.click(await screen.findByLabelText('Seleccionar Glovo'))
+    await userEvent.click(screen.getByLabelText('Seleccionar Amazon'))
+    expect(screen.getByText('2 seleccionados')).toBeInTheDocument()
+    await userEvent.selectOptions(screen.getByLabelText('Categoría para los seleccionados'), 'c-rest')
+    await userEvent.click(screen.getByRole('button', { name: 'Poner categoría' }))
+    const bulk = calls.find((c) => c.url.pathname === '/api/v1/transactions/categorize')!
+    expect(JSON.parse(String(bulk.body))).toEqual({ ids: ['t4', 't5'], category_id: 'c-rest' })
+    expect(await screen.findByText('2 gastos → Restaurantes')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Deshacer' }))
+    expect(await screen.findByText('Deshecho')).toBeInTheDocument()
+  })
+
+  it('añade un gasto en efectivo y avisa si la cuenta es del banco', async () => {
+    const calls = loggedIn({
+      'POST /api/v1/transactions': {
+        status: 201,
+        body: { transaction: { ...TRANSACTIONS[3], id: 't9', description: 'Churrería', source: 'manual' }, operation_id: 'op-1' },
+      },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: '+ Añadir a mano' }))
+    const form = screen.getByRole('form', { name: 'Añadir a mano' })
+    expect(within(form).getByText(/su saldo dejará de cuadrar/)).toBeInTheDocument()
+    await userEvent.type(within(form).getByLabelText('Concepto'), 'Churrería')
+    await userEvent.type(within(form).getByLabelText('Importe'), '7,50')
+    await userEvent.click(within(form).getByRole('button', { name: 'Añadir' }))
+    const post = calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/transactions')!
+    expect(JSON.parse(String(post.body))).toMatchObject({ description: 'Churrería', amount: '7.50', kind: 'expense', account_id: 'a-joint' })
+    expect(await screen.findByText('Añadido: Churrería')).toBeInTheDocument()
+  })
+
+  it('solo los movimientos añadidos a mano se pueden borrar', async () => {
+    const manual = { ...TRANSACTIONS[3], source: 'manual' }
+    const calls = loggedIn({
+      'GET /api/v1/transactions': { body: [TRANSACTIONS[2], manual] },
+      'GET /api/v1/transactions/t3/history': { body: [] },
+      'GET /api/v1/transactions/t4/history': { body: [] },
+      'DELETE /api/v1/transactions/t4': { body: { operation_id: 'op-3' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Mercadona' }))
+    expect(await screen.findByText('Sin correcciones.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Borrar' })).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'Detalle de Glovo' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Borrar' }))
+    expect(calls.some((c) => c.method === 'DELETE' && c.url.pathname === '/api/v1/transactions/t4')).toBe(true)
+    expect(await screen.findByText('Borrado: Glovo')).toBeInTheDocument()
+  })
+})
+
 describe('Búsqueda', () => {
   it.each(['#1', '%', '"comillas"', "l'oreal"])('busca «%s» sin romper la pantalla', async (text) => {
     const calls = loggedIn()

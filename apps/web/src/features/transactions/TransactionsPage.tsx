@@ -6,6 +6,7 @@ import { formatDate, formatMoney } from '../../lib/format'
 import { notifyUndoable } from '../../lib/undo'
 import { MonthPicker } from '../insights/common'
 import { kindLabel } from './labels'
+import { ManualForm } from './ManualForm'
 import { TransactionDetail } from './TransactionDetail'
 
 function CategorySelect({
@@ -38,7 +39,7 @@ function CategorySelect({
 }
 
 export function TransactionsPage() {
-  const { me, categoryById, uncategorized, refreshUncategorized, notify, month } = useHousehold()
+  const { me, categories, categoryById, uncategorized, refreshUncategorized, notify, month } = useHousehold()
   const [allMonths, setAllMonths] = useState(false)
   const [q, setQ] = useState('')
   const [debouncedQ, setDebouncedQ] = useState('')
@@ -90,6 +91,48 @@ export function TransactionsPage() {
   const error = current?.error ?? null
   const accountName = (id: string) => accounts.find((a) => a.id === id)?.name ?? ''
   const [openId, setOpenId] = useState<string | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkCategory, setBulkCategory] = useState('')
+  const [showManual, setShowManual] = useState(false)
+  // Solo se pueden seleccionar varios en «Solo sin categoría» y entre los que se ven.
+  const selectable = onlyUncategorized ? (rows ?? []).filter((t) => t.kind === 'expense') : []
+  const chosen = selectable.filter((t) => selected.has(t.id))
+
+  function toggle(id: string) {
+    setSelected((s) => {
+      const next = new Set(s)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  async function categorizeChosen() {
+    if (chosen.length === 0) return
+    try {
+      const r = await api.categorizeMany(
+        chosen.map((t) => t.id),
+        bulkCategory || null,
+      )
+      const name = bulkCategory ? (categoryById.get(bulkCategory)?.name ?? 'categoría') : 'Sin categoría'
+      notifyUndoable(notify, me, `${r.updated} ${r.updated === 1 ? 'gasto' : 'gastos'} → ${name}`, r.operation_id, refresh)
+      setSelected(new Set())
+      refresh()
+    } catch (err) {
+      notify(err instanceof ApiError ? err.message : 'No se ha podido clasificar')
+    }
+  }
+
+  async function deleteManual(t: Transaction) {
+    try {
+      const r = await api.deleteManual(t.id)
+      notifyUndoable(notify, me, `Borrado: ${t.description}`, r.operation_id, refresh)
+      setOpenId(null)
+      refresh()
+    } catch (err) {
+      notify(err instanceof ApiError ? err.message : 'No se ha podido borrar')
+    }
+  }
 
   function refresh() {
     setVersion((v) => v + 1)
@@ -126,8 +169,25 @@ export function TransactionsPage() {
             <a href="#categorias">Gestionar categorías</a>
           </p>
         </div>
-        <MonthPicker disabled={allMonths || onlyUncategorized} />
+        <div className="page-tools">
+          <button className="btn" type="button" onClick={() => setShowManual((v) => !v)} aria-expanded={showManual}>
+            + Añadir a mano
+          </button>
+          <MonthPicker disabled={allMonths || onlyUncategorized} />
+        </div>
       </div>
+
+      {showManual && (
+        <ManualForm
+          accounts={accounts}
+          onClose={() => setShowManual(false)}
+          onSaved={(r) => {
+            notifyUndoable(notify, me, `Añadido: ${r.transaction.description}`, r.operation_id, refresh)
+            setShowManual(false)
+            refresh()
+          }}
+        />
+      )}
 
       {uncategorized > 0 && !onlyUncategorized && (
         <div className="notice warn row">
@@ -172,6 +232,30 @@ export function TransactionsPage() {
           </label>
         </div>
 
+        {onlyUncategorized && chosen.length > 0 && (
+          <div className="toolbar bulk" role="group" aria-label="Clasificar los seleccionados">
+            <strong>{chosen.length === 1 ? '1 seleccionado' : `${chosen.length} seleccionados`}</strong>
+            <select
+              className="field"
+              aria-label="Categoría para los seleccionados"
+              value={bulkCategory}
+              onChange={(e) => setBulkCategory(e.target.value)}
+            >
+              <option value="">Elige categoría…</option>
+              {categories
+                .filter((c) => !c.hidden)
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.icon} {c.name}
+                  </option>
+                ))}
+            </select>
+            <button className="btn primary small" type="button" disabled={!bulkCategory} onClick={() => void categorizeChosen()}>
+              Poner categoría
+            </button>
+            <span className="small muted">No aprende reglas.</span>
+          </div>
+        )}
         {error && <ErrorState message={error} onRetry={() => setVersion((v) => v + 1)} />}
         {!error && rows === null && <Loading />}
         {rows && rows.length === 0 && (
@@ -192,6 +276,16 @@ export function TransactionsPage() {
           <table role="table" className={`rows tx${stale ? ' stale' : ''}`} aria-busy={stale}>
             <thead role="rowgroup">
               <tr role="row">
+                {onlyUncategorized && (
+                  <th role="columnheader">
+                    <input
+                      type="checkbox"
+                      aria-label="Seleccionar todos"
+                      checked={selectable.length > 0 && chosen.length === selectable.length}
+                      onChange={(e) => setSelected(new Set(e.target.checked ? selectable.map((t) => t.id) : []))}
+                    />
+                  </th>
+                )}
                 <th role="columnheader">Fecha</th>
                 <th role="columnheader">Concepto</th>
                 <th role="columnheader">Categoría</th>
@@ -205,6 +299,18 @@ export function TransactionsPage() {
                 return (
                   <Fragment key={t.id}>
                   <tr role="row">
+                    {onlyUncategorized && (
+                      <td role="cell">
+                        {t.kind === 'expense' && (
+                          <input
+                            type="checkbox"
+                            aria-label={`Seleccionar ${t.description}`}
+                            checked={selected.has(t.id)}
+                            onChange={() => toggle(t.id)}
+                          />
+                        )}
+                      </td>
+                    )}
                     <td role="cell" className="muted small">{formatDate(t.booked_at)}</td>
                     <td role="cell">
                       <button
@@ -238,12 +344,13 @@ export function TransactionsPage() {
                   </tr>
                   {open && (
                     <tr role="row" className="detail-row">
-                      <td role="cell" colSpan={4}>
+                      <td role="cell" colSpan={onlyUncategorized ? 5 : 4}>
                         <TransactionDetail
                           key={`${t.id}|${t.kind}|${t.member_id}|${t.note}`}
                           t={t}
                           version={version}
                           onClose={() => setOpenId(null)}
+                          onDelete={t.source === 'manual' ? () => void deleteManual(t) : undefined}
                           onSaved={(r) => {
                             notifyUndoable(notify, me, 'Movimiento corregido', r.operation_id, refresh)
                             refresh()

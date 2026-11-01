@@ -410,7 +410,31 @@ export interface paths {
         /** List Transactions */
         get: operations["list_transactions_api_v1_transactions_get"];
         put?: never;
-        post?: never;
+        /**
+         * Add Manual
+         * @description Añade a mano un gasto o un ingreso (p. ej. en efectivo). Se puede deshacer y borrar.
+         */
+        post: operations["add_manual_api_v1_transactions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/transactions/categorize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Categorize Many
+         * @description Pone la misma categoría a varios gastos, sin aprender reglas, en una sola operación.
+         */
+        post: operations["categorize_many_api_v1_transactions_categorize_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -444,7 +468,11 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Manual
+         * @description Borra un movimiento manual: queda anulado y en el registro. Los importados no se borran.
+         */
+        delete: operations["delete_manual_api_v1_transactions__transaction_id__delete"];
         options?: never;
         head?: never;
         /**
@@ -572,6 +600,20 @@ export interface components {
             month: string;
             total_amount: components["schemas"]["MoneyOut"] | null;
             total_spent: components["schemas"]["MoneyOut"] | null;
+        };
+        /** BulkCategorizeIn */
+        BulkCategorizeIn: {
+            /** Category Id */
+            category_id: string | null;
+            /** Ids */
+            ids: string[];
+        };
+        /** BulkCategorizeOut */
+        BulkCategorizeOut: {
+            /** Operation Id */
+            operation_id: string | null;
+            /** Updated */
+            updated: number;
         };
         /**
          * CategorizeIn
@@ -887,6 +929,44 @@ export interface components {
             /** Password */
             password: string;
         };
+        /**
+         * ManualTransactionIn
+         * @description Un movimiento que no viene de ningún extracto, p. ej. un pago en efectivo (OF-705).
+         */
+        ManualTransactionIn: {
+            /**
+             * Account Id
+             * Format: uuid
+             */
+            account_id: string;
+            /**
+             * Amount
+             * @description Positivo; un gasto resta
+             */
+            amount: string;
+            /**
+             * Booked On
+             * Format: date
+             */
+            booked_on: string;
+            /** Category Id */
+            category_id?: string | null;
+            /** Description */
+            description: string;
+            /** @default expense */
+            kind: components["schemas"]["TransactionKind"];
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+        };
+        /** ManualTransactionOut */
+        ManualTransactionOut: {
+            /** Operation Id */
+            operation_id: string | null;
+            transaction: components["schemas"]["TransactionOut"];
+        };
         /** MeOut */
         MeOut: {
             household: components["schemas"]["HouseholdOut"];
@@ -1037,6 +1117,11 @@ export interface components {
             summary: string;
             /** Undone */
             undone: boolean;
+        };
+        /** OperationRefOut */
+        OperationRefOut: {
+            /** Operation Id */
+            operation_id: string | null;
         };
         /** PreviewRowOut */
         PreviewRowOut: {
@@ -2018,6 +2103,72 @@ export interface operations {
             };
         };
     };
+    add_manual_api_v1_transactions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManualTransactionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManualTransactionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    categorize_many_api_v1_transactions_categorize_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkCategorizeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkCategorizeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     uncategorized_count_api_v1_transactions_uncategorized_count_get: {
         parameters: {
             query?: never;
@@ -2034,6 +2185,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CountOut"];
+                };
+            };
+        };
+    };
+    delete_manual_api_v1_transactions__transaction_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transaction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationRefOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -194,6 +194,64 @@
         "title": "BudgetsOut",
         "type": "object"
       },
+      "BulkCategorizeIn": {
+        "properties": {
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ids",
+          "category_id"
+        ],
+        "title": "BulkCategorizeIn",
+        "type": "object"
+      },
+      "BulkCategorizeOut": {
+        "properties": {
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "updated": {
+            "title": "Updated",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "updated",
+          "operation_id"
+        ],
+        "title": "BulkCategorizeOut",
+        "type": "object"
+      },
       "CategorizeIn": {
         "description": "Corrección de un movimiento: solo cambia lo que se envía (OF-701).",
         "properties": {
@@ -1155,6 +1213,88 @@
         "title": "LoginIn",
         "type": "object"
       },
+      "ManualTransactionIn": {
+        "description": "Un movimiento que no viene de ningún extracto, p. ej. un pago en efectivo (OF-705).",
+        "properties": {
+          "account_id": {
+            "format": "uuid",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "amount": {
+            "description": "Positivo; un gasto resta",
+            "pattern": "^\\d{1,9}([.,]\\d{1,2})?$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "booked_on": {
+            "format": "date",
+            "title": "Booked On",
+            "type": "string"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "description": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/TransactionKind",
+            "default": "expense"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id",
+          "booked_on",
+          "description",
+          "amount"
+        ],
+        "title": "ManualTransactionIn",
+        "type": "object"
+      },
+      "ManualTransactionOut": {
+        "properties": {
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "transaction": {
+            "$ref": "#/components/schemas/TransactionOut"
+          }
+        },
+        "required": [
+          "transaction",
+          "operation_id"
+        ],
+        "title": "ManualTransactionOut",
+        "type": "object"
+      },
       "MeOut": {
         "properties": {
           "household": {
@@ -1530,6 +1670,27 @@
           "changes"
         ],
         "title": "OperationOut",
+        "type": "object"
+      },
+      "OperationRefOut": {
+        "properties": {
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          }
+        },
+        "required": [
+          "operation_id"
+        ],
+        "title": "OperationRefOut",
         "type": "object"
       },
       "PreviewRowOut": {
@@ -3307,6 +3468,88 @@
         "tags": [
           "ledger"
         ]
+      },
+      "post": {
+        "description": "Añade a mano un gasto o un ingreso (p. ej. en efectivo). Se puede deshacer y borrar.",
+        "operationId": "add_manual_api_v1_transactions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualTransactionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualTransactionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Manual",
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
+    "/api/v1/transactions/categorize": {
+      "post": {
+        "description": "Pone la misma categoría a varios gastos, sin aprender reglas, en una sola operación.",
+        "operationId": "categorize_many_api_v1_transactions_categorize_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkCategorizeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkCategorizeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Categorize Many",
+        "tags": [
+          "ledger"
+        ]
       }
     },
     "/api/v1/transactions/uncategorized-count": {
@@ -3331,6 +3574,48 @@
       }
     },
     "/api/v1/transactions/{transaction_id}": {
+      "delete": {
+        "description": "Borra un movimiento manual: queda anulado y en el registro. Los importados no se borran.",
+        "operationId": "delete_manual_api_v1_transactions__transaction_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transaction_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transaction Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationRefOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Manual",
+        "tags": [
+          "ledger"
+        ]
+      },
       "patch": {
         "description": "Corrige un movimiento: categoría (y, por defecto, aprende la regla), tipo, persona o nota.\n\nSolo cambia lo que se envía. Todo queda en el registro de cambios y se puede deshacer.",
         "operationId": "categorize_api_v1_transactions__transaction_id__patch",

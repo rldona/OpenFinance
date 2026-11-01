@@ -30,6 +30,7 @@ Se publicará como **0.1.0**, la primera versión para usar en casa. Pasos en [d
 - **Licencia** (OF-504, [ADR-0008](docs/adr/0008-licencia-agpl.md)): AGPL-3.0-or-later, con dependencias auditadas ([docs/legal/dependencias.md](docs/legal/dependencias.md)) y contribuciones con DCO ([CONTRIBUTING.md](CONTRIBUTING.md)).
 
 - **Corregir movimientos** (OF-701, [ADR-0017](docs/adr/0017-registro-de-cambios.md)): en Movimientos, pulsa el concepto para cambiar el tipo (gasto, ingreso, aportación de quién, hucha, entre cuentas) o añadir una nota. Cada corrección queda en su historial con quién y cuándo, y se puede deshacer desde el aviso. El importe, la fecha y el concepto del banco no se tocan.
+- **Varios a la vez y efectivo** (OF-705): en «Solo sin categoría» puedes elegir varios gastos y ponerles la misma categoría de una vez. «+ Añadir a mano» apunta un gasto o un ingreso que no viene del banco (por ejemplo, en efectivo); se puede borrar y deshacer.
 
 ### Fixed
 

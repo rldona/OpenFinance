@@ -15,7 +15,7 @@ Un ticket está terminado cuando cumple sus criterios de aceptación, tiene test
 | 4 · Ahorro | Presupuestos, objetivos, ideas y simulador | OF-401 … OF-405 | ✅ Hecha |
 | 5 · Uso real | Instalado en casa, con copias de seguridad | OF-501 … OF-504 | ✅ OF-501 a OF-503 (CI en verde, también `compose-e2e`) · OF-504 preparado: falta la etiqueta `v0.1.0` tras el mes de uso real |
 | 6 · Datos fiables | Que cualquier extracto real se importe sin errores ni entradas infladas | OF-601 … OF-608 | ✅ Hecha · falta reconocer los traspasos internos de OF-602 (pendiente de un extracto real) |
-| 7 · Corregir sin miedo | Editar, deshacer y ajustar desde la web, con historial | OF-701 … OF-706 | 🚧 En curso · base del registro ✅ · OF-701 ✅ |
+| 7 · Corregir sin miedo | Editar, deshacer y ajustar desde la web, con historial | OF-701 … OF-706 | 🚧 En curso · base del registro ✅ · OF-701 ✅ · OF-705 ✅ |
 | 8 · Uso diario | Móvil, PWA, accesibilidad y mes en curso honesto (v0.2) | OF-801 … OF-806 | Pendiente |
 | 9 · Operación | Copias cifradas, dependencias y actualizaciones (v0.2) | OF-901 … OF-907 | Pendiente |
 | 10 – 17 | Del libro contable completo a la 1.0 | OF-1001 … OF-1705 | Ver [Después de v0.2](#después-de-v02) |
@@ -356,10 +356,11 @@ Que cualquier error de datos se arregle desde la web, quede trazado y se pueda d
 - Entradas visibles a Categorías, Presupuestos y Reglas.
 - 🧪 Cambiar la contraseña revoca las demás sesiones; 🧪 una persona no puede editar los patrones de la otra.
 
-### OF-705 · Clasificar varios a la vez y movimientos de efectivo
-- Selección múltiple en «Solo sin categoría» → «Poner categoría», sin aprender reglas y como una sola operación.
-- Alta manual de un gasto (efectivo), con procedencia `manual` y su historial.
-- 🧪 Un movimiento manual cuenta en los totales y se puede borrar, dejando registro; los importados no se borran.
+### OF-705 · Clasificar varios a la vez y movimientos de efectivo ✅
+- ✅ En «Solo sin categoría», casillas para elegir varios gastos y «Poner categoría» (`POST /api/v1/transactions/categorize`): sin aprender reglas y como una sola operación, que «Deshacer» revierte entera. Si alguno no se puede ver, no se toca ninguno (404).
+- ✅ «+ Añadir a mano» (`POST /api/v1/transactions`): gasto o ingreso con fecha, concepto, importe positivo (el tipo da el signo), cuenta y categoría, con procedencia `manual`. Se propone una cuenta de «otra entidad»; en una cuenta del banco avisa de que su saldo dejará de cuadrar con el extracto. Hasta la fase 10 no hay cuentas de efectivo propias: se crean con `openfinance accounts add … --bank other`.
+- ✅ «Borrar» en el detalle de un movimiento manual (`DELETE /api/v1/transactions/{id}`): queda anulado y en el registro, y se puede deshacer. Los importados no se borran (422): se deshace su importación (OF-703).
+- ✅ 🧪 Un movimiento manual cuenta en los totales y al borrarlo deja de contar (ni en listados ni en la exportación), con su alta y su baja en el historial; ✅ 🧪 los importados no se borran; ✅ 🧪 la pareja no añade ni borra en la cuenta personal del otro, ni otro hogar.
 
 ### OF-706 · Registro de cambios con deshacer y rehacer
 - Lo que falta sobre la base: pantalla «Mis cambios» con deshacer y rehacer, y que reglas, importaciones y movimientos manuales escriban en el registro.

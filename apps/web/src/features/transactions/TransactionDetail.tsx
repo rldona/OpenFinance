@@ -19,12 +19,15 @@ export function TransactionDetail({
   version,
   onSaved,
   onClose,
+  onDelete,
 }: {
   t: Transaction
   /** Cambia cuando el movimiento se ha corregido o deshecho, para recargar el historial. */
   version: number
   onSaved: (result: CategorizeResult) => void
   onClose: () => void
+  /** Solo en los movimientos añadidos a mano (OF-705). */
+  onDelete?: () => void
 }) {
   const { me, notify } = useHousehold()
   const [kind, setKind] = useState<TransactionKind>(t.kind)
@@ -87,8 +90,17 @@ export function TransactionDetail({
         <button className="btn small" type="button" onClick={onClose}>
           Cerrar
         </button>
+        {onDelete && (
+          <button className="btn small danger" type="button" onClick={onDelete}>
+            Borrar
+          </button>
+        )}
       </form>
-      <p className="small muted">El importe, la fecha y el concepto vienen del banco y no se cambian.</p>
+      <p className="small muted">
+        {onDelete
+          ? 'Añadido a mano: puedes borrarlo y deshacerlo después.'
+          : 'El importe, la fecha y el concepto vienen del banco y no se cambian.'}
+      </p>
       <h3 className="small">Historial</h3>
       {history.error && <ErrorState message={history.error} onRetry={history.reload} />}
       {!history.data && !history.error && <Loading />}

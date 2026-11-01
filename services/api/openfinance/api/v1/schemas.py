@@ -266,6 +266,40 @@ class CategorizeOut(BaseModel):
     operation_id: UUID | None = Field(description="Para deshacer la corrección (ADR-0017)")
 
 
+AMOUNT_PATTERN = r"^\d{1,9}([.,]\d{1,2})?$"
+
+
+class BulkCategorizeIn(BaseModel):
+    ids: list[UUID] = Field(min_length=1, max_length=500)
+    category_id: UUID | None
+
+
+class BulkCategorizeOut(BaseModel):
+    updated: int
+    operation_id: UUID | None
+
+
+class ManualTransactionIn(BaseModel):
+    """Un movimiento que no viene de ningún extracto, p. ej. un pago en efectivo (OF-705)."""
+
+    account_id: UUID
+    booked_on: date
+    description: str = Field(min_length=1, max_length=200)
+    amount: str = Field(pattern=AMOUNT_PATTERN, description="Positivo; un gasto resta")
+    kind: TransactionKind = TransactionKind.EXPENSE
+    category_id: UUID | None = None
+    note: str = Field(default="", max_length=500)
+
+
+class ManualTransactionOut(BaseModel):
+    transaction: TransactionOut
+    operation_id: UUID | None
+
+
+class OperationRefOut(BaseModel):
+    operation_id: UUID | None
+
+
 class ChangeOut(BaseModel):
     entity: str
     field: str
@@ -392,9 +426,6 @@ class TrendsOut(BaseModel):
     saving_rate: int | None
     best: MonthSavedOut | None
     worst: MonthSavedOut | None
-
-
-AMOUNT_PATTERN = r"^\d{1,9}([.,]\d{1,2})?$"
 
 
 class BudgetIn(BaseModel):
