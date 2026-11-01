@@ -1184,6 +1184,15 @@
             "title": "Id",
             "type": "string"
           },
+          "members_without_recharge": {
+            "description": "Quién no tiene guardada su tarjeta de recarga: sus recargas entrarían como ingreso. La web pide confirmación antes de importar.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Members Without Recharge",
+            "type": "array"
+          },
           "new_count": {
             "title": "New Count",
             "type": "integer"
@@ -1218,7 +1227,8 @@
           "skipped",
           "balance_mismatches",
           "bank_balance",
-          "balance_after_import"
+          "balance_after_import",
+          "members_without_recharge"
         ],
         "title": "ImportPreviewOut",
         "type": "object"
@@ -1767,6 +1777,73 @@
         "title": "OperationRefOut",
         "type": "object"
       },
+      "PasswordChangeIn": {
+        "properties": {
+          "current_password": {
+            "maxLength": 200,
+            "title": "Current Password",
+            "type": "string"
+          },
+          "new_password": {
+            "maxLength": 200,
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "PasswordChangeIn",
+        "type": "object"
+      },
+      "PatternDirection": {
+        "enum": [
+          "inflow",
+          "outflow"
+        ],
+        "title": "PatternDirection",
+        "type": "string"
+      },
+      "PatternIn": {
+        "properties": {
+          "direction": {
+            "$ref": "#/components/schemas/PatternDirection",
+            "default": "inflow"
+          },
+          "pattern": {
+            "examples": [
+              "*1234"
+            ],
+            "maxLength": 60,
+            "minLength": 3,
+            "title": "Pattern",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pattern"
+        ],
+        "title": "PatternIn",
+        "type": "object"
+      },
+      "PatternOut": {
+        "properties": {
+          "direction": {
+            "$ref": "#/components/schemas/PatternDirection"
+          },
+          "pattern": {
+            "title": "Pattern",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pattern",
+          "direction"
+        ],
+        "title": "PatternOut",
+        "type": "object"
+      },
       "PreviewRowOut": {
         "properties": {
           "amount": {
@@ -1935,6 +2012,20 @@
           "kept_by"
         ],
         "title": "RevertOut",
+        "type": "object"
+      },
+      "RevokedOut": {
+        "properties": {
+          "revoked": {
+            "description": "Sesiones cerradas en otros navegadores",
+            "title": "Revoked",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revoked"
+        ],
+        "title": "RevokedOut",
         "type": "object"
       },
       "RuleOut": {
@@ -3484,6 +3575,178 @@
         "summary": "Get Me",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/v1/me/password": {
+      "post": {
+        "description": "Cambia tu contraseña (pide la actual) y cierra tus sesiones en otros navegadores.",
+        "operationId": "change_password_api_v1_me_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChangeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change Password",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/me/patterns": {
+      "get": {
+        "description": "Tus patrones: p. ej. «*1234», el final de la tarjeta con la que recargas la conjunta.",
+        "operationId": "own_patterns_api_v1_me_patterns_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PatternOut"
+                  },
+                  "title": "Response Own Patterns Api V1 Me Patterns Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Own Patterns",
+        "tags": [
+          "settings"
+        ]
+      },
+      "post": {
+        "operationId": "add_pattern_api_v1_me_patterns_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatternIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatternOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Pattern",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/me/patterns/{direction}/{pattern}": {
+      "delete": {
+        "operationId": "remove_pattern_api_v1_me_patterns__direction___pattern__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "direction",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PatternDirection"
+            }
+          },
+          {
+            "in": "path",
+            "name": "pattern",
+            "required": true,
+            "schema": {
+              "title": "Pattern",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Pattern",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/me/sessions/revoke-others": {
+      "post": {
+        "description": "Cierra tus sesiones en otros navegadores y dispositivos; esta sigue abierta.",
+        "operationId": "revoke_other_sessions_api_v1_me_sessions_revoke_others_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Revoke Other Sessions",
+        "tags": [
+          "settings"
         ]
       }
     },

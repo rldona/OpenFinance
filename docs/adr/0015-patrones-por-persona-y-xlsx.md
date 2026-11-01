@@ -19,7 +19,8 @@ Con los primeros extractos reales (OF-104, OF-107) aparecieron tres cosas que el
 - Sentido **`inflow`**: entradas en la conjunta (y huchas) que son aportación de esa persona, además de su nombre completo y su primer nombre.
 - Sentido **`outflow`**: salidas de **su** cuenta personal que son su aportación al hogar. Los patrones guardados valen para cualquier cuenta personal del titular. Además, **solo en las cuentas personales de Bankinter** se incluye siempre `REVOLUT**` (así aparece allí la recarga de la conjunta); en otras entidades ese texto puede significar otra cosa (por ejemplo, un pago con tarjeta de Revolut) y sigue siendo gasto salvo que se guarde como patrón.
 - En una cuenta personal **no** se usan los nombres: un Bizum de la pareja es un ingreso, no una aportación. Los patrones de otras personas o de otro hogar nunca se aplican.
-- Se gestionan desde el servidor con `openfinance member-patterns add|list|remove <email> '<patrón>' [--outflow]`. **No se exponen por la API** ni hay pantalla todavía.
+- Se gestionan desde el servidor con `openfinance member-patterns add|list|remove <email> '<patrón>' [--outflow]`.
+- **Actualización (OF-704):** cada persona gestiona también **los suyos** desde Ajustes (`GET/POST/DELETE /api/v1/me/patterns`). La API nunca lista ni borra los de la pareja. Al importar en la conjunta de Revolut, la vista previa dice quién no tiene tarjeta de recarga guardada y la web pide confirmación antes de importar, porque sus recargas entrarían como ingreso.
 - La clasificación sigue en el dominio (`ClassificationRules`, `suggest_kind`); el puerto `StatementParser` no cambia.
 
 ### Lectura de Excel

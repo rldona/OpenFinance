@@ -10,6 +10,7 @@ from openfinance.api.v1 import (
     ledger,
     meta,
     savings,
+    settings,
 )
 
 router = APIRouter(prefix="/api/v1")
@@ -22,3 +23,4 @@ router.include_router(insights.router)
 router.include_router(savings.router)
 router.include_router(export.router)
 router.include_router(changes.router)
+router.include_router(settings.router)

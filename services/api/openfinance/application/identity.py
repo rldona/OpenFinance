@@ -11,6 +11,7 @@ from openfinance.application.errors import (
     AuthenticationError,
     InvalidRequestError,
     NotFoundError,
+    WrongPasswordError,
 )
 from openfinance.application.ports import PasswordHasher, StoredSession, UnitOfWork
 from openfinance.domain.identity import (
@@ -111,6 +112,40 @@ def set_password(uow: UnitOfWork, hasher: PasswordHasher, email: str, password: 
         raise NotFoundError(f"No hay ninguna persona con el email {normalized}")
     uow.users.set_password_hash(user.id, hasher.hash(password))
     revoked = uow.sessions.delete_for_user(user.id)
+    uow.commit()
+    return revoked
+
+
+def change_own_password(
+    uow: UnitOfWork,
+    hasher: PasswordHasher,
+    actor: Actor,
+    current: str,
+    new: str,
+    current_token: str,
+) -> int:
+    """Cambia la contraseña de quien está dentro (pide la actual) y cierra sus otras sesiones.
+
+    Devuelve cuántas sesiones se han cerrado. La de este navegador sigue abierta.
+    """
+    user = uow.users.get(actor.user_id)
+    if user is None or not hasher.verify(user.password_hash, current):
+        raise WrongPasswordError("La contraseña actual no es correcta")
+    try:
+        validate_password(new)
+    except InvalidUserError as exc:
+        raise InvalidRequestError(str(exc)) from exc
+    if new == current:
+        raise InvalidRequestError("La nueva contraseña es igual que la actual")
+    uow.users.set_password_hash(user.id, hasher.hash(new))
+    revoked = uow.sessions.delete_for_user(user.id, keep=_hash_token(current_token))
+    uow.commit()
+    return revoked
+
+
+def revoke_other_sessions(uow: UnitOfWork, actor: Actor, current_token: str) -> int:
+    """Cierra las sesiones de quien pregunta en otros navegadores y dispositivos."""
+    revoked = uow.sessions.delete_for_user(actor.user_id, keep=_hash_token(current_token))
     uow.commit()
     return revoked
 

@@ -13,6 +13,7 @@ import { SpendingPage } from '../features/insights/SpendingPage'
 import { TrendsPage } from '../features/insights/TrendsPage'
 import { BudgetsPage } from '../features/savings/BudgetsPage'
 import { SavingsPage } from '../features/savings/SavingsPage'
+import { SettingsPage } from '../features/settings/SettingsPage'
 import { TransactionsPage } from '../features/transactions/TransactionsPage'
 import { HouseholdProvider } from './household'
 import { useHousehold } from './household-context'
@@ -42,6 +43,8 @@ function Page({ route }: { route: RouteId }) {
       return <BudgetsPage />
     case 'reglas':
       return <RulesPage />
+    case 'ajustes':
+      return <SettingsPage />
   }
 }
 
@@ -136,6 +139,9 @@ function Shell({ route, onLogout }: { route: RouteId; onLogout: () => void }) {
           ))}
         </div>
         <ExportMenu />
+        <a className={`btn small ${route === 'ajustes' ? 'active' : ''}`} href="#ajustes" aria-label="Ajustes" title="Ajustes">
+          ⚙️
+        </a>
         <button className="btn small" type="button" onClick={() => void logout()}>
           Salir
         </button>

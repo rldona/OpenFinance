@@ -9,7 +9,7 @@ export const ROUTES = [
   { id: 'importar', label: 'Importar' },
 ] as const
 
-const HIDDEN_ROUTES = ['categorias', 'presupuestos', 'reglas'] as const
+const HIDDEN_ROUTES = ['categorias', 'presupuestos', 'reglas', 'ajustes'] as const
 
 export type RouteId = (typeof ROUTES)[number]['id'] | (typeof HIDDEN_ROUTES)[number]
 

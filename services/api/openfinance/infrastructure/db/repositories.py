@@ -474,8 +474,11 @@ class SqlSessionRepository:
         result = self._s.execute(delete(SessionRow).where(SessionRow.expires_at <= now))
         return int(getattr(result, "rowcount", 0) or 0)
 
-    def delete_for_user(self, user_id: UserId) -> int:
-        result = self._s.execute(delete(SessionRow).where(SessionRow.user_id == user_id))
+    def delete_for_user(self, user_id: UserId, *, keep: str | None = None) -> int:
+        stmt = delete(SessionRow).where(SessionRow.user_id == user_id)
+        if keep is not None:
+            stmt = stmt.where(SessionRow.token_hash != keep)
+        result = self._s.execute(stmt)
         return int(getattr(result, "rowcount", 0) or 0)
 
     def delete_all(self) -> int:

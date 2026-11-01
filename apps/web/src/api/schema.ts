@@ -387,6 +387,84 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change Password
+         * @description Cambia tu contraseña (pide la actual) y cierra tus sesiones en otros navegadores.
+         */
+        post: operations["change_password_api_v1_me_password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/patterns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Own Patterns
+         * @description Tus patrones: p. ej. «*1234», el final de la tarjeta con la que recargas la conjunta.
+         */
+        get: operations["own_patterns_api_v1_me_patterns_get"];
+        put?: never;
+        /** Add Pattern */
+        post: operations["add_pattern_api_v1_me_patterns_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/patterns/{direction}/{pattern}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove Pattern */
+        delete: operations["remove_pattern_api_v1_me_patterns__direction___pattern__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/sessions/revoke-others": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke Other Sessions
+         * @description Cierra tus sesiones en otros navegadores y dispositivos; esta sigue abierta.
+         */
+        post: operations["revoke_other_sessions_api_v1_me_sessions_revoke_others_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/meta": {
         parameters: {
             query?: never;
@@ -991,6 +1069,11 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * Members Without Recharge
+             * @description Quién no tiene guardada su tarjeta de recarga: sus recargas entrarían como ingreso. La web pide confirmación antes de importar.
+             */
+            members_without_recharge: string[];
             /** New Count */
             new_count: number;
             /** Rows */
@@ -1225,6 +1308,34 @@ export interface components {
             /** Operation Id */
             operation_id: string | null;
         };
+        /** PasswordChangeIn */
+        PasswordChangeIn: {
+            /** Current Password */
+            current_password: string;
+            /** New Password */
+            new_password: string;
+        };
+        /**
+         * PatternDirection
+         * @enum {string}
+         */
+        PatternDirection: "inflow" | "outflow";
+        /** PatternIn */
+        PatternIn: {
+            /** @default inflow */
+            direction: components["schemas"]["PatternDirection"];
+            /**
+             * Pattern
+             * @example *1234
+             */
+            pattern: string;
+        };
+        /** PatternOut */
+        PatternOut: {
+            direction: components["schemas"]["PatternDirection"];
+            /** Pattern */
+            pattern: string;
+        };
         /** PreviewRowOut */
         PreviewRowOut: {
             amount: components["schemas"]["MoneyOut"];
@@ -1285,6 +1396,14 @@ export interface components {
             /** Kept By */
             kept_by: string[];
             operation: components["schemas"]["OperationOut"];
+        };
+        /** RevokedOut */
+        RevokedOut: {
+            /**
+             * Revoked
+             * @description Sesiones cerradas en otros navegadores
+             */
+            revoked: number;
         };
         /** RuleOut */
         RuleOut: {
@@ -2211,6 +2330,142 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeOut"];
+                };
+            };
+        };
+    };
+    change_password_api_v1_me_password_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordChangeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevokedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    own_patterns_api_v1_me_patterns_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PatternOut"][];
+                };
+            };
+        };
+    };
+    add_pattern_api_v1_me_patterns_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatternIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PatternOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_pattern_api_v1_me_patterns__direction___pattern__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                direction: components["schemas"]["PatternDirection"];
+                pattern: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_other_sessions_api_v1_me_sessions_revoke_others_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevokedOut"];
                 };
             };
         };

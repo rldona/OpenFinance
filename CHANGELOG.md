@@ -33,6 +33,7 @@ Se publicará como **0.1.0**, la primera versión para usar en casa. Pasos en [d
 - **Varios a la vez y efectivo** (OF-705): en «Solo sin categoría» puedes elegir varios gastos y ponerles la misma categoría de una vez. «+ Añadir a mano» apunta un gasto o un ingreso que no viene del banco (por ejemplo, en efectivo); se puede borrar y deshacer.
 - **Reglas** (OF-702): la pantalla Reglas enseña qué comercios se clasifican solos, en qué categoría y cuántos movimientos tienen; se pueden borrar. Al categorizar, el aviso dice cuántos ha clasificado la regla y permite deshacerlo todo. Los Bizum y las transferencias a personas ya no crean reglas.
 - **Historial de importaciones** (OF-703): Importar enseña qué extractos se han importado, quién y cuántos movimientos trajo cada uno. La última importación de cada cuenta se puede deshacer; sus movimientos quedan anulados (no borrados) y volver a importar el archivo los recupera con sus correcciones.
+- **Ajustes** (OF-704): ⚙️ en la cabecera para cambiar tu contraseña, cerrar tus sesiones en otros dispositivos y guardar la tarjeta con la que recargas la conjunta. Si alguien no la tiene guardada, Importar lo avisa antes de confirmar.
 
 ### Fixed
 

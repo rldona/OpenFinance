@@ -10,6 +10,7 @@ from openfinance.application.categories import rules_for_account
 from openfinance.application.changes import record
 from openfinance.application.errors import ConflictError, InvalidRequestError, NotFoundError
 from openfinance.application.ledger import visible_accounts
+from openfinance.application.member_patterns import members_without_recharge
 from openfinance.application.ports import StatementParsers, UnitOfWork
 from openfinance.domain.categories import CategoryId, best_rule, merchant_key
 from openfinance.domain.changes import Change, Entity
@@ -73,6 +74,9 @@ class ImportPreview:
     """Saldo que informa el banco tras la última fila del extracto."""
     balance_after_import: Money
     """Saldo que tendrá la cuenta en OpenFinance si se confirma."""
+    members_without_recharge: list[UserId] = field(default_factory=list)
+    """En la conjunta de Revolut: quién no tiene guardada su tarjeta de recarga (OF-704).
+    Sus «Recarga de *NNNN» entrarían como ingreso y no como su aportación."""
 
     @property
     def new_count(self) -> int:
@@ -208,6 +212,9 @@ def _build_preview(
         result.balance_mismatches,
         result.closing_balance,
         after,
+        members_without_recharge(uow, actor.household_id)
+        if account.kind is not AccountKind.PERSONAL and account.institution is Institution.REVOLUT
+        else [],
     )
 
 

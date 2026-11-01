@@ -272,6 +272,59 @@ describe('Historial de importaciones (OF-703)', () => {
   })
 })
 
+describe('Ajustes (OF-704)', () => {
+  it('cambia la contraseña pidiendo la actual', async () => {
+    window.location.hash = '#ajustes'
+    const calls = loggedIn({ 'GET /api/v1/me/patterns': { body: [] }, 'POST /api/v1/me/password': { body: { revoked: 2 } } })
+    render(<App />)
+    const form = await screen.findByRole('form', { name: 'Cambiar la contraseña' })
+    await userEvent.type(within(form).getByLabelText('Contraseña actual'), 'clave-actual-larga')
+    await userEvent.type(within(form).getByLabelText(/Nueva contraseña/), 'clave-nueva-larga')
+    await userEvent.type(within(form).getByLabelText('Repite la nueva'), 'clave-nueva-larg')
+    expect(within(form).getByText('No coinciden.')).toBeInTheDocument()
+    expect(within(form).getByRole('button', { name: 'Cambiar la contraseña' })).toBeDisabled()
+    await userEvent.type(within(form).getByLabelText('Repite la nueva'), 'a')
+    await userEvent.click(within(form).getByRole('button', { name: 'Cambiar la contraseña' }))
+    const post = calls.find((c) => c.url.pathname === '/api/v1/me/password')!
+    expect(JSON.parse(String(post.body))).toEqual({ current_password: 'clave-actual-larga', new_password: 'clave-nueva-larga' })
+    expect(await screen.findByText('Contraseña cambiada · 2 sesiones cerradas en otros dispositivos')).toBeInTheDocument()
+  })
+
+  it('guarda la tarjeta de recarga propia', async () => {
+    window.location.hash = '#ajustes'
+    let saved: { pattern: string; direction: string }[] = []
+    const calls = loggedIn({
+      'GET /api/v1/me/patterns': () => ({ body: saved }),
+      'POST /api/v1/me/patterns': () => {
+        saved = [{ pattern: '*1234', direction: 'inflow' }]
+        return { status: 201, body: saved[0] }
+      },
+    })
+    render(<App />)
+    expect(await screen.findByText('Aún no has guardado ninguna.')).toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText('Últimos dígitos'), '1234')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    const post = calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/me/patterns')!
+    expect(JSON.parse(String(post.body))).toEqual({ pattern: '*1234', direction: 'inflow' })
+    const list = await screen.findByRole('list', { name: 'Tus tarjetas de recarga' })
+    expect(await within(list).findByText('*1234')).toBeInTheDocument()
+  })
+
+  it('importar en la conjunta pide confirmación si alguien no tiene tarjeta de recarga', async () => {
+    window.location.hash = '#importar'
+    loggedIn({ 'POST /api/v1/imports': { status: 201, body: { ...PREVIEW, members_without_recharge: ['u-elena'] } } })
+    render(<App />)
+    await waitFor(() => expect(screen.getByLabelText('Cuenta')).toHaveValue('a-joint'))
+    await userEvent.upload(screen.getByLabelText('Extracto'), new File(['x'], 'r.csv', { type: 'text/csv' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Ver vista previa' }))
+    expect(await screen.findByText(/Elena no tiene guardada la tarjeta/)).toBeInTheDocument()
+    const confirm = screen.getByRole('button', { name: /Importar 2 movimientos/ })
+    expect(confirm).toBeDisabled()
+    await userEvent.click(screen.getByLabelText(/Importar igualmente/))
+    expect(confirm).toBeEnabled()
+  })
+})
+
 describe('Búsqueda', () => {
   it.each(['#1', '%', '"comillas"', "l'oreal"])('busca «%s» sin romper la pantalla', async (text) => {
     const calls = loggedIn()

@@ -79,6 +79,7 @@ export const PREVIEW = {
   ],
   skipped: [{ line: 5, reason: 'pendiente: se importará cuando se complete', description: 'Glovo' }],
   balance_mismatches: [],
+  members_without_recharge: [],
   bank_balance: eur('2625.46'),
   balance_after_import: eur('2625.46'),
 }

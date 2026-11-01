@@ -15,7 +15,7 @@ Un ticket está terminado cuando cumple sus criterios de aceptación, tiene test
 | 4 · Ahorro | Presupuestos, objetivos, ideas y simulador | OF-401 … OF-405 | ✅ Hecha |
 | 5 · Uso real | Instalado en casa, con copias de seguridad | OF-501 … OF-504 | ✅ OF-501 a OF-503 (CI en verde, también `compose-e2e`) · OF-504 preparado: falta la etiqueta `v0.1.0` tras el mes de uso real |
 | 6 · Datos fiables | Que cualquier extracto real se importe sin errores ni entradas infladas | OF-601 … OF-608 | ✅ Hecha · falta reconocer los traspasos internos de OF-602 (pendiente de un extracto real) |
-| 7 · Corregir sin miedo | Editar, deshacer y ajustar desde la web, con historial | OF-701 … OF-706 | 🚧 En curso · base del registro ✅ · OF-701 ✅ · OF-702 ✅ · OF-703 ✅ · OF-705 ✅ |
+| 7 · Corregir sin miedo | Editar, deshacer y ajustar desde la web, con historial | OF-701 … OF-706 | 🚧 En curso · base del registro ✅ · OF-701 ✅ · OF-702 ✅ · OF-703 ✅ · OF-704 ✅ · OF-705 ✅ |
 | 8 · Uso diario | Móvil, PWA, accesibilidad y mes en curso honesto (v0.2) | OF-801 … OF-806 | Pendiente |
 | 9 · Operación | Copias cifradas, dependencias y actualizaciones (v0.2) | OF-901 … OF-907 | Pendiente |
 | 10 – 17 | Del libro contable completo a la 1.0 | OF-1001 … OF-1705 | Ver [Después de v0.2](#después-de-v02) |
@@ -352,11 +352,12 @@ Que cualquier error de datos se arregle desde la web, quede trazado y se pueda d
 - No se guarda si el saldo cuadró al confirmar: la vista previa lo comprueba, pero el historial no lo enseña todavía.
 - ✅ 🧪 Deshacer y volver a importar el mismo archivo da el mismo resultado (mismos nuevos, mismos duplicados, mismos movimientos); ✅ 🧪 no se puede deshacer una importación de la cuenta personal de la pareja (404) ni de otro hogar, ni verla en la lista.
 
-### OF-704 · Ajustes: cuenta propia, sesiones y recargas de la conjunta
-- Cambiar la contraseña (pide la actual) y «Cerrar todas mis sesiones».
-- «Recargas de la conjunta»: cada persona guarda su `*NNNN` desde la web (revisa ADR-0015). Importar en la conjunta avisa de forma bloqueante si alguna persona no lo tiene.
-- Entradas visibles a Categorías, Presupuestos y Reglas.
-- 🧪 Cambiar la contraseña revoca las demás sesiones; 🧪 una persona no puede editar los patrones de la otra.
+### OF-704 · Ajustes: cuenta propia, sesiones y recargas de la conjunta ✅
+- ✅ Pantalla Ajustes (⚙️ en la cabecera, `#ajustes`). Cambiar la contraseña pide la actual (`POST /api/v1/me/password`); una actual incorrecta da 422 y no 401 (un 401 cerraría la sesión en la web) y cuenta para el límite de intentos.
+- ✅ «Cerrar sesión en los demás dispositivos» (`POST /api/v1/me/sessions/revoke-others`). Cambiar la contraseña también las cierra; la sesión de este navegador sigue abierta. Se cierran las demás y no todas para no echar a quien lo pulsa: para salir ya está «Salir».
+- ✅ «Recargas de la conjunta»: cada persona guarda y quita sus `*NNNN` (`GET/POST/DELETE /api/v1/me/patterns`); [ADR-0015](../adr/0015-patrones-por-persona-y-xlsx.md) actualizada. Al importar en la conjunta de Revolut, la vista previa dice quién no tiene tarjeta guardada y no deja confirmar sin marcar «Importar igualmente».
+- ✅ Entradas a Categorías, Presupuestos y Reglas desde Ajustes.
+- ✅ 🧪 Cambiar la contraseña revoca las demás sesiones de esa persona (no las de la pareja) y la nueva entra; ✅ 🧪 una persona no ve ni borra los patrones de la otra, ni otro hogar; ✅ 🧪 intentos repetidos con una contraseña actual incorrecta dan 429.
 
 ### OF-705 · Clasificar varios a la vez y movimientos de efectivo ✅
 - ✅ En «Solo sin categoría», casillas para elegir varios gastos y «Poner categoría» (`POST /api/v1/transactions/categorize`): sin aprender reglas y como una sola operación, que «Deshacer» revierte entera. Si alguno no se puede ver, no se toca ninguno (404).

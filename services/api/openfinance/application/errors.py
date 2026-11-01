@@ -17,3 +17,8 @@ class ConflictError(ApplicationError):
 
 class InvalidRequestError(ApplicationError):
     pass
+
+
+class WrongPasswordError(InvalidRequestError):
+    """La contraseña actual no coincide al cambiarla. 422 y no 401: un 401 cerraría la sesión
+    en la web. Cuenta como intento fallido para el límite de intentos."""

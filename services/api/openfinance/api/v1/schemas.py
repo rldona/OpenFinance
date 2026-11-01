@@ -10,6 +10,7 @@ from openfinance.application.imports import ImportPreview, ImportResult
 from openfinance.application.savings import BudgetView, GoalView
 from openfinance.domain.categories import Category, merchant_label
 from openfinance.domain.identity import User
+from openfinance.domain.imports import PatternDirection
 from openfinance.domain.ledger import (
     Account,
     AccountKind,
@@ -155,6 +156,10 @@ class ImportPreviewOut(BaseModel):
     balance_mismatches: list[BalanceMismatchOut]
     bank_balance: MoneyOut | None
     balance_after_import: MoneyOut
+    members_without_recharge: list[UUID] = Field(
+        description="Quién no tiene guardada su tarjeta de recarga: sus recargas entrarían como "
+        "ingreso. La web pide confirmación antes de importar."
+    )
 
     @classmethod
     def of(cls, p: ImportPreview) -> ImportPreviewOut:
@@ -192,7 +197,27 @@ class ImportPreviewOut(BaseModel):
             ],
             bank_balance=MoneyOut.of(p.bank_balance) if p.bank_balance else None,
             balance_after_import=MoneyOut.of(p.balance_after_import),
+            members_without_recharge=list(p.members_without_recharge),
         )
+
+
+class PasswordChangeIn(BaseModel):
+    current_password: str = Field(max_length=200)
+    new_password: str = Field(max_length=200)
+
+
+class RevokedOut(BaseModel):
+    revoked: int = Field(description="Sesiones cerradas en otros navegadores")
+
+
+class PatternOut(BaseModel):
+    pattern: str
+    direction: PatternDirection
+
+
+class PatternIn(BaseModel):
+    pattern: str = Field(min_length=3, max_length=60, examples=["*1234"])
+    direction: PatternDirection = PatternDirection.INFLOW
 
 
 class ImportListItemOut(BaseModel):
