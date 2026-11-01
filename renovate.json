@@ -1,0 +1,28 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "helpers:pinGitHubActionDigests", "docker:pinDigests"],
+  "timezone": "Europe/Madrid",
+  "schedule": ["before 6am on monday"],
+  "labels": ["dependencies"],
+  "prConcurrentLimit": 5,
+  "packageRules": [
+    {
+      "description": "Imágenes de Docker siempre fijadas por digest (OF-902)",
+      "matchDatasources": ["docker"],
+      "pinDigests": true
+    },
+    {
+      "description": "Las actualizaciones menores y parches de dependencias van juntas",
+      "matchManagers": ["npm", "pep621"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "dependencias menores y parches"
+    },
+    {
+      "description": "Un cambio de versión mayor de PostgreSQL necesita migrar los datos: nunca automático",
+      "matchPackageNames": ["postgres"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    }
+  ],
+  "vulnerabilityAlerts": { "labels": ["security"], "schedule": ["at any time"] }
+}
