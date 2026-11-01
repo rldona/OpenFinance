@@ -52,6 +52,7 @@ from openfinance.infrastructure.db.models import (
     UserRow,
 )
 
+_AMOUNT_QUANTUM = Decimal("0.0001")
 _CONFLICT = "Los datos han cambiado mientras guardabas; vuelve a intentarlo"
 
 
@@ -206,6 +207,29 @@ _ACTIVE = TransactionRow.voided.is_(False)
 """Los movimientos anulados no cuentan en ninguna consulta (ADR-0017)."""
 
 
+def _new_row(t: Transaction) -> TransactionRow:
+    return TransactionRow(
+        id=t.id,
+        household_id=t.household_id,
+        account_id=t.account_id,
+        booked_at=t.booked_at,
+        value_date=t.value_date,
+        description=t.description,
+        amount=t.amount.amount,
+        currency=t.amount.currency.code,
+        kind=t.kind.value,
+        category_id=t.category_id,
+        merchant=t.merchant,
+        member_id=t.member_id,
+        bank_type=t.bank_type,
+        source=t.source,
+        fingerprint=t.fingerprint,
+        import_id=t.import_id,
+        note=t.note,
+        voided=t.voided,
+    )
+
+
 class SqlTransactionRepository:
     def __init__(self, session: Session) -> None:
         self._s = session
@@ -274,30 +298,36 @@ class SqlTransactionRepository:
         )
         return [_transaction(r) for r in rows]
 
-    def add(self, transaction: Transaction) -> None:
-        t = transaction
-        self._s.add(
-            TransactionRow(
-                id=t.id,
-                household_id=t.household_id,
-                account_id=t.account_id,
-                booked_at=t.booked_at,
-                value_date=t.value_date,
-                description=t.description,
-                amount=t.amount.amount,
-                currency=t.amount.currency.code,
-                kind=t.kind.value,
-                category_id=t.category_id,
-                merchant=t.merchant,
-                member_id=t.member_id,
-                bank_type=t.bank_type,
-                source=t.source,
-                fingerprint=t.fingerprint,
-                import_id=t.import_id,
-                note=t.note,
-                voided=t.voided,
+    def balances(
+        self, household_id: WorkspaceId, account_ids: list[AccountId]
+    ) -> dict[AccountId, Decimal]:
+        """Lo que suman los movimientos activos de cada cuenta, calculado en la base de datos
+        (OF-905): sin cargar los movimientos. Una cuenta sin movimientos no aparece."""
+        if not account_ids:
+            return {}
+        rows = self._s.execute(
+            select(TransactionRow.account_id, func.sum(TransactionRow.amount))
+            .where(
+                TransactionRow.household_id == household_id,
+                TransactionRow.account_id.in_(account_ids),
+                _ACTIVE,
             )
+            .group_by(TransactionRow.account_id)
         )
+        # SQLite suma en coma flotante: se redondea a la escala de la columna (4 decimales).
+        return {
+            AccountId(account_id): Decimal(str(total or 0)).quantize(_AMOUNT_QUANTUM)
+            for account_id, total in rows
+        }
+
+    def add(self, transaction: Transaction) -> None:
+        self.add_many([transaction])
+
+    def add_many(self, transactions: list[Transaction]) -> None:
+        """Inserta varios movimientos con un solo flush (OF-905)."""
+        if not transactions:
+            return
+        self._s.add_all([_new_row(t) for t in transactions])
         _flush(self._s)
 
     def get(

@@ -12,10 +12,11 @@ from uuid import uuid4
 
 from openfinance.application.errors import InvalidRequestError, NotFoundError
 from openfinance.application.insights import shared_scope
+from openfinance.application.ledger import balance_of
 from openfinance.application.ports import UnitOfWork
 from openfinance.domain.categories import Category, CategoryId
 from openfinance.domain.insights import Month, average, by_month, spending_by_category
-from openfinance.domain.ledger import Account, AccountKind, account_balance, summarize
+from openfinance.domain.ledger import Account, AccountKind, summarize
 from openfinance.domain.savings import (
     Budget,
     BudgetStatus,
@@ -155,7 +156,7 @@ def goal_saved(uow: UnitOfWork, actor: Actor, goal: Goal) -> Money:
     account = _linkable_account(uow, actor, goal.account_id)
     if account is None:
         return goal.saved
-    balance = account_balance(account, uow.transactions.for_account(actor.household_id, account.id))
+    balance = balance_of(uow, actor, account)
     return balance if not balance.is_negative else Money.zero(balance.currency)
 
 

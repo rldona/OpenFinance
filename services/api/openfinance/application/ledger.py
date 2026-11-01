@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
 from openfinance.application.errors import NotFoundError
 from openfinance.application.ports import TransactionQuery, UnitOfWork
-from openfinance.domain.ledger import Account, AccountKind, Transaction, account_balance
+from openfinance.domain.ledger import Account, AccountKind, Transaction
 from openfinance.domain.shared import Money
 from openfinance.domain.shared.ids import AccountId
 from openfinance.domain.workspaces import Actor
@@ -26,11 +27,23 @@ def visible_accounts(uow: UnitOfWork, actor: Actor) -> list[Account]:
     ]
 
 
+def balances_of(uow: UnitOfWork, actor: Actor, accounts: list[Account]) -> dict[AccountId, Money]:
+    """Saldo de varias cuentas con una sola consulta (suma en SQL, OF-905)."""
+    sums = uow.transactions.balances(actor.household_id, [a.id for a in accounts])
+    return {
+        a.id: a.opening_balance + Money.of(sums.get(a.id, Decimal(0)), a.opening_balance.currency)
+        for a in accounts
+    }
+
+
+def balance_of(uow: UnitOfWork, actor: Actor, account: Account) -> Money:
+    return balances_of(uow, actor, [account])[account.id]
+
+
 def list_accounts(uow: UnitOfWork, actor: Actor) -> list[AccountView]:
-    return [
-        AccountView(a, account_balance(a, uow.transactions.for_account(actor.household_id, a.id)))
-        for a in visible_accounts(uow, actor)
-    ]
+    accounts = visible_accounts(uow, actor)
+    balances = balances_of(uow, actor, accounts)
+    return [AccountView(a, balances[a.id]) for a in accounts]
 
 
 def _account_ids(uow: UnitOfWork, actor: Actor, query: TransactionQuery) -> list[AccountId]:

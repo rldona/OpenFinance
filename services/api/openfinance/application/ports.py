@@ -92,7 +92,18 @@ class TransactionRepository(Protocol):
     def for_account(
         self, household_id: WorkspaceId, account_id: AccountId
     ) -> list[Transaction]: ...
+    def balances(
+        self, household_id: WorkspaceId, account_ids: list[AccountId]
+    ) -> dict[AccountId, Decimal]:
+        """Suma de los movimientos activos de cada cuenta (sin el saldo inicial), calculada
+        en la base de datos. Una cuenta sin movimientos no aparece."""
+        ...
+
     def add(self, transaction: Transaction) -> None: ...
+    def add_many(self, transactions: list[Transaction]) -> None:
+        """Inserta varios movimientos con un solo flush."""
+        ...
+
     def get(
         self,
         household_id: WorkspaceId,

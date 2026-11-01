@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 from openfinance.application.categories import rules_for_account
 from openfinance.application.changes import record
 from openfinance.application.errors import ConflictError, InvalidRequestError, NotFoundError
-from openfinance.application.ledger import visible_accounts
+from openfinance.application.ledger import balance_of, visible_accounts
 from openfinance.application.member_patterns import members_without_recharge
 from openfinance.application.ports import StatementParsers, UnitOfWork
 from openfinance.domain.categories import CategoryId, best_rule, merchant_key
@@ -37,7 +37,6 @@ from openfinance.domain.ledger import (
     LedgerError,
     Transaction,
     TransactionKind,
-    account_balance,
 )
 from openfinance.domain.shared import Money
 from openfinance.domain.shared.ids import AccountId, TransactionId, UserId
@@ -199,7 +198,7 @@ def _build_preview(
     uow: UnitOfWork, actor: Actor, account: Account, batch: ImportBatch, result: ParseResult
 ) -> ImportPreview:
     rows = _preview_rows(uow, actor, account, result)
-    current = account_balance(account, uow.transactions.for_account(actor.household_id, account.id))
+    current = balance_of(uow, actor, account)
     after = current
     for r in rows:
         if not r.duplicate:
@@ -282,6 +281,7 @@ def commit_import(
         actor.household_id, account.id, [r.row.fingerprint for r in rows if not r.duplicate]
     )
     created = 0
+    new: list[Transaction] = []
     for r in rows:
         if r.duplicate:
             continue
@@ -318,8 +318,9 @@ def commit_import(
             raise InvalidRequestError(
                 f"La fila {row.line} del extracto no se puede guardar: {exc}"
             ) from exc
-        uow.transactions.add(transaction)
+        new.append(transaction)
         created += 1
+    uow.transactions.add_many(new)  # un solo flush para todo el extracto (OF-905)
     done = batch.committed(now, created, len(rows) - created, len(result.skipped))
     uow.imports.save_committed(done)
     uow.commit()
