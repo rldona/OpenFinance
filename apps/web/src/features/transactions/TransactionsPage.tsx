@@ -63,12 +63,13 @@ export function TransactionsPage() {
     uncategorized: onlyUncategorized,
     account_id: accountId || undefined,
   }
-  const key = `${JSON.stringify(query)}#${version}`
+  // La clave lleva la consulta tal cual: la búsqueda puede contener cualquier carácter.
+  const key = JSON.stringify([query, version])
 
   useEffect(() => {
     const controller = new AbortController()
     api
-      .transactions(JSON.parse(key.split('#')[0]) as typeof query, controller.signal)
+      .transactions((JSON.parse(key) as [typeof query, number])[0], controller.signal)
       .then((rows) => setResult({ key, rows }))
       .catch((err: unknown) => {
         if (controller.signal.aborted) return

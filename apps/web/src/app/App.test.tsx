@@ -104,6 +104,31 @@ describe('Movimientos', () => {
   })
 })
 
+describe('Búsqueda', () => {
+  it.each(['#1', '%', '"comillas"', "l'oreal"])('busca «%s» sin romper la pantalla', async (text) => {
+    const calls = loggedIn()
+    render(<App />)
+    await screen.findByRole('table')
+    await userEvent.type(screen.getByRole('searchbox'), text)
+    await waitFor(() => {
+      const last = calls.filter((c) => c.url.pathname === '/api/v1/transactions').at(-1)!
+      expect(last.url.searchParams.get('q')).toBe(text)
+    })
+    expect(await screen.findByRole('table')).toBeInTheDocument()
+  })
+})
+
+describe('Error inesperado', () => {
+  it('muestra un aviso con «Recargar» en vez de dejar la pantalla congelada', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined) // React registra el error capturado
+    loggedIn({ 'GET /api/v1/transactions': { body: [{ roto: true }] } })
+    render(<App />)
+    expect(await screen.findByRole('alert')).toHaveTextContent('Algo ha fallado')
+    expect(screen.getByRole('button', { name: 'Recargar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Salir' })).toBeInTheDocument()
+  })
+})
+
 describe('Importar', () => {
   it('sube el extracto, enseña la vista previa y confirma', async () => {
     window.location.hash = '#importar'

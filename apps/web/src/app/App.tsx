@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ApiError, api, setUnauthorizedHandler, type Me } from '../api/client'
+import { ErrorBoundary } from '../components/ErrorBoundary'
 import { Toast } from '../components/Toast'
 import { useToast } from '../components/useToast'
 import { LoginPage } from '../features/auth/LoginPage'
@@ -137,7 +138,10 @@ function Shell({ route, onLogout }: { route: RouteId; onLogout: () => void }) {
         </button>
       </header>
       <main>
-        <Page route={route} />
+        {/* Por pestaña: si una falla, las demás siguen funcionando. */}
+        <ErrorBoundary key={route}>
+          <Page route={route} />
+        </ErrorBoundary>
       </main>
     </>
   )
