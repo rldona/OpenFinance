@@ -33,6 +33,12 @@ MonthParam = Annotated[
 ]
 
 
+ViewParam = Annotated[
+    insights.View,
+    Query(description="household = conjunta y huchas; mine = tus cuentas personales"),
+]
+
+
 def _month(value: str | None) -> Month:
     return Month.parse(value) if value else Month.of(local_today())
 
@@ -42,9 +48,14 @@ def _money(m: Money | None) -> MoneyOut | None:
 
 
 @router.get("/month", response_model=MonthOverviewOut)
-def month_overview(actor: ActorDep, uow: UowDep, month: MonthParam = None) -> MonthOverviewOut:
-    """Resumen de un mes de la conjunta y las huchas: lo que se gasta, entra y ahorra."""
-    o = insights.month_overview(uow, actor, _month(month), local_today())
+def month_overview(
+    actor: ActorDep,
+    uow: UowDep,
+    month: MonthParam = None,
+    view: ViewParam = insights.View.HOUSEHOLD,
+) -> MonthOverviewOut:
+    """Resumen de un mes: lo que se gasta, entra y ahorra (o, en «mío», lo que aportas)."""
+    o = insights.month_overview(uow, actor, _month(month), local_today(), view)
     return MonthOverviewOut(
         month=str(o.month),
         has_data=o.has_data,
@@ -62,6 +73,7 @@ def month_overview(actor: ActorDep, uow: UowDep, month: MonthParam = None) -> Mo
         contributions=[
             MemberAmountOut(member_id=k, amount=MoneyOut.of(v)) for k, v in o.contributions.items()
         ],
+        contributed=MoneyOut.of(o.contributed),
         categories=[
             CategoryAmountOut(
                 category_id=c.category_id, amount=MoneyOut.of(c.amount), average=_money(c.average)
@@ -80,10 +92,11 @@ def category_detail(
     uow: UowDep,
     month: MonthParam = None,
     category_id: Annotated[UUID | None, Query(description="Vacío = sin categoría")] = None,
+    view: ViewParam = insights.View.HOUSEHOLD,
 ) -> CategoryDetailOut:
     """Una categoría en los últimos 12 meses y sus comercios principales."""
     d = insights.category_detail(
-        uow, actor, CategoryId(category_id) if category_id else None, _month(month)
+        uow, actor, CategoryId(category_id) if category_id else None, _month(month), view
     )
     return CategoryDetailOut(
         category_id=d.category_id,

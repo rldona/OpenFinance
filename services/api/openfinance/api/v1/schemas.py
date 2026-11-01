@@ -292,6 +292,9 @@ class MonthOverviewOut(BaseModel):
     saved_to_savings: MoneyOut
     saving_rate: int | None = Field(description="% de lo que entra que se ahorra")
     contributions: list[MemberAmountOut]
+    contributed: MoneyOut = Field(
+        description="Lo aportado a la conjunta desde estas cuentas (vista «mío»); no es gasto"
+    )
     categories: list[CategoryAmountOut]
     currency: str
     daily: list[str] = Field(description="Gasto acumulado al final de cada día (decimal exacto)")

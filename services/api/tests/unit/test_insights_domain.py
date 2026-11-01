@@ -7,6 +7,7 @@ from openfinance.domain.categories import CategoryId
 from openfinance.domain.insights import (
     Month,
     average,
+    contributions_out,
     daily_cumulative_spent,
     saving_rate,
     spending_by_category,
@@ -54,6 +55,14 @@ def test_spending_by_category_nets_refunds() -> None:
         [tx(1, "-50.00", category=SUPER), tx(2, "10.00", category=SUPER), tx(3, "-5.00")], EUR
     )
     assert out == {SUPER: Money.of("40.00", EUR), None: Money.of("5.00", EUR)}
+
+
+def test_contributions_out_only_counts_outgoing_contributions() -> None:
+    c = TransactionKind.CONTRIBUTION
+    out = contributions_out(
+        [tx(1, "-800.00", kind=c), tx(2, "500.00", kind=c), tx(3, "-40.00")], EUR
+    )
+    assert out == Money.of("800.00", EUR)
 
 
 def test_daily_cumulative_ignores_other_months_and_non_expenses() -> None:

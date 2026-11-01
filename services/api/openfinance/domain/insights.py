@@ -1,4 +1,4 @@
-"""Agregados para los gráficos del hogar (OF-301). Funciones puras sobre movimientos."""
+"""Agregados para los gráficos (OF-301, OF-108). Funciones puras sobre movimientos."""
 
 from __future__ import annotations
 
@@ -78,6 +78,15 @@ def contributions_by_member(
         if t.kind is TransactionKind.CONTRIBUTION and t.member_id and not t.amount.is_negative:
             out[t.member_id] = out.get(t.member_id, Money.zero(currency)) + t.amount
     return out
+
+
+def contributions_out(transactions: Iterable[Transaction], currency: Currency) -> Money:
+    """Lo aportado desde una cuenta personal a la conjunta (salidas ``contribution``). Positivo."""
+    total = Money.zero(currency)
+    for t in transactions:
+        if t.kind is TransactionKind.CONTRIBUTION and t.amount.is_negative:
+            total = total - t.amount
+    return total
 
 
 def daily_cumulative_spent(

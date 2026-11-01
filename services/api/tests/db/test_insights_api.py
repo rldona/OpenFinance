@@ -141,6 +141,79 @@ class TestCategory:
         assert [r["description"] for r in rows] == ["Mercadona"]
 
 
+class TestMine:
+    """OF-108: la vista «mi gasto» usa solo las cuentas personales de quien pregunta."""
+
+    def month(self, client, **params) -> dict:
+        return client.get("/api/v1/insights/month", params={"month": "2026-10", **params}).json()
+
+    def test_contribution_is_shown_apart_and_is_not_spending(self, as_raul) -> None:
+        o = self.month(as_raul, view="mine")
+        assert o["has_data"] is True
+        assert o["contributed"] == eur("1600.00")
+        assert o["spent"] == eur("0.00")
+        assert o["income"] == eur("0.00")
+        assert o["categories"] == []
+
+    def test_own_spending_by_category(self, as_elena) -> None:
+        o = self.month(as_elena, view="mine")
+        assert o["spent"] == eur("42.00")
+        assert o["contributed"] == eur("0.00")
+        assert o["categories"] == [{"category_id": None, "amount": eur("42.00"), "average": None}]
+        assert o["daily"][8] == o["daily"][-1] == "42.00"
+
+    def test_partner_never_sees_the_others_personal_account(self, as_raul, as_elena) -> None:
+        raul = self.month(as_raul, view="mine")
+        assert raul["spent"] == eur("0.00")  # la peluquería de Elena no aparece
+        elena = self.month(as_elena, view="mine")
+        assert elena["contributed"] == eur("0.00")  # la aportación de Raúl tampoco
+        d = as_raul.get(
+            "/api/v1/insights/category", params={"month": "2026-10", "view": "mine"}
+        ).json()
+        assert d["months"][-1]["amount"] == eur("0.00")
+        assert d["merchants"] == []
+
+    def test_other_household_sees_nothing(self, as_ana) -> None:
+        o = self.month(as_ana, view="mine")
+        assert o["has_data"] is False
+        assert o["spent"] == eur("0.00")
+        assert o["contributed"] == eur("0.00")
+
+    def test_household_totals_do_not_change(self, as_raul, as_elena) -> None:
+        default = self.month(as_raul)
+        assert self.month(as_raul, view="household") == default
+        assert self.month(as_elena, view="household") == default
+        assert default["spent"] == eur("112.74")
+        assert default["contributed"] == eur("0.00")
+
+    def test_category_detail(self, as_elena) -> None:
+        d = as_elena.get(
+            "/api/v1/insights/category", params={"month": "2026-10", "view": "mine"}
+        ).json()
+        assert d["months"][-1] == {"month": "2026-10", "amount": eur("42.00"), "has_data": True}
+        assert d["months"][-2]["has_data"] is False
+        assert d["average"] is None
+        assert d["merchants"][0]["amount"] == eur("42.00")
+
+    def test_category_of_another_household(self, as_raul, as_ana) -> None:
+        params = {"view": "mine", "category_id": super_id(as_ana)}
+        r = as_raul.get("/api/v1/insights/category", params=params)
+        assert r.status_code == 404
+
+    def test_own_movements_only(self, as_raul, as_elena) -> None:
+        params = {"month": "2026-10", "mine_only": "true"}
+        raul = as_raul.get("/api/v1/transactions", params=params).json()
+        assert [r["description"] for r in raul] == ["Aportación casa"]
+        elena = as_elena.get("/api/v1/transactions", params=params).json()
+        assert [r["description"] for r in elena] == ["Peluquería"]
+        r = as_raul.get("/api/v1/transactions", params={**params, "shared_only": "true"})
+        assert r.status_code == 422
+
+    def test_invalid_view(self, as_raul) -> None:
+        r = as_raul.get("/api/v1/insights/month", params={"view": "elena"})
+        assert r.status_code == 422
+
+
 class TestTrends:
     def test_twelve_months(self, as_raul) -> None:
         t = as_raul.get("/api/v1/insights/trends", params={"month": "2026-10"}).json()

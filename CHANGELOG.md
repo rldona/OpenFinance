@@ -9,7 +9,6 @@ Se publicará como **0.1.0**, la primera versión para usar en casa. Pasos en [d
 ### Pendiente antes de 0.1.0
 
 - Un mes de uso real con vuestros datos (hito v0.1).
-- La vista «mi gasto» de cada persona sobre su cuenta personal (OF-108).
 - Instalarlo en casa y probarlo en un móvil real. La instalación de extremo a extremo (`compose-e2e`) ya pasa en verde en CI.
 - Pendientes de los extractos reales (ver [bancos.md](docs/product/bancos.md)): hora local o UTC, signo de la comisión y texto de las huchas en el Excel de Revolut en español.
 
@@ -21,6 +20,7 @@ Se publicará como **0.1.0**, la primera versión para usar en casa. Pasos en [d
 - **Importar extractos** (OF-104, OF-105, OF-107): CSV o Excel de Revolut y Excel de Bankinter, en tres pasos (elegir, revisar, confirmar). La revisión dice qué es nuevo, qué ya estaba, qué se descarta y si el saldo cuadra con el del banco. Importar el mismo extracto dos veces no duplica nada.
 - **Categorías** (OF-201 a OF-203): 13 categorías de partida que podéis renombrar, recolorear u ocultar. Al corregir un gasto, OpenFinance aprende el comercio y clasifica los demás gastos sin categoría de ese comercio. Nunca cambia una categoría elegida a mano.
 - **Gráficos** (OF-301 a OF-305): las pantallas «Este mes», «¿En qué gastamos?» y «Evolución», con lo gastado y ahorrado, el gasto por categoría frente a vuestra media, el ritmo del mes y 12 meses de historia. `make demo` crea un hogar ficticio para verlos sin datos reales.
+- **Mi gasto** (OF-108): en «Este mes» y «¿En qué gastamos?», el selector «Hogar / Mío» enseña el gasto de tus cuentas personales y lo que has aportado a la conjunta. Solo lo ves tú y no cambia los totales del hogar.
 - **Ahorro** (OF-401 a OF-405): presupuestos por categoría con aviso al 85 %, objetivos de ahorro con fecha estimada, detección de cuotas y subidas de precio, ideas de ahorro con su respaldo y un simulador de recortes.
 - **Exportación y copias** (OF-501, [ADR-0016](docs/adr/0016-exposicion-y-copias.md)): botón **Exportar** (JSON o CSV) con lo que ve cada persona, y `make backup` / `make restore` para guardar y recuperar toda la base de datos.
 - **Instalación en casa** (OF-502): Docker Compose para usarlo en la red local o desde fuera con HTTPS y dominio propio. Guía: [Instalar en casa](docs/deployment/home.md).

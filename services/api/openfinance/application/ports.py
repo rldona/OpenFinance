@@ -32,11 +32,15 @@ class TransactionQuery:
     category_id: CategoryId | None = None
     shared_only: bool = False
     """Solo cuentas del hogar (conjunta y huchas), como los gráficos."""
+    mine_only: bool = False
+    """Solo las cuentas personales de quien pregunta, como la vista «mío»."""
     limit: int = 1000
 
     def __post_init__(self) -> None:
         if (self.year is None) != (self.month is None):
             raise ValueError("Indica año y mes a la vez")
+        if self.shared_only and self.mine_only:
+            raise ValueError("Elige solo cuentas del hogar o solo las tuyas")
         if self.month is not None and not 1 <= self.month <= 12:
             raise ValueError("Mes no válido")
         if not 1 <= self.limit <= 5000:

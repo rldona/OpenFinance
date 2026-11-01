@@ -258,7 +258,7 @@ export interface paths {
         };
         /**
          * Month Overview
-         * @description Resumen de un mes de la conjunta y las huchas: lo que se gasta, entra y ahorra.
+         * @description Resumen de un mes: lo que se gasta, entra y ahorra (o, en «mío», lo que aportas).
          */
         get: operations["month_overview_api_v1_insights_month_get"];
         put?: never;
@@ -846,6 +846,8 @@ export interface components {
             average_spent: components["schemas"]["MoneyOut"] | null;
             /** Categories */
             categories: components["schemas"]["CategoryAmountOut"][];
+            /** @description Lo aportado a la conjunta desde estas cuentas (vista «mío»); no es gasto */
+            contributed: components["schemas"]["MoneyOut"];
             /** Contributions */
             contributions: components["schemas"]["MemberAmountOut"][];
             /** Currency */
@@ -1079,6 +1081,11 @@ export interface components {
             /** Error Type */
             type: string;
         };
+        /**
+         * View
+         * @enum {string}
+         */
+        View: "household" | "mine";
     };
     responses: never;
     parameters: never;
@@ -1562,6 +1569,8 @@ export interface operations {
                 month?: string | null;
                 /** @description Vacío = sin categoría */
                 category_id?: string | null;
+                /** @description household = conjunta y huchas; mine = tus cuentas personales */
+                view?: components["schemas"]["View"];
             };
             header?: never;
             path?: never;
@@ -1594,6 +1603,8 @@ export interface operations {
             query?: {
                 /** @description AAAA-MM; por defecto, el actual */
                 month?: string | null;
+                /** @description household = conjunta y huchas; mine = tus cuentas personales */
+                view?: components["schemas"]["View"];
             };
             header?: never;
             path?: never;
@@ -1724,6 +1735,8 @@ export interface operations {
                 category_id?: string | null;
                 /** @description Solo cuentas del hogar (conjunta y huchas), como los gráficos */
                 shared_only?: boolean;
+                /** @description Solo tus cuentas personales, como la vista «mío» */
+                mine_only?: boolean;
                 limit?: number;
             };
             header?: never;

@@ -30,6 +30,9 @@ def list_transactions(
     shared_only: Annotated[
         bool, Query(description="Solo cuentas del hogar (conjunta y huchas), como los gráficos")
     ] = False,
+    mine_only: Annotated[
+        bool, Query(description="Solo tus cuentas personales, como la vista «mío»")
+    ] = False,
     limit: Annotated[int, Query(ge=1, le=5000)] = 1000,
 ) -> list[TransactionOut]:
     year, mon = (int(month[:4]), int(month[5:])) if month else (None, None)
@@ -42,6 +45,7 @@ def list_transactions(
             account_id=AccountId(account_id) if account_id else None,
             category_id=CategoryId(category_id) if category_id else None,
             shared_only=shared_only,
+            mine_only=mine_only,
             limit=limit,
         )
     except ValueError as exc:

@@ -285,6 +285,7 @@ const OVERVIEW = {
     { member_id: 'u-raul', amount: eur('1600.00') },
     { member_id: 'u-elena', amount: eur('1400.00') },
   ],
+  contributed: eur('0.00'),
   categories: [
     { category_id: 'c-super', amount: eur('600.00'), average: eur('500.00') },
     { category_id: 'c-rest', amount: eur('300.00'), average: eur('100.00') },
@@ -411,6 +412,44 @@ describe('Gráficos (fase 3)', () => {
     expect(await screen.findByText(/mes en curso, hasta el día 10/)).toBeInTheDocument()
     expect(screen.getByText(/▲ 100 % que a estas alturas del mes anterior/)).toBeInTheDocument()
     expect(screen.getByText(/\(meses completos\)/)).toBeInTheDocument()
+  })
+
+  it('«Mío» enseña tu gasto y lo aportado a la conjunta aparte (OF-108)', async () => {
+    window.location.hash = '#mes'
+    const calls = loggedIn({
+      'GET /api/v1/insights/month': {
+        body: { ...OVERVIEW, contributions: [], contributed: eur('1600.00'), income: eur('2100.00') },
+      },
+    })
+    render(<App />)
+    await screen.findByRole('heading', { name: 'Este mes' })
+    expect(screen.getByRole('button', { name: 'Hogar' })).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(screen.getByRole('button', { name: 'Mío' }))
+    expect(await screen.findByText('Has aportado a la conjunta')).toBeInTheDocument()
+    expect(screen.getByText(/Tus cuentas personales · solo las ves tú/)).toBeInTheDocument()
+    expect(screen.getByText(/No cuenta como gasto tuyo/)).toBeInTheDocument()
+    expect(screen.queryByText('Habéis ahorrado')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Presupuestos del mes' })).not.toBeInTheDocument()
+    const req = calls.filter((c) => c.url.pathname === '/api/v1/insights/month').at(-1)!
+    expect(req.url.searchParams.get('view')).toBe('mine')
+  })
+
+  it('«Mío» en ¿En qué gastamos? pide solo tus cuentas', async () => {
+    window.location.hash = '#gastos'
+    const calls = loggedIn({
+      'GET /api/v1/insights/month': { body: OVERVIEW },
+      'GET /api/v1/insights/category': { body: DETAIL },
+    })
+    render(<App />)
+    await screen.findByRole('heading', { name: /Supermercado · últimos 12 meses/ })
+    await userEvent.click(screen.getByRole('button', { name: 'Mío' }))
+    await waitFor(() => {
+      const detail = calls.filter((c) => c.url.pathname === '/api/v1/insights/category').at(-1)!
+      expect(detail.url.searchParams.get('view')).toBe('mine')
+      const tx = calls.filter((c) => c.url.pathname === '/api/v1/transactions').at(-1)!
+      expect(tx.url.searchParams.get('mine_only')).toBe('true')
+      expect(tx.url.searchParams.has('shared_only')).toBe(false)
+    })
   })
 
   it('sin datos en el mes invita a importar', async () => {

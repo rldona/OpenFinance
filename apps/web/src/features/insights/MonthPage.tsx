@@ -3,16 +3,16 @@ import { ApiError, api, type Budgets, type MonthOverview } from '../../api/clien
 import { useHousehold } from '../../app/household-context'
 import { Donut, LineChart, geometry } from '../../components/charts'
 import { centsToAmount, formatMoney, formatMoneyRounded, monthLabel, shortMonth, toCents } from '../../lib/format'
-import { Delta, MonthPicker, NoData } from './common'
+import { Delta, MonthPicker, NoData, ViewPicker } from './common'
 import { sharePercent, useCategoryMeta } from './meta'
 
 const MIN_CHANGE_CENTS = 2000n
 const abs = (x: bigint) => (x < 0n ? -x : x)
 
 export function MonthPage() {
-  const { me, month, uncategorized, setFocusCategory } = useHousehold()
+  const { me, month, view, uncategorized, setFocusCategory } = useHousehold()
   const meta = useCategoryMeta()
-  const [result, setResult] = useState<{ month: string; data?: MonthOverview; error?: string } | null>(null)
+  const [result, setResult] = useState<{ key: string; data?: MonthOverview; error?: string } | null>(null)
   const [budgets, setBudgets] = useState<Budgets | null>(null)
 
   useEffect(() => {
@@ -24,17 +24,19 @@ export function MonthPage() {
 
   useEffect(() => {
     const controller = new AbortController()
-    api.insightsMonth(month, controller.signal).then(
-      (data) => setResult({ month, data }),
+    const key = `${view}|${month}`
+    api.insightsMonth(month, view, controller.signal).then(
+      (data) => setResult({ key, data }),
       (err: unknown) => {
         if (!controller.signal.aborted)
-          setResult({ month, error: err instanceof ApiError ? err.message : 'No se han podido cargar los datos' })
+          setResult({ key, error: err instanceof ApiError ? err.message : 'No se han podido cargar los datos' })
       },
     )
     return () => controller.abort()
-  }, [month])
+  }, [month, view])
 
-  const current = result?.month === month ? result : null
+  const mine = view === 'mine'
+  const current = result?.key === `${view}|${month}` ? result : null
   if (current?.error) return <p className="error" role="alert">{current.error}</p>
   if (!current?.data)
     return (
@@ -78,11 +80,14 @@ export function MonthPage() {
         <div>
           <h1>Este mes</h1>
           <p className="lead">
-            Cuenta conjunta y huchas · {monthLabel(month)}
+            {mine ? 'Tus cuentas personales · solo las ves tú' : 'Cuenta conjunta y huchas'} · {monthLabel(month)}
             {o.is_partial && ` · mes en curso, hasta el día ${o.days_elapsed}`}
           </p>
         </div>
-        <MonthPicker />
+        <div className="page-tools">
+          <ViewPicker />
+          <MonthPicker />
+        </div>
       </div>
 
       {uncategorized > 0 && (
@@ -99,7 +104,9 @@ export function MonthPage() {
 
       <div className="grid g3">
         <div className="card hero kpi">
-          <div className="label">Habéis gastado en {shortMonth(month)}</div>
+          <div className="label">
+            {mine ? 'Has gastado' : 'Habéis gastado'} en {shortMonth(month)}
+          </div>
           <div className="value">{formatMoneyRounded(o.spent)}</div>
           <div className="delta">
             {o.is_partial ? (
@@ -110,24 +117,34 @@ export function MonthPage() {
           </div>
           {o.average_spent && (
             <div className="small muted">
-              Vuestra media: {formatMoneyRounded(o.average_spent)}/mes{o.is_partial ? ' (meses completos)' : ''}
+              {mine ? 'Tu media' : 'Vuestra media'}: {formatMoneyRounded(o.average_spent)}/mes{o.is_partial ? ' (meses completos)' : ''}
             </div>
           )}
         </div>
-        <div className="card kpi">
-          <div className="label">Habéis ahorrado</div>
-          <div className={`value ${o.saved.amount.startsWith('-') ? 'neg' : 'pos'}`}>{formatMoneyRounded(o.saved)}</div>
-          {o.saving_rate !== null && (
-            <span className={`pill ${o.saving_rate >= 20 ? 'down' : o.saving_rate >= 0 ? 'neutral' : 'up'}`}>
-              {o.saving_rate} % de lo que entra
-            </span>
-          )}
-          <div className="small muted">
-            Entró {formatMoneyRounded(o.inflow)}
-            {o.contributions.length > 0 &&
-              ` · ${o.contributions.map((c) => `${memberName(c.member_id)} ${formatMoneyRounded(c.amount)}`).join(', ')}`}
+        {mine ? (
+          <div className="card kpi">
+            <div className="label">Has aportado a la conjunta</div>
+            <div className="value">{formatMoneyRounded(o.contributed)}</div>
+            <div className="small muted">
+              No cuenta como gasto tuyo · ingresos {formatMoneyRounded(o.income)}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="card kpi">
+            <div className="label">Habéis ahorrado</div>
+            <div className={`value ${o.saved.amount.startsWith('-') ? 'neg' : 'pos'}`}>{formatMoneyRounded(o.saved)}</div>
+            {o.saving_rate !== null && (
+              <span className={`pill ${o.saving_rate >= 20 ? 'down' : o.saving_rate >= 0 ? 'neutral' : 'up'}`}>
+                {o.saving_rate} % de lo que entra
+              </span>
+            )}
+            <div className="small muted">
+              Entró {formatMoneyRounded(o.inflow)}
+              {o.contributions.length > 0 &&
+                ` · ${o.contributions.map((c) => `${memberName(c.member_id)} ${formatMoneyRounded(c.amount)}`).join(', ')}`}
+            </div>
+          </div>
+        )}
         <div className="card kpi">
           <div className="label">Donde más se va</div>
           <div className="value">{top && topMeta ? `${topMeta.icon} ${formatMoneyRounded(top.amount)}` : '—'}</div>
@@ -241,7 +258,7 @@ export function MonthPage() {
             )}
           </div>
 
-          <h2 className="spaced">Lo que más ha cambiado frente a vuestra media</h2>
+          <h2 className="spaced">Lo que más ha cambiado frente a {mine ? 'tu' : 'vuestra'} media</h2>
           {changes.length === 0 && <p className="muted small">Aún no hay meses anteriores con los que comparar.</p>}
           <ul className="catlist plain" aria-label="Cambios frente a la media">
             {changes.map((c) => {
@@ -272,50 +289,53 @@ export function MonthPage() {
         </div>
       </div>
 
-      <div className="card spaced-card">
-        <div className="page-head">
-          <h2>Presupuestos del mes</h2>
-          <a href="#presupuestos">{currentBudgets?.items.length ? 'Editar presupuestos' : 'Poner presupuestos'}</a>
-        </div>
-        {currentBudgets && currentBudgets.items.length === 0 && (
-          <p className="muted small">
-            Aún no tenéis presupuestos. Poned un límite mensual a las categorías que queráis vigilar.
-          </p>
-        )}
-        <ul className="plain budgets">
-          {currentBudgets?.items.map((b) => {
-            const m = meta(b.category_id)
-            return (
-              <li key={b.category_id} className={`budget budget-${b.status}`}>
-                <span className="ic" aria-hidden="true">
-                  {m.icon}
-                </span>
-                <span>
-                  <span className="name">
-                    <span>{m.name}</span>
-                    <span className="small">
-                      {formatMoneyRounded(b.spent)} de {formatMoneyRounded(b.amount)}
+      {/* Los presupuestos son del hogar: en «Mío» no aplican. */}
+      {!mine && (
+        <div className="card spaced-card">
+          <div className="page-head">
+            <h2>Presupuestos del mes</h2>
+            <a href="#presupuestos">{currentBudgets?.items.length ? 'Editar presupuestos' : 'Poner presupuestos'}</a>
+          </div>
+          {currentBudgets && currentBudgets.items.length === 0 && (
+            <p className="muted small">
+              Aún no tenéis presupuestos. Poned un límite mensual a las categorías que queráis vigilar.
+            </p>
+          )}
+          <ul className="plain budgets">
+            {currentBudgets?.items.map((b) => {
+              const m = meta(b.category_id)
+              return (
+                <li key={b.category_id} className={`budget budget-${b.status}`}>
+                  <span className="ic" aria-hidden="true">
+                    {m.icon}
+                  </span>
+                  <span>
+                    <span className="name">
+                      <span>{m.name}</span>
+                      <span className="small">
+                        {formatMoneyRounded(b.spent)} de {formatMoneyRounded(b.amount)}
+                      </span>
+                    </span>
+                    <span
+                      className="track"
+                      role="meter"
+                      aria-label={`${m.name}: ${b.percent} % del presupuesto`}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={Math.min(b.percent, 100)}
+                    >
+                      <i style={{ width: `${Math.min(b.percent, 100)}%` }} />
                     </span>
                   </span>
-                  <span
-                    className="track"
-                    role="meter"
-                    aria-label={`${m.name}: ${b.percent} % del presupuesto`}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={Math.min(b.percent, 100)}
-                  >
-                    <i style={{ width: `${Math.min(b.percent, 100)}%` }} />
+                  <span className="small num">
+                    {b.percent} %{b.status === 'over' ? ' · pasado' : b.status === 'warning' ? ' · cerca' : ''}
                   </span>
-                </span>
-                <span className="small num">
-                  {b.percent} %{b.status === 'over' ? ' · pasado' : b.status === 'warning' ? ' · cerca' : ''}
-                </span>
-              </li>
-            )
-          })}
-        </ul>
-      </div>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
     </section>
   )
 }

@@ -1215,6 +1215,10 @@
             "title": "Categories",
             "type": "array"
           },
+          "contributed": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Lo aportado a la conjunta desde estas cuentas (vista «mío»); no es gasto"
+          },
           "contributions": {
             "items": {
               "$ref": "#/components/schemas/MemberAmountOut"
@@ -1322,6 +1326,7 @@
           "saved_to_savings",
           "saving_rate",
           "contributions",
+          "contributed",
           "categories",
           "currency",
           "daily",
@@ -1901,6 +1906,14 @@
         ],
         "title": "ValidationError",
         "type": "object"
+      },
+      "View": {
+        "enum": [
+          "household",
+          "mine"
+        ],
+        "title": "View",
+        "type": "string"
       }
     }
   },
@@ -2574,6 +2587,17 @@
               "description": "Vacío = sin categoría",
               "title": "Category Id"
             }
+          },
+          {
+            "description": "household = conjunta y huchas; mine = tus cuentas personales",
+            "in": "query",
+            "name": "view",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/View",
+              "default": "household",
+              "description": "household = conjunta y huchas; mine = tus cuentas personales"
+            }
           }
         ],
         "responses": {
@@ -2606,7 +2630,7 @@
     },
     "/api/v1/insights/month": {
       "get": {
-        "description": "Resumen de un mes de la conjunta y las huchas: lo que se gasta, entra y ahorra.",
+        "description": "Resumen de un mes: lo que se gasta, entra y ahorra (o, en «mío», lo que aportas).",
         "operationId": "month_overview_api_v1_insights_month_get",
         "parameters": [
           {
@@ -2626,6 +2650,17 @@
               ],
               "description": "AAAA-MM; por defecto, el actual",
               "title": "Month"
+            }
+          },
+          {
+            "description": "household = conjunta y huchas; mine = tus cuentas personales",
+            "in": "query",
+            "name": "view",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/View",
+              "default": "household",
+              "description": "household = conjunta y huchas; mine = tus cuentas personales"
             }
           }
         ],
@@ -2877,6 +2912,18 @@
               "default": false,
               "description": "Solo cuentas del hogar (conjunta y huchas), como los gráficos",
               "title": "Shared Only",
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "Solo tus cuentas personales, como la vista «mío»",
+            "in": "query",
+            "name": "mine_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Solo tus cuentas personales, como la vista «mío»",
+              "title": "Mine Only",
               "type": "boolean"
             }
           },

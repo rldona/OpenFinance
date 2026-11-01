@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { api, type Category, type Me } from '../api/client'
+import { api, type Category, type InsightsView, type Me } from '../api/client'
 import { currentMonth } from '../lib/format'
 import { HouseholdContext } from './household-context'
 
@@ -18,6 +18,7 @@ export function HouseholdProvider({
   const [categoriesVersion, setCategoriesVersion] = useState(0)
   const [countVersion, setCountVersion] = useState(0)
   const [month, setMonth] = useState(currentMonth)
+  const [view, setView] = useState<InsightsView>('household')
   const [focusCategory, setFocusCategory] = useState<string | null | undefined>(undefined)
 
   useEffect(() => {
@@ -56,6 +57,8 @@ export function HouseholdProvider({
       notify,
       month,
       setMonth,
+      view,
+      setView,
       focusCategory,
       setFocusCategory,
     }),
@@ -68,6 +71,7 @@ export function HouseholdProvider({
       refreshUncategorized,
       notify,
       month,
+      view,
       focusCategory,
     ],
   )

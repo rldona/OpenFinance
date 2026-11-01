@@ -23,6 +23,21 @@ export function MonthPicker({ disabled = false }: { disabled?: boolean }) {
   )
 }
 
+/** «Hogar» o «Mío»: lo tuyo solo lo ves tú (ADR-0013). */
+export function ViewPicker() {
+  const { view, setView } = useHousehold()
+  return (
+    <div className="view-picker" role="group" aria-label="Qué cuentas">
+      <button type="button" aria-pressed={view === 'household'} onClick={() => setView('household')}>
+        Hogar
+      </button>
+      <button type="button" aria-pressed={view === 'mine'} onClick={() => setView('mine')}>
+        Mío
+      </button>
+    </div>
+  )
+}
+
 /** Variación frente a una referencia; `lowerIsBetter` para gastos. */
 export function Delta({
   now,
@@ -47,14 +62,22 @@ export function Delta({
 }
 
 export function NoData({ title }: { title: string }) {
+  const { view } = useHousehold()
   return (
     <section>
       <div className="page-head">
         <h1>{title}</h1>
-        <MonthPicker />
+        <div className="page-tools">
+          <ViewPicker />
+          <MonthPicker />
+        </div>
       </div>
       <div className="card empty">
-        <p>No hay movimientos de la cuenta conjunta en este mes.</p>
+        <p>
+          {view === 'mine'
+            ? 'No hay movimientos de tus cuentas personales en este mes.'
+            : 'No hay movimientos de la cuenta conjunta en este mes.'}
+        </p>
         <a className="btn primary" href="#importar">
           Importar un extracto
         </a>

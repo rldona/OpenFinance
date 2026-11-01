@@ -15,6 +15,8 @@ export type CategorizeResult = Schemas['CategorizeOut']
 export type MonthOverview = Schemas['MonthOverviewOut']
 export type CategoryDetail = Schemas['CategoryDetailOut']
 export type Trends = Schemas['TrendsOut']
+/** «Hogar» (conjunta y huchas) o «Mío» (tus cuentas personales). */
+export type InsightsView = Schemas['View']
 export type Budgets = Schemas['BudgetsOut']
 export type Budget = Schemas['BudgetOut']
 export type Goal = Schemas['GoalOut']
@@ -96,7 +98,7 @@ export const api = {
   logout: () => request<void>('POST', '/api/v1/auth/logout'),
   accounts: (signal?: AbortSignal) => request<Account[]>('GET', '/api/v1/accounts', { signal }),
   transactions: (
-    query: { month?: string; q?: string; uncategorized?: boolean; account_id?: string; category_id?: string; shared_only?: boolean },
+    query: { month?: string; q?: string; uncategorized?: boolean; account_id?: string; category_id?: string; shared_only?: boolean; mine_only?: boolean },
     signal?: AbortSignal,
   ) => request<Transaction[]>('GET', '/api/v1/transactions', { query, signal }),
   previewImport: (accountId: string, file: File) => {
@@ -115,11 +117,11 @@ export const api = {
     request<CategorizeResult>('PATCH', `/api/v1/transactions/${encodeURIComponent(transactionId)}`, {
       json: { category_id: categoryId, learn },
     }),
-  insightsMonth: (month: string, signal?: AbortSignal) =>
-    request<MonthOverview>('GET', '/api/v1/insights/month', { query: { month }, signal }),
-  insightsCategory: (month: string, categoryId: string | null, signal?: AbortSignal) =>
+  insightsMonth: (month: string, view: InsightsView, signal?: AbortSignal) =>
+    request<MonthOverview>('GET', '/api/v1/insights/month', { query: { month, view }, signal }),
+  insightsCategory: (month: string, categoryId: string | null, view: InsightsView, signal?: AbortSignal) =>
     request<CategoryDetail>('GET', '/api/v1/insights/category', {
-      query: { month, category_id: categoryId ?? undefined },
+      query: { month, category_id: categoryId ?? undefined, view },
       signal,
     }),
   insightsTrends: (month: string, signal?: AbortSignal) =>

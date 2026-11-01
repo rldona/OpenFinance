@@ -34,6 +34,8 @@ def list_transactions(uow: UnitOfWork, actor: Actor, query: TransactionQuery) ->
     accounts = visible_accounts(uow, actor)
     if query.shared_only:
         accounts = [a for a in accounts if a.kind in (AccountKind.JOINT, AccountKind.SAVINGS)]
+    if query.mine_only:
+        accounts = [a for a in accounts if a.owner_id == actor.user_id]
     ids = [a.id for a in accounts]
     if query.account_id is not None:
         if query.account_id not in ids:

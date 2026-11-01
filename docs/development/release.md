@@ -1,6 +1,6 @@
 # Preparar una release
 
-Checklist para publicar una versión de OpenFinance. La primera es **v0.1.0** (OF-504). Su etiqueta se crea cuando se cumplan dos condiciones: un mes de uso real con vuestros datos y OF-108 terminado.
+Checklist para publicar una versión de OpenFinance. La primera es **v0.1.0** (OF-504). Su etiqueta se crea cuando se cumplan dos condiciones: un mes de uso real con vuestros datos y OF-108 terminado (ya lo está).
 
 Nunca se despliega un *preview* de Vercel: todo pasa por GitHub y el flujo normal de merge.
 

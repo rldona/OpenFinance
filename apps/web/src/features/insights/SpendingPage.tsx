@@ -3,7 +3,7 @@ import { ApiError, api, type CategoryDetail, type MonthOverview, type Transactio
 import { useHousehold } from '../../app/household-context'
 import { BarChart, Donut, geometry } from '../../components/charts'
 import { formatDate, formatMoney, formatMoneyRounded, monthLabel, shortMonth, toCents } from '../../lib/format'
-import { Delta, MonthPicker, NoData } from './common'
+import { Delta, MonthPicker, NoData, ViewPicker } from './common'
 import { sharePercent } from './meta'
 import { useCategoryMeta } from './meta'
 
@@ -32,15 +32,16 @@ function useLoad<T>(key: string, load: (signal: AbortSignal) => Promise<T>): { d
 }
 
 function CategoryPanel({ categoryId, month }: { categoryId: string | null; month: string }) {
-  const { me } = useHousehold()
+  const { me, view } = useHousehold()
   const meta = useCategoryMeta()
   const m = meta(categoryId)
-  const detail = useLoad<CategoryDetail>(`${categoryId}|${month}`, (s) => api.insightsCategory(month, categoryId, s))
-  const txns = useLoad<Transaction[]>(`tx|${categoryId}|${month}`, (s) =>
+  const detail = useLoad<CategoryDetail>(`${view}|${categoryId}|${month}`, (s) =>
+    api.insightsCategory(month, categoryId, view, s),
+  )
+  const accounts = view === 'mine' ? { mine_only: true } : { shared_only: true }
+  const txns = useLoad<Transaction[]>(`tx|${view}|${categoryId}|${month}`, (s) =>
     api.transactions(
-      categoryId
-        ? { month, category_id: categoryId, shared_only: true }
-        : { month, uncategorized: true, shared_only: true },
+      categoryId ? { month, category_id: categoryId, ...accounts } : { month, uncategorized: true, ...accounts },
       s,
     ),
   )
@@ -120,7 +121,8 @@ function CategoryPanel({ categoryId, month }: { categoryId: string | null; month
           </table>
         )}
         <p className="small muted">
-          <a href="#movimientos">Cambiar categorías en Movimientos</a> · {me.household.name}
+          <a href="#movimientos">Cambiar categorías en Movimientos</a> ·{' '}
+          {view === 'mine' ? 'Tus cuentas personales' : me.household.name}
         </p>
       </div>
     </div>
@@ -128,9 +130,9 @@ function CategoryPanel({ categoryId, month }: { categoryId: string | null; month
 }
 
 export function SpendingPage() {
-  const { month, focusCategory, setFocusCategory } = useHousehold()
+  const { month, view, focusCategory, setFocusCategory } = useHousehold()
   const meta = useCategoryMeta()
-  const overview = useLoad<MonthOverview>(month, (s) => api.insightsMonth(month, s))
+  const overview = useLoad<MonthOverview>(`${view}|${month}`, (s) => api.insightsMonth(month, view, s))
   if (overview.error) return <p className="error" role="alert">{overview.error}</p>
   if (!overview.data)
     return (
@@ -153,9 +155,14 @@ export function SpendingPage() {
       <div className="page-head">
         <div>
           <h1>¿En qué gastamos?</h1>
-          <p className="lead">Elige una categoría para ver su detalle.</p>
+          <p className="lead">
+            {view === 'mine' ? 'Tus cuentas personales. ' : ''}Elige una categoría para ver su detalle.
+          </p>
         </div>
-        <MonthPicker />
+        <div className="page-tools">
+          <ViewPicker />
+          <MonthPicker />
+        </div>
       </div>
       <div className="grid g12">
         <div className="card">
@@ -206,7 +213,7 @@ export function SpendingPage() {
             })}
           </ul>
         </div>
-        <CategoryPanel key={`${selected}|${month}`} categoryId={selected} month={month} />
+        <CategoryPanel key={`${view}|${selected}|${month}`} categoryId={selected} month={month} />
       </div>
     </section>
   )

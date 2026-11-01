@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import type { Category, Me } from '../api/client'
+import type { Category, InsightsView, Me } from '../api/client'
 
 export type HouseholdState = {
   me: Me
@@ -14,6 +14,9 @@ export type HouseholdState = {
   /** Mes elegido (AAAA-MM), compartido entre pantallas. */
   month: string
   setMonth: (month: string) => void
+  /** «Hogar» o «Mío» en «Este mes» y «¿En qué gastamos?» (OF-108). */
+  view: InsightsView
+  setView: (view: InsightsView) => void
   /** Categoría elegida en «¿En qué gastamos?» (`null` = sin categoría; `undefined` = la mayor). */
   focusCategory: string | null | undefined
   setFocusCategory: (id: string | null | undefined) => void

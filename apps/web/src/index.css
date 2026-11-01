@@ -194,6 +194,36 @@ main {
   flex-wrap: wrap;
 }
 
+.page-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.view-picker {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.view-picker button {
+  border: 0;
+  background: var(--surface);
+  min-height: 32px;
+  padding: 0 14px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.view-picker button[aria-pressed='true'] {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
 .month-picker {
   display: flex;
   align-items: center;
@@ -993,6 +1023,10 @@ ul.plain {
   .month-picker button {
     width: 40px;
     height: 40px;
+  }
+
+  .view-picker button {
+    min-height: 40px;
   }
 
   .month-picker strong {

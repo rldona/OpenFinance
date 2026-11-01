@@ -1,13 +1,15 @@
-"""Datos de los gráficos del hogar (OF-301).
+"""Datos de los gráficos del hogar (OF-301) y de la vista «mi gasto» (OF-108).
 
 Los totales del hogar salen solo de la cuenta conjunta y las huchas (ADR-0013): las cuentas
-personales no entran, aunque quien consulta pueda verlas.
+personales no entran, aunque quien consulta pueda verlas. La vista «mío» usa solo las cuentas
+personales de quien pregunta, nunca las de otra persona.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from enum import StrEnum
 
 from openfinance.application.errors import NotFoundError
 from openfinance.application.ports import UnitOfWork
@@ -18,6 +20,7 @@ from openfinance.domain.insights import (
     average,
     by_month,
     contributions_by_member,
+    contributions_out,
     daily_cumulative_spent,
     saving_rate,
     spending_by_category,
@@ -32,28 +35,41 @@ HISTORY_MONTHS = 12
 MERCHANT_MONTHS = 3
 
 
+class View(StrEnum):
+    HOUSEHOLD = "household"
+    """Cuenta conjunta y huchas: los totales del hogar."""
+    MINE = "mine"
+    """Las cuentas personales de quien pregunta (OF-108)."""
+
+
 @dataclass(frozen=True, slots=True)
-class SharedScope:
+class Scope:
     currency: Currency
     accounts: list[AccountId]
     first: Month | None
-    """Primer mes con movimientos en las cuentas del hogar."""
+    """Primer mes con movimientos en esas cuentas."""
 
 
-def shared_scope(uow: UnitOfWork, actor: Actor) -> SharedScope:
+def scope_of(uow: UnitOfWork, actor: Actor, view: View) -> Scope:
     household = uow.households.get(actor.household_id)
     if household is None:
         raise NotFoundError("Hogar no encontrado")
-    shared = [
-        a.id
-        for a in uow.accounts.for_household(actor.household_id)
-        if a.kind in (AccountKind.JOINT, AccountKind.SAVINGS)
-    ]
-    first = uow.transactions.first_booked_at(actor.household_id, shared)
-    return SharedScope(household.currency, shared, Month.of(first) if first else None)
+    accounts = uow.accounts.for_household(actor.household_id)
+    if view is View.MINE:
+        ids = [
+            a.id for a in accounts if a.kind is AccountKind.PERSONAL and a.owner_id == actor.user_id
+        ]
+    else:
+        ids = [a.id for a in accounts if a.kind in (AccountKind.JOINT, AccountKind.SAVINGS)]
+    first = uow.transactions.first_booked_at(actor.household_id, ids)
+    return Scope(household.currency, ids, Month.of(first) if first else None)
 
 
-def has_data(scope: SharedScope, month: Month) -> bool:
+def shared_scope(uow: UnitOfWork, actor: Actor) -> Scope:
+    return scope_of(uow, actor, View.HOUSEHOLD)
+
+
+def has_data(scope: Scope, month: Month) -> bool:
     return scope.first is not None and month >= scope.first
 
 
@@ -80,13 +96,17 @@ class MonthOverview:
     """Media de gasto de los meses anteriores con datos (hasta 12)."""
     saving_rate: int | None
     contributions: dict[UserId, Money]
+    contributed: Money
+    """Lo aportado desde estas cuentas a la conjunta. No es gasto."""
     categories: list[CategoryAmount]
     daily: list[Money]
     previous_daily: list[Money]
 
 
-def month_overview(uow: UnitOfWork, actor: Actor, month: Month, today: date) -> MonthOverview:
-    scope = shared_scope(uow, actor)
+def month_overview(
+    uow: UnitOfWork, actor: Actor, month: Month, today: date, view: View = View.HOUSEHOLD
+) -> MonthOverview:
+    scope = scope_of(uow, actor, view)
     start = month.shift(-HISTORY_MONTHS)
     txns = uow.transactions.in_range(actor.household_id, scope.accounts, start.start, month.end)
     months = by_month(txns)
@@ -132,6 +152,7 @@ def month_overview(uow: UnitOfWork, actor: Actor, month: Month, today: date) -> 
         average_spent=average(spent_history, cur),
         saving_rate=saving_rate(summary),
         contributions=contributions_by_member(now, cur),
+        contributed=contributions_out(now, cur),
         categories=categories,
         daily=daily_cumulative_spent(now, month, cur)[:days_elapsed],
         previous_daily=previous_daily,
@@ -156,11 +177,15 @@ class CategoryDetail:
 
 
 def category_detail(
-    uow: UnitOfWork, actor: Actor, category_id: CategoryId | None, month: Month
+    uow: UnitOfWork,
+    actor: Actor,
+    category_id: CategoryId | None,
+    month: Month,
+    view: View = View.HOUSEHOLD,
 ) -> CategoryDetail:
     if category_id is not None and uow.categories.get(actor.household_id, category_id) is None:
         raise NotFoundError("Categoría no encontrada")
-    scope = shared_scope(uow, actor)
+    scope = scope_of(uow, actor, view)
     cur = scope.currency
     first = month.shift(-(HISTORY_MONTHS - 1))
     txns = [

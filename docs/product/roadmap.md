@@ -9,11 +9,11 @@ Un ticket está terminado cuando cumple sus criterios de aceptación, tiene test
 | Fase | Objetivo | Tickets | Estado |
 | --- | --- | --- | --- |
 | 0 · Base | Repositorio, CI, entorno y `Money` | OF-001 … OF-003 | ✅ Hecha |
-| 1 · Datos | Meter los movimientos reales de Revolut (conjunta) y Bankinter (personales) | OF-101 … OF-108 | ✅ OF-101 a OF-107 · OF-108 (vista «mi gasto») pendiente |
+| 1 · Datos | Meter los movimientos reales de Revolut (conjunta) y Bankinter (personales) | OF-101 … OF-108 | ✅ Hecha |
 | 2 · Categorías | Que cada gasto tenga su categoría casi sin esfuerzo | OF-201 … OF-203 | ✅ Hecha |
 | 3 · Gráficos | Este mes, ¿En qué gastamos? y Evolución | OF-301 … OF-305 | ✅ Hecha |
 | 4 · Ahorro | Presupuestos, objetivos, ideas y simulador | OF-401 … OF-405 | ✅ Hecha |
-| 5 · Uso real | Instalado en casa, con copias de seguridad | OF-501 … OF-504 | ✅ OF-501 a OF-503 (CI en verde, también `compose-e2e`) · OF-504 preparado: falta la etiqueta `v0.1.0` tras el mes de uso real y OF-108 |
+| 5 · Uso real | Instalado en casa, con copias de seguridad | OF-501 … OF-504 | ✅ OF-501 a OF-503 (CI en verde, también `compose-e2e`) · OF-504 preparado: falta la etiqueta `v0.1.0` tras el mes de uso real |
 
 **Hito v0.1:** fin de la fase 5, con al menos un mes de uso real con vuestros datos.
 
@@ -23,8 +23,9 @@ Estado a 1 de noviembre de 2026. Código en [github.com/rldona/OpenFinance](http
 
 ### Lo que falta para v0.1, en orden
 
-1. **OF-108 · Vista «mi gasto».** Es el único ticket de desarrollo pendiente; el detalle está en su apartado, más abajo.
-2. **Instalar en casa** siguiendo [Instalar en casa](../deployment/home.md), en modo HTTPS con dominio propio, en un equipo x86-64:
+No queda ningún ticket de desarrollo: OF-108 (vista «mi gasto») está terminado.
+
+1. **Instalar en casa** siguiendo [Instalar en casa](../deployment/home.md), en modo HTTPS con dominio propio, en un equipo x86-64:
    1. Configurar el DNS del dominio y abrir los puertos 80 y 443 del router hacia el equipo.
    2. En `.env`: `COMPOSE_FILE=compose.yaml:compose.https.yaml`, `OPENFINANCE_DOMAIN` y una contraseña de PostgreSQL aleatoria.
    3. `docker compose up -d --wait` y después `make bootstrap` para crear el hogar, las dos personas y sus cuentas.
@@ -33,8 +34,8 @@ Estado a 1 de noviembre de 2026. Código en [github.com/rldona/OpenFinance](http
    6. Importar desde la pantalla **Importar**: Revolut en la conjunta y el Bankinter de cada persona en su cuenta personal.
    7. Programar `make backup` con cron y probar una vez `make restore FILE=…`.
    8. Abrirlo desde un móvil real: pestañas, Importar, descarga de la exportación y que el teclado no tape los campos.
-3. **Un mes de uso real** con vuestros datos.
-4. **Release:** seguir [release.md](../development/release.md). Hay que subir las versiones a 0.1.0, crear la etiqueta anotada `v0.1.0` y publicar la release en GitHub.
+2. **Un mes de uso real** con vuestros datos.
+3. **Release:** seguir [release.md](../development/release.md). Hay que subir las versiones a 0.1.0, crear la etiqueta anotada `v0.1.0` y publicar la release en GitHub.
 
 ### Pendientes menores (no bloquean v0.1)
 
@@ -140,14 +141,13 @@ Versión real de las pantallas del prototipo.
 - La vista personal «mi gasto» pasa a OF-108.
 - Depende de: OF-105.
 
-### OF-108 · Vista «mi gasto» de cada persona
-Vista de la cuenta personal de cada persona con su gasto, visible solo para ella (ADR-0013). Es el último ticket de desarrollo antes de v0.1.
-- Agregados del mes calculados en el Core para las cuentas personales de quien pregunta: gastado, ingresos, aportado a la conjunta y gasto por categoría con su media. No cambia nada de los totales del hogar, que siguen usando solo la conjunta y las huchas.
-- Pantalla (o selector «Hogar / Mío») que reutiliza los gráficos de «Este mes» y «¿En qué gastamos?».
-- Lo aportado a la conjunta (salidas «Revolut\*\*NNNN\*» o con un patrón de salida del titular) se muestra aparte y no cuenta como gasto propio.
-- 🧪 Tests negativos: la pareja no ve los agregados de la cuenta personal del otro, ni pidiéndolos directamente; otro hogar tampoco. La vista personal no altera los totales del hogar.
-- Punto de partida: `application/insights.py` (agregados y `shared_scope`), `ledger.visible_accounts`, y en la web `features/insights/` (`MonthPage.tsx`, `SpendingPage.tsx`).
-- Antes de implementarlo, decidir si basta una vista del mes o hacen falta también 12 meses (Evolución).
+### OF-108 · Vista «mi gasto» de cada persona ✅
+Vista de las cuentas personales de cada persona, visible solo para ella (ADR-0013).
+- ✅ `GET /api/v1/insights/month` y `/insights/category` aceptan `view=household|mine` (por defecto `household`). `mine` usa solo las cuentas personales de quien pregunta: gastado, ingresos, aportado a la conjunta (`contributed`) y gasto por categoría con su media; al elegir una categoría, sus 12 meses y comercios.
+- ✅ `GET /api/v1/transactions?mine_only=true` lista los movimientos de esas cuentas (incompatible con `shared_only`).
+- ✅ Web: selector «Hogar / Mío» en «Este mes» y «¿En qué gastamos?», compartido entre las dos pantallas. En «Mío», lo aportado a la conjunta se muestra aparte («no cuenta como gasto tuyo») y no aparecen los presupuestos, que son del hogar.
+- ✅ 🧪 Tests negativos: la pareja no ve los agregados ni los movimientos de la cuenta personal del otro, ni pidiendo una categoría; otro hogar tampoco. La vista personal no altera los totales del hogar.
+- Decidido: basta la vista del mes. «Evolución» (12 meses de todo) sigue siendo solo del hogar; si hace falta una evolución personal, merece su propio ticket.
 - Depende de: OF-107.
 
 ---
@@ -259,12 +259,12 @@ El Core calcula y el frontend solo pinta. Los totales del hogar usan solo la con
 - ✅ Gráficos legibles en pantalla estrecha: se dibujan al ancho real (el texto no encoge con el `viewBox`) y escriben menos etiquetas cuando no caben. Siguen alimentándose de los agregados del Core.
 - ✅ 🧪 Playwright (`apps/web/e2e`, `make e2e`) en Chrome a 360 px, Safari (WebKit) a 390 px y escritorio: sin scroll horizontal, gráficos dentro de la pantalla con etiquetas de al menos 11 px y sin solapes, pestañas alcanzables, Importar en 3 pasos con un extracto sintético y descarga de la exportación. En CI contra Docker Compose (`compose-e2e`, modo `direct`).
 
-### OF-504 · Release v0.1 — preparado (falta la etiqueta tras el mes de uso real y OF-108)
+### OF-504 · Release v0.1 — preparado (falta la etiqueta tras el mes de uso real)
 - ✅ Licencias de las dependencias auditadas ([docs/legal/dependencias.md](../legal/dependencias.md)): todas compatibles con AGPL-3.0; psycopg es LGPL-3.0-only y no plantea problemas. `make licenses` las lista y el job `licenses` de CI falla si una dependencia de producción sale de la lista permitida.
 - ✅ `LICENSE` con el texto literal de la AGPL-3.0 y [ADR-0008](../adr/0008-licencia-agpl.md) aceptado: AGPL-3.0-or-later, contribuciones con DCO (`git commit -s`, [CONTRIBUTING.md](../../CONTRIBUTING.md)), sin CLA y sin cabeceras SPDX por fichero.
 - ✅ [CHANGELOG.md](../../CHANGELOG.md) (Keep a Changelog) con las fases 0 a 5 y lo pendiente.
 - ✅ Checklist de release: [docs/development/release.md](../development/release.md).
-- Pendiente: subir las versiones a 0.1.0 y crear la etiqueta anotada `v0.1.0` con su release en GitHub, **después de un mes de uso real y de OF-108**. Decidido así a propósito.
+- Pendiente: subir las versiones a 0.1.0 y crear la etiqueta anotada `v0.1.0` con su release en GitHub, **después de un mes de uso real**. Decidido así a propósito.
 
 ---
 
