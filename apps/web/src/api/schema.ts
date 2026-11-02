@@ -341,6 +341,82 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/csv-profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Profiles */
+        get: operations["list_profiles_api_v1_csv_profiles_get"];
+        put?: never;
+        /** Create Profile */
+        post: operations["create_profile_api_v1_csv_profiles_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/csv-profiles/sample": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sample
+         * @description Las primeras filas del archivo y un separador y una codificación propuestos. No guarda.
+         */
+        post: operations["sample_api_v1_csv_profiles_sample_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/csv-profiles/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Profile
+         * @description Lee el archivo con un perfil (sin guardarlo) y enseña las primeras filas. No guarda.
+         */
+        post: operations["test_profile_api_v1_csv_profiles_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/csv-profiles/{profile_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Profile */
+        put: operations["update_profile_api_v1_csv_profiles__profile_id__put"];
+        post?: never;
+        /** Delete Profile */
+        delete: operations["delete_profile_api_v1_csv_profiles__profile_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/exchange-rates": {
         parameters: {
             query?: never;
@@ -1345,9 +1421,35 @@ export interface components {
             account_id: string;
             /**
              * File
-             * @description Extracto del banco (CSV o XLSX)
+             * @description Extracto del banco (CSV, XLSX, OFX, QIF…)
              */
             file: string;
+            /**
+             * Profile Id
+             * @description Perfil de CSV con que leer el archivo (OF-1105)
+             */
+            profile_id?: string | null;
+        };
+        /** Body_sample_api_v1_csv_profiles_sample_post */
+        Body_sample_api_v1_csv_profiles_sample_post: {
+            /**
+             * File
+             * @description El CSV del banco
+             */
+            file: string;
+        };
+        /** Body_test_profile_api_v1_csv_profiles_test_post */
+        Body_test_profile_api_v1_csv_profiles_test_post: {
+            /**
+             * File
+             * @description El CSV del banco
+             */
+            file: string;
+            /**
+             * Profile
+             * @description El perfil a probar, en JSON
+             */
+            profile: string;
         };
         /** BudgetIn */
         BudgetIn: {
@@ -1548,6 +1650,175 @@ export interface components {
         CountOut: {
             /** Count */
             count: number;
+        };
+        /** CsvProfileChangeOut */
+        CsvProfileChangeOut: {
+            /** Operation Id */
+            operation_id: string | null;
+            profile: components["schemas"]["CsvProfileOut"];
+        };
+        /** CsvProfileIn */
+        CsvProfileIn: {
+            /** Amount Column */
+            amount_column?: number | null;
+            /**
+             * Amount Mode
+             * @default single
+             * @enum {string}
+             */
+            amount_mode: "single" | "debit_credit";
+            /** Balance Column */
+            balance_column?: number | null;
+            /** Credit Column */
+            credit_column?: number | null;
+            /** Date Column */
+            date_column: number;
+            /** Date Format */
+            date_format: string;
+            /** Debit Column */
+            debit_column?: number | null;
+            /**
+             * Decimal Separator
+             * @default ,
+             * @enum {string}
+             */
+            decimal_separator: "," | ".";
+            /**
+             * Delimiter
+             * @description Coma, punto y coma, tabulador o barra vertical
+             * @default ,
+             */
+            delimiter: string;
+            /** Description Columns */
+            description_columns: number[];
+            /**
+             * Encoding
+             * @description utf-8, cp1252 o latin-1
+             * @default utf-8
+             */
+            encoding: string;
+            /**
+             * Has Header
+             * @default true
+             */
+            has_header: boolean;
+            /**
+             * Invert Sign
+             * @default false
+             */
+            invert_sign: boolean;
+            /** Name */
+            name: string;
+            /**
+             * Skip Rows
+             * @description Líneas antes de la cabecera
+             * @default 0
+             */
+            skip_rows: number;
+        };
+        /** CsvProfileOut */
+        CsvProfileOut: {
+            /** Amount Column */
+            amount_column?: number | null;
+            /**
+             * Amount Mode
+             * @default single
+             * @enum {string}
+             */
+            amount_mode: "single" | "debit_credit";
+            /** Balance Column */
+            balance_column?: number | null;
+            /** Credit Column */
+            credit_column?: number | null;
+            /** Date Column */
+            date_column: number;
+            /** Date Format */
+            date_format: string;
+            /** Debit Column */
+            debit_column?: number | null;
+            /**
+             * Decimal Separator
+             * @default ,
+             * @enum {string}
+             */
+            decimal_separator: "," | ".";
+            /**
+             * Delimiter
+             * @description Coma, punto y coma, tabulador o barra vertical
+             * @default ,
+             */
+            delimiter: string;
+            /** Description Columns */
+            description_columns: number[];
+            /**
+             * Encoding
+             * @description utf-8, cp1252 o latin-1
+             * @default utf-8
+             */
+            encoding: string;
+            /**
+             * Has Header
+             * @default true
+             */
+            has_header: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Invert Sign
+             * @default false
+             */
+            invert_sign: boolean;
+            /** Name */
+            name: string;
+            /**
+             * Skip Rows
+             * @description Líneas antes de la cabecera
+             * @default 0
+             */
+            skip_rows: number;
+        };
+        /** CsvSampleOut */
+        CsvSampleOut: {
+            /** Delimiter */
+            delimiter: string;
+            /** Encoding */
+            encoding: string;
+            /**
+             * Rows
+             * @description Las primeras filas, tal cual, para elegir columnas
+             */
+            rows: string[][];
+        };
+        /** CsvTestOut */
+        CsvTestOut: {
+            /** Rows */
+            rows: components["schemas"]["CsvTestRowOut"][];
+            /** Skipped */
+            skipped: components["schemas"]["SkippedRowOut"][];
+            /** Skipped Total */
+            skipped_total: number;
+            /**
+             * Total
+             * @description Filas que se leen bien en todo el archivo
+             */
+            total: number;
+        };
+        /** CsvTestRowOut */
+        CsvTestRowOut: {
+            amount: components["schemas"]["MoneyOut"];
+            balance: components["schemas"]["MoneyOut"] | null;
+            /**
+             * Booked At
+             * Format: date-time
+             */
+            booked_at: string;
+            /** Description */
+            description: string;
+            /** Line */
+            line: number;
         };
         /** GoalIn */
         GoalIn: {
@@ -3369,6 +3640,191 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RevertOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_profiles_api_v1_csv_profiles_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsvProfileOut"][];
+                };
+            };
+        };
+    };
+    create_profile_api_v1_csv_profiles_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CsvProfileIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsvProfileChangeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sample_api_v1_csv_profiles_sample_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_sample_api_v1_csv_profiles_sample_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsvSampleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_profile_api_v1_csv_profiles_test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_test_profile_api_v1_csv_profiles_test_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsvTestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_profile_api_v1_csv_profiles__profile_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CsvProfileIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsvProfileChangeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_profile_api_v1_csv_profiles__profile_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationRefOut"];
                 };
             };
             /** @description Validation Error */

@@ -115,3 +115,17 @@ uv run openfinance statement-check --bank bankinter ruta/a/movimientos.xlsx
 ```
 
 Solo muestra recuentos (filas, importables, descartadas por motivo, descuadres de saldo, tipos propuestos y aportaciones con o sin persona). No muestra conceptos, importes, números de cuenta ni el nombre del archivo, y no necesita base de datos.
+
+
+## Otros bancos (formatos estándar y CSV con perfil)
+
+Las cuentas sin banco propio (efectivo, tarjeta, préstamo, inversión y las de un banco que no está arriba) importan por la misma vista previa. El formato se reconoce por el **contenido**, no por el nombre del archivo:
+
+| Formato | Qué hay que saber |
+| --- | --- |
+| **OFX** (versiones 1 y 2) | Trae moneda e identificador de cada movimiento; si trae el saldo del banco, se comprueba. Un archivo con varias cuentas se rechaza. |
+| **QIF** | No trae moneda (se usa la de la cuenta) ni identificador. Las fechas son ambiguas: si todas valen día/mes y mes/día, se rechaza el archivo en vez de adivinar; pide un OFX. |
+| **CAMT.053** | El XML de ISO 20022 que dan muchos bancos europeos. Se lee con `defusedxml` (sin entidades externas). Una entrada con varios movimientos se importa como varias filas. Lo pendiente se descarta. |
+| **CSV de cualquier banco** | Hace falta un **perfil**: en *Importar → Crear un perfil de CSV* se elige un extracto de ejemplo y se indica la columna de la fecha, el concepto y el importe (o debe y haber), el formato de fecha y el separador decimal. Se prueba antes de guardar y se reutiliza. |
+
+Los extractos reales nunca van al repositorio: las pruebas usan archivos sintéticos (`services/api/tests/fixtures/synthetic*`).

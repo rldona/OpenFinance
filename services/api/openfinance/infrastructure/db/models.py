@@ -318,6 +318,20 @@ class AutomationRuleRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class CsvProfileRow(Base):
+    """Perfil de CSV del hogar (OF-1105). La configuración es JSON."""
+
+    __tablename__ = "csv_profiles"
+    __table_args__ = (Index("ix_csv_profiles_household", "household_id"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    name: Mapped[str] = mapped_column(String(80))
+    config: Mapped[str] = mapped_column(Text)
+    created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class MerchantRow(Base):
     """Comercio con nombre propio (OF-1001). Los que nadie ha tocado no tienen fila."""
 
@@ -413,6 +427,9 @@ class ImportBatchRow(Base):
     created_count: Mapped[int] = mapped_column(Integer, default=0)
     duplicate_count: Mapped[int] = mapped_column(Integer, default=0)
     skipped_count: Mapped[int] = mapped_column(Integer, default=0)
+    profile_id: Mapped[UUID | None] = mapped_column()
+    """Perfil de CSV con que se leyó el archivo (OF-1105); sin clave ajena: borrar un perfil no
+    debe borrar el historial."""
 
 
 class MemberPatternRow(Base):

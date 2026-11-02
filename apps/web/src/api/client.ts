@@ -2,6 +2,10 @@ import type { components, operations } from './schema'
 
 type Schemas = components['schemas']
 export type Me = Schemas['MeOut']
+export type CsvProfile = Schemas['CsvProfileOut']
+export type CsvProfileInput = Schemas['CsvProfileIn']
+export type CsvSample = Schemas['CsvSampleOut']
+export type CsvTest = Schemas['CsvTestOut']
 export type AutomationRule = Schemas['AutomationRuleOut']
 export type AutomationRuleInput = Schemas['AutomationRuleIn']
 export type RulePreview = Schemas['RulePreviewOut']
@@ -134,9 +138,10 @@ export const api = {
     query: { month?: string; q?: string; uncategorized?: boolean; account_id?: string; tag?: string; reviewed?: 'true' | 'false'; cursor?: string },
     signal?: AbortSignal,
   ) => request<TransactionPage>('GET', '/api/v1/transactions/page', { query, signal }),
-  previewImport: (accountId: string, file: File) => {
+  previewImport: (accountId: string, file: File, profileId?: string) => {
     const form = new FormData()
     form.set('account_id', accountId)
+    if (profileId) form.set('profile_id', profileId)
     form.set('file', file)
     return request<ImportPreview>('POST', '/api/v1/imports', { form })
   },
@@ -173,6 +178,23 @@ export const api = {
     request<MemberPattern>('POST', '/api/v1/me/patterns', { json: { pattern, direction } }),
   removePattern: (p: MemberPattern) =>
     request<void>('DELETE', `/api/v1/me/patterns/${p.direction}/${encodeURIComponent(p.pattern)}`),
+  /** Perfiles de CSV de cualquier banco (OF-1105). */
+  csvProfiles: (signal?: AbortSignal) => request<CsvProfile[]>('GET', '/api/v1/csv-profiles', { signal }),
+  createCsvProfile: (profile: CsvProfileInput) =>
+    request<{ profile: CsvProfile; operation_id: string | null }>('POST', '/api/v1/csv-profiles', { json: profile }),
+  deleteCsvProfile: (id: string) =>
+    request<{ operation_id: string | null }>('DELETE', `/api/v1/csv-profiles/${encodeURIComponent(id)}`),
+  csvSample: (file: File) => {
+    const form = new FormData()
+    form.set('file', file)
+    return request<CsvSample>('POST', '/api/v1/csv-profiles/sample', { form })
+  },
+  testCsvProfile: (file: File, profile: CsvProfileInput) => {
+    const form = new FormData()
+    form.set('file', file)
+    form.set('profile', JSON.stringify(profile))
+    return request<CsvTest>('POST', '/api/v1/csv-profiles/test', { form })
+  },
   /** Reglas con condiciones, acciones y fases (OF-1101, OF-1102). */
   automationRules: (signal?: AbortSignal) => request<AutomationRule[]>('GET', '/api/v1/automation-rules', { signal }),
   createAutomationRule: (rule: AutomationRuleInput) =>

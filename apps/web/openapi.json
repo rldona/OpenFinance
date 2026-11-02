@@ -415,9 +415,22 @@
           },
           "file": {
             "contentMediaType": "application/octet-stream",
-            "description": "Extracto del banco (CSV o XLSX)",
+            "description": "Extracto del banco (CSV, XLSX, OFX, QIF…)",
             "title": "File",
             "type": "string"
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Perfil de CSV con que leer el archivo (OF-1105)",
+            "title": "Profile Id"
           }
         },
         "required": [
@@ -425,6 +438,42 @@
           "file"
         ],
         "title": "Body_create_import_api_v1_imports_post",
+        "type": "object"
+      },
+      "Body_sample_api_v1_csv_profiles_sample_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "description": "El CSV del banco",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_sample_api_v1_csv_profiles_sample_post",
+        "type": "object"
+      },
+      "Body_test_profile_api_v1_csv_profiles_test_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "description": "El CSV del banco",
+            "title": "File",
+            "type": "string"
+          },
+          "profile": {
+            "description": "El perfil a probar, en JSON",
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file",
+          "profile"
+        ],
+        "title": "Body_test_profile_api_v1_csv_profiles_test_post",
         "type": "object"
       },
       "BudgetIn": {
@@ -1058,6 +1107,413 @@
           "count"
         ],
         "title": "CountOut",
+        "type": "object"
+      },
+      "CsvProfileChangeOut": {
+        "properties": {
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/CsvProfileOut"
+          }
+        },
+        "required": [
+          "profile",
+          "operation_id"
+        ],
+        "title": "CsvProfileChangeOut",
+        "type": "object"
+      },
+      "CsvProfileIn": {
+        "properties": {
+          "amount_column": {
+            "anyOf": [
+              {
+                "maximum": 29.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Column"
+          },
+          "amount_mode": {
+            "default": "single",
+            "enum": [
+              "single",
+              "debit_credit"
+            ],
+            "title": "Amount Mode",
+            "type": "string"
+          },
+          "balance_column": {
+            "anyOf": [
+              {
+                "maximum": 29.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Balance Column"
+          },
+          "credit_column": {
+            "anyOf": [
+              {
+                "maximum": 29.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credit Column"
+          },
+          "date_column": {
+            "maximum": 29.0,
+            "minimum": 0.0,
+            "title": "Date Column",
+            "type": "integer"
+          },
+          "date_format": {
+            "title": "Date Format",
+            "type": "string"
+          },
+          "debit_column": {
+            "anyOf": [
+              {
+                "maximum": 29.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Debit Column"
+          },
+          "decimal_separator": {
+            "default": ",",
+            "enum": [
+              ",",
+              "."
+            ],
+            "title": "Decimal Separator",
+            "type": "string"
+          },
+          "delimiter": {
+            "default": ",",
+            "description": "Coma, punto y coma, tabulador o barra vertical",
+            "title": "Delimiter",
+            "type": "string"
+          },
+          "description_columns": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "Description Columns",
+            "type": "array"
+          },
+          "encoding": {
+            "default": "utf-8",
+            "description": "utf-8, cp1252 o latin-1",
+            "title": "Encoding",
+            "type": "string"
+          },
+          "has_header": {
+            "default": true,
+            "title": "Has Header",
+            "type": "boolean"
+          },
+          "invert_sign": {
+            "default": false,
+            "title": "Invert Sign",
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "skip_rows": {
+            "default": 0,
+            "description": "Líneas antes de la cabecera",
+            "maximum": 50.0,
+            "minimum": 0.0,
+            "title": "Skip Rows",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date_column",
+          "date_format",
+          "description_columns",
+          "name"
+        ],
+        "title": "CsvProfileIn",
+        "type": "object"
+      },
+      "CsvProfileOut": {
+        "properties": {
+          "amount_column": {
+            "anyOf": [
+              {
+                "maximum": 29.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Column"
+          },
+          "amount_mode": {
+            "default": "single",
+            "enum": [
+              "single",
+              "debit_credit"
+            ],
+            "title": "Amount Mode",
+            "type": "string"
+          },
+          "balance_column": {
+            "anyOf": [
+              {
+                "maximum": 29.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Balance Column"
+          },
+          "credit_column": {
+            "anyOf": [
+              {
+                "maximum": 29.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credit Column"
+          },
+          "date_column": {
+            "maximum": 29.0,
+            "minimum": 0.0,
+            "title": "Date Column",
+            "type": "integer"
+          },
+          "date_format": {
+            "title": "Date Format",
+            "type": "string"
+          },
+          "debit_column": {
+            "anyOf": [
+              {
+                "maximum": 29.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Debit Column"
+          },
+          "decimal_separator": {
+            "default": ",",
+            "enum": [
+              ",",
+              "."
+            ],
+            "title": "Decimal Separator",
+            "type": "string"
+          },
+          "delimiter": {
+            "default": ",",
+            "description": "Coma, punto y coma, tabulador o barra vertical",
+            "title": "Delimiter",
+            "type": "string"
+          },
+          "description_columns": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "Description Columns",
+            "type": "array"
+          },
+          "encoding": {
+            "default": "utf-8",
+            "description": "utf-8, cp1252 o latin-1",
+            "title": "Encoding",
+            "type": "string"
+          },
+          "has_header": {
+            "default": true,
+            "title": "Has Header",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "invert_sign": {
+            "default": false,
+            "title": "Invert Sign",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "skip_rows": {
+            "default": 0,
+            "description": "Líneas antes de la cabecera",
+            "maximum": 50.0,
+            "minimum": 0.0,
+            "title": "Skip Rows",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date_column",
+          "date_format",
+          "description_columns",
+          "id",
+          "name"
+        ],
+        "title": "CsvProfileOut",
+        "type": "object"
+      },
+      "CsvSampleOut": {
+        "properties": {
+          "delimiter": {
+            "title": "Delimiter",
+            "type": "string"
+          },
+          "encoding": {
+            "title": "Encoding",
+            "type": "string"
+          },
+          "rows": {
+            "description": "Las primeras filas, tal cual, para elegir columnas",
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "delimiter",
+          "encoding",
+          "rows"
+        ],
+        "title": "CsvSampleOut",
+        "type": "object"
+      },
+      "CsvTestOut": {
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/CsvTestRowOut"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/SkippedRowOut"
+            },
+            "title": "Skipped",
+            "type": "array"
+          },
+          "skipped_total": {
+            "title": "Skipped Total",
+            "type": "integer"
+          },
+          "total": {
+            "description": "Filas que se leen bien en todo el archivo",
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "total",
+          "skipped",
+          "skipped_total"
+        ],
+        "title": "CsvTestOut",
+        "type": "object"
+      },
+      "CsvTestRowOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "balance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "booked_at": {
+            "format": "date-time",
+            "title": "Booked At",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "line": {
+            "title": "Line",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "line",
+          "booked_at",
+          "description",
+          "amount",
+          "balance"
+        ],
+        "title": "CsvTestRowOut",
         "type": "object"
       },
       "GoalIn": {
@@ -4778,6 +5234,248 @@
         "summary": "Undo",
         "tags": [
           "changes"
+        ]
+      }
+    },
+    "/api/v1/csv-profiles": {
+      "get": {
+        "operationId": "list_profiles_api_v1_csv_profiles_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CsvProfileOut"
+                  },
+                  "title": "Response List Profiles Api V1 Csv Profiles Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Profiles",
+        "tags": [
+          "imports"
+        ]
+      },
+      "post": {
+        "operationId": "create_profile_api_v1_csv_profiles_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CsvProfileIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsvProfileChangeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Profile",
+        "tags": [
+          "imports"
+        ]
+      }
+    },
+    "/api/v1/csv-profiles/sample": {
+      "post": {
+        "description": "Las primeras filas del archivo y un separador y una codificación propuestos. No guarda.",
+        "operationId": "sample_api_v1_csv_profiles_sample_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_sample_api_v1_csv_profiles_sample_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsvSampleOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sample",
+        "tags": [
+          "imports"
+        ]
+      }
+    },
+    "/api/v1/csv-profiles/test": {
+      "post": {
+        "description": "Lee el archivo con un perfil (sin guardarlo) y enseña las primeras filas. No guarda.",
+        "operationId": "test_profile_api_v1_csv_profiles_test_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_test_profile_api_v1_csv_profiles_test_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsvTestOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Test Profile",
+        "tags": [
+          "imports"
+        ]
+      }
+    },
+    "/api/v1/csv-profiles/{profile_id}": {
+      "delete": {
+        "operationId": "delete_profile_api_v1_csv_profiles__profile_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Profile Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationRefOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Profile",
+        "tags": [
+          "imports"
+        ]
+      },
+      "put": {
+        "operationId": "update_profile_api_v1_csv_profiles__profile_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Profile Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CsvProfileIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsvProfileChangeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Profile",
+        "tags": [
+          "imports"
         ]
       }
     },

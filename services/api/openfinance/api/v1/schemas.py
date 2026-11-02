@@ -12,6 +12,7 @@ from openfinance.application.savings import BudgetView, GoalView
 from openfinance.domain.attachments import Attachment
 from openfinance.domain.automation import AutomationRule, Phase
 from openfinance.domain.categories import Category, merchant_label
+from openfinance.domain.csv_profile import CsvProfile
 from openfinance.domain.identity import User
 from openfinance.domain.imports import PatternDirection
 from openfinance.domain.ledger import (
@@ -929,3 +930,61 @@ class RulePreviewOut(BaseModel):
 class RuleApplyOut(BaseModel):
     changed: int
     operation_id: UUID | None
+
+
+class CsvProfileConfig(BaseModel):
+    delimiter: str = Field(
+        default=",", description="Coma, punto y coma, tabulador o barra vertical"
+    )
+    encoding: str = Field(default="utf-8", description="utf-8, cp1252 o latin-1")
+    skip_rows: int = Field(default=0, ge=0, le=50, description="Líneas antes de la cabecera")
+    has_header: bool = True
+    date_column: int = Field(ge=0, le=29)
+    date_format: str
+    description_columns: list[int] = Field(min_length=1, max_length=4)
+    amount_mode: Literal["single", "debit_credit"] = "single"
+    amount_column: int | None = Field(default=None, ge=0, le=29)
+    debit_column: int | None = Field(default=None, ge=0, le=29)
+    credit_column: int | None = Field(default=None, ge=0, le=29)
+    decimal_separator: Literal[",", "."] = ","
+    invert_sign: bool = False
+    balance_column: int | None = Field(default=None, ge=0, le=29)
+
+
+class CsvProfileIn(CsvProfileConfig):
+    name: str = Field(min_length=1, max_length=80)
+
+
+class CsvProfileOut(CsvProfileConfig):
+    id: UUID
+    name: str
+
+    @classmethod
+    def of(cls, p: CsvProfile) -> CsvProfileOut:
+        return cls(id=p.id, name=p.name, **p.config())
+
+
+class CsvProfileChangeOut(BaseModel):
+    profile: CsvProfileOut
+    operation_id: UUID | None
+
+
+class CsvSampleOut(BaseModel):
+    delimiter: str
+    encoding: str
+    rows: list[list[str]] = Field(description="Las primeras filas, tal cual, para elegir columnas")
+
+
+class CsvTestRowOut(BaseModel):
+    line: int
+    booked_at: datetime
+    description: str
+    amount: MoneyOut
+    balance: MoneyOut | None
+
+
+class CsvTestOut(BaseModel):
+    rows: list[CsvTestRowOut]
+    total: int = Field(description="Filas que se leen bien en todo el archivo")
+    skipped: list[SkippedRowOut]
+    skipped_total: int

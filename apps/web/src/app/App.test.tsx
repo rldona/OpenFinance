@@ -727,8 +727,95 @@ describe('Importar formatos estándar (OF-1103)', () => {
     render(<App />)
     const option = await screen.findByRole('option', { name: 'Efectivo' })
     expect(option).not.toBeDisabled()
-    expect(await screen.findByText(/Elige el extracto \(OFX, QIF o CAMT.053\)/)).toBeInTheDocument()
-    expect(document.querySelector('input[type=file]')).toHaveAttribute('accept', '.ofx,.qfx,.qif,.xml')
+    expect(await screen.findByText(/Elige el extracto \(OFX, QIF, CAMT.053 o CSV\)/)).toBeInTheDocument()
+    expect(document.querySelector('input[type=file]')).toHaveAttribute('accept', '.ofx,.qfx,.qif,.xml,.csv,.txt')
+  })
+})
+
+describe('Perfiles de CSV (OF-1105)', () => {
+  const CASH = { id: 'a-cash', name: 'Otro banco', institution: 'other', kind: 'joint', type: 'cash', owner_id: null, opening_balance: { amount: '0.00', currency: 'EUR' }, balance: { amount: '0.00', currency: 'EUR' } }
+  const PROFILE = { id: 'p-1', name: 'Mi banco', delimiter: ';', encoding: 'cp1252', skip_rows: 0, has_header: true, date_column: 0, date_format: '%d/%m/%Y', description_columns: [1], amount_mode: 'single', amount_column: 2, debit_column: null, credit_column: null, decimal_separator: ',', invert_sign: false, balance_column: null }
+  const SAMPLE = { delimiter: ';', encoding: 'cp1252', rows: [['Fecha', 'Concepto', 'Importe'], ['03/10/2026', 'CAFE', '-1,80'], ['04/10/2026', 'SUELDO', '1.600,00']] }
+  const TEST = {
+    rows: [
+      { line: 2, booked_at: '2026-10-03T00:00:00', description: 'CAFE', amount: { amount: '-1.80', currency: 'EUR' }, balance: null },
+      { line: 3, booked_at: '2026-10-04T00:00:00', description: 'SUELDO', amount: { amount: '1600.00', currency: 'EUR' }, balance: null },
+    ],
+    total: 2,
+    skipped: [{ line: 4, reason: 'fila no válida: fecha no válida', description: 'ROTA' }],
+    skipped_total: 1,
+  }
+  const mocks = (extra = {}) =>
+    loggedIn({ 'GET /api/v1/accounts': { body: [CASH] }, 'GET /api/v1/csv-profiles': { body: [PROFILE] }, ...extra })
+
+  it('ofrece los perfiles guardados al importar en una cuenta sin banco propio', async () => {
+    window.location.hash = '#importar'
+    mocks()
+    render(<App />)
+    const select = await screen.findByLabelText(/Si es un CSV, perfil/)
+    expect(within(select).getByRole('option', { name: 'Mi banco' })).toBeInTheDocument()
+  })
+
+  it('crea un perfil desde un archivo de ejemplo: muestra las filas, prueba y guarda', async () => {
+    window.location.hash = '#importar'
+    const calls = mocks({
+      'POST /api/v1/csv-profiles/sample': { body: SAMPLE },
+      'POST /api/v1/csv-profiles/test': { body: TEST },
+      'POST /api/v1/csv-profiles': { status: 201, body: { profile: PROFILE, operation_id: 'op-p' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Crear un perfil de CSV' }))
+    const wizard = await screen.findByRole('form', { name: 'Nuevo perfil de CSV' })
+    await userEvent.upload(within(wizard).getByLabelText('Extracto de ejemplo'), new File(['x'], 'banco.csv', { type: 'text/csv' }))
+    const region = await screen.findByRole('region', { name: 'Primeras filas del archivo' })
+    expect(region).toHaveTextContent('03/10/2026')
+    expect(within(wizard).getByRole('button', { name: 'Guardar el perfil' })).toBeDisabled()
+    await userEvent.type(within(wizard).getByLabelText('Nombre del perfil'), 'Mi banco')
+    await userEvent.click(within(wizard).getByRole('button', { name: 'Probar con el archivo' }))
+    const result = await screen.findByRole('region', { name: 'Resultado de la prueba' })
+    expect(within(result).getByRole('status')).toHaveTextContent('2 filas se leen bien y 1 se descartan')
+    expect(result).toHaveTextContent('Línea 4: fila no válida: fecha no válida')
+    await userEvent.click(within(wizard).getByRole('button', { name: 'Guardar el perfil' }))
+    const post = calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/csv-profiles')!
+    expect(JSON.parse(String(post.body))).toMatchObject({ name: 'Mi banco', delimiter: ';', encoding: 'cp1252', date_format: '%d/%m/%Y' })
+    expect(await screen.findByText('Perfil «Mi banco» guardado')).toBeInTheDocument()
+  })
+
+  it('no deja guardar un perfil que no lee ninguna fila', async () => {
+    window.location.hash = '#importar'
+    mocks({
+      'POST /api/v1/csv-profiles/sample': { body: SAMPLE },
+      'POST /api/v1/csv-profiles/test': { body: { ...TEST, rows: [], total: 0 } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Crear un perfil de CSV' }))
+    const wizard = await screen.findByRole('form', { name: 'Nuevo perfil de CSV' })
+    await userEvent.upload(within(wizard).getByLabelText('Extracto de ejemplo'), new File(['x'], 'banco.csv'))
+    await userEvent.type(await within(wizard).findByLabelText('Nombre del perfil'), 'Vacío')
+    await userEvent.click(within(wizard).getByRole('button', { name: 'Probar con el archivo' }))
+    await screen.findByRole('region', { name: 'Resultado de la prueba' })
+    expect(within(wizard).getByRole('button', { name: 'Guardar el perfil' })).toBeDisabled()
+  })
+
+  it('el servidor puede rechazar el archivo y se avisa', async () => {
+    window.location.hash = '#importar'
+    mocks({ 'POST /api/v1/csv-profiles/sample': { status: 422, body: { detail: 'El archivo está vacío' } } })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Crear un perfil de CSV' }))
+    const wizard = await screen.findByRole('form', { name: 'Nuevo perfil de CSV' })
+    await userEvent.upload(within(wizard).getByLabelText('Extracto de ejemplo'), new File(['x'], 'vacio.csv'))
+    expect(await screen.findByRole('alert')).toHaveTextContent('El archivo está vacío')
+  })
+
+  it('envía el perfil elegido al subir el extracto', async () => {
+    window.location.hash = '#importar'
+    const calls = mocks({ 'POST /api/v1/imports': { status: 201, body: PREVIEW } })
+    render(<App />)
+    await userEvent.selectOptions(await screen.findByLabelText(/Si es un CSV, perfil/), 'p-1')
+    await userEvent.upload(screen.getByLabelText('Extracto'), new File(['x'], 'banco.csv', { type: 'text/csv' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Ver vista previa' }))
+    const post = calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/imports')!
+    expect((post.body as FormData).get('profile_id')).toBe('p-1')
   })
 })
 
@@ -1794,6 +1881,7 @@ describe('Accesibilidad (OF-804)', () => {
   const OP = { id: 'op-a', actor_id: 'u-raul', created_at: '2026-11-01T10:00:00Z', action: 'transaction.edit', changes: [], summary: 'Glovo → Restaurantes', undone: false }
   const mocks = () => ({
     'GET /api/v1/version': { body: { current: '0.2.0', enabled: false, latest: null, url: null, update_available: false } },
+    'GET /api/v1/csv-profiles': { body: [] },
     'GET /api/v1/insights/month': { body: OVERVIEW },
     'GET /api/v1/insights/category': { body: DETAIL },
     'GET /api/v1/insights/trends': { body: TRENDS },

@@ -12,6 +12,7 @@ from openfinance.domain.attachments import Attachment
 from openfinance.domain.automation import AutomationRule
 from openfinance.domain.categories import Category, CategoryId, CategoryRule
 from openfinance.domain.changes import Entity, Operation
+from openfinance.domain.csv_profile import CsvProfile, CsvSample
 from openfinance.domain.identity import User
 from openfinance.domain.imports import (
     ClassificationRules,
@@ -212,6 +213,13 @@ class RuleRepository(Protocol):
     def delete(self, household_id: WorkspaceId, scope: str, merchant: str) -> None: ...
 
 
+class CsvProfileRepository(Protocol):
+    def for_household(self, household_id: WorkspaceId) -> list[CsvProfile]: ...
+    def get(self, household_id: WorkspaceId, profile_id: UUID) -> CsvProfile | None: ...
+    def save(self, profile: CsvProfile, created_by: UserId) -> None: ...
+    def delete(self, household_id: WorkspaceId, profile_id: UUID) -> None: ...
+
+
 class AutomationRepository(Protocol):
     def for_household(self, household_id: WorkspaceId) -> list[AutomationRule]:
         """Todas las reglas del hogar, también las personales: quien llama filtra por ámbito."""
@@ -400,6 +408,13 @@ class StatementParser(Protocol):
 
 class StatementParsers(Protocol):
     def get(self, institution: Institution) -> StatementParser | None: ...
+    def csv(self, profile: CsvProfile) -> StatementParser:
+        """Lector de CSV guiado por un perfil (OF-1105)."""
+        ...
+
+    def csv_sample(self, content: bytes) -> CsvSample:
+        """Separador y codificación propuestos y las primeras filas de un CSV."""
+        ...
 
 
 class SessionRepository(Protocol):
@@ -485,6 +500,8 @@ class UnitOfWork(Protocol):
     def rates(self) -> RateRepository: ...
     @property
     def automation(self) -> AutomationRepository: ...
+    @property
+    def csv_profiles(self) -> CsvProfileRepository: ...
     @property
     def member_patterns(self) -> MemberPatternRepository: ...
     @property

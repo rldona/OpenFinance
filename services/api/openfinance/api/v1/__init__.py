@@ -6,6 +6,7 @@ from openfinance.api.v1 import (
     automation,
     categories,
     changes,
+    csv_profiles,
     export,
     imports,
     insights,
@@ -25,6 +26,7 @@ router.include_router(attachments.router)
 router.include_router(automation.router)
 router.include_router(auth.router)
 router.include_router(categories.router)
+router.include_router(csv_profiles.router)
 router.include_router(ledger.router)
 router.include_router(imports.router)
 router.include_router(insights.router)

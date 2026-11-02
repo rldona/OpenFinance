@@ -25,7 +25,10 @@ async def create_import(
     uow: UowDep,
     parsers: ParsersDep,
     account_id: Annotated[UUID, Form()],
-    file: Annotated[UploadFile, File(description="Extracto del banco (CSV o XLSX)")],
+    file: Annotated[UploadFile, File(description="Extracto del banco (CSV, XLSX, OFX, QIF…)")],
+    profile_id: Annotated[
+        UUID | None, Form(description="Perfil de CSV con que leer el archivo (OF-1105)")
+    ] = None,
 ) -> ImportPreviewOut:
     """Lee el extracto y devuelve la vista previa. No guarda movimientos."""
     content = await file.read(MAX_FILE_BYTES + 1)
@@ -41,6 +44,7 @@ async def create_import(
         file.filename or "extracto",
         content,
         utc_now(),
+        profile_id,
     )
     return ImportPreviewOut.of(preview)
 

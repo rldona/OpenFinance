@@ -16,6 +16,7 @@ from openfinance.application.ports import StatementParsers, UnitOfWork
 from openfinance.domain.automation import GENERIC_KINDS, Fixed, RowView, decide
 from openfinance.domain.categories import CategoryId, best_rule, merchant_key
 from openfinance.domain.changes import Change, Entity
+from openfinance.domain.csv_profile import CsvProfile
 from openfinance.domain.identity import User
 from openfinance.domain.imports import (
     BalanceMismatch,
@@ -163,9 +164,14 @@ def _account(uow: UnitOfWork, actor: Actor, account_id: UUID) -> Account:
 
 
 def _parse(
-    uow: UnitOfWork, parsers: StatementParsers, actor: Actor, account: Account, content: bytes
+    uow: UnitOfWork,
+    parsers: StatementParsers,
+    actor: Actor,
+    account: Account,
+    content: bytes,
+    profile: CsvProfile | None = None,
 ) -> ParseResult:
-    parser = parsers.get(account.institution)
+    parser = parsers.csv(profile) if profile is not None else parsers.get(account.institution)
     if parser is None:
         raise InvalidRequestError(
             f"Todavía no se pueden importar extractos de {account.institution.value}"
@@ -277,13 +283,19 @@ def preview_import(
     filename: str,
     content: bytes,
     now: datetime,
+    profile_id: UUID | None = None,
 ) -> ImportPreview:
     if not content:
         raise InvalidRequestError("El archivo está vacío")
     if len(content) > MAX_FILE_BYTES:
         raise InvalidRequestError("El archivo es demasiado grande (máximo 5 MB)")
     account = _account(uow, actor, account_id)
-    result = _parse(uow, parsers, actor, account, content)
+    profile = None
+    if profile_id is not None:
+        profile = uow.csv_profiles.get(actor.household_id, profile_id)
+        if profile is None:
+            raise NotFoundError("Perfil de CSV no encontrado")
+    result = _parse(uow, parsers, actor, account, content, profile)
     batch = ImportBatch(
         id=uuid4(),
         household_id=actor.household_id,
@@ -291,6 +303,7 @@ def preview_import(
         filename=safe_filename(filename),
         created_by=actor.user_id,
         created_at=now,
+        profile_id=profile_id,
     )
     uow.imports.purge_expired_content(now)
     uow.imports.add(batch, content)
@@ -325,7 +338,12 @@ def commit_import(
 
     # Se vuelve a leer el archivo con las reglas actuales; el resultado coincide con la vista
     # previa salvo que entre medias cambien los miembros del hogar o sus patrones.
-    result = _parse(uow, parsers, actor, account, content)
+    profile = None
+    if batch.profile_id is not None:
+        profile = uow.csv_profiles.get(actor.household_id, batch.profile_id)
+        if profile is None:
+            raise ConflictError("El perfil de CSV de esta importación ya no existe")
+    result = _parse(uow, parsers, actor, account, content, profile)
     rows = _preview_rows(uow, actor, account, result)
     # Lo de una importación deshecha vuelve con su identificador y sus correcciones en lugar
     # de duplicarse (ADR-0017): deshacer y volver a importar da el mismo resultado.

@@ -7,6 +7,7 @@ from openfinance.infrastructure.db.repositories.categories import (
     SqlRuleRepository,
 )
 from openfinance.infrastructure.db.repositories.changes import SqlChangeRepository
+from openfinance.infrastructure.db.repositories.csv_profiles import SqlCsvProfileRepository
 from openfinance.infrastructure.db.repositories.identity import (
     SqlHouseholdRepository,
     SqlSessionRepository,
@@ -42,6 +43,7 @@ __all__ = [
     "SqlBudgetRepository",
     "SqlCategoryRepository",
     "SqlChangeRepository",
+    "SqlCsvProfileRepository",
     "SqlGoalRepository",
     "SqlHouseholdRepository",
     "SqlIdeaDismissalRepository",

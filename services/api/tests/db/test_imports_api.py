@@ -127,7 +127,9 @@ class TestCommit:
 
 
 class TestValidation:
-    def test_unsupported_institution(self, as_raul, seed, session_factory) -> None:
+    def test_a_csv_into_an_account_without_a_bank_asks_for_a_profile(
+        self, as_raul, seed, session_factory
+    ) -> None:
         other = Account(
             id=AccountId(uuid4()),
             household_id=seed.joint.household_id,
@@ -142,7 +144,8 @@ class TestValidation:
             s.commit()
         r = upload(as_raul, other.id)
         assert r.status_code == 422
-        assert "other" in r.json()["detail"]
+        assert "Formato no reconocido" in r.json()["detail"]
+        assert "perfil" in r.json()["detail"]
 
     def test_csv_into_bankinter_is_rejected(self, as_raul, seed) -> None:
         r = upload(as_raul, seed.raul_personal.id)

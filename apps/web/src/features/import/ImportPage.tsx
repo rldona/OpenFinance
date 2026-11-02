@@ -3,19 +3,21 @@ import {
   ApiError,
   api,
   type Account,
+  type CsvProfile,
   type ImportPreview,
   type ImportResult,
 } from '../../api/client'
 import { useHousehold } from '../../app/household-context'
 import { centsToAmount, formatDate, formatMoney, toCents } from '../../lib/format'
 import { kindLabel } from '../transactions/labels'
+import { CsvProfileWizard } from './CsvProfileWizard'
 import { ImportHistory } from './ImportHistory'
 
 const FORMATS: Record<string, { accept: string; label: string }> = {
   revolut: { accept: '.csv,.xlsx', label: 'CSV o Excel' },
   bankinter: { accept: '.xlsx', label: 'Excel' },
   // Cuentas sin banco propio (OF-1103): formatos estándar, que se reconocen por el contenido.
-  other: { accept: '.ofx,.qfx,.qif,.xml', label: 'OFX, QIF o CAMT.053' },
+  other: { accept: '.ofx,.qfx,.qif,.xml,.csv,.txt', label: 'OFX, QIF, CAMT.053 o CSV' },
 }
 const SUPPORTED = new Set(Object.keys(FORMATS))
 
@@ -46,9 +48,13 @@ export function ImportPage() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [acceptMissing, setAcceptMissing] = useState(false)
+  const [profiles, setProfiles] = useState<CsvProfile[]>([])
+  const [profileId, setProfileId] = useState('')
+  const [wizard, setWizard] = useState(false)
 
   useEffect(() => {
     const controller = new AbortController()
+    api.csvProfiles(controller.signal).then(setProfiles, () => undefined) // los perfiles son opcionales
     api.accounts(controller.signal).then(
       (list) => {
         setAccounts(list)
@@ -62,6 +68,8 @@ export function ImportPage() {
     )
     return () => controller.abort()
   }, [])
+
+  const selected = accounts.find((a) => a.id === accountId)
 
   async function run<T>(fn: () => Promise<T>, then: (value: T) => void) {
     setBusy(true)
@@ -79,7 +87,7 @@ export function ImportPage() {
     e.preventDefault()
     if (!file || !accountId) return
     void run(
-      () => api.previewImport(accountId, file),
+      () => api.previewImport(accountId, file, selected?.institution === 'other' ? profileId || undefined : undefined),
       (p) => {
         setAcceptMissing(false)
         setStep({ kind: 'review', preview: p })
@@ -263,7 +271,6 @@ export function ImportPage() {
     )
   }
 
-  const selected = accounts.find((a) => a.id === accountId)
   const format = (selected && FORMATS[selected.institution]) ?? FORMATS.revolut
 
   return (
@@ -295,6 +302,24 @@ export function ImportPage() {
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           />
         </label>
+        {selected?.institution === 'other' && (
+          <div className="toolbar wrap">
+            <label className="small">
+              Si es un CSV, perfil{' '}
+              <select className="field" value={profileId} onChange={(e) => setProfileId(e.target.value)}>
+                <option value="">Ninguno (OFX, QIF o CAMT)</option>
+                {profiles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button className="btn small" type="button" onClick={() => setWizard(true)}>
+              Crear un perfil de CSV
+            </button>
+          </div>
+        )}
         <p className="small muted">El archivo se procesa en vuestro servidor y no sale a ningún servicio externo.</p>
         {errorBox}
         <div className="toolbar end">
@@ -303,6 +328,16 @@ export function ImportPage() {
           </button>
         </div>
       </form>
+      {wizard && (
+        <CsvProfileWizard
+          onClose={() => setWizard(false)}
+          onSaved={(p) => {
+            setProfiles([...profiles, p])
+            setProfileId(p.id)
+            setWizard(false)
+          }}
+        />
+      )}
       <ImportHistory accounts={accounts} />
     </section>
   )

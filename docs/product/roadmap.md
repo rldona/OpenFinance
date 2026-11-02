@@ -461,7 +461,7 @@ Hecha (sin probar en un equipo con Docker: lo comprueba `compose-e2e`). Alcance 
 
 ---
 
-## Fase 11 · Reglas e importación universal (v0.4)
+## Fase 11 · Reglas e importación universal (v0.4) ✅
 
 Alcance en [ADR-0020](../adr/0020-motor-de-reglas-e-importacion-universal.md). Cada ticket lleva su migración, su cambio de OpenAPI (`make openapi`), tests de privacidad negativos y, si cambia datos, registro de cambios con deshacer. Los extractos de prueba son siempre sintéticos.
 
@@ -471,7 +471,7 @@ Alcance en [ADR-0020](../adr/0020-motor-de-reglas-e-importacion-universal.md). C
 | OF-1102 ✅ | Vista previa de una regla y aplicar a lo existente | La vista previa no escribe; aplicar es una operación que se deshace; nunca pisa lo fijado a mano, lo revisado ni lo dividido; test de idempotencia |
 | OF-1103 ✅ | Importar OFX y QIF | Archivos sintéticos de ejemplo; mismas huellas al importar dos veces; saldo comprobado si el formato lo trae |
 | OF-1104 ✅ | Importar CAMT.053 | XML con `defusedxml` (sin entidades); varios movimientos por entrada; débito y crédito con su signo |
-| OF-1105 | CSV de cualquier banco con perfiles | Perfil creado desde la vista previa, guardado y reutilizado; fecha y número en varios formatos; débito/crédito en dos columnas |
+| OF-1105 ✅ | CSV de cualquier banco con perfiles | Perfil creado desde la vista previa, guardado y reutilizado; fecha y número en varios formatos; débito/crédito en dos columnas |
 
 ---
 
@@ -482,7 +482,7 @@ Inspirado en Wallet, Spendee, Fintonic y Actual Budget. Cada fase empieza con su
 | Fase | Versión | Qué consigue | Tickets | Esfuerzo |
 | --- | --- | --- | --- | --- |
 | 10 · Libro contable completo | v0.3 | Hecha: [Fase 10](#fase-10--libro-contable-completo-v03) | OF-1001 … OF-1008 | ✅ |
-| 11 · Reglas e importación universal | v0.4 | Detallada en [Fase 11](#fase-11--reglas-e-importación-universal-v04) | OF-1101 … OF-1105 | 5 semanas |
+| 11 · Reglas e importación universal | v0.4 | Hecha: [Fase 11](#fase-11--reglas-e-importación-universal-v04) | OF-1101 … OF-1105 | ✅ |
 | 12 · Planificar | v0.5 | Pagos programados (ADR-0021), previsión de saldo, presupuestos con límites o sobres y arrastre (ADR-0022), plantillas, «hoy podéis gastar», objetivos v2 | OF-1201 … OF-1206 | 7 semanas |
 | 13 · Alertas | v0.6 | Avisos deterministas (comisiones, duplicados, recibos que suben…), notificaciones Web Push o ntfy (ADR-0023), resumen semanal | OF-1301 … OF-1303 | 4 semanas |
 | 14 · Conexión con el banco | v0.7 | Agregador PSD2 con cuenta propia (ADR-0024), sincronización por la misma tubería que la importación, consentimientos y conciliación automática | OF-1401 … OF-1404 | 6 semanas |
