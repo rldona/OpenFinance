@@ -24,6 +24,7 @@ from openfinance.domain.ledger import (
     TransactionKind,
 )
 from openfinance.domain.reconciliation import Reconciliation
+from openfinance.domain.schedule import Frequency, OccurrenceStatus, ScheduledPayment
 from openfinance.domain.shared import Money
 from openfinance.domain.workspaces import Household
 
@@ -988,3 +989,71 @@ class CsvTestOut(BaseModel):
     total: int = Field(description="Filas que se leen bien en todo el archivo")
     skipped: list[SkippedRowOut]
     skipped_total: int
+
+
+# --- OF-1201 · Pagos programados ------------------------------------------------------------
+
+
+class ScheduledPaymentIn(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
+    amount: str = Field(
+        max_length=20, examples=["-900.00"], description="Con signo: negativo es un pago"
+    )
+    account_id: UUID
+    frequency: Frequency
+    interval: int = Field(default=1, ge=1, le=60)
+    first_due: date
+    ends_on: date | None = None
+    category_id: UUID | None = None
+    merchant: str = Field(default="", max_length=120)
+    variable: bool = False
+    active: bool = True
+
+
+class ScheduledPaymentOut(BaseModel):
+    id: UUID
+    name: str
+    amount: MoneyOut
+    account_id: UUID
+    frequency: Frequency
+    interval: int
+    first_due: date
+    ends_on: date | None
+    category_id: UUID | None
+    merchant: str
+    variable: bool
+    active: bool
+
+    @classmethod
+    def of(cls, p: ScheduledPayment) -> ScheduledPaymentOut:
+        return cls(
+            id=p.id,
+            name=p.name,
+            amount=MoneyOut.of(p.amount),
+            account_id=p.account_id,
+            frequency=p.frequency,
+            interval=p.interval,
+            first_due=p.first_due,
+            ends_on=p.ends_on,
+            category_id=p.category_id,
+            merchant=p.merchant,
+            variable=p.variable,
+            active=p.active,
+        )
+
+
+class OccurrenceOut(BaseModel):
+    due: date
+    amount: MoneyOut
+    status: OccurrenceStatus
+    transaction_id: UUID | None
+
+
+class ScheduleItemOut(BaseModel):
+    payment: ScheduledPaymentOut
+    occurrences: list[OccurrenceOut]
+
+
+class ScheduledPaymentChangeOut(BaseModel):
+    payment: ScheduledPaymentOut
+    operation_id: UUID | None

@@ -481,7 +481,7 @@ Alcance en [ADR-0021](../adr/0021-pagos-programados-y-prevision.md) y [ADR-0022]
 
 | ID | Ticket | Criterio de hecho |
 | --- | --- | --- |
-| OF-1201 | Pagos programados: calendario, emparejado con lo cobrado y atrasos | Las ocurrencias son una función pura del calendario (meses cortos, fin, rango); emparejar no escribe movimientos y se deshace; convertir un cargo detectado en pago programado |
+| OF-1201 ✅ | Pagos programados: calendario, emparejado con lo cobrado y atrasos | Las ocurrencias son una función pura del calendario (meses cortos, fin, rango); emparejar no escribe movimientos (se calcula, ver ADR-0021); crear, cambiar y borrar se deshace; un cargo detectado se convierte en pago programado desde «Ahorrar» |
 | OF-1202 | Previsión de saldo por cuenta y del hogar | Saldo día a día; primer día en negativo y mínimo; una cuenta personal ajena no entra; `card` y `loan` fuera |
 | OF-1203 | Presupuestos con límites o sobres, arrastre e importes por mes (ADR-0022) | Los presupuestos existentes siguen siendo límites; el arrastre se recalcula (test de propiedades); un sobre en negativo arrastra el déficit |
 | OF-1204 | Plantillas de movimientos | Crear desde plantilla usa el flujo normal, con registro de cambios y deshacer; privacidad del ámbito |

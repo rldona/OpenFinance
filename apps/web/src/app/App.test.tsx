@@ -2109,3 +2109,110 @@ describe('Simulador e ideas (OF-806)', () => {
     expect(screen.queryByRole('list', { name: 'Ideas descartadas' })).toBeNull()
   })
 })
+
+describe('Pagos programados', () => {
+  const PAYMENT = {
+    id: 's1',
+    name: 'Alquiler',
+    amount: { amount: '-900.00', currency: 'EUR' },
+    account_id: 'a-joint',
+    frequency: 'monthly',
+    interval: 1,
+    first_due: '2026-10-01',
+    ends_on: null,
+    category_id: null,
+    merchant: '',
+    variable: false,
+    active: true,
+  }
+  const ITEM = {
+    payment: PAYMENT,
+    occurrences: [
+      { due: '2026-10-01', amount: PAYMENT.amount, status: 'paid', transaction_id: 't9' },
+      { due: '2026-11-01', amount: PAYMENT.amount, status: 'pending', transaction_id: null },
+      { due: '2026-09-28', amount: PAYMENT.amount, status: 'late', transaction_id: null },
+    ],
+  }
+
+  it('enseña los pagos con sus próximas fechas y marca el atraso', async () => {
+    window.location.hash = '#pagos'
+    loggedIn({ 'GET /api/v1/schedule': { body: [ITEM] } })
+    render(<App />)
+    const list = await screen.findByRole('list', { name: 'Tus pagos programados' })
+    expect(list).toHaveTextContent('Alquiler')
+    expect(list).toHaveTextContent('Cuenta conjunta')
+    const dates = screen.getByRole('list', { name: 'Próximas fechas de Alquiler' })
+    expect(dates).toHaveTextContent('Atrasado')
+    expect(dates).toHaveTextContent('Pendiente')
+    expect(dates).not.toHaveTextContent('Cobrado')
+  })
+
+  it('crea un pago con el importe en negativo y avisa de que se puede deshacer', async () => {
+    window.location.hash = '#pagos'
+    const calls = loggedIn({
+      'GET /api/v1/schedule': { body: [] },
+      'POST /api/v1/schedule': { status: 201, body: { payment: PAYMENT, operation_id: 'op1' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Nuevo pago programado' }))
+    await userEvent.type(screen.getByLabelText('Nombre'), 'Alquiler')
+    await userEvent.type(screen.getByLabelText('Importe'), '900')
+    fireEvent.change(screen.getByLabelText(/Primera fecha/), { target: { value: '2026-11-01' } })
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.url.pathname === '/api/v1/schedule')).toBe(true))
+    const sent = JSON.parse(String(calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/schedule')!.body))
+    expect(sent).toMatchObject({
+      name: 'Alquiler',
+      amount: '-900',
+      account_id: 'a-joint',
+      frequency: 'monthly',
+      interval: 1,
+      first_due: '2026-11-01',
+      ends_on: null,
+    })
+  })
+
+  it('un ingreso se manda en positivo y borrar avisa con deshacer', async () => {
+    window.location.hash = '#pagos'
+    const calls = loggedIn({
+      'GET /api/v1/schedule': { body: [ITEM] },
+      'PUT /api/v1/schedule/s1': { body: { payment: PAYMENT, operation_id: 'op2' } },
+      'DELETE /api/v1/schedule/s1': { body: { operation_id: 'op3' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Editar el pago Alquiler' }))
+    await userEvent.selectOptions(screen.getByLabelText('Tipo'), 'in')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(calls.some((c) => c.method === 'PUT')).toBe(true))
+    expect(JSON.parse(String(calls.find((c) => c.method === 'PUT')!.body))).toMatchObject({ amount: '900.00' })
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Borrar el pago Alquiler' }))
+    await waitFor(() => expect(calls.some((c) => c.method === 'DELETE')).toBe(true))
+    expect(await screen.findByText(/Pago «Alquiler» borrado/)).toBeInTheDocument()
+  })
+
+  it('un cargo detectado llega con su nombre, importe y fecha ya puestos', async () => {
+    window.location.hash = '#pagos?nombre=Netflix&importe=-17.99&fecha=2026-11-02'
+    loggedIn({ 'GET /api/v1/schedule': { body: [] } })
+    render(<App />)
+    expect(await screen.findByLabelText('Nombre')).toHaveValue('Netflix')
+    expect(screen.getByLabelText('Importe')).toHaveValue('17.99')
+    expect(screen.getByLabelText('Tipo')).toHaveValue('out')
+    expect(screen.getByLabelText(/Primera fecha/)).toHaveValue('2026-11-02')
+    await waitFor(() => expect(window.location.hash).toBe('#pagos'))
+  })
+
+  it('muestra el error de la API al guardar', async () => {
+    window.location.hash = '#pagos'
+    loggedIn({
+      'GET /api/v1/schedule': { body: [] },
+      'POST /api/v1/schedule': { status: 409, body: { detail: 'Ya hay un pago con ese nombre' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Nuevo pago programado' }))
+    await userEvent.type(screen.getByLabelText('Nombre'), 'Alquiler')
+    await userEvent.type(screen.getByLabelText('Importe'), '900')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Ya hay un pago con ese nombre')
+  })
+})

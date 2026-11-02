@@ -385,6 +385,9 @@ export function SettingsPage() {
                 <a href="#presupuestos">Presupuestos</a>
               </li>
               <li>
+                <a href="#pagos">Pagos programados</a> · alquiler, seguros, nóminas: lo que sabéis que va a llegar
+              </li>
+              <li>
                 <a href="#reglas">Reglas</a>
               </li>
               <li>

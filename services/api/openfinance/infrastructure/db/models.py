@@ -332,6 +332,47 @@ class CsvProfileRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class ScheduledPaymentRow(Base):
+    """Pago programado (OF-1201). Las ocurrencias no se guardan: se calculan."""
+
+    __tablename__ = "scheduled_payments"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["account_id", "household_id"],
+            ["accounts.id", "accounts.household_id"],
+            name="fk_scheduled_payments_account_household",
+        ),
+        ForeignKeyConstraint(
+            ["category_id", "household_id"],
+            ["categories.id", "categories.household_id"],
+            name="fk_scheduled_payments_category_household",
+        ),
+        CheckConstraint("amount <> 0", name="amount_not_zero"),
+        CheckConstraint("interval >= 1", name="interval_positive"),
+        CheckConstraint(
+            "frequency IN ('once', 'weekly', 'monthly', 'yearly')", name="frequency_valid"
+        ),
+        Index("ix_scheduled_payments_household", "household_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    account_id: Mapped[UUID] = mapped_column()
+    name: Mapped[str] = mapped_column(String(60))
+    amount: Mapped[Decimal] = mapped_column(AMOUNT)
+    currency: Mapped[str] = mapped_column(String(3))
+    frequency: Mapped[str] = mapped_column(String(10))
+    interval: Mapped[int] = mapped_column()
+    first_due: Mapped[date] = mapped_column(Date)
+    ends_on: Mapped[date | None] = mapped_column(Date)
+    category_id: Mapped[UUID | None] = mapped_column()
+    merchant: Mapped[str] = mapped_column(String(120), server_default="")
+    variable: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa_false())
+    active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=sa_true())
+    created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class MerchantRow(Base):
     """Comercio con nombre propio (OF-1001). Los que nadie ha tocado no tienen fila."""
 
@@ -492,7 +533,8 @@ class ChangeEntryRow(Base):
         Index("ix_change_entries_entity", "entity", "entity_id"),
         CheckConstraint(
             "entity IN ('transaction', 'rule', 'import', 'merchant', 'tag', 'split', 'link', "
-            "'account', 'attachment', 'reconciliation', 'rate', 'automation', 'csv_profile')",
+            "'account', 'attachment', 'reconciliation', 'rate', 'automation', 'csv_profile', "
+            "'schedule')",
             name="entity_valid",
         ),
     )

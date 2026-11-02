@@ -13,7 +13,7 @@ Hoy solo se mira hacia atrás: los cargos recurrentes se **detectan** a partir d
 
 - Un **pago programado** es del hogar y tiene: nombre, importe (positivo si es un ingreso, negativo si es un pago), cuenta, categoría y comercio opcionales, **frecuencia** (`semanal`, `cada N meses`, `anual`, `una vez`), **próxima fecha**, fecha de fin opcional y un interruptor de activo.
 - Una **ocurrencia** es una fecha esperada de un pago. **No es un movimiento**: nada se escribe en el libro por sí solo. Lo cobrado de verdad sigue entrando por la importación o a mano, y la previsión nunca cambia un saldo real.
-- **Emparejado**: al importar o crear un movimiento, una ocurrencia pendiente del mismo pago se da por cumplida si la cuenta coincide, el importe difiere como mucho un 5 % (o el pago es de importe variable) y la fecha cae a ±7 días de la esperada. Si hay más de un candidato, no se empareja a ciegas: queda para elegir. El emparejado se deshace.
+- **Emparejado**: una ocurrencia se da por cumplida si hay un movimiento de la misma cuenta, del mismo signo y moneda, cuyo importe difiere como mucho un 5 % (o el pago es de importe variable) y que cae a ±7 días de la fecha esperada. Cada movimiento cumple como mucho una fecha, y entre varios candidatos gana el más cercano en fecha y, a igualdad, en importe. **El emparejado no se guarda: se calcula en cada consulta** a partir del libro, así que corregir, anular o deshacer un movimiento corrige el estado del pago sin nada que sincronizar.
 - Si pasa la fecha y no llega nada, la ocurrencia queda **atrasada**: se avisa y no se suma a la previsión.
 - Los meses cortos se resuelven con el último día del mes (un pago del día 31 cae el 28/29 en febrero). Todo el calendario es función pura de la fecha; no hay tareas programadas ni reloj en el servidor.
 - Los cargos recurrentes **detectados** pueden convertirse en un pago programado con un clic (se rellena con comercio, importe y día habituales). Mientras no se convierta, siguen valiendo para la previsión como hasta ahora; si existe el pago programado del mismo comercio, el detectado no se cuenta dos veces.
@@ -38,5 +38,5 @@ Hoy solo se mira hacia atrás: los cargos recurrentes se **detectan** a partir d
 
 - El calendario de ocurrencias es una función pura y se prueba con propiedades: ninguna ocurrencia cae fuera del rango pedido, el orden es estable, y generar dos veces da lo mismo.
 - No se crean movimientos automáticos: se evita el peor fallo posible (un gasto fantasma que descuadra el saldo).
-- Se añaden las tablas `scheduled_payments`, `scheduled_occurrences` (solo las emparejadas o descartadas; las futuras se calculan) y `transaction_templates`.
+- Se añaden las tablas `scheduled_payments` (las ocurrencias y su emparejado se calculan, no se guardan) y `transaction_templates`.
 - Tests de privacidad negativos: un pago de una cuenta personal ajena no aparece en listados, previsión ni «hoy podéis gastar».

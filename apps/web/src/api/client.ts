@@ -9,6 +9,9 @@ export type CsvTest = Schemas['CsvTestOut']
 export type AutomationRule = Schemas['AutomationRuleOut']
 export type AutomationRuleInput = Schemas['AutomationRuleIn']
 export type RulePreview = Schemas['RulePreviewOut']
+export type ScheduleItem = Schemas['ScheduleItemOut']
+export type ScheduledPayment = Schemas['ScheduledPaymentOut']
+export type ScheduledPaymentInput = Schemas['ScheduledPaymentIn']
 export type ExchangeRate = Schemas['RateOut']
 export type MissingRate = Schemas['MissingRateOut']
 export type Attachment = Schemas['AttachmentOut']
@@ -195,6 +198,15 @@ export const api = {
     form.set('profile', JSON.stringify(profile))
     return request<CsvTest>('POST', '/api/v1/csv-profiles/test', { form })
   },
+  /** Pagos programados y sus próximas fechas (OF-1201). */
+  schedule: (days: number, signal?: AbortSignal) =>
+    request<ScheduleItem[]>('GET', `/api/v1/schedule?days=${days}`, { signal }),
+  createScheduledPayment: (payment: ScheduledPaymentInput) =>
+    request<{ payment: ScheduledPayment; operation_id: string | null }>('POST', '/api/v1/schedule', { json: payment }),
+  updateScheduledPayment: (id: string, payment: ScheduledPaymentInput) =>
+    request<{ payment: ScheduledPayment; operation_id: string | null }>('PUT', `/api/v1/schedule/${encodeURIComponent(id)}`, { json: payment }),
+  deleteScheduledPayment: (id: string) =>
+    request<{ operation_id: string | null }>('DELETE', `/api/v1/schedule/${encodeURIComponent(id)}`),
   /** Reglas con condiciones, acciones y fases (OF-1101, OF-1102). */
   automationRules: (signal?: AbortSignal) => request<AutomationRule[]>('GET', '/api/v1/automation-rules', { signal }),
   createAutomationRule: (rule: AutomationRuleInput) =>

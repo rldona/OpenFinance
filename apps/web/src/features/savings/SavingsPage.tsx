@@ -348,6 +348,17 @@ function Ideas({ ideas, onChanged }: { ideas: SavingsOverview['ideas']; onChange
   )
 }
 
+/** El enlace a «Pagos programados» con este cargo ya rellenado: el mes que viene, el mismo día. */
+function scheduleHref(r: { merchant: string; amount: { amount: string }; last_date: string; category_id: string | null }): string {
+  const [y, m, d] = r.last_date.split('-').map(Number)
+  const next = new Date(Date.UTC(y, m, 1))
+  const last = new Date(Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 0)).getUTCDate()
+  next.setUTCDate(Math.min(d, last))
+  const params = new URLSearchParams({ nombre: r.merchant, importe: `-${r.amount.amount.replace(/^-/, '')}`, fecha: next.toISOString().slice(0, 10) })
+  if (r.category_id) params.set('categoria', r.category_id)
+  return `#pagos?${params.toString()}`
+}
+
 export function SavingsPage() {
   const meta = useCategoryMeta()
   const overview = useLoad<SavingsOverview>('overview', (s) => api.savingsOverview(s))
@@ -407,7 +418,10 @@ export function SavingsPage() {
                   <td role="cell">
                     {m.icon} {r.merchant}
                     <div className="small muted">
-                      {m.name} · {r.months} meses
+                      {m.name} · {r.months} meses ·{' '}
+                      <a href={scheduleHref(r)} aria-label={`Programar el pago de ${r.merchant}`}>
+                        Programar
+                      </a>
                     </div>
                   </td>
                   <td role="cell">

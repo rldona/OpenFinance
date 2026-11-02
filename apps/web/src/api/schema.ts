@@ -907,6 +907,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Schedule */
+        get: operations["list_schedule_api_v1_schedule_get"];
+        put?: never;
+        /** Create Payment */
+        post: operations["create_payment_api_v1_schedule_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/schedule/{schedule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Payment */
+        put: operations["update_payment_api_v1_schedule__schedule_id__put"];
+        post?: never;
+        /** Delete Payment */
+        delete: operations["delete_payment_api_v1_schedule__schedule_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tags": {
         parameters: {
             query?: never;
@@ -1820,6 +1856,11 @@ export interface components {
             /** Line */
             line: number;
         };
+        /**
+         * Frequency
+         * @enum {string}
+         */
+        Frequency: "once" | "weekly" | "monthly" | "yearly";
         /** GoalIn */
         GoalIn: {
             /** Account Id */
@@ -2301,6 +2342,23 @@ export interface components {
             month: string;
             saved: components["schemas"]["MoneyOut"];
         };
+        /** OccurrenceOut */
+        OccurrenceOut: {
+            amount: components["schemas"]["MoneyOut"];
+            /**
+             * Due
+             * Format: date
+             */
+            due: string;
+            status: components["schemas"]["OccurrenceStatus"];
+            /** Transaction Id */
+            transaction_id: string | null;
+        };
+        /**
+         * OccurrenceStatus
+         * @enum {string}
+         */
+        OccurrenceStatus: "paid" | "pending" | "late";
         /** OperationOut */
         OperationOut: {
             /** Action */
@@ -2665,6 +2723,98 @@ export interface components {
             /** Recurring */
             recurring: components["schemas"]["RecurringOut"][];
             recurring_total: components["schemas"]["MoneyOut"];
+        };
+        /** ScheduleItemOut */
+        ScheduleItemOut: {
+            /** Occurrences */
+            occurrences: components["schemas"]["OccurrenceOut"][];
+            payment: components["schemas"]["ScheduledPaymentOut"];
+        };
+        /** ScheduledPaymentChangeOut */
+        ScheduledPaymentChangeOut: {
+            /** Operation Id */
+            operation_id: string | null;
+            payment: components["schemas"]["ScheduledPaymentOut"];
+        };
+        /** ScheduledPaymentIn */
+        ScheduledPaymentIn: {
+            /**
+             * Account Id
+             * Format: uuid
+             */
+            account_id: string;
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /**
+             * Amount
+             * @description Con signo: negativo es un pago
+             * @example -900.00
+             */
+            amount: string;
+            /** Category Id */
+            category_id?: string | null;
+            /** Ends On */
+            ends_on?: string | null;
+            /**
+             * First Due
+             * Format: date
+             */
+            first_due: string;
+            frequency: components["schemas"]["Frequency"];
+            /**
+             * Interval
+             * @default 1
+             */
+            interval: number;
+            /**
+             * Merchant
+             * @default
+             */
+            merchant: string;
+            /** Name */
+            name: string;
+            /**
+             * Variable
+             * @default false
+             */
+            variable: boolean;
+        };
+        /** ScheduledPaymentOut */
+        ScheduledPaymentOut: {
+            /**
+             * Account Id
+             * Format: uuid
+             */
+            account_id: string;
+            /** Active */
+            active: boolean;
+            amount: components["schemas"]["MoneyOut"];
+            /** Category Id */
+            category_id: string | null;
+            /** Ends On */
+            ends_on: string | null;
+            /**
+             * First Due
+             * Format: date
+             */
+            first_due: string;
+            frequency: components["schemas"]["Frequency"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Interval */
+            interval: number;
+            /** Merchant */
+            merchant: string;
+            /** Name */
+            name: string;
+            /** Variable */
+            variable: boolean;
         };
         /** SkippedRowOut */
         SkippedRowOut: {
@@ -4698,6 +4848,136 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SavingsOverviewOut"];
+                };
+            };
+        };
+    };
+    list_schedule_api_v1_schedule_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleItemOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_payment_api_v1_schedule_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduledPaymentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduledPaymentChangeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_payment_api_v1_schedule__schedule_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduledPaymentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduledPaymentChangeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_payment_api_v1_schedule__schedule_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationRefOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

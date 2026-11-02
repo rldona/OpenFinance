@@ -1516,6 +1516,16 @@
         "title": "CsvTestRowOut",
         "type": "object"
       },
+      "Frequency": {
+        "enum": [
+          "once",
+          "weekly",
+          "monthly",
+          "yearly"
+        ],
+        "title": "Frequency",
+        "type": "string"
+      },
       "GoalIn": {
         "properties": {
           "account_id": {
@@ -2757,6 +2767,50 @@
         "title": "MonthSavedOut",
         "type": "object"
       },
+      "OccurrenceOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "due": {
+            "format": "date",
+            "title": "Due",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OccurrenceStatus"
+          },
+          "transaction_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transaction Id"
+          }
+        },
+        "required": [
+          "due",
+          "amount",
+          "status",
+          "transaction_id"
+        ],
+        "title": "OccurrenceOut",
+        "type": "object"
+      },
+      "OccurrenceStatus": {
+        "enum": [
+          "paid",
+          "pending",
+          "late"
+        ],
+        "title": "OccurrenceStatus",
+        "type": "string"
+      },
       "OperationOut": {
         "properties": {
           "action": {
@@ -3593,6 +3647,224 @@
           "goals"
         ],
         "title": "SavingsOverviewOut",
+        "type": "object"
+      },
+      "ScheduleItemOut": {
+        "properties": {
+          "occurrences": {
+            "items": {
+              "$ref": "#/components/schemas/OccurrenceOut"
+            },
+            "title": "Occurrences",
+            "type": "array"
+          },
+          "payment": {
+            "$ref": "#/components/schemas/ScheduledPaymentOut"
+          }
+        },
+        "required": [
+          "payment",
+          "occurrences"
+        ],
+        "title": "ScheduleItemOut",
+        "type": "object"
+      },
+      "ScheduledPaymentChangeOut": {
+        "properties": {
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "payment": {
+            "$ref": "#/components/schemas/ScheduledPaymentOut"
+          }
+        },
+        "required": [
+          "payment",
+          "operation_id"
+        ],
+        "title": "ScheduledPaymentChangeOut",
+        "type": "object"
+      },
+      "ScheduledPaymentIn": {
+        "properties": {
+          "account_id": {
+            "format": "uuid",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "amount": {
+            "description": "Con signo: negativo es un pago",
+            "examples": [
+              "-900.00"
+            ],
+            "maxLength": 20,
+            "title": "Amount",
+            "type": "string"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "ends_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends On"
+          },
+          "first_due": {
+            "format": "date",
+            "title": "First Due",
+            "type": "string"
+          },
+          "frequency": {
+            "$ref": "#/components/schemas/Frequency"
+          },
+          "interval": {
+            "default": 1,
+            "maximum": 60.0,
+            "minimum": 1.0,
+            "title": "Interval",
+            "type": "integer"
+          },
+          "merchant": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Merchant",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "variable": {
+            "default": false,
+            "title": "Variable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "amount",
+          "account_id",
+          "frequency",
+          "first_due"
+        ],
+        "title": "ScheduledPaymentIn",
+        "type": "object"
+      },
+      "ScheduledPaymentOut": {
+        "properties": {
+          "account_id": {
+            "format": "uuid",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "ends_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends On"
+          },
+          "first_due": {
+            "format": "date",
+            "title": "First Due",
+            "type": "string"
+          },
+          "frequency": {
+            "$ref": "#/components/schemas/Frequency"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "interval": {
+            "title": "Interval",
+            "type": "integer"
+          },
+          "merchant": {
+            "title": "Merchant",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "variable": {
+            "title": "Variable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "amount",
+          "account_id",
+          "frequency",
+          "interval",
+          "first_due",
+          "ends_on",
+          "category_id",
+          "merchant",
+          "variable",
+          "active"
+        ],
+        "title": "ScheduledPaymentOut",
         "type": "object"
       },
       "SkippedRowOut": {
@@ -6677,6 +6949,188 @@
         "summary": "Overview",
         "tags": [
           "savings"
+        ]
+      }
+    },
+    "/api/v1/schedule": {
+      "get": {
+        "operationId": "list_schedule_api_v1_schedule_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 60,
+              "maximum": 400,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ScheduleItemOut"
+                  },
+                  "title": "Response List Schedule Api V1 Schedule Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Schedule",
+        "tags": [
+          "schedule"
+        ]
+      },
+      "post": {
+        "operationId": "create_payment_api_v1_schedule_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduledPaymentIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledPaymentChangeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Payment",
+        "tags": [
+          "schedule"
+        ]
+      }
+    },
+    "/api/v1/schedule/{schedule_id}": {
+      "delete": {
+        "operationId": "delete_payment_api_v1_schedule__schedule_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "schedule_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Schedule Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationRefOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Payment",
+        "tags": [
+          "schedule"
+        ]
+      },
+      "put": {
+        "operationId": "update_payment_api_v1_schedule__schedule_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "schedule_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Schedule Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduledPaymentIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledPaymentChangeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Payment",
+        "tags": [
+          "schedule"
         ]
       }
     },
