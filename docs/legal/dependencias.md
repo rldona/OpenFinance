@@ -107,7 +107,7 @@ Herramientas que se usan para comprobar y construir, pero que no forman parte de
 | Imagen | Uso | Licencia del software principal | Sistema base |
 | --- | --- | --- | --- |
 | `postgres:16-alpine` | base de datos (`compose.yaml`, CI) | PostgreSQL License (permisiva, tipo BSD/MIT) | Alpine |
-| `nginx:1.27-alpine` | sirve la web y hace de proxy (`web.Dockerfile`) | BSD-2-Clause | Alpine |
+| `nginx:1.30-alpine` | sirve la web y hace de proxy (`web.Dockerfile`) | BSD-2-Clause | Alpine |
 | `python:3.12-slim` | API (`api.Dockerfile`) | PSF-2.0 | Debian |
 | `ghcr.io/astral-sh/uv:0.8` | solo se copia el binario `uv` en la imagen de la API | MIT o Apache-2.0 | — |
 | `node:24-alpine` | solo la etapa de build de la web; no está en la imagen final | MIT (con componentes de terceros bajo licencias permisivas) | Alpine |
