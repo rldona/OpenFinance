@@ -59,6 +59,8 @@ export type Budget = Schemas['BudgetOut']
 export type Goal = Schemas['GoalOut']
 export type GoalInput = Schemas['GoalIn']
 export type GoalPatch = Schemas['GoalPatch']
+export type Contribution = Schemas['ContributionOut']
+export type GoalShare = Schemas['ShareOut']
 export type SavingsOverview = Schemas['SavingsOverviewOut']
 
 export type ExportFormat = NonNullable<
@@ -323,6 +325,19 @@ export const api = {
       json: { clear_account: false, ...patch },
     }),
   deleteGoal: (id: string) => request<void>('DELETE', `/api/v1/goals/${encodeURIComponent(id)}`),
+  /** Aportaciones a un objetivo y reparto por prioridad (OF-1206). */
+  goalContributions: (id: string, signal?: AbortSignal) =>
+    request<Contribution[]>('GET', `/api/v1/goals/${encodeURIComponent(id)}/contributions`, { signal }),
+  addContribution: (id: string, amount: string, note: string) =>
+    request<{ contribution: Contribution; operation_id: string | null }>('POST', `/api/v1/goals/${encodeURIComponent(id)}/contributions`, {
+      json: { amount, note },
+    }),
+  deleteContribution: (goalId: string, contributionId: string) =>
+    request<{ operation_id: string | null }>(
+      'DELETE',
+      `/api/v1/goals/${encodeURIComponent(goalId)}/contributions/${encodeURIComponent(contributionId)}`,
+    ),
+  goalSplit: (amount: string) => request<GoalShare[]>('GET', '/api/v1/goals/split', { query: { amount } }),
   dismissIdea: (id: string) => request<void>('PUT', `/api/v1/savings/ideas/${encodeURIComponent(id)}/dismissed`),
   restoreIdea: (id: string) => request<void>('DELETE', `/api/v1/savings/ideas/${encodeURIComponent(id)}/dismissed`),
   savingsOverview: (signal?: AbortSignal) => request<SavingsOverview>('GET', '/api/v1/savings/overview', { signal }),

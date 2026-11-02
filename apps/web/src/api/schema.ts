@@ -579,6 +579,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/goals/split": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Suggest Split
+         * @description Cómo repartir una cantidad entre los objetivos, por prioridad (OF-1206). No apunta nada.
+         */
+        get: operations["suggest_split_api_v1_goals_split_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/goals/{goal_id}": {
         parameters: {
             query?: never;
@@ -595,6 +615,44 @@ export interface paths {
         head?: never;
         /** Update Goal */
         patch: operations["update_goal_api_v1_goals__goal_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/goals/{goal_id}/contributions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Contributions */
+        get: operations["list_contributions_api_v1_goals__goal_id__contributions_get"];
+        put?: never;
+        /**
+         * Add Contribution
+         * @description Anota una aportación (o, en negativo, una retirada) a un objetivo sin hucha.
+         */
+        post: operations["add_contribution_api_v1_goals__goal_id__contributions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/goals/{goal_id}/contributions/{contribution_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Contribution */
+        delete: operations["delete_contribution_api_v1_goals__goal_id__contributions__contribution_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/imports": {
@@ -1876,6 +1934,51 @@ export interface components {
             /** Value */
             value: string | string[];
         };
+        /** ContributionChangeOut */
+        ContributionChangeOut: {
+            contribution: components["schemas"]["ContributionOut"];
+            /** Operation Id */
+            operation_id: string | null;
+        };
+        /** ContributionIn */
+        ContributionIn: {
+            /**
+             * Amount
+             * @description Positivo aporta; negativo retira
+             */
+            amount: string;
+            /**
+             * Made On
+             * @description Por defecto, hoy
+             */
+            made_on?: string | null;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+        };
+        /** ContributionOut */
+        ContributionOut: {
+            amount: components["schemas"]["MoneyOut"];
+            /**
+             * Goal Id
+             * Format: uuid
+             */
+            goal_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Made On
+             * Format: date
+             */
+            made_on: string;
+            /** Note */
+            note: string;
+        };
         /** CountOut */
         CountOut: {
             /** Count */
@@ -2128,6 +2231,12 @@ export interface components {
             /** Name */
             name: string;
             /**
+             * Priority
+             * @description Cuanto menor, antes
+             * @default 50
+             */
+            priority: number;
+            /**
              * Saved
              * @default 0
              */
@@ -2158,6 +2267,8 @@ export interface components {
             needed_monthly: components["schemas"]["MoneyOut"] | null;
             /** On Track */
             on_track: boolean | null;
+            /** Priority */
+            priority: number;
             /** Progress */
             progress: number;
             remaining: components["schemas"]["MoneyOut"];
@@ -2185,6 +2296,8 @@ export interface components {
             monthly?: string | null;
             /** Name */
             name?: string | null;
+            /** Priority */
+            priority?: number | null;
             /** Saved */
             saved?: string | null;
             /** Target */
@@ -3068,6 +3181,19 @@ export interface components {
             name: string;
             /** Variable */
             variable: boolean;
+        };
+        /** ShareOut */
+        ShareOut: {
+            /** @description Lo que se sugiere aportar a este objetivo */
+            amount: components["schemas"]["MoneyOut"];
+            /**
+             * Goal Id
+             * Format: uuid
+             */
+            goal_id: string;
+            /** Name */
+            name: string;
+            remaining: components["schemas"]["MoneyOut"];
         };
         /** SkippedRowOut */
         SkippedRowOut: {
@@ -4628,6 +4754,37 @@ export interface operations {
             };
         };
     };
+    suggest_split_api_v1_goals_split_get: {
+        parameters: {
+            query: {
+                amount: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShareOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     delete_goal_api_v1_goals__goal_id__delete: {
         parameters: {
             query?: never;
@@ -4679,6 +4836,104 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GoalOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_contributions_api_v1_goals__goal_id__contributions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                goal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_contribution_api_v1_goals__goal_id__contributions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                goal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContributionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionChangeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_contribution_api_v1_goals__goal_id__contributions__contribution_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                goal_id: string;
+                contribution_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationRefOut"];
                 };
             };
             /** @description Validation Error */

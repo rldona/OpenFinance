@@ -26,7 +26,7 @@ from openfinance.domain.ledger import Account, Institution, Transaction
 from openfinance.domain.merchants import Merchant, MerchantId
 from openfinance.domain.rates import ExchangeRate
 from openfinance.domain.reconciliation import Reconciliation
-from openfinance.domain.savings import Budget, Goal, GoalId
+from openfinance.domain.savings import Budget, Goal, GoalContribution, GoalId
 from openfinance.domain.schedule import ScheduledPayment
 from openfinance.domain.shared import Currency, Money
 from openfinance.domain.shared.ids import AccountId, TransactionId, UserId, WorkspaceId
@@ -398,7 +398,23 @@ class GoalRepository(Protocol):
     def get(self, household_id: WorkspaceId, goal_id: GoalId) -> Goal | None: ...
     def add(self, goal: Goal) -> None: ...
     def update(self, goal: Goal) -> None: ...
-    def delete(self, household_id: WorkspaceId, goal_id: GoalId) -> None: ...
+    def delete(self, household_id: WorkspaceId, goal_id: GoalId) -> None:
+        """Borra el objetivo y sus aportaciones."""
+        ...
+
+    def contributions(self, household_id: WorkspaceId, goal_id: GoalId) -> list[GoalContribution]:
+        """Las aportaciones de un objetivo, de la más reciente a la más antigua."""
+        ...
+
+    def contribution_totals(self, household_id: WorkspaceId) -> dict[GoalId, Money]:
+        """Lo aportado en cada objetivo que tiene aportaciones."""
+        ...
+
+    def get_contribution(
+        self, household_id: WorkspaceId, contribution_id: UUID
+    ) -> GoalContribution | None: ...
+    def save_contribution(self, contribution: GoalContribution, created_by: UserId) -> None: ...
+    def delete_contribution(self, household_id: WorkspaceId, contribution_id: UUID) -> None: ...
 
 
 class ImportBatchRepository(Protocol):

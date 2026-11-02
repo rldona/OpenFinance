@@ -482,6 +482,30 @@ class GoalRow(Base):
     currency: Mapped[str] = mapped_column(String(3))
     deadline: Mapped[str | None] = mapped_column(String(7))
     account_id: Mapped[UUID | None] = mapped_column()
+    priority: Mapped[int] = mapped_column(server_default="50")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class GoalContributionRow(Base):
+    """Aportación (o retirada) anotada a mano en un objetivo (OF-1206)."""
+
+    __tablename__ = "goal_contributions"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["goal_id"], ["goals.id"], name="fk_goal_contributions_goal", ondelete="CASCADE"
+        ),
+        CheckConstraint("amount <> 0", name="amount_not_zero"),
+        Index("ix_goal_contributions_goal", "goal_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    goal_id: Mapped[UUID] = mapped_column()
+    made_on: Mapped[date] = mapped_column(Date)
+    amount: Mapped[Decimal] = mapped_column(AMOUNT)
+    currency: Mapped[str] = mapped_column(String(3))
+    note: Mapped[str] = mapped_column(String(200), server_default="")
+    created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -574,7 +598,7 @@ class ChangeEntryRow(Base):
         CheckConstraint(
             "entity IN ('transaction', 'rule', 'import', 'merchant', 'tag', 'split', 'link', "
             "'account', 'attachment', 'reconciliation', 'rate', 'automation', 'csv_profile', "
-            "'schedule', 'template')",
+            "'schedule', 'template', 'goal_contribution')",
             name="entity_valid",
         ),
     )

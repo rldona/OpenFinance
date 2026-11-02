@@ -28,7 +28,7 @@ from openfinance.domain.ledger import (
     TransactionKind,
 )
 from openfinance.domain.reconciliation import Reconciliation
-from openfinance.domain.savings import BudgetMode
+from openfinance.domain.savings import BudgetMode, GoalContribution
 from openfinance.domain.schedule import Frequency, Occurrence, OccurrenceStatus, ScheduledPayment
 from openfinance.domain.shared import Money
 from openfinance.domain.templates import TransactionTemplate
@@ -624,6 +624,7 @@ class GoalIn(BaseModel):
     saved: str = Field(default="0", pattern=AMOUNT_PATTERN)
     deadline: str | None = Field(default=None, pattern=MONTH_PATTERN)
     account_id: UUID | None = None
+    priority: int = Field(default=50, ge=1, le=99, description="Cuanto menor, antes")
 
 
 class GoalPatch(BaseModel):
@@ -637,6 +638,7 @@ class GoalPatch(BaseModel):
     )
     account_id: UUID | None = None
     clear_account: bool = False
+    priority: int | None = Field(default=None, ge=1, le=99)
 
 
 class GoalOut(BaseModel):
@@ -654,6 +656,7 @@ class GoalOut(BaseModel):
     eta: str | None
     needed_monthly: MoneyOut | None
     on_track: bool | None
+    priority: int
 
     @classmethod
     def of(cls, v: GoalView) -> GoalOut:
@@ -673,7 +676,42 @@ class GoalOut(BaseModel):
             eta=str(p.eta) if p.eta else None,
             needed_monthly=MoneyOut.of(p.needed_monthly) if p.needed_monthly else None,
             on_track=p.on_track,
+            priority=g.priority,
         )
+
+
+class ContributionIn(BaseModel):
+    amount: str = Field(
+        pattern=AMOUNT_PATTERN_SIGNED, description="Positivo aporta; negativo retira"
+    )
+    made_on: date | None = Field(default=None, description="Por defecto, hoy")
+    note: str = Field(default="", max_length=200)
+
+
+class ContributionOut(BaseModel):
+    id: UUID
+    goal_id: UUID
+    made_on: date
+    amount: MoneyOut
+    note: str
+
+    @classmethod
+    def of(cls, c: GoalContribution) -> ContributionOut:
+        return cls(
+            id=c.id, goal_id=c.goal_id, made_on=c.made_on, amount=MoneyOut.of(c.amount), note=c.note
+        )
+
+
+class ContributionChangeOut(BaseModel):
+    contribution: ContributionOut
+    operation_id: UUID | None
+
+
+class ShareOut(BaseModel):
+    goal_id: UUID
+    name: str
+    amount: MoneyOut = Field(description="Lo que se sugiere aportar a este objetivo")
+    remaining: MoneyOut
 
 
 class PriceChangeOut(BaseModel):

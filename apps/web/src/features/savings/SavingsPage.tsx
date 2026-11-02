@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from 'react'
-import { ApiError, api, type Goal, type SavingsOverview } from '../../api/client'
+import { ApiError, api, type Contribution, type Goal, type GoalShare, type SavingsOverview } from '../../api/client'
 import { useHousehold } from '../../app/household-context'
 import { Ring } from '../../components/charts'
 import { ErrorState, Loading } from '../../components/LoadState'
@@ -7,6 +7,7 @@ import {
   ceilDiv,
   centsToAmount,
   currentMonth,
+  formatDate,
   formatMoney,
   formatMoneyRounded,
   monthLabel,
@@ -14,6 +15,7 @@ import {
   shiftMonth,
   toCents,
 } from '../../lib/format'
+import { notifyUndoable } from '../../lib/undo'
 import { useLoad } from '../../lib/useLoad'
 import { useCategoryMeta } from '../insights/meta'
 
@@ -21,11 +23,105 @@ import { useCategoryMeta } from '../insights/meta'
 const DEFAULT_CUTS: Record<string, number> = { restaurantes: 25, super: 10 }
 const VISIBLE_ROWS = 6
 
+/** Aportaciones anotadas a mano en un objetivo sin hucha (OF-1206). */
+function Contributions({ goal, onChanged }: { goal: Goal; onChanged: () => void }) {
+  const { me, notify } = useHousehold()
+  const [open, setOpen] = useState(false)
+  const [amount, setAmount] = useState('')
+  const [note, setNote] = useState('')
+  const list = useLoad<Contribution[]>(`contrib-${goal.id}-${open}`, (s) => (open ? api.goalContributions(goal.id, s) : Promise.resolve([])))
+
+  async function add(sign: 1 | -1) {
+    const value = parseAmountInput(amount)
+    if (value === null || toCents(value) === 0n) {
+      notify('Escribe una cantidad mayor que cero, por ejemplo 150')
+      return
+    }
+    try {
+      const r = await api.addContribution(goal.id, sign === 1 ? value : `-${value}`, note)
+      setAmount('')
+      setNote('')
+      notifyUndoable(notify, me, sign === 1 ? 'Aportación anotada' : 'Retirada anotada', r.operation_id, () => {
+        list.reload()
+        onChanged()
+      })
+      list.reload()
+      onChanged()
+    } catch (err) {
+      notify(err instanceof ApiError ? err.message : 'No se ha podido anotar')
+    }
+  }
+
+  async function remove(c: Contribution) {
+    try {
+      const r = await api.deleteContribution(goal.id, c.id)
+      notifyUndoable(notify, me, 'Aportación borrada', r.operation_id, () => {
+        list.reload()
+        onChanged()
+      })
+      list.reload()
+      onChanged()
+    } catch (err) {
+      notify(err instanceof ApiError ? err.message : 'No se ha podido borrar')
+    }
+  }
+
+  return (
+    <div className="stack">
+      <div className="toolbar wrap">
+        <label className="small">
+          Cantidad{' '}
+          <input className="field amount" aria-label={`Cantidad para ${goal.name}`} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+        </label>
+        <label className="small">
+          Nota{' '}
+          <input className="field" aria-label={`Nota para ${goal.name}`} maxLength={200} value={note} onChange={(e) => setNote(e.target.value)} />
+        </label>
+        <button className="btn small" type="button" aria-label={`Aportar a ${goal.name}`} onClick={() => void add(1)}>
+          Aportar
+        </button>
+        <button className="btn small" type="button" aria-label={`Retirar de ${goal.name}`} onClick={() => void add(-1)}>
+          Retirar
+        </button>
+      </div>
+      <button className="btn small" type="button" aria-expanded={open} onClick={() => setOpen(!open)}>
+        {open ? 'Ocultar aportaciones' : 'Ver aportaciones'}
+      </button>
+      {open && list.data && (
+        <ul className="plain small" aria-label={`Aportaciones a ${goal.name}`}>
+          {list.data.length === 0 && <li className="muted">Aún no hay aportaciones anotadas.</li>}
+          {list.data.slice(0, 10).map((c) => (
+            <li key={c.id} className="toolbar inline">
+              <span>
+                {formatDate(c.made_on)} · {formatMoney(c.amount, { signed: true })}
+                {c.note ? ` · ${c.note}` : ''}
+              </span>
+              <button className="btn small" type="button" aria-label={`Borrar la aportación de ${formatMoney(c.amount)}`} onClick={() => void remove(c)}>
+                ×
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+/** Un enlace a «Pagos programados» con la aportación mensual ya rellenada: el día 1 del mes que viene. */
+function reminderHref(goal: Goal): string {
+  const now = new Date()
+  const first = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+  const date = `${first.getFullYear()}-${String(first.getMonth() + 1).padStart(2, '0')}-01`
+  const params = new URLSearchParams({ nombre: `Aportación a ${goal.name}`.slice(0, 60), importe: `-${goal.monthly.amount}`, fecha: date })
+  return `#pagos?${params.toString()}`
+}
+
 function GoalCard({ goal, onChanged }: { goal: Goal; onChanged: () => void }) {
   const { notify } = useHousehold()
   const [editing, setEditing] = useState(false)
   const [monthly, setMonthly] = useState(goal.monthly.amount)
   const [saved, setSaved] = useState(goal.saved.amount)
+  const [priority, setPriority] = useState(String(goal.priority))
 
   async function save(e: FormEvent) {
     e.preventDefault()
@@ -36,7 +132,12 @@ function GoalCard({ goal, onChanged }: { goal: Goal; onChanged: () => void }) {
       return
     }
     try {
-      await api.updateGoal(goal.id, goal.account_id ? { monthly: m } : { monthly: m, saved: s })
+      const p = Number(priority)
+      if (!Number.isInteger(p) || p < 1 || p > 99) {
+        notify('La prioridad va de 1 a 99 (1 es la primera)')
+        return
+      }
+      await api.updateGoal(goal.id, goal.account_id ? { monthly: m, priority: p } : { monthly: m, saved: s, priority: p })
       setEditing(false)
       onChanged()
     } catch (err) {
@@ -93,6 +194,10 @@ function GoalCard({ goal, onChanged }: { goal: Goal; onChanged: () => void }) {
                 <input className="field amount" value={saved} onChange={(e) => setSaved(e.target.value)} inputMode="decimal" />
               </label>
             )}
+            <label className="small">
+              Prioridad{' '}
+              <input className="field amount" aria-label="Prioridad (1 es la primera)" value={priority} onChange={(e) => setPriority(e.target.value)} inputMode="numeric" />
+            </label>
             <button className="btn primary small" type="submit">
               Guardar
             </button>
@@ -108,10 +213,63 @@ function GoalCard({ goal, onChanged }: { goal: Goal; onChanged: () => void }) {
             <button className="btn small" type="button" onClick={() => void remove()}>
               Borrar
             </button>
+            {toCents(goal.monthly.amount) > 0n && (
+              <a className="small" href={reminderHref(goal)} aria-label={`Programar la aportación mensual a ${goal.name}`}>
+                Programar la aportación mensual
+              </a>
+            )}
           </div>
         )}
+        {!goal.account_id && <Contributions goal={goal} onChanged={onChanged} />}
       </div>
     </article>
+  )
+}
+
+/** Cómo repartir una cantidad entre los objetivos por prioridad (OF-1206). Solo sugiere. */
+function SplitSuggestion() {
+  const { notify } = useHousehold()
+  const [amount, setAmount] = useState('')
+  const [shares, setShares] = useState<GoalShare[] | null>(null)
+
+  async function suggest(e: FormEvent) {
+    e.preventDefault()
+    const value = parseAmountInput(amount)
+    if (value === null || toCents(value) === 0n) {
+      notify('Escribe una cantidad mayor que cero, por ejemplo 300')
+      return
+    }
+    try {
+      setShares(await api.goalSplit(value))
+    } catch (err) {
+      notify(err instanceof ApiError ? err.message : 'No se ha podido calcular el reparto')
+    }
+  }
+
+  return (
+    <form className="card stack" aria-label="Repartir entre objetivos" onSubmit={(e) => void suggest(e)}>
+      <h2>¿Os sobra algo este mes?</h2>
+      <p className="small muted">Escribid cuánto y os decimos cómo repartirlo: primero el objetivo más prioritario, hasta lo que le falta.</p>
+      <div className="toolbar wrap">
+        <label className="small">
+          Cantidad{' '}
+          <input className="field amount" aria-label="Cantidad a repartir" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+        </label>
+        <button className="btn small" type="submit">
+          Sugerir reparto
+        </button>
+      </div>
+      {shares && shares.length === 0 && <p className="small muted">No hay objetivos a los que les falte dinero.</p>}
+      {shares && shares.length > 0 && (
+        <ul className="plain" aria-label="Reparto sugerido">
+          {shares.map((s) => (
+            <li key={s.goal_id}>
+              {s.name}: <strong>{formatMoney(s.amount)}</strong> <span className="small muted">(le faltan {formatMoneyRounded(s.remaining)})</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </form>
   )
 }
 
@@ -135,7 +293,7 @@ function NewGoal({ onCreated }: { onCreated: () => void }) {
       return
     }
     try {
-      await api.createGoal({ name: name.trim(), icon, target: t, monthly: m, saved: s, deadline: deadline || null })
+      await api.createGoal({ name: name.trim(), icon, target: t, monthly: m, saved: s, deadline: deadline || null, priority: 50 })
       setOpen(false)
       setName('')
       setTarget('')
@@ -387,6 +545,7 @@ export function SavingsPage() {
           <GoalCard key={`${g.id}-${g.monthly.amount}-${g.saved.amount}`} goal={g} onChanged={reload} />
         ))}
       </div>
+      {o.goals.length > 0 && <SplitSuggestion />}
       <NewGoal onCreated={reload} />
 
       <div className="grid g2 spaced-card">

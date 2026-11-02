@@ -1632,6 +1632,7 @@ const GOAL = {
   eta: '2028-01',
   needed_monthly: null,
   on_track: null,
+  priority: 50,
 }
 
 const SAVINGS = {
@@ -1821,6 +1822,92 @@ describe('Ahorro (fase 4)', () => {
     expect(screen.getByText(/13,99 € → 17,99 € en julio de 2026/)).toBeInTheDocument()
   })
 
+  it('anota una aportación a un objetivo, la lista y la borra con «Deshacer»', async () => {
+    window.location.hash = '#ahorrar'
+    const contribution = { id: 'k1', goal_id: 'g1', made_on: '2026-10-12', amount: eur('150.00'), note: 'Paga extra' }
+    let current = [] as unknown[]
+    const calls = loggedIn({
+      'GET /api/v1/savings/overview': { body: SAVINGS },
+      'GET /api/v1/goals/g1/contributions': () => ({ body: current }),
+      'POST /api/v1/goals/g1/contributions': () => {
+        current = [contribution]
+        return { status: 201, body: { contribution, operation_id: 'op-7' } }
+      },
+      'DELETE /api/v1/goals/g1/contributions/k1': () => {
+        current = []
+        return { body: { operation_id: 'op-8' } }
+      },
+    })
+    render(<App />)
+    const fund = await screen.findByRole('article', { name: 'Fondo de emergencia' })
+    await userEvent.type(within(fund).getByLabelText('Cantidad para Fondo de emergencia'), '150')
+    await userEvent.type(within(fund).getByLabelText('Nota para Fondo de emergencia'), 'Paga extra')
+    await userEvent.click(within(fund).getByRole('button', { name: 'Aportar a Fondo de emergencia' }))
+    const post = calls.find((c) => c.method === 'POST')!
+    expect(JSON.parse(String(post.body))).toEqual({ amount: '150', note: 'Paga extra' })
+    expect(await screen.findByText('Aportación anotada')).toBeInTheDocument()
+
+    await userEvent.click(within(fund).getByRole('button', { name: 'Ver aportaciones' }))
+    const list = await within(fund).findByRole('list', { name: 'Aportaciones a Fondo de emergencia' })
+    expect(list).toHaveTextContent('+150,00 €')
+    expect(list).toHaveTextContent('Paga extra')
+    await userEvent.click(within(list).getByRole('button', { name: /Borrar la aportación de 150,00/ }))
+    await waitFor(() => expect(calls.some((c) => c.method === 'DELETE')).toBe(true))
+    expect(await screen.findByText('Aportación borrada')).toBeInTheDocument()
+  })
+
+  it('una retirada se manda en negativo', async () => {
+    window.location.hash = '#ahorrar'
+    const calls = loggedIn({
+      'GET /api/v1/savings/overview': { body: SAVINGS },
+      'POST /api/v1/goals/g1/contributions': {
+        status: 201,
+        body: { contribution: { id: 'k2', goal_id: 'g1', made_on: '2026-10-12', amount: eur('-40.00'), note: '' }, operation_id: null },
+      },
+    })
+    render(<App />)
+    const fund = await screen.findByRole('article', { name: 'Fondo de emergencia' })
+    await userEvent.type(within(fund).getByLabelText('Cantidad para Fondo de emergencia'), '40')
+    await userEvent.click(within(fund).getByRole('button', { name: 'Retirar de Fondo de emergencia' }))
+    await waitFor(() => expect(calls.some((c) => c.method === 'POST')).toBe(true))
+    expect(JSON.parse(String(calls.find((c) => c.method === 'POST')!.body))).toMatchObject({ amount: '-40' })
+  })
+
+  it('un objetivo con hucha no deja anotar aportaciones', async () => {
+    window.location.hash = '#ahorrar'
+    loggedIn({ 'GET /api/v1/savings/overview': { body: { ...SAVINGS, goals: [{ ...GOAL, account_id: 'a-pocket' }] } } })
+    render(<App />)
+    const fund = await screen.findByRole('article', { name: 'Fondo de emergencia' })
+    expect(within(fund).queryByRole('button', { name: /Aportar a/ })).toBeNull()
+  })
+
+  it('propone repartir una cantidad por prioridad y enlaza el recordatorio mensual', async () => {
+    window.location.hash = '#ahorrar'
+    const calls = loggedIn({
+      'GET /api/v1/savings/overview': { body: SAVINGS },
+      'GET /api/v1/goals/split': {
+        body: [
+          { goal_id: 'g1', name: 'Fondo de emergencia', amount: eur('200.00'), remaining: eur('200.00') },
+          { goal_id: 'g2', name: 'Vacaciones', amount: eur('100.00'), remaining: eur('800.00') },
+        ],
+      },
+    })
+    render(<App />)
+    const fund = await screen.findByRole('article', { name: 'Fondo de emergencia' })
+    const reminder = within(fund).getByRole('link', { name: 'Programar la aportación mensual a Fondo de emergencia' })
+    const href = new URLSearchParams(reminder.getAttribute('href')!.split('?')[1])
+    expect(href.get('nombre')).toBe('Aportación a Fondo de emergencia')
+    expect(href.get('importe')).toBe('-200.00')
+    expect(href.get('fecha')).toBe('2026-11-01')
+
+    await userEvent.type(screen.getByLabelText('Cantidad a repartir'), '300')
+    await userEvent.click(screen.getByRole('button', { name: 'Sugerir reparto' }))
+    const shares = await screen.findByRole('list', { name: 'Reparto sugerido' })
+    expect(shares).toHaveTextContent('Fondo de emergencia: 200,00 €')
+    expect(shares).toHaveTextContent('Vacaciones: 100,00 €')
+    expect(calls.find((c) => c.url.pathname === '/api/v1/goals/split')!.url.searchParams.get('amount')).toBe('300')
+  })
+
   it('avisa cuando la fecha límite ya ha llegado', async () => {
     window.location.hash = '#ahorrar'
     const late = { ...GOAL, id: 'g3', name: 'Sofá', deadline: '2026-10', needed_monthly: null, on_track: false }
@@ -1876,8 +1963,8 @@ describe('Ahorro (fase 4)', () => {
     await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true))
     const writes = calls.filter((c) => c.method !== 'GET').map((c) => [c.method, JSON.parse(String(c.body))])
     expect(writes).toEqual([
-      ['POST', { name: 'Coche', icon: '🎯', target: '12000', monthly: '250.50', saved: '0', deadline: null }],
-      ['PATCH', { clear_account: false, monthly: '300', saved: '6120.00' }],
+      ['POST', { name: 'Coche', icon: '🎯', target: '12000', monthly: '250.50', saved: '0', deadline: null, priority: 50 }],
+      ['PATCH', { clear_account: false, monthly: '300', saved: '6120.00', priority: 50 }],
     ])
   })
 })

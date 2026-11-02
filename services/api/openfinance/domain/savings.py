@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import math
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
@@ -20,6 +21,12 @@ from openfinance.domain.shared import Currency, Money
 from openfinance.domain.shared.ids import AccountId, WorkspaceId
 
 GoalId = NewType("GoalId", UUID)
+ContributionId = NewType("ContributionId", UUID)
+
+MIN_PRIORITY = 1
+MAX_PRIORITY = 99
+DEFAULT_PRIORITY = 50
+MAX_CONTRIBUTION_NOTE = 200
 
 
 class SavingsError(ValueError):
@@ -158,10 +165,14 @@ class Goal:
     deadline: Month | None = None
     account_id: AccountId | None = None
     """Hucha cuyo saldo es lo ahorrado."""
+    priority: int = DEFAULT_PRIORITY
+    """Cuanto menor, antes: ordena los objetivos y reparte lo que sobra (OF-1206)."""
 
     def __post_init__(self) -> None:
         if not self.name.strip() or len(self.name) > 60:
             raise SavingsError("El objetivo necesita un nombre de hasta 60 caracteres")
+        if not MIN_PRIORITY <= self.priority <= MAX_PRIORITY:
+            raise SavingsError(f"La prioridad va de {MIN_PRIORITY} a {MAX_PRIORITY}")
         if not self.icon.strip() or len(self.icon) > 8:
             raise SavingsError("Icono no válido")
         if self.target.amount <= 0:
@@ -170,6 +181,72 @@ class Goal:
             raise SavingsError("Las cantidades no pueden ser negativas")
         if len({self.target.currency, self.monthly.currency, self.saved.currency}) != 1:
             raise SavingsError("Todas las cantidades deben estar en la misma moneda")
+
+
+@dataclass(frozen=True, slots=True)
+class GoalContribution:
+    """Una aportación (o, en negativo, una retirada) anotada a mano en un objetivo."""
+
+    id: ContributionId
+    household_id: WorkspaceId
+    goal_id: GoalId
+    made_on: date
+    amount: Money
+    note: str = ""
+
+    def __post_init__(self) -> None:
+        if self.amount.is_zero:
+            raise SavingsError("La aportación no puede ser de cero")
+        if len(self.note) > MAX_CONTRIBUTION_NOTE or not self.note.isprintable():
+            raise SavingsError(f"La nota admite hasta {MAX_CONTRIBUTION_NOTE} caracteres")
+
+    def definition(self) -> str:
+        """El texto canónico (registro de cambios)."""
+        return json.dumps(
+            {
+                "goal_id": str(self.goal_id),
+                "made_on": self.made_on.isoformat(),
+                "amount": str(self.amount.amount),
+                "currency": self.amount.currency.code,
+                "note": self.note,
+            },
+            sort_keys=True,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+
+
+def contribution_from_definition(
+    contribution_id: UUID, household_id: WorkspaceId, definition: str
+) -> GoalContribution:
+    data = json.loads(definition)
+    return GoalContribution(
+        id=ContributionId(contribution_id),
+        household_id=household_id,
+        goal_id=GoalId(UUID(data["goal_id"])),
+        made_on=date.fromisoformat(data["made_on"]),
+        amount=Money.of(data["amount"], data["currency"]),
+        note=data["note"],
+    )
+
+
+def distribute(amount: Money, goals: Iterable[tuple[Goal, Money]]) -> list[tuple[GoalId, Money]]:
+    """Reparte ``amount`` por prioridad: el objetivo más prioritario recibe hasta lo que le falta
+    (segundo elemento de cada par), y lo que sobra pasa al siguiente.
+
+    A igual prioridad se respeta el orden dado. Un objetivo ya completo no recibe nada, y lo
+    que no cabe en ninguno queda sin repartir (no está en el resultado).
+    """
+    left = max(amount.amount, Decimal(0))
+    out: list[tuple[GoalId, Money]] = []
+    for goal, remaining in sorted(goals, key=lambda pair: pair[0].priority):
+        if left <= 0:
+            break
+        give = min(left, max(remaining.amount, Decimal(0)))
+        if give > 0:
+            out.append((goal.id, Money.of(give, amount.currency)))
+            left -= give
+    return out
 
 
 @dataclass(frozen=True, slots=True)

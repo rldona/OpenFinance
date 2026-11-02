@@ -1328,6 +1328,100 @@
         "title": "ConditionIn",
         "type": "object"
       },
+      "ContributionChangeOut": {
+        "properties": {
+          "contribution": {
+            "$ref": "#/components/schemas/ContributionOut"
+          },
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          }
+        },
+        "required": [
+          "contribution",
+          "operation_id"
+        ],
+        "title": "ContributionChangeOut",
+        "type": "object"
+      },
+      "ContributionIn": {
+        "properties": {
+          "amount": {
+            "description": "Positivo aporta; negativo retira",
+            "pattern": "^-?\\d{1,9}([.,]\\d{1,2})?$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "made_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Por defecto, hoy",
+            "title": "Made On"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount"
+        ],
+        "title": "ContributionIn",
+        "type": "object"
+      },
+      "ContributionOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "goal_id": {
+            "format": "uuid",
+            "title": "Goal Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "made_on": {
+            "format": "date",
+            "title": "Made On",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "goal_id",
+          "made_on",
+          "amount",
+          "note"
+        ],
+        "title": "ContributionOut",
+        "type": "object"
+      },
       "CountOut": {
         "properties": {
           "count": {
@@ -1947,6 +2041,14 @@
             "title": "Name",
             "type": "string"
           },
+          "priority": {
+            "default": 50,
+            "description": "Cuanto menor, antes",
+            "maximum": 99.0,
+            "minimum": 1.0,
+            "title": "Priority",
+            "type": "integer"
+          },
           "saved": {
             "default": "0",
             "pattern": "^\\d{1,9}([.,]\\d{1,2})?$",
@@ -2050,6 +2152,10 @@
             ],
             "title": "On Track"
           },
+          "priority": {
+            "title": "Priority",
+            "type": "integer"
+          },
           "progress": {
             "title": "Progress",
             "type": "integer"
@@ -2079,7 +2185,8 @@
           "months_to_go",
           "eta",
           "needed_monthly",
-          "on_track"
+          "on_track",
+          "priority"
         ],
         "title": "GoalOut",
         "type": "object"
@@ -2153,6 +2260,19 @@
               }
             ],
             "title": "Name"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "maximum": 99.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority"
           },
           "saved": {
             "anyOf": [
@@ -4249,6 +4369,34 @@
           "active"
         ],
         "title": "ScheduledPaymentOut",
+        "type": "object"
+      },
+      "ShareOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Lo que se sugiere aportar a este objetivo"
+          },
+          "goal_id": {
+            "format": "uuid",
+            "title": "Goal Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "remaining": {
+            "$ref": "#/components/schemas/MoneyOut"
+          }
+        },
+        "required": [
+          "goal_id",
+          "name",
+          "amount",
+          "remaining"
+        ],
+        "title": "ShareOut",
         "type": "object"
       },
       "SkippedRowOut": {
@@ -6757,6 +6905,54 @@
         ]
       }
     },
+    "/api/v1/goals/split": {
+      "get": {
+        "description": "Cómo repartir una cantidad entre los objetivos, por prioridad (OF-1206). No apunta nada.",
+        "operationId": "suggest_split_api_v1_goals_split_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "amount",
+            "required": true,
+            "schema": {
+              "pattern": "^\\d{1,9}([.,]\\d{1,2})?$",
+              "title": "Amount",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ShareOut"
+                  },
+                  "title": "Response Suggest Split Api V1 Goals Split Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Suggest Split",
+        "tags": [
+          "savings"
+        ]
+      }
+    },
     "/api/v1/goals/{goal_id}": {
       "delete": {
         "operationId": "delete_goal_api_v1_goals__goal_id__delete",
@@ -6839,6 +7035,158 @@
           }
         },
         "summary": "Update Goal",
+        "tags": [
+          "savings"
+        ]
+      }
+    },
+    "/api/v1/goals/{goal_id}/contributions": {
+      "get": {
+        "operationId": "list_contributions_api_v1_goals__goal_id__contributions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "goal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Goal Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ContributionOut"
+                  },
+                  "title": "Response List Contributions Api V1 Goals  Goal Id  Contributions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Contributions",
+        "tags": [
+          "savings"
+        ]
+      },
+      "post": {
+        "description": "Anota una aportación (o, en negativo, una retirada) a un objetivo sin hucha.",
+        "operationId": "add_contribution_api_v1_goals__goal_id__contributions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "goal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Goal Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContributionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContributionChangeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Contribution",
+        "tags": [
+          "savings"
+        ]
+      }
+    },
+    "/api/v1/goals/{goal_id}/contributions/{contribution_id}": {
+      "delete": {
+        "operationId": "delete_contribution_api_v1_goals__goal_id__contributions__contribution_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "goal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Goal Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contribution_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Contribution Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationRefOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Contribution",
         "tags": [
           "savings"
         ]

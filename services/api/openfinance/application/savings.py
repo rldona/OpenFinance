@@ -5,17 +5,20 @@ Como los gráficos, todo se calcula solo con la conjunta y las huchas (ADR-0013)
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
-from uuid import uuid4
+from uuid import UUID, uuid4
 
+from openfinance.application import changes as change_log
 from openfinance.application.conversion import report_transactions
-from openfinance.application.errors import InvalidRequestError, NotFoundError
+from openfinance.application.errors import ConflictError, InvalidRequestError, NotFoundError
 from openfinance.application.insights import shared_scope
 from openfinance.application.ledger import balance_of
 from openfinance.application.ports import UnitOfWork
 from openfinance.domain.categories import Category, CategoryId
+from openfinance.domain.changes import Change, Entity
 from openfinance.domain.insights import Month, average, by_month, spending_by_category
 from openfinance.domain.ledger import Account, AccountKind, summarize
 from openfinance.domain.savings import (
@@ -24,7 +27,9 @@ from openfinance.domain.savings import (
     BudgetMode,
     BudgetStatus,
     CategoryStats,
+    ContributionId,
     Goal,
+    GoalContribution,
     GoalId,
     GoalProjection,
     Idea,
@@ -35,6 +40,7 @@ from openfinance.domain.savings import (
     build_ideas,
     carried_into,
     detect_recurring,
+    distribute,
     envelope_status,
     is_fixed,
     pending_charges,
@@ -250,14 +256,18 @@ def _linkable_account(uow: UnitOfWork, actor: Actor, account_id: AccountId) -> A
     return account
 
 
-def goal_saved(uow: UnitOfWork, actor: Actor, goal: Goal) -> Money:
+def goal_saved(
+    uow: UnitOfWork, actor: Actor, goal: Goal, contributed: Mapping[GoalId, Money] | None = None
+) -> Money:
     """Lo ahorrado que se muestra: el saldo de la hucha vinculada o, si no la hay (o no es
-    una hucha compartida), lo anotado a mano."""
-    if goal.account_id is None:
-        return goal.saved
-    account = _linkable_account(uow, actor, goal.account_id)
+    una hucha compartida), lo anotado a mano más las aportaciones (OF-1206)."""
+    account = (
+        _linkable_account(uow, actor, goal.account_id) if goal.account_id is not None else None
+    )
     if account is None:
-        return goal.saved
+        if contributed is None:
+            contributed = uow.goals.contribution_totals(actor.household_id)
+        return goal.saved + contributed.get(goal.id, Money.zero(goal.saved.currency))
     balance = balance_of(uow, actor, account)
     return balance if not balance.is_negative else Money.zero(balance.currency)
 
@@ -269,9 +279,10 @@ def _check_account(uow: UnitOfWork, actor: Actor, account_id: AccountId | None) 
 
 def list_goals(uow: UnitOfWork, actor: Actor, today: date) -> list[GoalView]:
     month = Month.of(today)
+    contributed = uow.goals.contribution_totals(actor.household_id)
+    goals = sorted(uow.goals.for_household(actor.household_id), key=lambda g: g.priority)
     return [
-        GoalView(g, project_goal(g, goal_saved(uow, actor, g), month))
-        for g in uow.goals.for_household(actor.household_id)
+        GoalView(g, project_goal(g, goal_saved(uow, actor, g, contributed), month)) for g in goals
     ]
 
 
@@ -286,6 +297,7 @@ class GoalInput:
     """AAAA-MM o ``""`` para quitarla."""
     account_id: AccountId | None = None
     clear_account: bool = False
+    priority: int | None = None
 
 
 def _apply(goal: Goal, data: GoalInput, currency: Currency) -> Goal:
@@ -311,6 +323,7 @@ def _apply(goal: Goal, data: GoalInput, currency: Currency) -> Goal:
             else goal.saved,
             deadline=deadline,
             account_id=None if data.clear_account else (data.account_id or goal.account_id),
+            priority=data.priority if data.priority is not None else goal.priority,
         )
     except SavingsError as exc:
         raise InvalidRequestError(str(exc)) from exc
@@ -357,6 +370,118 @@ def delete_goal(uow: UnitOfWork, actor: Actor, goal_id: GoalId) -> None:
         raise NotFoundError("Objetivo no encontrado")
     uow.goals.delete(actor.household_id, goal_id)
     uow.commit()
+
+
+# --- OF-1206 · Aportaciones y reparto ------------------------------------------------------
+
+MAX_CONTRIBUTIONS = 2000
+
+
+def _goal(uow: UnitOfWork, actor: Actor, goal_id: GoalId) -> Goal:
+    goal = uow.goals.get(actor.household_id, goal_id)
+    if goal is None:
+        raise NotFoundError("Objetivo no encontrado")
+    return goal
+
+
+def list_contributions(uow: UnitOfWork, actor: Actor, goal_id: GoalId) -> list[GoalContribution]:
+    _goal(uow, actor, goal_id)
+    return uow.goals.contributions(actor.household_id, goal_id)
+
+
+def add_contribution(
+    uow: UnitOfWork,
+    actor: Actor,
+    goal_id: GoalId,
+    amount: str,
+    made_on: date,
+    note: str,
+    now: datetime,
+) -> tuple[GoalContribution, UUID | None]:
+    """Anota una aportación (o, en negativo, una retirada). Se puede deshacer."""
+    goal = _goal(uow, actor, goal_id)
+    if goal.account_id is not None and _linkable_account(uow, actor, goal.account_id) is not None:
+        raise InvalidRequestError(
+            "Este objetivo toma lo ahorrado del saldo de su hucha: mueve el dinero en la hucha"
+        )
+    if len(uow.goals.contributions(actor.household_id, goal_id)) >= MAX_CONTRIBUTIONS:
+        raise ConflictError(f"El objetivo ya tiene {MAX_CONTRIBUTIONS} aportaciones")
+    value = _money(amount, goal.target.currency, "Aportación")
+    try:
+        contribution = GoalContribution(
+            ContributionId(uuid4()),
+            actor.household_id,
+            goal_id,
+            made_on,
+            value,
+            " ".join(note.split()),
+        )
+    except SavingsError as exc:
+        raise InvalidRequestError(str(exc)) from exc
+    uow.goals.save_contribution(contribution, actor.user_id)
+    operation = change_log.record(
+        uow,
+        actor,
+        "goal.contribution",
+        f"Aportación a «{goal.name}»",
+        [
+            Change(
+                Entity.GOAL_CONTRIBUTION,
+                str(contribution.id),
+                "definition",
+                None,
+                contribution.definition(),
+            )
+        ],
+        now,
+    )
+    uow.commit()
+    return contribution, operation.id if operation else None
+
+
+def delete_contribution(
+    uow: UnitOfWork, actor: Actor, goal_id: GoalId, contribution_id: UUID, now: datetime
+) -> UUID | None:
+    goal = _goal(uow, actor, goal_id)
+    contribution = uow.goals.get_contribution(actor.household_id, contribution_id)
+    if contribution is None or contribution.goal_id != goal_id:
+        raise NotFoundError("Aportación no encontrada")
+    uow.goals.delete_contribution(actor.household_id, contribution_id)
+    operation = change_log.record(
+        uow,
+        actor,
+        "goal.contribution.delete",
+        f"Aportación a «{goal.name}» borrada",
+        [
+            Change(
+                Entity.GOAL_CONTRIBUTION,
+                str(contribution_id),
+                "definition",
+                contribution.definition(),
+                None,
+            )
+        ],
+        now,
+    )
+    uow.commit()
+    return operation.id if operation else None
+
+
+@dataclass(frozen=True, slots=True)
+class Share:
+    goal: GoalView
+    amount: Money
+
+
+def suggest_split(uow: UnitOfWork, actor: Actor, amount: str, today: date) -> list[Share]:
+    """Cómo repartir una cantidad entre los objetivos: por prioridad, cada uno hasta lo que le
+    falta. Es una sugerencia: no apunta nada."""
+    value = _money(amount, _currency(uow, actor), "Cantidad")
+    if value.amount <= 0:
+        raise InvalidRequestError("La cantidad debe ser mayor que cero")
+    views = {v.goal.id: v for v in list_goals(uow, actor, today)}
+    pairs = [(v.goal, v.projection.remaining) for v in views.values()]
+    return [Share(views[goal_id], money) for goal_id, money in distribute(value, pairs)]
 
 
 # --- OF-403/404/405 · Resumen de ahorro -----------------------------------------------------
