@@ -36,7 +36,7 @@ from openfinance.application.imports import (
 from openfinance.domain.identity import MIN_PASSWORD_LENGTH
 from openfinance.domain.imports import ClassificationRules, ParseResult, PatternDirection
 from openfinance.domain.imports.batch import MAX_FILE_BYTES
-from openfinance.domain.ledger import AccountKind, Institution, TransactionKind
+from openfinance.domain.ledger import AccountKind, AccountType, Institution, TransactionKind
 from openfinance.domain.shared.text import normalize_text
 from openfinance.infrastructure.db.repositories import SqlUnitOfWork
 from openfinance.infrastructure.db.session import get_session_factory
@@ -216,6 +216,7 @@ def _accounts(args: argparse.Namespace) -> int:
         kind,
         args.opening_balance,
         owner_email=args.email if kind is AccountKind.PERSONAL else None,
+        type=AccountType(args.type),
     )
     with get_session_factory()() as session:
         try:
@@ -392,6 +393,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     add.add_argument("name", help="Nombre de la cuenta, p. ej. 'Hucha viaje'")
     add.add_argument("--kind", choices=[k.value for k in AccountKind], default="savings")
     add.add_argument("--bank", choices=[i.value for i in Institution], default="revolut")
+    add.add_argument(
+        "--type",
+        choices=[t.value for t in AccountType],
+        default="bank",
+        help="Para qué sirve: bank, cash, card, loan o investment (solo seguimiento)",
+    )
     add.add_argument("--opening-balance", default="0", help="Saldo inicial, p. ej. 120.50")
     accounts.set_defaults(func=_accounts)
 

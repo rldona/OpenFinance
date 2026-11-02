@@ -68,10 +68,18 @@ def scope_of(uow: UnitOfWork, actor: Actor, view: View) -> Scope:
     accounts = uow.accounts.for_household(actor.household_id)
     if view is View.MINE:
         ids = [
-            a.id for a in accounts if a.kind is AccountKind.PERSONAL and a.owner_id == actor.user_id
+            a.id
+            for a in accounts
+            if a.kind is AccountKind.PERSONAL
+            and a.owner_id == actor.user_id
+            and a.type.counts_in_reports
         ]
     else:
-        ids = [a.id for a in accounts if a.kind in (AccountKind.JOINT, AccountKind.SAVINGS)]
+        ids = [
+            a.id
+            for a in accounts
+            if a.kind in (AccountKind.JOINT, AccountKind.SAVINGS) and a.type.counts_in_reports
+        ]
     first = uow.transactions.first_booked_at(actor.household_id, ids)
     return Scope(household.currency, ids, Month.of(first) if first else None)
 

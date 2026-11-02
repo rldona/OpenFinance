@@ -16,6 +16,7 @@ from openfinance.domain.categories import CategoryId
 from openfinance.domain.ledger import (
     Account,
     AccountKind,
+    AccountType,
     Institution,
     Transaction,
     TransactionKind,
@@ -53,6 +54,7 @@ def _account(row: AccountRow) -> Account:
         name=row.name,
         institution=Institution(row.institution),
         kind=AccountKind(row.kind),
+        type=AccountType(row.type),
         currency=currency,
         opening_balance=Money.of(row.opening_balance, currency),
         owner_id=UserId(row.owner_id) if row.owner_id else None,
@@ -75,6 +77,7 @@ class SqlAccountRepository:
                 name=account.name,
                 institution=account.institution.value,
                 kind=account.kind.value,
+                type=account.type.value,
                 currency=account.currency.code,
                 opening_balance=account.opening_balance.amount,
                 owner_id=account.owner_id,

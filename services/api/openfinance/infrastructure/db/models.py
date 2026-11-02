@@ -58,6 +58,9 @@ class AccountRow(Base):
     __tablename__ = "accounts"
     __table_args__ = (
         CheckConstraint("(kind = 'personal') = (owner_id IS NOT NULL)", name="personal_owner"),
+        CheckConstraint(
+            "type IN ('bank', 'cash', 'card', 'loan', 'investment')", name="type_valid"
+        ),
         UniqueConstraint("id", "household_id", name="uq_accounts_id_household"),
         # El titular de una cuenta personal tiene que ser miembro del mismo hogar.
         ForeignKeyConstraint(
@@ -72,6 +75,7 @@ class AccountRow(Base):
     name: Mapped[str] = mapped_column(String(100))
     institution: Mapped[str] = mapped_column(String(20))
     kind: Mapped[str] = mapped_column(String(20))
+    type: Mapped[str] = mapped_column(String(20), default="bank", server_default="bank")
     currency: Mapped[str] = mapped_column(String(3))
     opening_balance: Mapped[Decimal] = mapped_column(AMOUNT)
     owner_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))

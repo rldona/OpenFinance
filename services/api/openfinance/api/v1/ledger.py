@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 
 from openfinance.api.deps import ActorDep, UowDep
 from openfinance.api.v1.schemas import (
+    AccountIn,
     AccountOut,
     BulkCategorizeIn,
     BulkCategorizeOut,
@@ -24,16 +25,36 @@ from openfinance.api.v1.schemas import (
     TransactionOut,
     TransactionPageOut,
 )
-from openfinance.application import ledger, links, movements, splits
+from openfinance.application import households, ledger, links, movements, splits
 from openfinance.application import tags as tags_app
 from openfinance.application.decorate import decorate
 from openfinance.application.ports import TransactionQuery, UnitOfWork
 from openfinance.domain.categories import CategoryId
+from openfinance.domain.ledger import AccountType
 from openfinance.domain.shared.ids import AccountId, TransactionId
 from openfinance.domain.workspaces import Actor
 from openfinance.infrastructure.time import utc_now
 
 router = APIRouter(tags=["ledger"])
+
+
+@router.post("/accounts", response_model=AccountOut, status_code=status.HTTP_201_CREATED)
+def create_account(body: AccountIn, actor: ActorDep, uow: UowDep) -> AccountOut:
+    """Añade una cuenta de efectivo, tarjeta, préstamo o inversión (solo seguimiento)."""
+    if body.type is AccountType.BANK:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "Las cuentas de banco se añaden desde el servidor (openfinance accounts add)",
+        )
+    account = households.create_account(
+        uow,
+        actor,
+        body.name,
+        body.type,
+        shared=body.shared,
+        opening_balance=body.opening_balance.replace(",", "."),
+    )
+    return AccountOut.of(account, account.opening_balance)
 
 
 @router.get("/accounts", response_model=list[AccountOut])

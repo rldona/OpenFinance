@@ -15,6 +15,7 @@ from openfinance.domain.imports import PatternDirection
 from openfinance.domain.ledger import (
     Account,
     AccountKind,
+    AccountType,
     Institution,
     Transaction,
     TransactionKind,
@@ -73,6 +74,7 @@ class AccountOut(BaseModel):
     name: str
     institution: Institution
     kind: AccountKind
+    type: AccountType
     owner_id: UUID | None
     opening_balance: MoneyOut
     balance: MoneyOut
@@ -84,6 +86,7 @@ class AccountOut(BaseModel):
             name=account.name,
             institution=account.institution,
             kind=account.kind,
+            type=account.type,
             owner_id=account.owner_id,
             opening_balance=MoneyOut.of(account.opening_balance),
             balance=MoneyOut.of(balance),
@@ -730,3 +733,16 @@ class LinkOut(BaseModel):
     transaction: TransactionOut
     peer: TransactionOut
     operation_id: UUID | None
+
+
+class AccountIn(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    type: AccountType = Field(
+        description="Efectivo, tarjeta, préstamo o inversión; las de banco, desde el servidor"
+    )
+    shared: bool = Field(description="De todo el hogar (true) o solo tuya (false)")
+    opening_balance: str = Field(
+        default="0",
+        pattern=AMOUNT_PATTERN_SIGNED,
+        description="Saldo de partida. Una deuda (tarjeta o préstamo) va en negativo",
+    )
