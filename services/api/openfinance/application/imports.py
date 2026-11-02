@@ -6,12 +6,14 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime
 from uuid import UUID, uuid4
 
+from openfinance.application.automation import rules_for_account as automation_rules_for_account
 from openfinance.application.categories import rules_for_account
 from openfinance.application.changes import record
 from openfinance.application.errors import ConflictError, InvalidRequestError, NotFoundError
 from openfinance.application.ledger import balance_of, visible_accounts
 from openfinance.application.member_patterns import members_without_recharge
 from openfinance.application.ports import StatementParsers, UnitOfWork
+from openfinance.domain.automation import GENERIC_KINDS, Fixed, RowView, decide
 from openfinance.domain.categories import CategoryId, best_rule, merchant_key
 from openfinance.domain.changes import Change, Entity
 from openfinance.domain.identity import User
@@ -59,7 +61,20 @@ class PreviewRow:
     duplicate: bool
     member_id: UserId | None
     category_id: CategoryId | None = None
-    """Categoría propuesta por una regla aprendida."""
+    """Categoría propuesta por una regla (explícita o aprendida)."""
+    kind_override: TransactionKind | None = None
+    """Tipo que una regla corrige (solo gasto ↔ ingreso, OF-1101)."""
+    tags: tuple[str, ...] = ()
+    note: str = ""
+    merchant: str | None = None
+
+    @property
+    def kind(self) -> TransactionKind:
+        """El tipo con que se guardará: el de una regla o el sugerido por el lector."""
+        kind = self.kind_override or self.row.suggested_kind
+        if kind is TransactionKind.CONTRIBUTION and self.member_id is None:
+            return TransactionKind.INCOME
+        return kind
 
 
 @dataclass(frozen=True, slots=True)
@@ -181,16 +196,48 @@ def _preview_rows(
         actor.household_id, account.id, [r.fingerprint for r in result.rows]
     )
     rules = rules_for_account(uow, account)
+    explicit = automation_rules_for_account(uow, actor.household_id, account)
     hidden = {c.id for c in uow.categories.for_household(actor.household_id) if c.hidden}
     rows = []
     for r in result.rows:
-        category = None
+        learned = None
         if r.suggested_kind is TransactionKind.EXPENSE:
             rule = best_rule(rules, merchant_key(r.description))
             if rule is not None and rule.category_id not in hidden:
-                category = rule.category_id
+                learned = rule.category_id
         member = UserId(UUID(r.member)) if r.member else None
-        rows.append(PreviewRow(r, r.fingerprint in existing, member, category))
+        decision = decide(
+            explicit,
+            RowView(
+                description=r.description,
+                merchant=merchant_key(r.description),
+                amount=r.amount,
+                kind=r.suggested_kind,
+                account_id=str(account.id),
+                bank_type=r.bank_type,
+            ),
+            Fixed(
+                category=r.suggested_kind is not TransactionKind.EXPENSE,
+                kind=r.suggested_kind not in GENERIC_KINDS,
+            ),
+            learned,
+        )
+        kind = decision.kind or r.suggested_kind
+        category = decision.category_id if kind is TransactionKind.EXPENSE else None
+        if category in hidden:
+            category = None
+        rows.append(
+            PreviewRow(
+                r,
+                r.fingerprint in existing,
+                member,
+                category,
+                decision.kind,
+                decision.tags,
+                decision.note or "",
+                decision.merchant,
+            )
+        )
     return rows
 
 
@@ -282,6 +329,7 @@ def commit_import(
     )
     created = 0
     new: list[Transaction] = []
+    tagged: dict[TransactionId, tuple[str, ...]] = {}
     for r in rows:
         if r.duplicate:
             continue
@@ -291,10 +339,8 @@ def commit_import(
             uow.transactions.save(replace(previous, voided=False, import_id=batch.id))
             created += 1
             continue
-        kind = row.suggested_kind
+        kind = r.kind
         member = r.member_id
-        if kind is TransactionKind.CONTRIBUTION and member is None:
-            kind = TransactionKind.INCOME
         try:
             transaction = Transaction(
                 id=TransactionId(uuid4()),
@@ -308,6 +354,8 @@ def commit_import(
                 member_id=member if kind is TransactionKind.CONTRIBUTION else None,
                 category_id=r.category_id if kind is TransactionKind.EXPENSE else None,
                 bank_type=row.bank_type,
+                note=r.note,
+                merchant=r.merchant or "",
                 source=f"import:{batch.filename}"[:MAX_SOURCE],
                 fingerprint=row.fingerprint,
                 import_id=batch.id,
@@ -319,8 +367,12 @@ def commit_import(
                 f"La fila {row.line} del extracto no se puede guardar: {exc}"
             ) from exc
         new.append(transaction)
+        if r.tags:
+            tagged[transaction.id] = r.tags
         created += 1
     uow.transactions.add_many(new)  # un solo flush para todo el extracto (OF-905)
+    for transaction_id, tags in tagged.items():
+        uow.tags.set(actor.household_id, transaction_id, tags)
     done = batch.committed(now, created, len(rows) - created, len(result.skipped))
     uow.imports.save_committed(done)
     uow.commit()

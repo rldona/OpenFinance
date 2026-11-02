@@ -10,6 +10,7 @@ from openfinance.application.decorate import Decor
 from openfinance.application.imports import ImportPreview, ImportResult
 from openfinance.application.savings import BudgetView, GoalView
 from openfinance.domain.attachments import Attachment
+from openfinance.domain.automation import AutomationRule, Phase
 from openfinance.domain.categories import Category, merchant_label
 from openfinance.domain.identity import User
 from openfinance.domain.imports import PatternDirection
@@ -172,7 +173,8 @@ class PreviewRowOut(BaseModel):
     amount: MoneyOut
     kind: TransactionKind
     member_id: UUID | None
-    category_id: UUID | None = Field(description="Categoría propuesta por una regla aprendida")
+    category_id: UUID | None = Field(description="Categoría propuesta por una regla")
+    tags: list[str] = Field(description="Etiquetas que pondrán las reglas")
     duplicate: bool
 
 
@@ -220,11 +222,10 @@ class ImportPreviewOut(BaseModel):
                     booked_at=r.row.booked_at,
                     description=r.row.description,
                     amount=MoneyOut.of(r.row.amount),
-                    kind=r.row.suggested_kind
-                    if r.member_id or r.row.suggested_kind is not TransactionKind.CONTRIBUTION
-                    else TransactionKind.INCOME,
+                    kind=r.kind,
                     member_id=r.member_id,
                     category_id=r.category_id,
+                    tags=list(r.tags),
                     duplicate=r.duplicate,
                 )
                 for r in p.rows
@@ -857,3 +858,74 @@ class MissingRateOut(BaseModel):
     currency: str
     count: int = Field(description="Movimientos que no entran en los informes por falta de tipo")
     first: date = Field(description="Fecha del más antiguo: el tipo ha de ser de ese día o antes")
+
+
+class ConditionIn(BaseModel):
+    field: Literal["description", "merchant", "amount", "direction", "account", "bank_type"]
+    op: str = Field(default="equals", description="contains, starts_with, equals, between, is, in")
+    value: str | list[str]
+
+
+class ActionIn(BaseModel):
+    type: Literal["set_category", "set_kind", "add_tags", "set_note", "set_merchant"]
+    value: str | list[str]
+
+
+class AutomationRuleIn(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    personal: bool = Field(default=False, description="Solo tuya (si no, de todo el hogar)")
+    phase: Phase = Phase.NORMAL
+    priority: int | None = Field(default=None, ge=0, le=100000, description="Menor = antes")
+    enabled: bool = True
+    conditions: list[ConditionIn] = Field(min_length=1, max_length=8)
+    actions: list[ActionIn] = Field(min_length=1, max_length=6)
+
+
+class AutomationRuleOut(BaseModel):
+    id: UUID
+    name: str
+    personal: bool
+    phase: Phase
+    priority: int
+    enabled: bool
+    conditions: list[ConditionIn]
+    actions: list[ActionIn]
+
+    @classmethod
+    def of(cls, rule: AutomationRule) -> AutomationRuleOut:
+        return cls(
+            id=rule.id,
+            name=rule.name,
+            personal=rule.scope != "",
+            phase=rule.phase,
+            priority=rule.priority,
+            enabled=rule.enabled,
+            conditions=[ConditionIn(**c.as_json()) for c in rule.conditions],
+            actions=[ActionIn(**a.as_json()) for a in rule.actions],
+        )
+
+
+class AutomationRuleChangeOut(BaseModel):
+    rule: AutomationRuleOut
+    operation_id: UUID | None
+
+
+class ProposedChangeOut(BaseModel):
+    field: str
+    before: str | bool | None
+    after: str | bool | None
+
+
+class ProposedOut(BaseModel):
+    transaction: TransactionOut
+    changes: list[ProposedChangeOut]
+
+
+class RulePreviewOut(BaseModel):
+    count: int = Field(description="Movimientos que cambiaría, de los que ves")
+    items: list[ProposedOut] = Field(description="Los primeros 100")
+
+
+class RuleApplyOut(BaseModel):
+    changed: int
+    operation_id: UUID | None

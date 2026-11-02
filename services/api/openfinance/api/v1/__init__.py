@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from openfinance.api.v1 import (
     attachments,
     auth,
+    automation,
     categories,
     changes,
     export,
@@ -21,6 +22,7 @@ router.include_router(meta.router)
 router.include_router(merchants.router)
 router.include_router(rates.router)
 router.include_router(attachments.router)
+router.include_router(automation.router)
 router.include_router(auth.router)
 router.include_router(categories.router)
 router.include_router(ledger.router)

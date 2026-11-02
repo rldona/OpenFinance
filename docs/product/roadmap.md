@@ -467,8 +467,8 @@ Alcance en [ADR-0020](../adr/0020-motor-de-reglas-e-importacion-universal.md). C
 
 | ID | Ticket | Criterio de hecho |
 | --- | --- | --- |
-| OF-1101 | Reglas con condiciones, acciones y fases | Cada condición y cada acción tiene su test; «la primera que fija, gana»; las reglas aprendidas siguen funcionando; sin expresiones regulares |
-| OF-1102 | Vista previa de una regla y aplicar a lo existente | La vista previa no escribe; aplicar es una operación que se deshace; nunca pisa lo fijado a mano, lo revisado ni lo dividido; test de idempotencia |
+| OF-1101 ✅ | Reglas con condiciones, acciones y fases | Cada condición y cada acción tiene su test; «la primera que fija, gana»; las reglas aprendidas siguen funcionando; sin expresiones regulares |
+| OF-1102 ✅ | Vista previa de una regla y aplicar a lo existente | La vista previa no escribe; aplicar es una operación que se deshace; nunca pisa lo fijado a mano, lo revisado ni lo dividido; test de idempotencia |
 | OF-1103 | Importar OFX y QIF | Archivos sintéticos de ejemplo; mismas huellas al importar dos veces; saldo comprobado si el formato lo trae |
 | OF-1104 | Importar CAMT.053 | XML con `defusedxml` (sin entidades); varios movimientos por entrada; débito y crédito con su signo |
 | OF-1105 | CSV de cualquier banco con perfiles | Perfil creado desde la vista previa, guardado y reutilizado; fecha y número en varios formatos; débito/crédito en dos columnas |

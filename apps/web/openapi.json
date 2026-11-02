@@ -120,6 +120,41 @@
         "title": "AccountType",
         "type": "string"
       },
+      "ActionIn": {
+        "properties": {
+          "type": {
+            "enum": [
+              "set_category",
+              "set_kind",
+              "add_tags",
+              "set_note",
+              "set_merchant"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "type",
+          "value"
+        ],
+        "title": "ActionIn",
+        "type": "object"
+      },
       "AttachmentAddedOut": {
         "properties": {
           "attachment": {
@@ -190,6 +225,149 @@
           "created_at"
         ],
         "title": "AttachmentOut",
+        "type": "object"
+      },
+      "AutomationRuleChangeOut": {
+        "properties": {
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "rule": {
+            "$ref": "#/components/schemas/AutomationRuleOut"
+          }
+        },
+        "required": [
+          "rule",
+          "operation_id"
+        ],
+        "title": "AutomationRuleChangeOut",
+        "type": "object"
+      },
+      "AutomationRuleIn": {
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/ActionIn"
+            },
+            "maxItems": 6,
+            "minItems": 1,
+            "title": "Actions",
+            "type": "array"
+          },
+          "conditions": {
+            "items": {
+              "$ref": "#/components/schemas/ConditionIn"
+            },
+            "maxItems": 8,
+            "minItems": 1,
+            "title": "Conditions",
+            "type": "array"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "personal": {
+            "default": false,
+            "description": "Solo tuya (si no, de todo el hogar)",
+            "title": "Personal",
+            "type": "boolean"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/Phase",
+            "default": "normal"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "maximum": 100000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Menor = antes",
+            "title": "Priority"
+          }
+        },
+        "required": [
+          "name",
+          "conditions",
+          "actions"
+        ],
+        "title": "AutomationRuleIn",
+        "type": "object"
+      },
+      "AutomationRuleOut": {
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/ActionIn"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "conditions": {
+            "items": {
+              "$ref": "#/components/schemas/ConditionIn"
+            },
+            "title": "Conditions",
+            "type": "array"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "personal": {
+            "title": "Personal",
+            "type": "boolean"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/Phase"
+          },
+          "priority": {
+            "title": "Priority",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "personal",
+          "phase",
+          "priority",
+          "enabled",
+          "conditions",
+          "actions"
+        ],
+        "title": "AutomationRuleOut",
         "type": "object"
       },
       "BalanceMismatchOut": {
@@ -825,6 +1003,48 @@
           "after"
         ],
         "title": "ChangeOut",
+        "type": "object"
+      },
+      "ConditionIn": {
+        "properties": {
+          "field": {
+            "enum": [
+              "description",
+              "merchant",
+              "amount",
+              "direction",
+              "account",
+              "bank_type"
+            ],
+            "title": "Field",
+            "type": "string"
+          },
+          "op": {
+            "default": "equals",
+            "description": "contains, starts_with, equals, between, is, in",
+            "title": "Op",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "field",
+          "value"
+        ],
+        "title": "ConditionIn",
         "type": "object"
       },
       "CountOut": {
@@ -2261,6 +2481,15 @@
         "title": "PendingChargeOut",
         "type": "object"
       },
+      "Phase": {
+        "enum": [
+          "before",
+          "normal",
+          "after"
+        ],
+        "title": "Phase",
+        "type": "string"
+      },
       "PreviewRowOut": {
         "properties": {
           "amount": {
@@ -2281,7 +2510,7 @@
                 "type": "null"
               }
             ],
-            "description": "Categoría propuesta por una regla aprendida",
+            "description": "Categoría propuesta por una regla",
             "title": "Category Id"
           },
           "description": {
@@ -2310,6 +2539,14 @@
               }
             ],
             "title": "Member Id"
+          },
+          "tags": {
+            "description": "Etiquetas que pondrán las reglas",
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
           }
         },
         "required": [
@@ -2320,6 +2557,7 @@
           "kind",
           "member_id",
           "category_id",
+          "tags",
           "duplicate"
         ],
         "title": "PreviewRowOut",
@@ -2344,6 +2582,69 @@
           "after"
         ],
         "title": "PriceChangeOut",
+        "type": "object"
+      },
+      "ProposedChangeOut": {
+        "properties": {
+          "after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "field": {
+            "title": "Field",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "before",
+          "after"
+        ],
+        "title": "ProposedChangeOut",
+        "type": "object"
+      },
+      "ProposedOut": {
+        "properties": {
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedChangeOut"
+            },
+            "title": "Changes",
+            "type": "array"
+          },
+          "transaction": {
+            "$ref": "#/components/schemas/TransactionOut"
+          }
+        },
+        "required": [
+          "transaction",
+          "changes"
+        ],
+        "title": "ProposedOut",
         "type": "object"
       },
       "RateIn": {
@@ -2658,6 +2959,32 @@
         "title": "RevokedOut",
         "type": "object"
       },
+      "RuleApplyOut": {
+        "properties": {
+          "changed": {
+            "title": "Changed",
+            "type": "integer"
+          },
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          }
+        },
+        "required": [
+          "changed",
+          "operation_id"
+        ],
+        "title": "RuleApplyOut",
+        "type": "object"
+      },
       "RuleOut": {
         "properties": {
           "category_id": {
@@ -2675,6 +3002,29 @@
           "category_id"
         ],
         "title": "RuleOut",
+        "type": "object"
+      },
+      "RulePreviewOut": {
+        "properties": {
+          "count": {
+            "description": "Movimientos que cambiaría, de los que ves",
+            "title": "Count",
+            "type": "integer"
+          },
+          "items": {
+            "description": "Los primeros 100",
+            "items": {
+              "$ref": "#/components/schemas/ProposedOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "items"
+        ],
+        "title": "RulePreviewOut",
         "type": "object"
       },
       "RuleViewOut": {
@@ -3771,6 +4121,294 @@
         "summary": "Logout",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/v1/automation-rules": {
+      "get": {
+        "description": "Las reglas del hogar y las tuyas, en el orden en que se evalúan.",
+        "operationId": "list_rules_api_v1_automation_rules_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AutomationRuleOut"
+                  },
+                  "title": "Response List Rules Api V1 Automation Rules Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Rules",
+        "tags": [
+          "automation"
+        ]
+      },
+      "post": {
+        "operationId": "create_rule_api_v1_automation_rules_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutomationRuleIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationRuleChangeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Rule",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/api/v1/automation-rules/preview": {
+      "post": {
+        "description": "Prueba una regla sin guardarla: qué movimientos cambiaría. No escribe nada.",
+        "operationId": "preview_draft_api_v1_automation_rules_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutomationRuleIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RulePreviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Draft",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/api/v1/automation-rules/{rule_id}": {
+      "delete": {
+        "operationId": "delete_rule_api_v1_automation_rules__rule_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Rule Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationRefOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Rule",
+        "tags": [
+          "automation"
+        ]
+      },
+      "put": {
+        "operationId": "update_rule_api_v1_automation_rules__rule_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Rule Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutomationRuleIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationRuleChangeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Rule",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/api/v1/automation-rules/{rule_id}/apply": {
+      "post": {
+        "description": "Aplica la regla a lo que ya hay, en una sola operación que se deshace de una vez.",
+        "operationId": "apply_rule_api_v1_automation_rules__rule_id__apply_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Rule Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleApplyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Apply Rule",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/api/v1/automation-rules/{rule_id}/preview": {
+      "post": {
+        "operationId": "preview_saved_api_v1_automation_rules__rule_id__preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Rule Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RulePreviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Saved",
+        "tags": [
+          "automation"
         ]
       }
     },

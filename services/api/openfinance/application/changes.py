@@ -15,6 +15,7 @@ from uuid import UUID, uuid4
 from openfinance.application.errors import ConflictError, NotFoundError
 from openfinance.application.ledger import visible_accounts
 from openfinance.application.ports import UnitOfWork
+from openfinance.domain.automation import from_definition
 from openfinance.domain.categories import HOUSEHOLD_SCOPE, CategoryId, CategoryRule
 from openfinance.domain.changes import (
     Change,
@@ -46,6 +47,7 @@ def transaction_state(t: Transaction) -> dict[str, Value]:
         "note": t.note,
         "voided": t.voided,
         "reviewed": t.reviewed,
+        "merchant": t.merchant,
     }
 
 
@@ -61,6 +63,7 @@ def with_state(t: Transaction, values: Mapping[str, Value]) -> Transaction:
         note=str(state["note"] or ""),
         voided=bool(state["voided"]),
         reviewed=bool(state["reviewed"]),
+        merchant=str(state["merchant"] or ""),
     )
 
 
@@ -232,6 +235,8 @@ def _apply(
             done, rest = _apply_transaction(uow, actor, visible, entity_id, changes)
         elif entity is Entity.RULE:
             done, rest = _apply_rule(uow, actor, entity_id, changes, now)
+        elif entity is Entity.AUTOMATION:
+            done, rest = _apply_automation(uow, actor, entity_id, changes)
         elif entity is Entity.RATE:
             done, rest = _apply_rate(uow, actor, entity_id, changes)
         elif entity is Entity.ATTACHMENT:
@@ -322,6 +327,33 @@ def _apply_rule(
                 CategoryRule(actor.household_id, merchant, CategoryId(UUID(str(c.after))), scope),
                 now,
             )
+        applied += 1
+    return applied, kept
+
+
+def _apply_automation(
+    uow: UnitOfWork, actor: Actor, entity_id: str, changes: list[Change]
+) -> tuple[int, list[Change]]:
+    """Una regla con condiciones (OF-1101): ``definition`` es su texto canónico o ``None``."""
+    rule_id = UUID(entity_id)
+    current = uow.automation.get(actor.household_id, rule_id)
+    applied, kept = 0, []
+    for c in changes:
+        state = current.definition() if current else None
+        # La regla personal de otra persona no se toca (ni existe para quien deshace).
+        foreign = current is not None and current.scope not in ("", str(actor.user_id))
+        if c.field != "definition" or state != c.before or foreign:
+            kept.append(c)
+            continue
+        if c.after is None:
+            uow.automation.delete(actor.household_id, rule_id)
+            current = None
+        else:
+            current = from_definition(rule_id, actor.household_id, str(c.after))
+            if current.scope not in ("", str(actor.user_id)):
+                kept.append(c)
+                continue
+            uow.automation.save(current, actor.user_id)
         applied += 1
     return applied, kept
 

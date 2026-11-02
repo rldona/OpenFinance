@@ -2,6 +2,9 @@ import type { components, operations } from './schema'
 
 type Schemas = components['schemas']
 export type Me = Schemas['MeOut']
+export type AutomationRule = Schemas['AutomationRuleOut']
+export type AutomationRuleInput = Schemas['AutomationRuleIn']
+export type RulePreview = Schemas['RulePreviewOut']
 export type ExchangeRate = Schemas['RateOut']
 export type MissingRate = Schemas['MissingRateOut']
 export type Attachment = Schemas['AttachmentOut']
@@ -170,6 +173,20 @@ export const api = {
     request<MemberPattern>('POST', '/api/v1/me/patterns', { json: { pattern, direction } }),
   removePattern: (p: MemberPattern) =>
     request<void>('DELETE', `/api/v1/me/patterns/${p.direction}/${encodeURIComponent(p.pattern)}`),
+  /** Reglas con condiciones, acciones y fases (OF-1101, OF-1102). */
+  automationRules: (signal?: AbortSignal) => request<AutomationRule[]>('GET', '/api/v1/automation-rules', { signal }),
+  createAutomationRule: (rule: AutomationRuleInput) =>
+    request<{ rule: AutomationRule; operation_id: string | null }>('POST', '/api/v1/automation-rules', { json: rule }),
+  updateAutomationRule: (id: string, rule: AutomationRuleInput) =>
+    request<{ rule: AutomationRule; operation_id: string | null }>('PUT', `/api/v1/automation-rules/${encodeURIComponent(id)}`, { json: rule }),
+  deleteAutomationRule: (id: string) =>
+    request<{ operation_id: string | null }>('DELETE', `/api/v1/automation-rules/${encodeURIComponent(id)}`),
+  previewAutomationDraft: (rule: AutomationRuleInput) =>
+    request<RulePreview>('POST', '/api/v1/automation-rules/preview', { json: rule }),
+  previewAutomationRule: (id: string) =>
+    request<RulePreview>('POST', `/api/v1/automation-rules/${encodeURIComponent(id)}/preview`),
+  applyAutomationRule: (id: string) =>
+    request<{ changed: number; operation_id: string | null }>('POST', `/api/v1/automation-rules/${encodeURIComponent(id)}/apply`),
   /** Tipos de cambio manuales: 1 unidad de la moneda = tanto de la del hogar (OF-1008). */
   exchangeRates: (signal?: AbortSignal) => request<ExchangeRate[]>('GET', '/api/v1/exchange-rates', { signal }),
   setExchangeRate: (currency: string, on: string, rate: string) =>

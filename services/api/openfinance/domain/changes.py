@@ -19,6 +19,11 @@ class Entity(StrEnum):
     RULE = "rule"
     """Regla «comercio → categoría». Su identificador es ``ámbito|comercio``."""
     IMPORT = "import"
+    AUTOMATION = "automation"
+    """Regla con condiciones (OF-1101). Campo ``definition``: su texto canónico, o ``None`` si no
+    existe. Su identificador es el de la regla."""
+    CSV_PROFILE = "csv_profile"
+    """Perfil de CSV (OF-1105). Campo ``definition`` como en las reglas."""
     RATE = "rate"
     """Tipo de cambio (OF-1008). Su identificador es «MONEDA|AAAA-MM-DD»; campo ``rate``: el valor
     como texto o ``None`` si no existe."""
@@ -36,7 +41,7 @@ class Entity(StrEnum):
     ``None`` en ``name`` significa que el comercio no existe."""
 
 
-TRANSACTION_FIELDS = ("kind", "member_id", "category_id", "note", "voided", "reviewed")
+TRANSACTION_FIELDS = ("kind", "member_id", "category_id", "note", "voided", "reviewed", "merchant")
 """Campos corregibles de un movimiento. El importe, la fecha y el concepto nunca cambian."""
 
 

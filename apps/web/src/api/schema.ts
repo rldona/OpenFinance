@@ -112,6 +112,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/automation-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Rules
+         * @description Las reglas del hogar y las tuyas, en el orden en que se evalúan.
+         */
+        get: operations["list_rules_api_v1_automation_rules_get"];
+        put?: never;
+        /** Create Rule */
+        post: operations["create_rule_api_v1_automation_rules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automation-rules/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Draft
+         * @description Prueba una regla sin guardarla: qué movimientos cambiaría. No escribe nada.
+         */
+        post: operations["preview_draft_api_v1_automation_rules_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automation-rules/{rule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Rule */
+        put: operations["update_rule_api_v1_automation_rules__rule_id__put"];
+        post?: never;
+        /** Delete Rule */
+        delete: operations["delete_rule_api_v1_automation_rules__rule_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automation-rules/{rule_id}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply Rule
+         * @description Aplica la regla a lo que ya hay, en una sola operación que se deshace de una vez.
+         */
+        post: operations["apply_rule_api_v1_automation_rules__rule_id__apply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automation-rules/{rule_id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview Saved */
+        post: operations["preview_saved_api_v1_automation_rules__rule_id__preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/budgets": {
         parameters: {
             query?: never;
@@ -1126,6 +1222,16 @@ export interface components {
          * @enum {string}
          */
         AccountType: "bank" | "cash" | "card" | "loan" | "investment";
+        /** ActionIn */
+        ActionIn: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "set_category" | "set_kind" | "add_tags" | "set_note" | "set_merchant";
+            /** Value */
+            value: string | string[];
+        };
         /** AttachmentAddedOut */
         AttachmentAddedOut: {
             attachment: components["schemas"]["AttachmentOut"];
@@ -1160,6 +1266,60 @@ export interface components {
              * Format: uuid
              */
             transaction_id: string;
+        };
+        /** AutomationRuleChangeOut */
+        AutomationRuleChangeOut: {
+            /** Operation Id */
+            operation_id: string | null;
+            rule: components["schemas"]["AutomationRuleOut"];
+        };
+        /** AutomationRuleIn */
+        AutomationRuleIn: {
+            /** Actions */
+            actions: components["schemas"]["ActionIn"][];
+            /** Conditions */
+            conditions: components["schemas"]["ConditionIn"][];
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /** Name */
+            name: string;
+            /**
+             * Personal
+             * @description Solo tuya (si no, de todo el hogar)
+             * @default false
+             */
+            personal: boolean;
+            /** @default normal */
+            phase: components["schemas"]["Phase"];
+            /**
+             * Priority
+             * @description Menor = antes
+             */
+            priority?: number | null;
+        };
+        /** AutomationRuleOut */
+        AutomationRuleOut: {
+            /** Actions */
+            actions: components["schemas"]["ActionIn"][];
+            /** Conditions */
+            conditions: components["schemas"]["ConditionIn"][];
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Personal */
+            personal: boolean;
+            phase: components["schemas"]["Phase"];
+            /** Priority */
+            priority: number;
         };
         /** BalanceMismatchOut */
         BalanceMismatchOut: {
@@ -1367,6 +1527,22 @@ export interface components {
             entity: string;
             /** Field */
             field: string;
+        };
+        /** ConditionIn */
+        ConditionIn: {
+            /**
+             * Field
+             * @enum {string}
+             */
+            field: "description" | "merchant" | "amount" | "direction" | "account" | "bank_type";
+            /**
+             * Op
+             * @description contains, starts_with, equals, between, is, in
+             * @default equals
+             */
+            op: string;
+            /** Value */
+            value: string | string[];
         };
         /** CountOut */
         CountOut: {
@@ -1934,6 +2110,11 @@ export interface components {
             /** Merchant */
             merchant: string;
         };
+        /**
+         * Phase
+         * @enum {string}
+         */
+        Phase: "before" | "normal" | "after";
         /** PreviewRowOut */
         PreviewRowOut: {
             amount: components["schemas"]["MoneyOut"];
@@ -1944,7 +2125,7 @@ export interface components {
             booked_at: string;
             /**
              * Category Id
-             * @description Categoría propuesta por una regla aprendida
+             * @description Categoría propuesta por una regla
              */
             category_id: string | null;
             /** Description */
@@ -1956,6 +2137,11 @@ export interface components {
             line: number;
             /** Member Id */
             member_id: string | null;
+            /**
+             * Tags
+             * @description Etiquetas que pondrán las reglas
+             */
+            tags: string[];
         };
         /** PriceChangeOut */
         PriceChangeOut: {
@@ -1963,6 +2149,21 @@ export interface components {
             before: components["schemas"]["MoneyOut"];
             /** Month */
             month: string;
+        };
+        /** ProposedChangeOut */
+        ProposedChangeOut: {
+            /** After */
+            after: string | boolean | null;
+            /** Before */
+            before: string | boolean | null;
+            /** Field */
+            field: string;
+        };
+        /** ProposedOut */
+        ProposedOut: {
+            /** Changes */
+            changes: components["schemas"]["ProposedChangeOut"][];
+            transaction: components["schemas"]["TransactionOut"];
         };
         /** RateIn */
         RateIn: {
@@ -2112,6 +2313,13 @@ export interface components {
              */
             revoked: number;
         };
+        /** RuleApplyOut */
+        RuleApplyOut: {
+            /** Changed */
+            changed: number;
+            /** Operation Id */
+            operation_id: string | null;
+        };
         /** RuleOut */
         RuleOut: {
             /**
@@ -2121,6 +2329,19 @@ export interface components {
             category_id: string;
             /** Merchant */
             merchant: string;
+        };
+        /** RulePreviewOut */
+        RulePreviewOut: {
+            /**
+             * Count
+             * @description Movimientos que cambiaría, de los que ves
+             */
+            count: number;
+            /**
+             * Items
+             * @description Los primeros 100
+             */
+            items: components["schemas"]["ProposedOut"][];
         };
         /** RuleViewOut */
         RuleViewOut: {
@@ -2679,6 +2900,220 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    list_rules_api_v1_automation_rules_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationRuleOut"][];
+                };
+            };
+        };
+    };
+    create_rule_api_v1_automation_rules_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationRuleIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationRuleChangeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_draft_api_v1_automation_rules_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationRuleIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RulePreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_rule_api_v1_automation_rules__rule_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationRuleIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationRuleChangeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_rule_api_v1_automation_rules__rule_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationRefOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_rule_api_v1_automation_rules__rule_id__apply_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleApplyOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_saved_api_v1_automation_rules__rule_id__preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RulePreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };
