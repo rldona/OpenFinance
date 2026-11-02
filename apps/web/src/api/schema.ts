@@ -49,6 +49,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/attachments/{attachment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download Attachment
+         * @description Descarga el archivo. Siempre como descarga, nunca para abrirlo dentro de la página.
+         */
+        get: operations["download_attachment_api_v1_attachments__attachment_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Attachment
+         * @description Borra el adjunto. El archivo se conserva 30 días por si se deshace.
+         */
+        delete: operations["delete_attachment_api_v1_attachments__attachment_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -794,6 +818,27 @@ export interface paths {
         patch: operations["categorize_api_v1_transactions__transaction_id__patch"];
         trace?: never;
     };
+    "/api/v1/transactions/{transaction_id}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Attachments */
+        get: operations["list_attachments_api_v1_transactions__transaction_id__attachments_get"];
+        put?: never;
+        /**
+         * Add Attachment
+         * @description Adjunta un ticket o una factura al movimiento; se puede deshacer.
+         */
+        post: operations["add_attachment_api_v1_transactions__transaction_id__attachments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/transactions/{transaction_id}/history": {
         parameters: {
             query?: never;
@@ -1015,12 +1060,55 @@ export interface components {
          * @enum {string}
          */
         AccountType: "bank" | "cash" | "card" | "loan" | "investment";
+        /** AttachmentAddedOut */
+        AttachmentAddedOut: {
+            attachment: components["schemas"]["AttachmentOut"];
+            /** Operation Id */
+            operation_id: string | null;
+        };
+        /** AttachmentOut */
+        AttachmentOut: {
+            /** Content Type */
+            content_type: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Created By
+             * Format: uuid
+             */
+            created_by: string;
+            /** Filename */
+            filename: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Size */
+            size: number;
+            /**
+             * Transaction Id
+             * Format: uuid
+             */
+            transaction_id: string;
+        };
         /** BalanceMismatchOut */
         BalanceMismatchOut: {
             expected: components["schemas"]["MoneyOut"];
             /** Line */
             line: number;
             reported: components["schemas"]["MoneyOut"];
+        };
+        /** Body_add_attachment_api_v1_transactions__transaction_id__attachments_post */
+        Body_add_attachment_api_v1_transactions__transaction_id__attachments_post: {
+            /**
+             * File
+             * @description PDF o imagen PNG, JPEG o WebP (máx. 5 MB)
+             */
+            file: string;
         };
         /** Body_create_import_api_v1_imports_post */
         Body_create_import_api_v1_imports_post: {
@@ -2044,6 +2132,11 @@ export interface components {
             account_id: string;
             amount: components["schemas"]["MoneyOut"];
             /**
+             * Attachment Count
+             * @description Tickets o facturas adjuntos
+             */
+            attachment_count: number;
+            /**
              * Booked At
              * Format: date-time
              */
@@ -2335,6 +2428,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReconciliationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_attachment_api_v1_attachments__attachment_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attachment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_attachment_api_v1_attachments__attachment_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attachment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationRefOut"];
                 };
             };
             /** @description Validation Error */
@@ -3701,6 +3856,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CategorizeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_attachments_api_v1_transactions__transaction_id__attachments_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transaction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttachmentOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_attachment_api_v1_transactions__transaction_id__attachments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transaction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_add_attachment_api_v1_transactions__transaction_id__attachments_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttachmentAddedOut"];
                 };
             };
             /** @description Validation Error */

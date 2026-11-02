@@ -2,6 +2,7 @@ import type { components, operations } from './schema'
 
 type Schemas = components['schemas']
 export type Me = Schemas['MeOut']
+export type Attachment = Schemas['AttachmentOut']
 export type Reconciliation = Schemas['ReconciliationOut']
 export type AccountType = Schemas['AccountType']
 export type LinkResult = Schemas['LinkOut']
@@ -167,6 +168,20 @@ export const api = {
     request<MemberPattern>('POST', '/api/v1/me/patterns', { json: { pattern, direction } }),
   removePattern: (p: MemberPattern) =>
     request<void>('DELETE', `/api/v1/me/patterns/${p.direction}/${encodeURIComponent(p.pattern)}`),
+  /** Tickets y facturas adjuntos a un movimiento (OF-1007). */
+  attachments: (transactionId: string, signal?: AbortSignal) =>
+    request<Attachment[]>('GET', `/api/v1/transactions/${encodeURIComponent(transactionId)}/attachments`, { signal }),
+  addAttachment: (transactionId: string, file: File) => {
+    const form = new FormData()
+    form.set('file', file)
+    return request<{ attachment: Attachment; operation_id: string | null }>(
+      'POST',
+      `/api/v1/transactions/${encodeURIComponent(transactionId)}/attachments`,
+      { form },
+    )
+  },
+  deleteAttachment: (attachmentId: string) =>
+    request<{ operation_id: string | null }>('DELETE', `/api/v1/attachments/${encodeURIComponent(attachmentId)}`),
   /** Revisar movimientos y comprobar el saldo contra el banco (OF-1006). */
   reviewTransactions: (ids: string[], reviewed: boolean) =>
     request<{ changed: number; operation_id: string | null }>('POST', '/api/v1/transactions/review', { json: { ids, reviewed } }),

@@ -468,6 +468,70 @@ describe('Revisado y conciliación (OF-1006)', () => {
   })
 })
 
+describe('Adjuntos (OF-1007)', () => {
+  const ATT = { id: 'att-1', transaction_id: 't4', filename: 'ticket.png', content_type: 'image/png', size: 2048, created_by: 'u-raul', created_at: '2026-11-02T10:00:00Z' }
+
+  it('lista los adjuntos con enlace de descarga y permite borrar con «Deshacer»', async () => {
+    window.location.hash = '#movimientos'
+    const calls = loggedIn({
+      'GET /api/v1/transactions/t4/history': { body: [] },
+      'GET /api/v1/transactions/t4/attachments': { body: [ATT] },
+      'DELETE /api/v1/attachments/att-1': { body: { operation_id: 'op-a' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Glovo' }))
+    const link = await screen.findByRole('link', { name: /ticket.png/ })
+    expect(link).toHaveAttribute('href', '/api/v1/attachments/att-1')
+    expect(link).toHaveAttribute('download', 'ticket.png')
+    await userEvent.click(screen.getByRole('button', { name: 'Borrar el adjunto ticket.png' }))
+    expect(calls.some((c) => c.method === 'DELETE' && c.url.pathname === '/api/v1/attachments/att-1')).toBe(true)
+    expect(await screen.findByText('Adjunto «ticket.png» borrado')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Deshacer' })).toBeInTheDocument()
+  })
+
+  it('sube un archivo y avisa', async () => {
+    window.location.hash = '#movimientos'
+    const calls = loggedIn({
+      'GET /api/v1/transactions/t4/history': { body: [] },
+      'GET /api/v1/transactions/t4/attachments': { body: [] },
+      'POST /api/v1/transactions/t4/attachments': { status: 201, body: { attachment: ATT, operation_id: 'op-u' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Glovo' }))
+    const file = new File([new Uint8Array([137, 80, 78, 71])], 'ticket.png', { type: 'image/png' })
+    await userEvent.upload(await screen.findByLabelText(/Adjuntar ticket o factura/), file)
+    expect(calls.some((c) => c.method === 'POST' && c.url.pathname === '/api/v1/transactions/t4/attachments')).toBe(true)
+    expect(await screen.findByText('Adjuntado «ticket.png»')).toBeInTheDocument()
+  })
+
+  it('un archivo de más de 5 MB se rechaza antes de subirlo', async () => {
+    window.location.hash = '#movimientos'
+    const calls = loggedIn({
+      'GET /api/v1/transactions/t4/history': { body: [] },
+      'GET /api/v1/transactions/t4/attachments': { body: [] },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Glovo' }))
+    const big = new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'enorme.pdf', { type: 'application/pdf' })
+    await userEvent.upload(await screen.findByLabelText(/Adjuntar ticket o factura/), big)
+    expect(await screen.findByRole('alert')).toHaveTextContent('pesa más de 5 MB')
+    expect(calls.some((c) => c.method === 'POST')).toBe(false)
+  })
+
+  it('el servidor puede rechazar el tipo y se avisa', async () => {
+    window.location.hash = '#movimientos'
+    loggedIn({
+      'GET /api/v1/transactions/t4/history': { body: [] },
+      'GET /api/v1/transactions/t4/attachments': { body: [] },
+      'POST /api/v1/transactions/t4/attachments': { status: 422, body: { detail: 'Solo se admiten PDF e imágenes PNG, JPEG o WebP' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Glovo' }))
+    await userEvent.upload(await screen.findByLabelText(/Adjuntar ticket o factura/), new File(['x'], 'a.png', { type: 'image/png' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Solo se admiten PDF')
+  })
+})
+
 describe('Varios a la vez y efectivo (OF-705)', () => {
   it('pone la misma categoría a los seleccionados sin aprender reglas y se puede deshacer', async () => {
     const calls = loggedIn({

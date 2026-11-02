@@ -19,6 +19,9 @@ class Entity(StrEnum):
     RULE = "rule"
     """Regla «comercio → categoría». Su identificador es ``ámbito|comercio``."""
     IMPORT = "import"
+    ATTACHMENT = "attachment"
+    """Adjunto de un movimiento (OF-1007). Campo ``present``: ``True`` si está, ``False`` si se
+    ha borrado (el archivo se conserva 30 días por si se deshace)."""
     LINK = "link"
     """Traspaso enlazado (OF-1004). Su identificador es el del lado con menor identificador;
     campo ``peer`` = identificador del otro lado, o ``None`` si no hay enlace."""

@@ -22,6 +22,8 @@ class Decor:
     """Etiquetas de cada movimiento (OF-1002)."""
     splits: dict[TransactionId, list[SplitPart]] = field(default_factory=dict)
     """Partes de cada movimiento dividido (OF-1003)."""
+    attachments: dict[TransactionId, int] = field(default_factory=dict)
+    """Cuántos adjuntos tiene cada movimiento (OF-1007)."""
     peers: dict[TransactionId, TransactionId] = field(default_factory=dict)
     """El otro lado de cada traspaso enlazado, solo si quien mira también lo ve (OF-1004)."""
 
@@ -39,5 +41,6 @@ def decorate(uow: UnitOfWork, actor: Actor, transactions: Iterable[Transaction])
         merchants.names_for(uow, household_id, txns),
         uow.tags.for_transactions(household_id, ids),
         uow.splits.for_transactions(household_id, ids),
+        {t: len(a) for t, a in uow.attachments.for_transactions(household_id, ids).items()},
         peers,
     )

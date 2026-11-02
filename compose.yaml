@@ -54,6 +54,7 @@ services:
       OPENFINANCE_SESSION_TTL_DAYS: ${OPENFINANCE_SESSION_TTL_DAYS:-30}
       # Avisar de versiones nuevas consultando GitHub una vez al día (OF-907). Apagado por defecto.
       OPENFINANCE_UPDATE_CHECK: ${OPENFINANCE_UPDATE_CHECK:-false}
+      OPENFINANCE_ATTACHMENTS_DIR: /data/attachments
     <<: *hardening
     logging: *logging
     # Corre como usuario sin privilegios (10001) y no escribe en su sistema de ficheros.
@@ -62,6 +63,8 @@ services:
     pids_limit: 200
     tmpfs:
       - /tmp
+    volumes:
+      - attachments:/data/attachments
     depends_on:
       db:
         condition: service_healthy
@@ -121,3 +124,4 @@ networks:
 
 volumes:
   db-data:
+  attachments:

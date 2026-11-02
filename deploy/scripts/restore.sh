@@ -81,11 +81,35 @@ trap on_error ERR
 
 docker compose stop api
 
+# Los adjuntos de la misma fecha, si la copia los tiene (OF-1007).
+files="${file%.dump*}.attachments.tar"
+[ "$encrypted" = 1 ] && files="$files.age"
+files_plain=""
+if [ -f "$files" ]; then
+  if [ "$encrypted" = 1 ]; then
+    files_plain="$(mktemp)"
+    trap 'rm -f "$plain" "$files_plain"' EXIT
+    age --decrypt -i "$identity" -o "$files_plain" -- "$files" \
+      || { echo "No se han podido descifrar los adjuntos." >&2; exit 1; }
+  else
+    files_plain="$files"
+  fi
+else
+  echo "Aviso: esta copia no trae adjuntos; los que haya ahora se quedan como están."
+fi
+
 step="restaurar la copia"
 # shellcheck disable=SC2016 # las variables se expanden dentro del contenedor
 docker compose exec -T db sh -c \
   'pg_restore --clean --if-exists --no-owner --single-transaction -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < "$plain"
+
+if [ -n "$files_plain" ]; then
+  step="restaurar los adjuntos"
+  docker compose run --rm --no-deps -T api sh -c \
+    'rm -rf /data/attachments/* /data/attachments/.[!.]* 2> /dev/null; tar -C /data -xf -' \
+    < "$files_plain"
+fi
 
 # Las sesiones de la copia dejan de valer en cuanto existen: se borran antes de migrar.
 step="borrar las sesiones restauradas"

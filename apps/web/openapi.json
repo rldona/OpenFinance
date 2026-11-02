@@ -107,6 +107,78 @@
         "title": "AccountType",
         "type": "string"
       },
+      "AttachmentAddedOut": {
+        "properties": {
+          "attachment": {
+            "$ref": "#/components/schemas/AttachmentOut"
+          },
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          }
+        },
+        "required": [
+          "attachment",
+          "operation_id"
+        ],
+        "title": "AttachmentAddedOut",
+        "type": "object"
+      },
+      "AttachmentOut": {
+        "properties": {
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "format": "uuid",
+            "title": "Created By",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "transaction_id": {
+            "format": "uuid",
+            "title": "Transaction Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "transaction_id",
+          "filename",
+          "content_type",
+          "size",
+          "created_by",
+          "created_at"
+        ],
+        "title": "AttachmentOut",
+        "type": "object"
+      },
       "BalanceMismatchOut": {
         "properties": {
           "expected": {
@@ -126,6 +198,21 @@
           "reported"
         ],
         "title": "BalanceMismatchOut",
+        "type": "object"
+      },
+      "Body_add_attachment_api_v1_transactions__transaction_id__attachments_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "description": "PDF o imagen PNG, JPEG o WebP (máx. 5 MB)",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_add_attachment_api_v1_transactions__transaction_id__attachments_post",
         "type": "object"
       },
       "Body_create_import_api_v1_imports_post": {
@@ -2769,6 +2856,11 @@
           "amount": {
             "$ref": "#/components/schemas/MoneyOut"
           },
+          "attachment_count": {
+            "description": "Tickets o facturas adjuntos",
+            "title": "Attachment Count",
+            "type": "integer"
+          },
           "booked_at": {
             "format": "date-time",
             "title": "Booked At",
@@ -2880,6 +2972,7 @@
           "tags",
           "parts",
           "reviewed",
+          "attachment_count",
           "transfer_peer_id"
         ],
         "title": "TransactionOut",
@@ -3407,6 +3500,90 @@
         "summary": "Reconcile Account",
         "tags": [
           "ledger"
+        ]
+      }
+    },
+    "/api/v1/attachments/{attachment_id}": {
+      "delete": {
+        "description": "Borra el adjunto. El archivo se conserva 30 días por si se deshace.",
+        "operationId": "delete_attachment_api_v1_attachments__attachment_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Attachment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationRefOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Attachment",
+        "tags": [
+          "attachments"
+        ]
+      },
+      "get": {
+        "description": "Descarga el archivo. Siempre como descarga, nunca para abrirlo dentro de la página.",
+        "operationId": "download_attachment_api_v1_attachments__attachment_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Attachment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Attachment",
+        "tags": [
+          "attachments"
         ]
       }
     },
@@ -5524,6 +5701,105 @@
         "summary": "Categorize",
         "tags": [
           "categories"
+        ]
+      }
+    },
+    "/api/v1/transactions/{transaction_id}/attachments": {
+      "get": {
+        "operationId": "list_attachments_api_v1_transactions__transaction_id__attachments_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transaction_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transaction Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AttachmentOut"
+                  },
+                  "title": "Response List Attachments Api V1 Transactions  Transaction Id  Attachments Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Attachments",
+        "tags": [
+          "attachments"
+        ]
+      },
+      "post": {
+        "description": "Adjunta un ticket o una factura al movimiento; se puede deshacer.",
+        "operationId": "add_attachment_api_v1_transactions__transaction_id__attachments_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transaction_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transaction Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_add_attachment_api_v1_transactions__transaction_id__attachments_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentAddedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Attachment",
+        "tags": [
+          "attachments"
         ]
       }
     },

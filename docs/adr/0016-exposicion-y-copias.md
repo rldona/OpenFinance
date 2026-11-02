@@ -57,3 +57,9 @@ La fase 5 (OF-501, OF-502) pone OpenFinance en uso real en un equipo de casa (x8
 - **Observabilidad:** `OPENFINANCE_LOG_LEVEL` se aplica; cada petición lleva `X-Request-ID` (el de nginx si es válido) y deja una línea sin query ni cabeceras. `/ready` comprueba la base de datos y es el `healthcheck` de la API.
 - **Imágenes publicadas y firmadas:** en cada etiqueta `vX.Y.Z`, ghcr.io con cosign sin claves (OIDC de GitHub). Quien prefiera construir en local puede seguir haciéndolo.
 - **Aviso de versión nueva opt-in:** consultar GitHub revela que hay una instalación en esa IP, y el proyecto es local-first (ADR-0007), así que `OPENFINANCE_UPDATE_CHECK` está apagado por defecto; no envía datos y solo avisa.
+
+## Adjuntos (OF-1007)
+
+- Los adjuntos de movimientos son archivos en el volumen `attachments` (`/data/attachments` en la API), con el identificador por nombre en dos niveles de carpetas y permisos 600; los metadatos están en la tabla `attachments`. Solo PDF, PNG, JPEG y WebP reconocidos por su contenido, 5 MB como máximo y 10 por movimiento. Se descargan siempre como descarga (`Content-Disposition: attachment`, `nosniff`, `no-store` y CSP `sandbox`).
+- Heredan la visibilidad del movimiento: quien no ve la cuenta no puede listarlos, descargarlos, borrarlos ni deshacer su alta. Borrar es suave: el archivo se conserva 30 días y se purga al arrancar la API.
+- `make backup` guarda los adjuntos en un segundo fichero con la misma fecha y el mismo cifrado; `make restore` los restaura. La exportación JSON/CSV solo lleva su número, no los archivos.

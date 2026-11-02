@@ -58,6 +58,7 @@ const tx = (id: string, description: string, amount: string, kind: string, extra
   parts: [],
   transfer_peer_id: null,
   reviewed: false,
+  attachment_count: 0,
   ...extra,
 })
 

@@ -229,6 +229,8 @@ def _apply(
             done, rest = _apply_transaction(uow, actor, visible, entity_id, changes)
         elif entity is Entity.RULE:
             done, rest = _apply_rule(uow, actor, entity_id, changes, now)
+        elif entity is Entity.ATTACHMENT:
+            done, rest = _apply_attachment(uow, actor, visible, entity_id, changes, now)
         elif entity is Entity.LINK:
             done, rest = _apply_link(uow, actor, visible, entity_id, changes)
         elif entity is Entity.SPLIT:
@@ -315,6 +317,33 @@ def _apply_rule(
                 CategoryRule(actor.household_id, merchant, CategoryId(UUID(str(c.after))), scope),
                 now,
             )
+        applied += 1
+    return applied, kept
+
+
+def _apply_attachment(
+    uow: UnitOfWork,
+    actor: Actor,
+    visible: set[AccountId],
+    entity_id: str,
+    changes: list[Change],
+    now: datetime,
+) -> tuple[int, list[Change]]:
+    """Un adjunto está o no está (OF-1007). Borrar conserva el archivo, así que se recupera."""
+    attachment = uow.attachments.get(actor.household_id, UUID(entity_id))
+    if attachment is None:
+        return 0, changes
+    t = uow.transactions.get(actor.household_id, attachment.transaction_id, include_voided=True)
+    if t is None or t.account_id not in visible:
+        return 0, changes
+    present = not attachment.is_deleted
+    applied, kept = 0, []
+    for c in changes:
+        if c.field != "present" or present != c.before:
+            kept.append(c)
+            continue
+        uow.attachments.set_deleted(actor.household_id, attachment.id, None if c.after else now)
+        present = bool(c.after)
         applied += 1
     return applied, kept
 

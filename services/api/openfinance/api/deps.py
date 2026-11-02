@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from openfinance.application.identity import resolve_session
 from openfinance.domain.workspaces import Actor
+from openfinance.infrastructure.attachments import FileAttachmentStore
 from openfinance.infrastructure.config import Settings, get_settings
 from openfinance.infrastructure.db.repositories import SqlUnitOfWork
 from openfinance.infrastructure.db.session import get_session_factory
@@ -65,9 +66,15 @@ def get_release_source() -> GithubLatestRelease | None:
 
 
 @lru_cache
+def get_attachment_store() -> FileAttachmentStore:
+    return FileAttachmentStore(get_settings().attachments_dir)
+
+
+@lru_cache
 def get_parsers() -> StatementParserRegistry:
     return StatementParserRegistry()
 
 
+AttachmentStoreDep = Annotated[FileAttachmentStore, Depends(get_attachment_store)]
 ReleaseSourceDep = Annotated[GithubLatestRelease | None, Depends(get_release_source)]
 ParsersDep = Annotated[StatementParserRegistry, Depends(get_parsers)]

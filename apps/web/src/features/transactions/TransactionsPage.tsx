@@ -390,6 +390,7 @@ export function TransactionsPage() {
                         {t.merchant || t.description}
                       </button>
                       <div className="small muted">
+                        {t.attachment_count > 0 && <span title="Con adjuntos" aria-label={`${t.attachment_count} adjuntos`}>📎 </span>}
                         {t.reviewed && <span title="Revisado con el banco" aria-label="Revisado con el banco">✓ </span>}
                         {t.transfer_peer_id && <span title="Traspaso enlazado" aria-label="Traspaso enlazado">🔗 </span>}
                         {t.description} · {accountName(t.account_id)}
@@ -420,7 +421,7 @@ export function TransactionsPage() {
                     <tr role="row" className="detail-row">
                       <td role="cell" colSpan={onlyUncategorized ? 5 : 4}>
                         <TransactionDetail
-                          key={`${t.id}|${t.kind}|${t.member_id}|${t.note}|${t.tags.join()}|${t.parts.length}|${t.transfer_peer_id}|${t.reviewed}`}
+                          key={`${t.id}|${t.kind}|${t.member_id}|${t.note}|${t.tags.join()}|${t.parts.length}|${t.transfer_peer_id}|${t.reviewed}|${t.attachment_count}`}
                           t={t}
                           version={version}
                           onClose={() => setOpenId(null)}

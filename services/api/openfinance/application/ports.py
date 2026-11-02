@@ -8,6 +8,7 @@ from decimal import Decimal
 from typing import Protocol
 from uuid import UUID
 
+from openfinance.domain.attachments import Attachment
 from openfinance.domain.categories import Category, CategoryId, CategoryRule
 from openfinance.domain.changes import Entity, Operation
 from openfinance.domain.identity import User
@@ -205,6 +206,38 @@ class RuleRepository(Protocol):
     def upsert(self, rule: CategoryRule, now: datetime) -> None: ...
     def get(self, household_id: WorkspaceId, scope: str, merchant: str) -> CategoryRule | None: ...
     def delete(self, household_id: WorkspaceId, scope: str, merchant: str) -> None: ...
+
+
+class AttachmentRepository(Protocol):
+    def add(self, attachment: Attachment) -> None: ...
+    def get(self, household_id: WorkspaceId, attachment_id: UUID) -> Attachment | None:
+        """Incluye los borrados (para poder deshacer)."""
+        ...
+
+    def for_transactions(
+        self, household_id: WorkspaceId, ids: list[TransactionId]
+    ) -> dict[TransactionId, list[Attachment]]:
+        """Los adjuntos no borrados de cada movimiento, del más antiguo al más nuevo."""
+        ...
+
+    def set_deleted(
+        self, household_id: WorkspaceId, attachment_id: UUID, deleted_at: datetime | None
+    ) -> None: ...
+    def deleted_before(self, cutoff: datetime) -> list[Attachment]:
+        """Los borrados antes de esa fecha (de todos los hogares), para purgarlos del disco."""
+        ...
+
+    def erase(self, attachment_id: UUID) -> None:
+        """Borra de verdad la fila de un adjunto ya purgado."""
+        ...
+
+
+class AttachmentStore(Protocol):
+    """Dónde viven los archivos. Se identifican por el id del adjunto, nunca por su nombre."""
+
+    def save(self, attachment_id: UUID, content: bytes) -> None: ...
+    def read(self, attachment_id: UUID) -> bytes | None: ...
+    def delete(self, attachment_id: UUID) -> None: ...
 
 
 class ReconciliationRepository(Protocol):
@@ -420,6 +453,8 @@ class UnitOfWork(Protocol):
     def links(self) -> LinkRepository: ...
     @property
     def reconciliations(self) -> ReconciliationRepository: ...
+    @property
+    def attachments(self) -> AttachmentRepository: ...
     @property
     def member_patterns(self) -> MemberPatternRepository: ...
     @property

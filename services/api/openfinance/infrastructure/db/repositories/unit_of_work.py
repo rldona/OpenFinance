@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from openfinance.application.errors import ConflictError
+from openfinance.infrastructure.db.repositories.attachments import SqlAttachmentRepository
 from openfinance.infrastructure.db.repositories.categories import (
     SqlCategoryRepository,
     SqlRuleRepository,
@@ -57,6 +58,7 @@ class SqlUnitOfWork:
         self.splits = SqlSplitRepository(session)
         self.links = SqlLinkRepository(session)
         self.reconciliations = SqlReconciliationRepository(session)
+        self.attachments = SqlAttachmentRepository(session)
         self.member_patterns = SqlMemberPatternRepository(session)
         self.changes = SqlChangeRepository(session)
 

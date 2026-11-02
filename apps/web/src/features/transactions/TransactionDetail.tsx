@@ -3,6 +3,7 @@ import { ApiError, api, type CategorizeResult, type Operation, type Transaction,
 import { useHousehold } from '../../app/household-context'
 import { ErrorState, Loading } from '../../components/LoadState'
 import { formatDate } from '../../lib/format'
+import { Attachments } from './Attachments'
 import { SplitEditor } from './SplitEditor'
 import { TransferLink } from './TransferLink'
 import { useLoad } from '../../lib/useLoad'
@@ -161,6 +162,7 @@ export function TransactionDetail({
         )}
       </form>
       {t.kind === 'expense' && onSplitChanged && <SplitEditor t={t} onChanged={onSplitChanged} />}
+      {onReviewChanged && <Attachments transactionId={t.id} onChanged={onReviewChanged} />}
       {onReviewChanged && (
         <label className="small">
           <input

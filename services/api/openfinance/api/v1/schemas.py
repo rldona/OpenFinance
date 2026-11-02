@@ -9,6 +9,7 @@ from pydantic import BaseModel, EmailStr, Field
 from openfinance.application.decorate import Decor
 from openfinance.application.imports import ImportPreview, ImportResult
 from openfinance.application.savings import BudgetView, GoalView
+from openfinance.domain.attachments import Attachment
 from openfinance.domain.categories import Category, merchant_label
 from openfinance.domain.identity import User
 from openfinance.domain.imports import PatternDirection
@@ -117,6 +118,7 @@ class TransactionOut(BaseModel):
         description="Partes con categoría si el gasto está dividido (suman su importe)"
     )
     reviewed: bool = Field(description="Revisado contra el banco")
+    attachment_count: int = Field(description="Tickets o facturas adjuntos")
     transfer_peer_id: UUID | None = Field(
         description="El otro lado del traspaso, si está enlazado y tú también lo ves"
     )
@@ -140,6 +142,7 @@ class TransactionOut(BaseModel):
             note=t.note,
             tags=list(d.tags.get(t.id, ())),
             reviewed=t.reviewed,
+            attachment_count=d.attachments.get(t.id, 0),
             transfer_peer_id=d.peers.get(t.id),
             parts=[
                 SplitPartOut(amount=MoneyOut.of(p.amount), category_id=p.category_id)
@@ -793,3 +796,30 @@ class ReconciliationOut(BaseModel):
             created_by=r.created_by,
             created_at=r.created_at,
         )
+
+
+class AttachmentOut(BaseModel):
+    id: UUID
+    transaction_id: UUID
+    filename: str
+    content_type: str
+    size: int
+    created_by: UUID
+    created_at: datetime
+
+    @classmethod
+    def of(cls, a: Attachment) -> AttachmentOut:
+        return cls(
+            id=a.id,
+            transaction_id=a.transaction_id,
+            filename=a.filename,
+            content_type=a.content_type,
+            size=a.size,
+            created_by=a.created_by,
+            created_at=a.created_at,
+        )
+
+
+class AttachmentAddedOut(BaseModel):
+    attachment: AttachmentOut
+    operation_id: UUID | None
