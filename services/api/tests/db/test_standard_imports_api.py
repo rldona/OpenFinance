@@ -91,3 +91,28 @@ class TestFormats:
             json={"name": "Mi efectivo", "type": "cash", "shared": False, "opening_balance": "0"},
         ).json()
         assert upload(as_elena, mine["id"], "synthetic.ofx").status_code == 404
+
+
+class TestCamt053:
+    def test_preview_commit_and_balance(self, as_raul, seed) -> None:
+        a = account(as_raul)
+        p = upload(as_raul, a["id"], "synthetic_camt053.xml", "application/xml").json()
+        assert (p["new_count"], p["skipped_count"]) == (5, 2)
+        assert p["bank_balance"] == {"amount": "1427.66", "currency": "EUR"}
+        done = commit(as_raul, p["id"])
+        assert done.status_code == 200
+        again = upload(as_raul, a["id"], "synthetic_camt053.xml", "application/xml").json()
+        assert (again["new_count"], again["duplicate_count"]) == (0, 5)
+
+    def test_a_hostile_file_is_a_422_not_a_500(self, as_raul, seed) -> None:
+        a = account(as_raul)
+        evil = (
+            b'<?xml version="1.0"?><!DOCTYPE d [<!ENTITY e SYSTEM "file:///etc/passwd">]>'
+            b'<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">&e;</Document>'
+        )
+        r = as_raul.post(
+            "/api/v1/imports",
+            data={"account_id": a["id"]},
+            files={"file": ("mal.xml", evil, "application/xml")},
+        )
+        assert r.status_code == 422

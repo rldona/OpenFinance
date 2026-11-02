@@ -63,6 +63,11 @@ disallow_untyped_defs = true
 module = ["openfinance.domain.*", "openfinance.application.*"]
 strict = true
 
+[[tool.mypy.overrides]]
+# defusedxml no trae tipos; se usa solo para leer XML no fiable (CAMT.053).
+module = ["defusedxml", "defusedxml.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"

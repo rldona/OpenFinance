@@ -141,7 +141,10 @@ class TestQif:
         assert parse_qif(text, "acc", RULES).rows[0].booked_at.date().isoformat() == "2026-10-03"
 
     def test_bad_rows_are_skipped_with_a_reason(self) -> None:
-        text = b"!Type:Bank\nD25/10/2026\nTmucho\nPX\n^\nD25/10/2026\nT0.00\nPY\n^\nD25/10/2026\nPZ\n^\n"
+        text = (
+            b"!Type:Bank\nD25/10/2026\nTmucho\nPX\n^\n"
+            b"D25/10/2026\nT0.00\nPY\n^\nD25/10/2026\nPZ\n^\n"
+        )
         r = parse_qif(text, "acc", RULES)
         assert r.rows == [] and len(r.skipped) == 3
 
