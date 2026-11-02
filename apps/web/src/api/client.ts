@@ -294,8 +294,15 @@ export const api = {
     request<Trends>('GET', '/api/v1/insights/trends', { query: { month, months: 12 }, signal }),
   budgets: (month: string, signal?: AbortSignal) =>
     request<Budgets>('GET', '/api/v1/budgets', { query: { month }, signal }),
-  setBudget: (categoryId: string, amount: string) =>
-    request<Budget>('PUT', `/api/v1/budgets/${encodeURIComponent(categoryId)}`, { json: { amount } }),
+  /** `mode` solo viaja si es un sobre: un límite es lo de siempre (OF-1203). */
+  setBudget: (categoryId: string, amount: string, mode: 'limit' | 'envelope' = 'limit') =>
+    request<Budget>('PUT', `/api/v1/budgets/${encodeURIComponent(categoryId)}`, {
+      json: mode === 'envelope' ? { amount, mode } : { amount },
+    }),
+  setBudgetMonth: (categoryId: string, month: string, amount: string) =>
+    request<Budget>('PUT', `/api/v1/budgets/${encodeURIComponent(categoryId)}/months/${encodeURIComponent(month)}`, { json: { amount } }),
+  clearBudgetMonth: (categoryId: string, month: string) =>
+    request<void>('DELETE', `/api/v1/budgets/${encodeURIComponent(categoryId)}/months/${encodeURIComponent(month)}`),
   deleteBudget: (categoryId: string) => request<void>('DELETE', `/api/v1/budgets/${encodeURIComponent(categoryId)}`),
   createGoal: (input: GoalInput) => request<Goal>('POST', '/api/v1/goals', { json: input }),
   updateGoal: (id: string, patch: Partial<GoalPatch>) =>

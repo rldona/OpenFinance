@@ -25,6 +25,7 @@ from openfinance.domain.ledger import (
     TransactionKind,
 )
 from openfinance.domain.reconciliation import Reconciliation
+from openfinance.domain.savings import BudgetMode
 from openfinance.domain.schedule import Frequency, OccurrenceStatus, ScheduledPayment
 from openfinance.domain.shared import Money
 from openfinance.domain.workspaces import Household
@@ -550,6 +551,19 @@ class TrendsOut(BaseModel):
 
 class BudgetIn(BaseModel):
     amount: str = Field(pattern=AMOUNT_PATTERN, examples=["550", "550.00"])
+    mode: BudgetMode = Field(
+        default=BudgetMode.LIMIT,
+        description="limit: un tope por mes. envelope: lo que sobra o falta pasa al mes siguiente",
+    )
+    started: str | None = Field(
+        default=None,
+        pattern=r"^(19|2\d)\d{2}-(0[1-9]|1[0-2])$",
+        description="En un sobre, desde qué mes se arrastra (por defecto, el actual)",
+    )
+
+
+class BudgetMonthIn(BaseModel):
+    amount: str = Field(pattern=AMOUNT_PATTERN, examples=["900"])
 
 
 class BudgetOut(BaseModel):
@@ -563,13 +577,25 @@ class BudgetOut(BaseModel):
     fixed: MoneyOut = Field(
         description="Cuotas fijas de la categoría este mes, cobradas y por cobrar (OF-802)"
     )
+    mode: BudgetMode
+    base_amount: MoneyOut = Field(description="El importe de cualquier mes sin importe propio")
+    has_override: bool = Field(description="Ese mes tiene un importe propio")
+    carried: MoneyOut = Field(description="Lo que arrastra un sobre de los meses anteriores")
+    available: MoneyOut = Field(description="Lo asignado más lo arrastrado, menos lo gastado")
+    started: str | None = Field(description="Mes desde el que un sobre arrastra (AAAA-MM)")
 
     @classmethod
     def of(cls, v: BudgetView) -> BudgetOut:
         return cls(
             fixed=MoneyOut.of(v.fixed),
             category_id=v.budget.category_id,
-            amount=MoneyOut.of(v.budget.amount),
+            amount=MoneyOut.of(v.allocated),
+            mode=v.budget.mode,
+            base_amount=MoneyOut.of(v.budget.amount),
+            has_override=v.has_override,
+            carried=MoneyOut.of(v.carried),
+            available=MoneyOut.of(v.available),
+            started=str(v.budget.started) if v.budget.started else None,
             spent=MoneyOut.of(v.spent),
             percent=v.percent,
             status=v.status.value,

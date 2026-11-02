@@ -21,13 +21,14 @@ from openfinance.domain.imports import (
     PatternDirection,
 )
 from openfinance.domain.imports.batch import ImportBatch, ImportStatus
+from openfinance.domain.insights import Month
 from openfinance.domain.ledger import Account, Institution, Transaction
 from openfinance.domain.merchants import Merchant, MerchantId
 from openfinance.domain.rates import ExchangeRate
 from openfinance.domain.reconciliation import Reconciliation
 from openfinance.domain.savings import Budget, Goal, GoalId
 from openfinance.domain.schedule import ScheduledPayment
-from openfinance.domain.shared import Currency
+from openfinance.domain.shared import Currency, Money
 from openfinance.domain.shared.ids import AccountId, TransactionId, UserId, WorkspaceId
 from openfinance.domain.splits import SplitPart
 from openfinance.domain.workspaces import Household
@@ -359,7 +360,20 @@ class MerchantRepository(Protocol):
 class BudgetRepository(Protocol):
     def for_household(self, household_id: WorkspaceId) -> list[Budget]: ...
     def upsert(self, budget: Budget) -> None: ...
-    def delete(self, household_id: WorkspaceId, category_id: CategoryId) -> None: ...
+    def delete(self, household_id: WorkspaceId, category_id: CategoryId) -> None:
+        """Borra el presupuesto y sus importes por mes."""
+        ...
+
+    def overrides(self, household_id: WorkspaceId) -> dict[tuple[CategoryId, Month], Money]:
+        """Importes propios de un mes (OF-1203), por categoría y mes."""
+        ...
+
+    def set_override(
+        self, household_id: WorkspaceId, category_id: CategoryId, month: Month, amount: Money
+    ) -> None: ...
+    def delete_override(
+        self, household_id: WorkspaceId, category_id: CategoryId, month: Month
+    ) -> None: ...
 
 
 class IdeaDismissalRepository(Protocol):

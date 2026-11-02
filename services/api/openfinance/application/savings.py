@@ -19,7 +19,9 @@ from openfinance.domain.categories import Category, CategoryId
 from openfinance.domain.insights import Month, average, by_month, spending_by_category
 from openfinance.domain.ledger import Account, AccountKind, summarize
 from openfinance.domain.savings import (
+    MAX_ENVELOPE_MONTHS,
     Budget,
+    BudgetMode,
     BudgetStatus,
     CategoryStats,
     Goal,
@@ -28,9 +30,12 @@ from openfinance.domain.savings import (
     Idea,
     RecurringCharge,
     SavingsError,
+    allocation,
     budget_status,
     build_ideas,
+    carried_into,
     detect_recurring,
+    envelope_status,
     is_fixed,
     pending_charges,
     project_goal,
@@ -74,19 +79,49 @@ class BudgetView:
     status: BudgetStatus
     fixed: Money
     """Cuotas fijas de la categoría este mes (cobradas y por cobrar): no avisan de «cerca»."""
+    allocated: Money
+    """Lo asignado ese mes: el importe propio del mes o el base."""
+    carried: Money
+    """Lo que llega de meses anteriores en un sobre (negativo si se gastó de más)."""
+    has_override: bool
+
+    @property
+    def limit(self) -> Money:
+        """Lo que se puede gastar ese mes: lo asignado más lo arrastrado."""
+        return self.allocated + self.carried
+
+    @property
+    def available(self) -> Money:
+        return self.limit - self.spent
 
 
 def list_budgets(uow: UnitOfWork, actor: Actor, month: Month, today: date) -> list[BudgetView]:
-    """Presupuestos con lo gastado en el mes (solo gastos de esa categoría y ese mes)."""
+    """Presupuestos con lo gastado en el mes (solo gastos de esa categoría y ese mes).
+
+    Un sobre mira hacia atrás hasta su mes de inicio (con el límite de ``MAX_ENVELOPE_MONTHS``)
+    para saber qué arrastra.
+    """
     scope = shared_scope(uow, actor)
     cur = scope.currency
+    budgets = uow.budgets.for_household(actor.household_id)
+    recent_from = month.shift(-HISTORY_MONTHS)
+    from_month = recent_from
+    for b in budgets:
+        if b.mode is BudgetMode.ENVELOPE and b.started is not None:
+            from_month = min(from_month, max(b.started, month.shift(-MAX_ENVELOPE_MONTHS)))
     history = report_transactions(
-        uow, actor.household_id, scope.accounts, month.shift(-HISTORY_MONTHS).start, month.end
+        uow, actor.household_id, scope.accounts, from_month.start, month.end
     )
     txns = [t for t in history if Month.of(t.booked_at) == month]
     spent = spending_by_category(txns, cur)
+    per_month: dict[CategoryId | None, dict[Month, Money]] = {}
+    for m, group in by_month(history).items():
+        for category_id, money in spending_by_category(group, cur).items():
+            per_month.setdefault(category_id, {})[m] = money
     # Las cuotas fijas ya están comprometidas: solo cuentan para el aviso de «cerca».
-    recurring = detect_recurring(history, cur, today)
+    recurring = detect_recurring(
+        [t for t in history if t.booked_at >= recent_from.start], cur, today
+    )
     merchants = {r.merchant for r in recurring}
     fixed: dict[CategoryId | None, Money] = {}
     for t in txns:
@@ -97,21 +132,55 @@ def list_budgets(uow: UnitOfWork, actor: Actor, month: Month, today: date) -> li
             if not p.late:
                 fixed[p.category_id] = fixed.get(p.category_id, Money.zero(cur)) + p.amount
     order = {c.id: c.position for c in uow.categories.for_household(actor.household_id)}
+    all_overrides = uow.budgets.overrides(actor.household_id)
     views = []
-    for b in uow.budgets.for_household(actor.household_id):
+    for b in budgets:
         s = spent.get(b.category_id, Money.zero(cur))
         f = fixed.get(b.category_id, Money.zero(cur))
-        percent, status = budget_status(s, b.amount, f)
-        views.append(BudgetView(b, s, percent, status, f))
+        own = {m: amount for (c, m), amount in all_overrides.items() if c == b.category_id}
+        allocated = allocation(b, own, month)
+        carried = carried_into(b, own, per_month.get(b.category_id, {}), month)
+        if b.mode is BudgetMode.ENVELOPE:
+            percent, status = envelope_status(s, allocated + carried, f)
+        else:
+            percent, status = budget_status(s, allocated, f)
+        views.append(BudgetView(b, s, percent, status, f, allocated, carried, month in own))
     views.sort(key=lambda v: order.get(v.budget.category_id, 1_000))
     return views
 
 
-def set_budget(uow: UnitOfWork, actor: Actor, category_id: CategoryId, amount: str) -> Budget:
+def set_budget(
+    uow: UnitOfWork,
+    actor: Actor,
+    category_id: CategoryId,
+    amount: str,
+    mode: BudgetMode = BudgetMode.LIMIT,
+    today: date | None = None,
+    started: Month | None = None,
+) -> Budget:
     _category(uow, actor, category_id)
     currency = _currency(uow, actor)
+    existing = next(
+        (b for b in uow.budgets.for_household(actor.household_id) if b.category_id == category_id),
+        None,
+    )
+    current = Month.of(today or date.today())  # noqa: DTZ011
+    if mode is BudgetMode.ENVELOPE:
+        if started is not None and started > current:
+            raise InvalidRequestError("Un sobre no puede empezar en un mes futuro")
+        # Sin inicio explícito, un sobre que ya existía conserva el suyo y uno nuevo empieza ahora.
+        kept = existing.started if existing is not None else None
+        started = started or kept or current
+    else:
+        started = None
     try:
-        budget = Budget(actor.household_id, category_id, _money(amount, currency, "Presupuesto"))
+        budget = Budget(
+            actor.household_id,
+            category_id,
+            _money(amount, currency, "Presupuesto"),
+            mode,
+            started,
+        )
     except SavingsError as exc:
         raise InvalidRequestError(str(exc)) from exc
     uow.budgets.upsert(budget)
@@ -122,6 +191,38 @@ def set_budget(uow: UnitOfWork, actor: Actor, category_id: CategoryId, amount: s
 def delete_budget(uow: UnitOfWork, actor: Actor, category_id: CategoryId) -> None:
     _category(uow, actor, category_id)
     uow.budgets.delete(actor.household_id, category_id)
+    uow.commit()
+
+
+def _budget(uow: UnitOfWork, actor: Actor, category_id: CategoryId) -> Budget:
+    _category(uow, actor, category_id)
+    budget = next(
+        (b for b in uow.budgets.for_household(actor.household_id) if b.category_id == category_id),
+        None,
+    )
+    if budget is None:
+        raise NotFoundError("Esa categoría no tiene presupuesto")
+    return budget
+
+
+def set_month_amount(
+    uow: UnitOfWork, actor: Actor, category_id: CategoryId, month: Month, amount: str
+) -> Budget:
+    """Un importe distinto para un mes concreto (vacaciones, un gasto grande…)."""
+    budget = _budget(uow, actor, category_id)
+    money = _money(amount, budget.amount.currency, "Importe del mes")
+    if money.amount <= 0:
+        raise InvalidRequestError("El importe del mes debe ser mayor que cero")
+    uow.budgets.set_override(actor.household_id, category_id, month, money)
+    uow.commit()
+    return budget
+
+
+def clear_month_amount(
+    uow: UnitOfWork, actor: Actor, category_id: CategoryId, month: Month
+) -> None:
+    _budget(uow, actor, category_id)
+    uow.budgets.delete_override(actor.household_id, category_id, month)
     uow.commit()
 
 

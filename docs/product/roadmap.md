@@ -483,7 +483,7 @@ Alcance en [ADR-0021](../adr/0021-pagos-programados-y-prevision.md) y [ADR-0022]
 | --- | --- | --- |
 | OF-1201 ✅ | Pagos programados: calendario, emparejado con lo cobrado y atrasos | Las ocurrencias son una función pura del calendario (meses cortos, fin, rango); emparejar no escribe movimientos (se calcula, ver ADR-0021); crear, cambiar y borrar se deshace; un cargo detectado se convierte en pago programado desde «Ahorrar» |
 | OF-1202 ✅ | Previsión de saldo por cuenta y del hogar | Saldo día a día; primer día en negativo y mínimo; una cuenta personal ajena no entra; `card` y `loan` fuera; cada moneda se suma aparte, sin mezclar |
-| OF-1203 | Presupuestos con límites o sobres, arrastre e importes por mes (ADR-0022) | Los presupuestos existentes siguen siendo límites; el arrastre se recalcula (test de propiedades); un sobre en negativo arrastra el déficit |
+| OF-1203 ✅ | Presupuestos con límites o sobres, arrastre e importes por mes (ADR-0022) | Los presupuestos existentes siguen siendo límites; el arrastre se recalcula desde el gasto (hasta 36 meses atrás); un sobre en negativo arrastra el déficit; las cuentas personales nunca cuentan. La exportación v1 solo lleva el importe base (la v2 es de la fase 15) |
 | OF-1204 | Plantillas de movimientos | Crear desde plantilla usa el flujo normal, con registro de cambios y deshacer; privacidad del ámbito |
 | OF-1205 | «Hoy podéis gastar» | Cifra con su desglose; sin datos suficientes lo dice en vez de inventar; respeta privacidad y sobres |
 | OF-1206 | Objetivos v2: aportaciones, prioridad y recordatorio | Las aportaciones alimentan lo ahorrado si no hay hucha; reparto por prioridad; se deshace |

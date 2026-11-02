@@ -1,12 +1,13 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Path, Query, status
 
 from openfinance.api.deps import ActorDep, UowDep
 from openfinance.api.v1.schemas import (
     MONTH_PATTERN,
     BudgetIn,
+    BudgetMonthIn,
     BudgetOut,
     BudgetsOut,
     CategoryAverageOut,
@@ -43,7 +44,7 @@ def list_budgets(
     total_amount: Money | None = None
     total_spent: Money | None = None
     for v in views:
-        total_amount = v.budget.amount if total_amount is None else total_amount + v.budget.amount
+        total_amount = v.limit if total_amount is None else total_amount + v.limit
         total_spent = v.spent if total_spent is None else total_spent + v.spent
     return BudgetsOut(
         month=str(m),
@@ -55,9 +56,37 @@ def list_budgets(
 
 @router.put("/budgets/{category_id}", response_model=BudgetOut)
 def set_budget(category_id: UUID, body: BudgetIn, actor: ActorDep, uow: UowDep) -> BudgetOut:
-    savings.set_budget(uow, actor, CategoryId(category_id), body.amount)
+    started = Month.parse(body.started) if body.started else None
+    savings.set_budget(
+        uow, actor, CategoryId(category_id), body.amount, body.mode, local_today(), started
+    )
     views = savings.list_budgets(uow, actor, Month.of(local_today()), local_today())
     return BudgetOut.of(next(v for v in views if v.budget.category_id == category_id))
+
+
+@router.put("/budgets/{category_id}/months/{month}", response_model=BudgetOut)
+def set_month_amount(
+    category_id: UUID,
+    body: BudgetMonthIn,
+    actor: ActorDep,
+    uow: UowDep,
+    month: Annotated[str, Path(pattern=MONTH_PATTERN)],
+) -> BudgetOut:
+    """Un importe propio para un mes (OF-1203). Devuelve el presupuesto de ese mes."""
+    m = Month.parse(month)
+    savings.set_month_amount(uow, actor, CategoryId(category_id), m, body.amount)
+    views = savings.list_budgets(uow, actor, m, local_today())
+    return BudgetOut.of(next(v for v in views if v.budget.category_id == category_id))
+
+
+@router.delete("/budgets/{category_id}/months/{month}", status_code=status.HTTP_204_NO_CONTENT)
+def clear_month_amount(
+    category_id: UUID,
+    actor: ActorDep,
+    uow: UowDep,
+    month: Annotated[str, Path(pattern=MONTH_PATTERN)],
+) -> None:
+    savings.clear_month_amount(uow, actor, CategoryId(category_id), Month.parse(month))
 
 
 @router.delete("/budgets/{category_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -486,6 +486,24 @@
             "pattern": "^\\d{1,9}([.,]\\d{1,2})?$",
             "title": "Amount",
             "type": "string"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/BudgetMode",
+            "default": "limit",
+            "description": "limit: un tope por mes. envelope: lo que sobra o falta pasa al mes siguiente"
+          },
+          "started": {
+            "anyOf": [
+              {
+                "pattern": "^(19|2\\d)\\d{2}-(0[1-9]|1[0-2])$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "En un sobre, desde qué mes se arrastra (por defecto, el actual)",
+            "title": "Started"
           }
         },
         "required": [
@@ -494,10 +512,47 @@
         "title": "BudgetIn",
         "type": "object"
       },
+      "BudgetMode": {
+        "enum": [
+          "limit",
+          "envelope"
+        ],
+        "title": "BudgetMode",
+        "type": "string"
+      },
+      "BudgetMonthIn": {
+        "properties": {
+          "amount": {
+            "examples": [
+              "900"
+            ],
+            "pattern": "^\\d{1,9}([.,]\\d{1,2})?$",
+            "title": "Amount",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount"
+        ],
+        "title": "BudgetMonthIn",
+        "type": "object"
+      },
       "BudgetOut": {
         "properties": {
           "amount": {
             "$ref": "#/components/schemas/MoneyOut"
+          },
+          "available": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Lo asignado más lo arrastrado, menos lo gastado"
+          },
+          "base_amount": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "El importe de cualquier mes sin importe propio"
+          },
+          "carried": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Lo que arrastra un sobre de los meses anteriores"
           },
           "category_id": {
             "format": "uuid",
@@ -508,12 +563,32 @@
             "$ref": "#/components/schemas/MoneyOut",
             "description": "Cuotas fijas de la categoría este mes, cobradas y por cobrar (OF-802)"
           },
+          "has_override": {
+            "description": "Ese mes tiene un importe propio",
+            "title": "Has Override",
+            "type": "boolean"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/BudgetMode"
+          },
           "percent": {
             "title": "Percent",
             "type": "integer"
           },
           "spent": {
             "$ref": "#/components/schemas/MoneyOut"
+          },
+          "started": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mes desde el que un sobre arrastra (AAAA-MM)",
+            "title": "Started"
           },
           "status": {
             "description": "ok, warning (≥ 85 % del margen que dejan las cuotas fijas) u over (> 100 %)",
@@ -527,7 +602,13 @@
           "spent",
           "percent",
           "status",
-          "fixed"
+          "fixed",
+          "mode",
+          "base_amount",
+          "has_override",
+          "carried",
+          "available",
+          "started"
         ],
         "title": "BudgetOut",
         "type": "object"
@@ -5394,6 +5475,114 @@
           }
         },
         "summary": "Set Budget",
+        "tags": [
+          "savings"
+        ]
+      }
+    },
+    "/api/v1/budgets/{category_id}/months/{month}": {
+      "delete": {
+        "operationId": "clear_month_amount_api_v1_budgets__category_id__months__month__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "category_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Category Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "month",
+            "required": true,
+            "schema": {
+              "pattern": "^(19|2\\d)\\d{2}-(0[1-9]|1[0-2])$",
+              "title": "Month",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Clear Month Amount",
+        "tags": [
+          "savings"
+        ]
+      },
+      "put": {
+        "description": "Un importe propio para un mes (OF-1203). Devuelve el presupuesto de ese mes.",
+        "operationId": "set_month_amount_api_v1_budgets__category_id__months__month__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "category_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Category Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "month",
+            "required": true,
+            "schema": {
+              "pattern": "^(19|2\\d)\\d{2}-(0[1-9]|1[0-2])$",
+              "title": "Month",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BudgetMonthIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Month Amount",
         "tags": [
           "savings"
         ]

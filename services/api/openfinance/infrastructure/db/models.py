@@ -413,10 +413,35 @@ class BudgetRow(Base):
             name="fk_budgets_category_household",
         ),
         CheckConstraint("amount > 0", name="amount_positive"),
+        CheckConstraint("mode IN ('limit', 'envelope')", name="mode_valid"),
     )
 
     household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"), primary_key=True)
     category_id: Mapped[UUID] = mapped_column(primary_key=True)
+    amount: Mapped[Decimal] = mapped_column(AMOUNT)
+    currency: Mapped[str] = mapped_column(String(3))
+    mode: Mapped[str] = mapped_column(String(10), server_default="limit")
+    started: Mapped[str | None] = mapped_column(String(7))
+    """Mes (AAAA-MM) desde el que un sobre arrastra."""
+
+
+class BudgetOverrideRow(Base):
+    """Importe de un presupuesto para un mes concreto (OF-1203)."""
+
+    __tablename__ = "budget_overrides"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["household_id", "category_id"],
+            ["budgets.household_id", "budgets.category_id"],
+            name="fk_budget_overrides_budget",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint("amount > 0", name="amount_positive"),
+    )
+
+    household_id: Mapped[UUID] = mapped_column(primary_key=True)
+    category_id: Mapped[UUID] = mapped_column(primary_key=True)
+    month: Mapped[str] = mapped_column(String(7), primary_key=True)
     amount: Mapped[Decimal] = mapped_column(AMOUNT)
     currency: Mapped[str] = mapped_column(String(3))
 

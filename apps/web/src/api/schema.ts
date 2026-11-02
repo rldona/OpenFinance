@@ -246,6 +246,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/budgets/{category_id}/months/{month}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Month Amount
+         * @description Un importe propio para un mes (OF-1203). Devuelve el presupuesto de ese mes.
+         */
+        put: operations["set_month_amount_api_v1_budgets__category_id__months__month__put"];
+        post?: never;
+        /** Clear Month Amount */
+        delete: operations["clear_month_amount_api_v1_budgets__category_id__months__month__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/categories": {
         parameters: {
             query?: never;
@@ -1515,10 +1536,39 @@ export interface components {
              * @example 550.00
              */
             amount: string;
+            /**
+             * @description limit: un tope por mes. envelope: lo que sobra o falta pasa al mes siguiente
+             * @default limit
+             */
+            mode: components["schemas"]["BudgetMode"];
+            /**
+             * Started
+             * @description En un sobre, desde qué mes se arrastra (por defecto, el actual)
+             */
+            started?: string | null;
+        };
+        /**
+         * BudgetMode
+         * @enum {string}
+         */
+        BudgetMode: "limit" | "envelope";
+        /** BudgetMonthIn */
+        BudgetMonthIn: {
+            /**
+             * Amount
+             * @example 900
+             */
+            amount: string;
         };
         /** BudgetOut */
         BudgetOut: {
             amount: components["schemas"]["MoneyOut"];
+            /** @description Lo asignado más lo arrastrado, menos lo gastado */
+            available: components["schemas"]["MoneyOut"];
+            /** @description El importe de cualquier mes sin importe propio */
+            base_amount: components["schemas"]["MoneyOut"];
+            /** @description Lo que arrastra un sobre de los meses anteriores */
+            carried: components["schemas"]["MoneyOut"];
             /**
              * Category Id
              * Format: uuid
@@ -1526,9 +1576,20 @@ export interface components {
             category_id: string;
             /** @description Cuotas fijas de la categoría este mes, cobradas y por cobrar (OF-802) */
             fixed: components["schemas"]["MoneyOut"];
+            /**
+             * Has Override
+             * @description Ese mes tiene un importe propio
+             */
+            has_override: boolean;
+            mode: components["schemas"]["BudgetMode"];
             /** Percent */
             percent: number;
             spent: components["schemas"]["MoneyOut"];
+            /**
+             * Started
+             * @description Mes desde el que un sobre arrastra (AAAA-MM)
+             */
+            started: string | null;
             /**
              * Status
              * @description ok, warning (≥ 85 % del margen que dejan las cuotas fijas) u over (> 100 %)
@@ -3673,6 +3734,72 @@ export interface operations {
             header?: never;
             path: {
                 category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_month_amount_api_v1_budgets__category_id__months__month__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: string;
+                month: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BudgetMonthIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clear_month_amount_api_v1_budgets__category_id__months__month__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: string;
+                month: string;
             };
             cookie?: never;
         };

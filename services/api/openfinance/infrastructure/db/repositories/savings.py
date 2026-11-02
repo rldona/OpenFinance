@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from openfinance.domain.categories import CategoryId
 from openfinance.domain.insights import Month
-from openfinance.domain.savings import Budget, Goal, GoalId
+from openfinance.domain.savings import Budget, BudgetMode, Goal, GoalId
 from openfinance.domain.shared import Money
 from openfinance.domain.shared.ids import (
     AccountId,
@@ -15,6 +15,7 @@ from openfinance.domain.shared.ids import (
     WorkspaceId,
 )
 from openfinance.infrastructure.db.models import (
+    BudgetOverrideRow,
     BudgetRow,
     DismissedIdeaRow,
     GoalRow,
@@ -64,9 +65,45 @@ class SqlBudgetRepository:
                 WorkspaceId(r.household_id),
                 CategoryId(r.category_id),
                 Money.of(r.amount, r.currency),
+                BudgetMode(r.mode),
+                Month.parse(r.started) if r.started else None,
             )
             for r in rows
         ]
+
+    def overrides(self, household_id: WorkspaceId) -> dict[tuple[CategoryId, Month], Money]:
+        rows = self._s.scalars(
+            select(BudgetOverrideRow).where(BudgetOverrideRow.household_id == household_id)
+        )
+        return {
+            (CategoryId(r.category_id), Month.parse(r.month)): Money.of(r.amount, r.currency)
+            for r in rows
+        }
+
+    def set_override(
+        self, household_id: WorkspaceId, category_id: CategoryId, month: Month, amount: Money
+    ) -> None:
+        row = self._s.get(BudgetOverrideRow, (household_id, category_id, str(month)))
+        if row is None:
+            row = BudgetOverrideRow(
+                household_id=household_id, category_id=category_id, month=str(month)
+            )
+            self._s.add(row)
+        row.amount = amount.amount
+        row.currency = amount.currency.code
+        _flush(self._s)
+
+    def delete_override(
+        self, household_id: WorkspaceId, category_id: CategoryId, month: Month
+    ) -> None:
+        self._s.execute(
+            delete(BudgetOverrideRow).where(
+                BudgetOverrideRow.household_id == household_id,
+                BudgetOverrideRow.category_id == category_id,
+                BudgetOverrideRow.month == str(month),
+            )
+        )
+        _flush(self._s)
 
     def upsert(self, budget: Budget) -> None:
         row = self._s.get(BudgetRow, (budget.household_id, budget.category_id))
@@ -77,14 +114,24 @@ class SqlBudgetRepository:
                     category_id=budget.category_id,
                     amount=budget.amount.amount,
                     currency=budget.amount.currency.code,
+                    mode=budget.mode.value,
+                    started=str(budget.started) if budget.started else None,
                 )
             )
         else:
             row.amount = budget.amount.amount
             row.currency = budget.amount.currency.code
+            row.mode = budget.mode.value
+            row.started = str(budget.started) if budget.started else None
         _flush(self._s)
 
     def delete(self, household_id: WorkspaceId, category_id: CategoryId) -> None:
+        self._s.execute(
+            delete(BudgetOverrideRow).where(
+                BudgetOverrideRow.household_id == household_id,
+                BudgetOverrideRow.category_id == category_id,
+            )
+        )
         self._s.execute(
             delete(BudgetRow).where(
                 BudgetRow.household_id == household_id, BudgetRow.category_id == category_id

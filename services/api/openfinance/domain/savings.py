@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from collections import defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import date
 from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
@@ -39,16 +39,75 @@ class BudgetStatus(StrEnum):
     """Se ha superado el límite."""
 
 
+class BudgetMode(StrEnum):
+    LIMIT = "limit"
+    """Un tope por mes: lo que no se gasta se pierde."""
+    ENVELOPE = "envelope"
+    """Un sobre: lo que sobra (o falta) pasa al mes siguiente (ADR-0022)."""
+
+
+MAX_ENVELOPE_MONTHS = 36
+"""Un sobre arrastra como mucho tres años hacia atrás: más allá el cálculo no cambia lo que se
+ve y el coste no merece la pena."""
+
+
 @dataclass(frozen=True, slots=True)
 class Budget:
     household_id: WorkspaceId
     category_id: CategoryId
     amount: Money
-    """Límite mensual."""
+    """El importe base de cada mes (un mes concreto puede tener otro, ver ``allocation``)."""
+    mode: BudgetMode = BudgetMode.LIMIT
+    started: Month | None = None
+    """Desde qué mes se arrastra, en un sobre."""
 
     def __post_init__(self) -> None:
         if self.amount.amount <= 0:
             raise SavingsError("El presupuesto debe ser mayor que cero")
+        if (self.mode is BudgetMode.ENVELOPE) != (self.started is not None):
+            raise SavingsError("Un sobre necesita su mes de inicio, y un límite no")
+
+
+def allocation(budget: Budget, overrides: Mapping[Month, Money], month: Month) -> Money:
+    """Lo asignado ese mes: el importe de ese mes si tiene uno propio, o el base."""
+    return overrides.get(month, budget.amount)
+
+
+def carried_into(
+    budget: Budget,
+    overrides: Mapping[Month, Money],
+    spent: Mapping[Month, Money],
+    month: Month,
+) -> Money:
+    """Lo que llega de los meses anteriores a un sobre (negativo si se gastó de más).
+
+    Se recalcula siempre desde el gasto, no se guarda: corregir un movimiento antiguo corrige
+    todos los meses siguientes. Un límite no arrastra nada.
+    """
+    zero = Money.zero(budget.amount.currency)
+    if budget.mode is not BudgetMode.ENVELOPE or budget.started is None or month <= budget.started:
+        return zero
+    first = max(budget.started, month.shift(-MAX_ENVELOPE_MONTHS))
+    balance = zero
+    current = first
+    while current < month:
+        balance = balance + allocation(budget, overrides, current) - spent.get(current, zero)
+        current = current.shift(1)
+    return balance
+
+
+def envelope_status(
+    spent: Money, limit: Money, fixed: Money | None = None
+) -> tuple[int, BudgetStatus]:
+    """Estado de un sobre. ``limit`` es lo asignado más lo arrastrado (puede no ser positivo).
+
+    «Pasado» es que el disponible sea negativo; mientras no lo sea, se avisa como en un límite.
+    """
+    if spent.amount > limit.amount:
+        return percent_of(spent, limit), BudgetStatus.OVER
+    if limit.amount <= 0:
+        return 0, BudgetStatus.OK
+    return budget_status(spent, limit, fixed)
 
 
 def percent_of(part: Money, whole: Money) -> int:

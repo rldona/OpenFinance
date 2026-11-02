@@ -1526,11 +1526,13 @@ describe('Gráficos (fase 3)', () => {
   })
 })
 
+const BUDGET_DEFAULTS = { mode: 'limit', has_override: false, carried: eur('0.00'), started: null }
+
 const BUDGETS = {
   month: '2026-10',
   items: [
-    { category_id: 'c-super', amount: eur('550.00'), spent: eur('600.00'), percent: 109, status: 'over', fixed: eur('0.00') },
-    { category_id: 'c-rest', amount: eur('350.00'), spent: eur('300.00'), percent: 86, status: 'warning', fixed: eur('0.00') },
+    { ...BUDGET_DEFAULTS, category_id: 'c-super', amount: eur('550.00'), base_amount: eur('550.00'), available: eur('-50.00'), spent: eur('600.00'), percent: 109, status: 'over', fixed: eur('0.00') },
+    { ...BUDGET_DEFAULTS, category_id: 'c-rest', amount: eur('350.00'), base_amount: eur('350.00'), available: eur('50.00'), spent: eur('300.00'), percent: 86, status: 'warning', fixed: eur('0.00') },
   ],
   total_amount: eur('900.00'),
   total_spent: eur('900.00'),
@@ -1664,6 +1666,63 @@ describe('Ahorro (fase 4)', () => {
       ['/api/v1/budgets/c-rest', { amount: '220.00' }],
       ['/api/v1/budgets/c-ocio', { amount: '75.5' }],
     ])
+  })
+
+  it('Este mes cuenta el arrastre de un sobre dentro de lo que se puede gastar', async () => {
+    window.location.hash = '#mes'
+    const envelope = { ...BUDGETS.items[1], mode: 'envelope', started: '2026-08', carried: eur('-40.00'), available: eur('90.00'), status: 'ok', percent: 80 }
+    loggedIn({
+      'GET /api/v1/categories': { body: CATS_WITH_SLUGS },
+      'GET /api/v1/budgets': { body: { ...BUDGETS, items: [envelope] } },
+      'GET /api/v1/insights/month': { body: OVERVIEW },
+    })
+    render(<App />)
+    expect(await screen.findByText('300 € de 310 €')).toBeInTheDocument()
+    expect(screen.getByText(/Sobre: arrastra un exceso de 40 € del mes anterior/)).toBeInTheDocument()
+  })
+
+  it('Presupuestos muestra el arrastre de un sobre y cambia de tipo', async () => {
+    window.location.hash = '#presupuestos'
+    const envelope = { ...BUDGETS.items[0], mode: 'envelope', started: '2026-08', carried: eur('120.00'), available: eur('70.00') }
+    const calls = loggedIn({
+      'GET /api/v1/categories': { body: CATS_WITH_SLUGS },
+      'GET /api/v1/budgets': { body: { ...BUDGETS, items: [envelope, BUDGETS.items[1]] } },
+      'GET /api/v1/savings/overview': { body: SAVINGS },
+      'PUT /api/v1/budgets/c-rest': { body: BUDGETS.items[1] },
+    })
+    render(<App />)
+    expect(await screen.findByText(/Sobre desde agosto de 2026 · arrastra 120,00 € · disponible 70,00 €/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Tipo de presupuesto de Supermercado')).toHaveValue('envelope')
+    expect(screen.getByLabelText('Tipo de presupuesto de Restaurantes')).toHaveValue('limit')
+    await userEvent.selectOptions(screen.getByLabelText('Tipo de presupuesto de Restaurantes'), 'envelope')
+    await waitFor(() => expect(calls.some((c) => c.method === 'PUT')).toBe(true))
+    const put = calls.find((c) => c.method === 'PUT')!
+    expect(put.url.pathname).toBe('/api/v1/budgets/c-rest')
+    expect(JSON.parse(String(put.body))).toEqual({ amount: '350.00', mode: 'envelope' })
+  })
+
+  it('Presupuestos pone y quita un importe solo para el mes elegido', async () => {
+    window.location.hash = '#presupuestos'
+    const withMonth = { ...BUDGETS.items[0], has_override: true, amount: eur('900.00') }
+    const calls = loggedIn({
+      'GET /api/v1/categories': { body: CATS_WITH_SLUGS },
+      'GET /api/v1/budgets': { body: { ...BUDGETS, items: [withMonth, BUDGETS.items[1]] } },
+      'GET /api/v1/savings/overview': { body: SAVINGS },
+      'PUT /api/v1/budgets/c-rest/months/2026-10': { body: BUDGETS.items[1] },
+      'DELETE /api/v1/budgets/c-super/months/2026-10': { status: 204 },
+    })
+    render(<App />)
+    const sup = await screen.findByLabelText('Importe de Supermercado solo en octubre de 2026')
+    expect(sup).toHaveValue('900.00')
+    // el presupuesto de siempre sigue siendo el base, no el del mes
+    expect(screen.getByLabelText('Presupuesto de Supermercado')).toHaveValue('550.00')
+    await userEvent.type(screen.getByLabelText('Importe de Restaurantes solo en octubre de 2026'), '500{Enter}')
+    await userEvent.clear(sup)
+    sup.blur()
+    await waitFor(() => expect(calls.filter((c) => c.method !== 'GET')).toHaveLength(2))
+    const writes = calls.filter((c) => c.method !== 'GET').map((c) => [c.method, c.url.pathname, c.body ? JSON.parse(String(c.body)) : null])
+    expect(writes).toContainEqual(['PUT', '/api/v1/budgets/c-rest/months/2026-10', { amount: '500' }])
+    expect(writes).toContainEqual(['DELETE', '/api/v1/budgets/c-super/months/2026-10', null])
   })
 
   it('Ahorrar enseña objetivos, ideas y cuotas fijas', async () => {
