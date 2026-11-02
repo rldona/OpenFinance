@@ -1,6 +1,39 @@
 {
   "components": {
     "schemas": {
+      "AccountIn": {
+        "properties": {
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "opening_balance": {
+            "default": "0",
+            "description": "Saldo de partida. Una deuda (tarjeta o préstamo) va en negativo",
+            "pattern": "^-?\\d{1,9}([.,]\\d{1,2})?$",
+            "title": "Opening Balance",
+            "type": "string"
+          },
+          "shared": {
+            "description": "De todo el hogar (true) o solo tuya (false)",
+            "title": "Shared",
+            "type": "boolean"
+          },
+          "type": {
+            "$ref": "#/components/schemas/AccountType",
+            "description": "Efectivo, tarjeta, préstamo o inversión; las de banco, desde el servidor"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "shared"
+        ],
+        "title": "AccountIn",
+        "type": "object"
+      },
       "AccountKind": {
         "enum": [
           "joint",
@@ -44,6 +77,9 @@
               }
             ],
             "title": "Owner Id"
+          },
+          "type": {
+            "$ref": "#/components/schemas/AccountType"
           }
         },
         "required": [
@@ -51,12 +87,25 @@
           "name",
           "institution",
           "kind",
+          "type",
           "owner_id",
           "opening_balance",
           "balance"
         ],
         "title": "AccountOut",
         "type": "object"
+      },
+      "AccountType": {
+        "description": "Para qué sirve la cuenta (OF-1005). Es independiente de quién la ve (``AccountKind``).\n\nTodas son solo de seguimiento: OpenFinance no mueve ni contrata nada.",
+        "enum": [
+          "bank",
+          "cash",
+          "card",
+          "loan",
+          "investment"
+        ],
+        "title": "AccountType",
+        "type": "string"
       },
       "BalanceMismatchOut": {
         "properties": {
@@ -3074,6 +3123,46 @@
           }
         },
         "summary": "List Accounts",
+        "tags": [
+          "ledger"
+        ]
+      },
+      "post": {
+        "description": "Añade una cuenta de efectivo, tarjeta, préstamo o inversión (solo seguimiento).",
+        "operationId": "create_account_api_v1_accounts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Account",
         "tags": [
           "ledger"
         ]

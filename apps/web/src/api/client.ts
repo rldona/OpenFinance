@@ -2,6 +2,7 @@ import type { components, operations } from './schema'
 
 type Schemas = components['schemas']
 export type Me = Schemas['MeOut']
+export type AccountType = Schemas['AccountType']
 export type LinkResult = Schemas['LinkOut']
 export type SplitResult = Schemas['SplitOut']
 export type TagCount = Schemas['TagOut']
@@ -113,6 +114,9 @@ export const api = {
   logout: () => request<void>('POST', '/api/v1/auth/logout'),
   /** Versión instalada y, si está activada la consulta, si hay una nueva (OF-907). */
   version: (signal?: AbortSignal) => request<VersionInfo>('GET', '/api/v1/version', { signal }),
+  /** Añade una cuenta de efectivo, tarjeta, préstamo o inversión (OF-1005). */
+  createAccount: (body: { name: string; type: AccountType; shared: boolean; opening_balance: string }) =>
+    request<Account>('POST', '/api/v1/accounts', { json: body }),
   accounts: (signal?: AbortSignal) => request<Account[]>('GET', '/api/v1/accounts', { signal }),
   transactions: (
     query: { month?: string; q?: string; uncategorized?: boolean; account_id?: string; category_id?: string; tag?: string; shared_only?: boolean; mine_only?: boolean },

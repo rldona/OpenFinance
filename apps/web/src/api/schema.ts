@@ -14,7 +14,11 @@ export interface paths {
         /** List Accounts */
         get: operations["list_accounts_api_v1_accounts_get"];
         put?: never;
-        post?: never;
+        /**
+         * Create Account
+         * @description Añade una cuenta de efectivo, tarjeta, préstamo o inversión (solo seguimiento).
+         */
+        post: operations["create_account_api_v1_accounts_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -919,6 +923,24 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AccountIn */
+        AccountIn: {
+            /** Name */
+            name: string;
+            /**
+             * Opening Balance
+             * @description Saldo de partida. Una deuda (tarjeta o préstamo) va en negativo
+             * @default 0
+             */
+            opening_balance: string;
+            /**
+             * Shared
+             * @description De todo el hogar (true) o solo tuya (false)
+             */
+            shared: boolean;
+            /** @description Efectivo, tarjeta, préstamo o inversión; las de banco, desde el servidor */
+            type: components["schemas"]["AccountType"];
+        };
         /**
          * AccountKind
          * @enum {string}
@@ -939,7 +961,16 @@ export interface components {
             opening_balance: components["schemas"]["MoneyOut"];
             /** Owner Id */
             owner_id: string | null;
+            type: components["schemas"]["AccountType"];
         };
+        /**
+         * AccountType
+         * @description Para qué sirve la cuenta (OF-1005). Es independiente de quién la ve (``AccountKind``).
+         *
+         *     Todas son solo de seguimiento: OpenFinance no mueve ni contrata nada.
+         * @enum {string}
+         */
+        AccountType: "bank" | "cash" | "card" | "loan" | "investment";
         /** BalanceMismatchOut */
         BalanceMismatchOut: {
             expected: components["schemas"]["MoneyOut"];
@@ -2091,6 +2122,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AccountOut"][];
+                };
+            };
+        };
+    };
+    create_account_api_v1_accounts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

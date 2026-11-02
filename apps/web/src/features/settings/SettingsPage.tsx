@@ -1,9 +1,10 @@
 import { type FormEvent, useRef, useState } from 'react'
-import { ApiError, api, type MemberPattern, type VersionInfo } from '../../api/client'
+import { ApiError, api, type Account, type AccountType, type MemberPattern, type VersionInfo } from '../../api/client'
 import { useHousehold } from '../../app/household-context'
 import { FieldError } from '../../components/FieldError'
 import { invalid } from '../../lib/invalid'
 import { ErrorState, Loading } from '../../components/LoadState'
+import { formatMoney } from '../../lib/format'
 import { type Theme, getTheme, setTheme } from '../../lib/theme'
 import { useLoad } from '../../lib/useLoad'
 
@@ -126,6 +127,106 @@ function Appearance() {
         ))}
       </div>
     </fieldset>
+  )
+}
+
+const TYPE_LABELS: Record<AccountType, string> = {
+  bank: 'Banco',
+  cash: 'Efectivo',
+  card: 'Tarjeta de crédito',
+  loan: 'Préstamo',
+  investment: 'Inversión',
+}
+const NEW_TYPES: AccountType[] = ['cash', 'card', 'loan', 'investment']
+
+/** Cuentas de seguimiento: efectivo, tarjeta, préstamo e inversión (OF-1005). */
+function Accounts() {
+  const { notify } = useHousehold()
+  const accounts = useLoad<Account[]>('accounts', (s) => api.accounts(s))
+  const [name, setName] = useState('')
+  const [type, setType] = useState<AccountType>('cash')
+  const [shared, setShared] = useState(true)
+  const [opening, setOpening] = useState('0')
+  const [error, setError] = useState<string | null>(null)
+
+  async function add(e: FormEvent) {
+    e.preventDefault()
+    const text = opening.trim().replace(',', '.') || '0'
+    if (!/^-?\d{1,9}(\.\d{1,2})?$/.test(text)) {
+      setError('Escribe un saldo como 1500 o -150000,50')
+      return
+    }
+    try {
+      await api.createAccount({ name, type, shared, opening_balance: text })
+      setName('')
+      setOpening('0')
+      setError(null)
+      accounts.reload()
+      notify(`Cuenta «${name.trim()}» añadida`)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'No se ha podido añadir la cuenta')
+    }
+  }
+
+  return (
+    <div className="card stack">
+      <h2>Cuentas</h2>
+      <p className="small muted">
+        Solo de seguimiento: OpenFinance no mueve ni contrata nada. Las tarjetas y los préstamos van con saldo negativo (lo que se debe);
+        los préstamos y las inversiones no cuentan como gasto.
+      </p>
+      {accounts.error && <ErrorState message={accounts.error} onRetry={accounts.reload} />}
+      {!accounts.data && !accounts.error && <Loading />}
+      {accounts.data && (
+        <ul className="plain" aria-label="Tus cuentas">
+          {accounts.data.map((a) => (
+            <li key={a.id}>
+              {a.name} · <span className="small muted">{TYPE_LABELS[a.type]}{a.kind === 'personal' ? ' · solo tuya' : ''}</span> ·{' '}
+              {a.type === 'card' || a.type === 'loan'
+                ? Number(a.balance.amount) < 0
+                  ? `Debes ${formatMoney({ ...a.balance, amount: a.balance.amount.replace('-', '') })}`
+                  : formatMoney(a.balance)
+                : formatMoney(a.balance)}
+            </li>
+          ))}
+        </ul>
+      )}
+      <form className="stack" aria-label="Añadir una cuenta" onSubmit={(e) => void add(e)}>
+        <label>
+          Nombre
+          <input className="field" required maxLength={100} value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <label>
+          Tipo
+          <select className="field" value={type} onChange={(e) => setType(e.target.value as AccountType)}>
+            {NEW_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {TYPE_LABELS[t]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Saldo de partida
+          <input
+            className="field amount"
+            inputMode="decimal"
+            value={opening}
+            onChange={(e) => setOpening(e.target.value)}
+            {...invalid('account-opening-error', error)}
+          />
+        </label>
+        <FieldError id="account-opening-error" message={error} />
+        <label className="small">
+          <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} /> De todo el hogar (si no, solo tuya)
+        </label>
+        <div className="toolbar">
+          <button className="btn" type="submit">
+            Añadir cuenta
+          </button>
+        </div>
+      </form>
+    </div>
   )
 }
 
@@ -264,6 +365,7 @@ export function SettingsPage() {
         <div className="grid stack">
           <RechargeCards />
           <Appearance />
+          <Accounts />
           <Sessions />
           <Version />
           <div className="card stack">

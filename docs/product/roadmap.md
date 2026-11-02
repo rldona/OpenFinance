@@ -454,7 +454,7 @@ Alcance en [ADR-0018](../adr/0018-libro-contable-completo.md) y [ADR-0019](../ad
 | OF-1002 ✅ | Etiquetas y notas largas en movimientos | Filtrar por etiqueta; las etiquetas son del hogar y heredan la visibilidad del movimiento |
 | OF-1003 ✅ | Dividir un movimiento en partes con categoría | La suma de las partes es el importe original; los informes usan las partes (test de propiedades: dividir no cambia el total) |
 | OF-1004 ✅ | Traspasos enlazados entre cuentas propias | Los dos lados se enlazan y ninguno cuenta como gasto ni ingreso; enlazar y desenlazar se deshace |
-| OF-1005 | Tipos de cuenta: efectivo, tarjeta, préstamo e inversión | El saldo de `card` y `loan` resta; no entran en gasto ni presupuestos; migración sin tocar cuentas existentes |
+| OF-1005 ✅ | Tipos de cuenta: efectivo, tarjeta, préstamo e inversión | El saldo de `card` y `loan` resta; no entran en gasto ni presupuestos; migración sin tocar cuentas existentes |
 | OF-1006 | Conciliación: revisado y saldo contra el del banco en una fecha | Un movimiento revisado no cambia con una importación; la diferencia de saldo se muestra |
 | OF-1007 | Adjuntos (ticket, factura) en un movimiento | En disco, con la privacidad del movimiento, en la copia de seguridad y con límite de tamaño y tipo |
 | OF-1008 | Varias monedas con tipos de cambio manuales (ADR-0019) | Sin tasa, el movimiento no se convierte y el informe lo dice; un hogar de una moneda no cambia |

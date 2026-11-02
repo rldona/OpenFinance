@@ -363,6 +363,48 @@ describe('Traspasos enlazados (OF-1004)', () => {
   })
 })
 
+describe('Tipos de cuenta (OF-1005)', () => {
+  const CARD = { id: 'a-visa', name: 'Visa', institution: 'other', kind: 'personal', type: 'card', owner_id: 'u-raul', opening_balance: { amount: '0.00', currency: 'EUR' }, balance: { amount: '-120.50', currency: 'EUR' } }
+
+  it('lista las cuentas con su tipo y enseña lo que se debe', async () => {
+    window.location.hash = '#ajustes'
+    loggedIn({ 'GET /api/v1/accounts': { body: [...ACCOUNTS, CARD] }, 'GET /api/v1/me/patterns': { body: [] } })
+    render(<App />)
+    const list = await screen.findByRole('list', { name: 'Tus cuentas' })
+    expect(list).toHaveTextContent('Cuenta conjunta · Banco')
+    expect(list).toHaveTextContent('Visa · Tarjeta de crédito · solo tuya · Debes 120,50')
+  })
+
+  it('añade una cuenta de efectivo', async () => {
+    window.location.hash = '#ajustes'
+    const calls = loggedIn({
+      'GET /api/v1/accounts': { body: ACCOUNTS },
+      'GET /api/v1/me/patterns': { body: [] },
+      'POST /api/v1/accounts': { status: 201, body: { ...CARD, type: 'cash', name: 'Cartera' } },
+    })
+    render(<App />)
+    await userEvent.type(await screen.findByLabelText('Nombre'), 'Cartera')
+    await userEvent.clear(screen.getByLabelText('Saldo de partida'))
+    await userEvent.type(screen.getByLabelText('Saldo de partida'), '40,50')
+    await userEvent.click(screen.getByRole('button', { name: 'Añadir cuenta' }))
+    const post = calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/accounts')!
+    expect(JSON.parse(String(post.body))).toEqual({ name: 'Cartera', type: 'cash', shared: true, opening_balance: '40.50' })
+    expect(await screen.findByText('Cuenta «Cartera» añadida')).toBeInTheDocument()
+  })
+
+  it('un saldo mal escrito se avisa junto al campo', async () => {
+    window.location.hash = '#ajustes'
+    loggedIn({ 'GET /api/v1/accounts': { body: ACCOUNTS }, 'GET /api/v1/me/patterns': { body: [] } })
+    render(<App />)
+    await userEvent.type(await screen.findByLabelText('Nombre'), 'X')
+    await userEvent.clear(screen.getByLabelText('Saldo de partida'))
+    await userEvent.type(screen.getByLabelText('Saldo de partida'), 'mucho')
+    await userEvent.click(screen.getByRole('button', { name: 'Añadir cuenta' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Escribe un saldo')
+    expect(screen.getByLabelText('Saldo de partida')).toHaveAttribute('aria-invalid', 'true')
+  })
+})
+
 describe('Varios a la vez y efectivo (OF-705)', () => {
   it('pone la misma categoría a los seleccionados sin aprender reglas y se puede deshacer', async () => {
     const calls = loggedIn({
