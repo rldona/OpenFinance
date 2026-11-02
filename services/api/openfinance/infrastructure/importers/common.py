@@ -160,3 +160,11 @@ def find_header_row(
         if all(k in found for k in required):
             return position, found
     return None
+
+
+def decode_text(content: bytes) -> str:
+    """El texto de un archivo: UTF-8 (con o sin marca) y, si no lo es, Windows-1252."""
+    try:
+        return content.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return content.decode("cp1252", errors="replace")

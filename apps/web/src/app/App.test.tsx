@@ -719,6 +719,19 @@ describe('Reglas con condiciones (OF-1101, OF-1102)', () => {
   })
 })
 
+describe('Importar formatos estándar (OF-1103)', () => {
+  it('una cuenta sin banco propio ya se puede elegir y acepta OFX, QIF y CAMT', async () => {
+    window.location.hash = '#importar'
+    const CASH = { id: 'a-cash', name: 'Efectivo', institution: 'other', kind: 'joint', type: 'cash', owner_id: null, opening_balance: { amount: '0.00', currency: 'EUR' }, balance: { amount: '0.00', currency: 'EUR' } }
+    loggedIn({ 'GET /api/v1/accounts': { body: [CASH] } })
+    render(<App />)
+    const option = await screen.findByRole('option', { name: 'Efectivo' })
+    expect(option).not.toBeDisabled()
+    expect(await screen.findByText(/Elige el extracto \(OFX, QIF o CAMT.053\)/)).toBeInTheDocument()
+    expect(document.querySelector('input[type=file]')).toHaveAttribute('accept', '.ofx,.qfx,.qif,.xml')
+  })
+})
+
 describe('Varios a la vez y efectivo (OF-705)', () => {
   it('pone la misma categoría a los seleccionados sin aprender reglas y se puede deshacer', async () => {
     const calls = loggedIn({

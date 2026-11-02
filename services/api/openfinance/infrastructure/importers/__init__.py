@@ -7,6 +7,7 @@ from openfinance.domain.imports import ClassificationRules, ParseResult
 from openfinance.domain.ledger import Institution
 from openfinance.infrastructure.importers.bankinter import parse_bankinter
 from openfinance.infrastructure.importers.revolut import RevolutProfile, parse_revolut
+from openfinance.infrastructure.importers.universal import parse_standard
 
 
 def _revolut(content: bytes, account_key: str, rules: ClassificationRules) -> ParseResult:
@@ -18,6 +19,7 @@ class StatementParserRegistry:
         self._parsers: dict[Institution, StatementParser] = {
             Institution.REVOLUT: _revolut,
             Institution.BANKINTER: parse_bankinter,
+            Institution.OTHER: parse_standard,
         }
 
     def get(self, institution: Institution) -> StatementParser | None:

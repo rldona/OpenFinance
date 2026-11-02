@@ -136,6 +136,7 @@ def classification_rules(
         return ClassificationRules(
             savings_patterns=DEFAULT_SAVINGS_PATTERNS,
             outflow_member_patterns={str(owner): [*defaults, *outflow]},
+            currency=account.currency.code,
         )
     inflow: dict[str, list[str]] = {}
     for m in members:
@@ -147,7 +148,11 @@ def classification_rules(
             p.pattern for p in known if p.direction is PatternDirection.INFLOW and p.user_id == m.id
         ]
         inflow[str(m.id)] = candidates
-    return ClassificationRules(member_patterns=inflow, savings_patterns=DEFAULT_SAVINGS_PATTERNS)
+    return ClassificationRules(
+        member_patterns=inflow,
+        savings_patterns=DEFAULT_SAVINGS_PATTERNS,
+        currency=account.currency.code,
+    )
 
 
 def _account(uow: UnitOfWork, actor: Actor, account_id: UUID) -> Account:

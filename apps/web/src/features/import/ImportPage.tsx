@@ -14,6 +14,8 @@ import { ImportHistory } from './ImportHistory'
 const FORMATS: Record<string, { accept: string; label: string }> = {
   revolut: { accept: '.csv,.xlsx', label: 'CSV o Excel' },
   bankinter: { accept: '.xlsx', label: 'Excel' },
+  // Cuentas sin banco propio (OF-1103): formatos estándar, que se reconocen por el contenido.
+  other: { accept: '.ofx,.qfx,.qif,.xml', label: 'OFX, QIF o CAMT.053' },
 }
 const SUPPORTED = new Set(Object.keys(FORMATS))
 
