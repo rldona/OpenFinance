@@ -16,6 +16,7 @@ from sqlalchemy import (
     LargeBinary,
     Numeric,
     String,
+    Text,
     UniqueConstraint,
     func,
 )
@@ -463,6 +464,6 @@ class ChangeEntryRow(Base):
     entity: Mapped[str] = mapped_column(String(20))
     entity_id: Mapped[str] = mapped_column(String(150))
     field: Mapped[str] = mapped_column(String(30))
-    before: Mapped[str] = mapped_column(String(600))
+    before: Mapped[str] = mapped_column(Text)
     """Valor anterior en JSON (``null``, ``true``, ``"texto"``)."""
-    after: Mapped[str] = mapped_column(String(600))
+    after: Mapped[str] = mapped_column(Text)
