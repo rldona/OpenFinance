@@ -1516,6 +1516,127 @@
         "title": "CsvTestRowOut",
         "type": "object"
       },
+      "ForecastOut": {
+        "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Vacío en el total de una moneda",
+            "title": "Account Id"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "end": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "first_negative": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Negative"
+          },
+          "lowest": {
+            "$ref": "#/components/schemas/ForecastPointOut"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "points": {
+            "description": "Hoy y cada día en que el saldo cambia",
+            "items": {
+              "$ref": "#/components/schemas/ForecastPointOut"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "start": {
+            "$ref": "#/components/schemas/MoneyOut"
+          }
+        },
+        "required": [
+          "account_id",
+          "name",
+          "currency",
+          "start",
+          "end",
+          "lowest",
+          "first_negative",
+          "points"
+        ],
+        "title": "ForecastOut",
+        "type": "object"
+      },
+      "ForecastPointOut": {
+        "properties": {
+          "balance": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          }
+        },
+        "required": [
+          "day",
+          "balance"
+        ],
+        "title": "ForecastPointOut",
+        "type": "object"
+      },
+      "ForecastViewOut": {
+        "properties": {
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/ForecastOut"
+            },
+            "title": "Accounts",
+            "type": "array"
+          },
+          "totals": {
+            "items": {
+              "$ref": "#/components/schemas/ForecastOut"
+            },
+            "title": "Totals",
+            "type": "array"
+          },
+          "until": {
+            "format": "date",
+            "title": "Until",
+            "type": "string"
+          }
+        },
+        "required": [
+          "until",
+          "accounts",
+          "totals"
+        ],
+        "title": "ForecastViewOut",
+        "type": "object"
+      },
       "Frequency": {
         "enum": [
           "once",
@@ -5937,6 +6058,52 @@
         "summary": "Export",
         "tags": [
           "export"
+        ]
+      }
+    },
+    "/api/v1/forecast": {
+      "get": {
+        "description": "Saldo previsto de cada cuenta de efectivo y total por moneda (OF-1202).",
+        "operationId": "forecast_api_v1_forecast_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 60,
+              "maximum": 400,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForecastViewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Forecast",
+        "tags": [
+          "schedule"
         ]
       }
     },

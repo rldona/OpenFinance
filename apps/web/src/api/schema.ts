@@ -500,6 +500,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/forecast": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Forecast
+         * @description Saldo previsto de cada cuenta de efectivo y total por moneda (OF-1202).
+         */
+        get: operations["forecast_api_v1_forecast_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/goals": {
         parameters: {
             query?: never;
@@ -1855,6 +1875,49 @@ export interface components {
             description: string;
             /** Line */
             line: number;
+        };
+        /** ForecastOut */
+        ForecastOut: {
+            /**
+             * Account Id
+             * @description Vacío en el total de una moneda
+             */
+            account_id: string | null;
+            /** Currency */
+            currency: string;
+            end: components["schemas"]["MoneyOut"];
+            /** First Negative */
+            first_negative: string | null;
+            lowest: components["schemas"]["ForecastPointOut"];
+            /** Name */
+            name: string | null;
+            /**
+             * Points
+             * @description Hoy y cada día en que el saldo cambia
+             */
+            points: components["schemas"]["ForecastPointOut"][];
+            start: components["schemas"]["MoneyOut"];
+        };
+        /** ForecastPointOut */
+        ForecastPointOut: {
+            balance: components["schemas"]["MoneyOut"];
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+        };
+        /** ForecastViewOut */
+        ForecastViewOut: {
+            /** Accounts */
+            accounts: components["schemas"]["ForecastOut"][];
+            /** Totals */
+            totals: components["schemas"]["ForecastOut"][];
+            /**
+             * Until
+             * Format: date
+             */
+            until: string;
         };
         /**
          * Frequency
@@ -4112,6 +4175,37 @@ export interface operations {
                 content: {
                     "application/json": unknown;
                     "application/zip": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    forecast_api_v1_forecast_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForecastViewOut"];
                 };
             };
             /** @description Validation Error */

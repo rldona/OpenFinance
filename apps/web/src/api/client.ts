@@ -10,6 +10,8 @@ export type AutomationRule = Schemas['AutomationRuleOut']
 export type AutomationRuleInput = Schemas['AutomationRuleIn']
 export type RulePreview = Schemas['RulePreviewOut']
 export type ScheduleItem = Schemas['ScheduleItemOut']
+export type ForecastView = Schemas['ForecastViewOut']
+export type AccountForecast = Schemas['ForecastOut']
 export type ScheduledPayment = Schemas['ScheduledPaymentOut']
 export type ScheduledPaymentInput = Schemas['ScheduledPaymentIn']
 export type ExchangeRate = Schemas['RateOut']
@@ -201,6 +203,8 @@ export const api = {
   /** Pagos programados y sus próximas fechas (OF-1201). */
   schedule: (days: number, signal?: AbortSignal) =>
     request<ScheduleItem[]>('GET', `/api/v1/schedule?days=${days}`, { signal }),
+  forecast: (days: number, signal?: AbortSignal) =>
+    request<ForecastView>('GET', `/api/v1/forecast?days=${days}`, { signal }),
   createScheduledPayment: (payment: ScheduledPaymentInput) =>
     request<{ payment: ScheduledPayment; operation_id: string | null }>('POST', '/api/v1/schedule', { json: payment }),
   updateScheduledPayment: (id: string, payment: ScheduledPaymentInput) =>

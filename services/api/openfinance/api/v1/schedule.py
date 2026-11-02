@@ -7,6 +7,8 @@ from fastapi import APIRouter, Query, status
 
 from openfinance.api.deps import ActorDep, UowDep
 from openfinance.api.v1.schemas import (
+    ForecastOut,
+    ForecastViewOut,
     MoneyOut,
     OccurrenceOut,
     OperationRefOut,
@@ -16,6 +18,7 @@ from openfinance.api.v1.schemas import (
     ScheduleItemOut,
 )
 from openfinance.application import schedule
+from openfinance.application.forecast import household_forecast
 from openfinance.application.schedule import DEFAULT_HORIZON_DAYS, MAX_HORIZON_DAYS
 from openfinance.infrastructure.time import local_today, utc_now
 
@@ -77,3 +80,20 @@ def update_payment(
 @router.delete("/schedule/{schedule_id}", response_model=OperationRefOut)
 def delete_payment(schedule_id: UUID, actor: ActorDep, uow: UowDep) -> OperationRefOut:
     return OperationRefOut(operation_id=schedule.delete_payment(uow, actor, schedule_id, utc_now()))
+
+
+@router.get("/forecast", response_model=ForecastViewOut)
+def forecast(
+    actor: ActorDep,
+    uow: UowDep,
+    days: Annotated[int, Query(ge=1, le=MAX_HORIZON_DAYS)] = DEFAULT_HORIZON_DAYS,
+) -> ForecastViewOut:
+    """Saldo previsto de cada cuenta de efectivo y total por moneda (OF-1202)."""
+    view = household_forecast(uow, actor, local_today(), days)
+    return ForecastViewOut(
+        until=view.until,
+        accounts=[
+            ForecastOut.of(a.forecast, a.account.currency.code, a.account) for a in view.accounts
+        ],
+        totals=[ForecastOut.of(t.forecast, t.currency.code) for t in view.totals],
+    )

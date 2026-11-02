@@ -2191,6 +2191,48 @@ describe('Pagos programados', () => {
     expect(await screen.findByText(/Pago «Alquiler» borrado/)).toBeInTheDocument()
   })
 
+  it('enseña la previsión de saldo y avisa del primer día en negativo', async () => {
+    window.location.hash = '#pagos'
+    const eur = (amount: string) => ({ amount, currency: 'EUR' })
+    const joint = {
+      account_id: 'a-joint',
+      name: 'Cuenta conjunta',
+      currency: 'EUR',
+      start: eur('100.00'),
+      end: eur('-800.00'),
+      lowest: { day: '2026-11-01', balance: eur('-800.00') },
+      first_negative: '2026-11-01',
+      points: [
+        { day: '2026-10-15', balance: eur('100.00') },
+        { day: '2026-11-01', balance: eur('-800.00') },
+      ],
+    }
+    loggedIn({
+      'GET /api/v1/schedule': { body: [ITEM] },
+      'GET /api/v1/forecast': { body: { until: '2027-01-13', accounts: [joint], totals: [{ ...joint, account_id: null, name: null }] } },
+    })
+    render(<App />)
+    const box = await screen.findByRole('region', { name: 'Previsión de saldo' })
+    expect(box).toHaveTextContent('Total en EUR')
+    const alerts = within(screen.getByRole('list', { name: 'Avisos de saldo negativo' }))
+    expect(alerts.getByRole('alert')).toHaveTextContent('Cuenta conjunta: el saldo queda en negativo')
+    expect(within(screen.getByRole('list', { name: 'Previsión por cuenta' })).getByText(/Cuenta conjunta/)).toBeInTheDocument()
+  })
+
+  it('sin pagos programados la previsión no inventa nada', async () => {
+    window.location.hash = '#pagos'
+    const eur = (amount: string) => ({ amount, currency: 'EUR' })
+    const flat = { account_id: 'a-joint', name: 'Cuenta conjunta', currency: 'EUR', start: eur('100.00'), end: eur('100.00'), lowest: { day: '2026-10-15', balance: eur('100.00') }, first_negative: null, points: [{ day: '2026-10-15', balance: eur('100.00') }] }
+    loggedIn({
+      'GET /api/v1/schedule': { body: [] },
+      'GET /api/v1/forecast': { body: { until: '2027-01-13', accounts: [flat], totals: [{ ...flat, account_id: null, name: null }] } },
+    })
+    render(<App />)
+    const box = await screen.findByRole('region', { name: 'Previsión de saldo' })
+    expect(box).toHaveTextContent('Sin pagos programados')
+    expect(screen.queryByRole('list', { name: 'Avisos de saldo negativo' })).toBeNull()
+  })
+
   it('un cargo detectado llega con su nombre, importe y fecha ya puestos', async () => {
     window.location.hash = '#pagos?nombre=Netflix&importe=-17.99&fecha=2026-11-02'
     loggedIn({ 'GET /api/v1/schedule': { body: [] } })

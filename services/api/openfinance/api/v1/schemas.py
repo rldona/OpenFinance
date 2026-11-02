@@ -13,6 +13,7 @@ from openfinance.domain.attachments import Attachment
 from openfinance.domain.automation import AutomationRule, Phase
 from openfinance.domain.categories import Category, merchant_label
 from openfinance.domain.csv_profile import CsvProfile
+from openfinance.domain.forecast import BalancePoint, Forecast
 from openfinance.domain.identity import User
 from openfinance.domain.imports import PatternDirection
 from openfinance.domain.ledger import (
@@ -1057,3 +1058,44 @@ class ScheduleItemOut(BaseModel):
 class ScheduledPaymentChangeOut(BaseModel):
     payment: ScheduledPaymentOut
     operation_id: UUID | None
+
+
+# --- OF-1202 · Previsión de saldo -----------------------------------------------------------
+
+
+class ForecastPointOut(BaseModel):
+    day: date
+    balance: MoneyOut
+
+
+class ForecastOut(BaseModel):
+    account_id: UUID | None = Field(description="Vacío en el total de una moneda")
+    name: str | None
+    currency: str
+    start: MoneyOut
+    end: MoneyOut
+    lowest: ForecastPointOut
+    first_negative: date | None
+    points: list[ForecastPointOut] = Field(description="Hoy y cada día en que el saldo cambia")
+
+    @classmethod
+    def of(cls, f: Forecast, currency: str, account: Account | None = None) -> ForecastOut:
+        def point(p: BalancePoint) -> ForecastPointOut:
+            return ForecastPointOut(day=p.day, balance=MoneyOut.of(p.balance))
+
+        return cls(
+            account_id=account.id if account else None,
+            name=account.name if account else None,
+            currency=currency,
+            start=MoneyOut.of(f.start),
+            end=MoneyOut.of(f.end),
+            lowest=point(f.lowest),
+            first_negative=f.first_negative,
+            points=[point(p) for p in f.points],
+        )
+
+
+class ForecastViewOut(BaseModel):
+    until: date
+    accounts: list[ForecastOut]
+    totals: list[ForecastOut]

@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useState } from 'react'
-import { ApiError, api, type ScheduleItem, type ScheduledPaymentInput } from '../../api/client'
+import { ApiError, api, type AccountForecast, type ForecastView, type ScheduleItem, type ScheduledPaymentInput } from '../../api/client'
 import { useHousehold } from '../../app/household-context'
 import { setHashParams, useHashParam } from '../../app/router'
 import { ErrorState, Loading } from '../../components/LoadState'
@@ -66,10 +66,52 @@ function describe(p: ScheduleItem['payment']): string {
   return p.interval === 1 ? FREQUENCIES[p.frequency] : `Cada ${p.interval} ${UNITS[p.frequency]}`
 }
 
+/** Qué saldo previsto hay: el total de cada moneda y, si alguna cuenta se queda en negativo, cuándo. */
+function Forecast({ view }: { view: ForecastView }) {
+  const warnings = view.accounts.filter((a) => a.first_negative)
+  const describe = (f: AccountForecast) => {
+    const lowest = f.lowest
+    return f.points.length > 1
+      ? `Dentro de ${HORIZON_DAYS} días: ${formatMoney(f.end)} · mínimo ${formatMoney(lowest.balance)} el ${formatDate(lowest.day)}`
+      : `Sin pagos programados: ${formatMoney(f.end)}`
+  }
+  return (
+    <section className="card stack" aria-label="Previsión de saldo">
+      <h2>Previsión de saldo</h2>
+      {view.totals.map((t) => (
+        <p key={t.currency}>
+          <strong>Total en {t.currency}</strong> · hoy {formatMoney(t.start)} · {describe(t)}
+        </p>
+      ))}
+      {warnings.length > 0 && (
+        <ul className="plain" aria-label="Avisos de saldo negativo">
+          {warnings.map((a) => (
+            <li key={a.account_id} className="error" role="alert">
+              {a.name}: el saldo queda en negativo el {formatDate(String(a.first_negative))} ({formatMoney(a.lowest.balance)} como mínimo)
+            </li>
+          ))}
+        </ul>
+      )}
+      <ul className="plain small" aria-label="Previsión por cuenta">
+        {view.accounts.map((a) => (
+          <li key={a.account_id}>
+            <strong>{a.name}</strong> · hoy {formatMoney(a.start)} · {describe(a)}
+          </li>
+        ))}
+      </ul>
+      <p className="small muted">
+        Solo suma lo que aún está pendiente: lo atrasado no se cuenta porque puede que no llegue, y lo ya cobrado ya está en el saldo.
+        Las tarjetas y los préstamos no entran.
+      </p>
+    </section>
+  )
+}
+
 /** Pagos programados (ADR-0021, OF-1201): lo que sabéis que va a llegar, con su estado. */
 export function SchedulePage() {
   const { me, categories, notify } = useHousehold()
   const schedule = useLoad<ScheduleItem[]>('schedule', (s) => api.schedule(HORIZON_DAYS, s))
+  const forecast = useLoad<ForecastView>('forecast', (s) => api.forecast(HORIZON_DAYS, s))
   const accounts = useLoad('schedule-accounts', (s) => api.accounts(s))
   const [editing, setEditing] = useState<string | 'new' | null>(null)
   const [draft, setDraft] = useState<Draft>(blank)
@@ -98,6 +140,11 @@ export function SchedulePage() {
   useEffect(() => {
     if (prefilled) setHashParams({ nombre: null, importe: null, fecha: null, categoria: null })
   }, [prefilled])
+
+  const reloadAll = () => {
+    schedule.reload()
+    forecast.reload()
+  }
 
   const accountName = new Map((accounts.data ?? []).map((a) => [a.id, a.name]))
   const categoryName = new Map(categories.map((c) => [c.id, c.name]))
@@ -134,8 +181,8 @@ export function SchedulePage() {
     try {
       const r = editing === 'new' ? await api.createScheduledPayment(input) : await api.updateScheduledPayment(String(editing), input)
       setEditing(null)
-      notifyUndoable(notify, me, `Pago «${r.payment.name}» guardado`, r.operation_id, schedule.reload)
-      schedule.reload()
+      notifyUndoable(notify, me, `Pago «${r.payment.name}» guardado`, r.operation_id, reloadAll)
+      reloadAll()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'No se ha podido guardar el pago')
     }
@@ -144,8 +191,8 @@ export function SchedulePage() {
   async function remove(item: ScheduleItem) {
     try {
       const r = await api.deleteScheduledPayment(item.payment.id)
-      notifyUndoable(notify, me, `Pago «${item.payment.name}» borrado`, r.operation_id, schedule.reload)
-      schedule.reload()
+      notifyUndoable(notify, me, `Pago «${item.payment.name}» borrado`, r.operation_id, reloadAll)
+      reloadAll()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'No se ha podido borrar el pago')
     }
@@ -160,6 +207,7 @@ export function SchedulePage() {
         que el banco lo cobre y lo importéis. Cuando llega un cobro parecido (misma cuenta, importe similar, en una semana), la fecha se da por
         cumplida.
       </p>
+      {forecast.data && <Forecast view={forecast.data} />}
       {error && editing === null && <p className="error small" role="alert">{error}</p>}
       {schedule.error && <ErrorState message={schedule.error} onRetry={schedule.reload} />}
       {!items && !schedule.error && <Loading />}
