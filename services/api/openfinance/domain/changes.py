@@ -30,7 +30,7 @@ class Entity(StrEnum):
     ``None`` en ``name`` significa que el comercio no existe."""
 
 
-TRANSACTION_FIELDS = ("kind", "member_id", "category_id", "note", "voided")
+TRANSACTION_FIELDS = ("kind", "member_id", "category_id", "note", "voided", "reviewed")
 """Campos corregibles de un movimiento. El importe, la fecha y el concepto nunca cambian."""
 
 

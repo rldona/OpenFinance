@@ -126,6 +126,7 @@ class TransactionRow(Base):
     import_id: Mapped[UUID | None] = mapped_column(ForeignKey("import_batches.id"), index=True)
     note: Mapped[str] = mapped_column(String(2000), default="", server_default="")
     voided: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa_false())
+    reviewed: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa_false())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -231,6 +232,30 @@ class TransactionLinkRow(Base):
     )
     peer_id: Mapped[UUID] = mapped_column(ForeignKey("transactions.id", ondelete="CASCADE"))
     household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+
+
+class ReconciliationRow(Base):
+    """Comprobación del saldo de una cuenta contra el del banco en una fecha (OF-1006)."""
+
+    __tablename__ = "reconciliations"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["account_id", "household_id"],
+            ["accounts.id", "accounts.household_id"],
+            name="fk_reconciliations_account_household",
+        ),
+        Index("ix_reconciliations_account", "account_id", "as_of"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    account_id: Mapped[UUID] = mapped_column()
+    as_of: Mapped[date] = mapped_column(Date)
+    bank_balance: Mapped[Decimal] = mapped_column(AMOUNT)
+    computed_balance: Mapped[Decimal] = mapped_column(AMOUNT)
+    currency: Mapped[str] = mapped_column(String(3))
+    created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class MerchantRow(Base):

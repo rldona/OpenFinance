@@ -20,6 +20,7 @@ from openfinance.domain.imports import (
 from openfinance.domain.imports.batch import ImportBatch, ImportStatus
 from openfinance.domain.ledger import Account, Institution, Transaction
 from openfinance.domain.merchants import Merchant, MerchantId
+from openfinance.domain.reconciliation import Reconciliation
 from openfinance.domain.savings import Budget, Goal, GoalId
 from openfinance.domain.shared.ids import AccountId, TransactionId, UserId, WorkspaceId
 from openfinance.domain.splits import SplitPart
@@ -36,6 +37,8 @@ class TransactionQuery:
     category_id: CategoryId | None = None
     tag: str | None = None
     """Solo los movimientos con esta etiqueta (OF-1002)."""
+    reviewed: bool | None = None
+    """Solo los revisados o solo los sin revisar (OF-1006)."""
     shared_only: bool = False
     """Solo cuentas del hogar (conjunta y huchas), como los gráficos."""
     mine_only: bool = False
@@ -97,10 +100,13 @@ class TransactionRepository(Protocol):
         self, household_id: WorkspaceId, account_id: AccountId
     ) -> list[Transaction]: ...
     def balances(
-        self, household_id: WorkspaceId, account_ids: list[AccountId]
+        self,
+        household_id: WorkspaceId,
+        account_ids: list[AccountId],
+        until: datetime | None = None,
     ) -> dict[AccountId, Decimal]:
         """Suma de los movimientos activos de cada cuenta (sin el saldo inicial), calculada
-        en la base de datos. Una cuenta sin movimientos no aparece."""
+        en la base de datos, hasta ``until`` si se indica. Sin movimientos = no aparece."""
         ...
 
     def add(self, transaction: Transaction) -> None: ...
@@ -199,6 +205,15 @@ class RuleRepository(Protocol):
     def upsert(self, rule: CategoryRule, now: datetime) -> None: ...
     def get(self, household_id: WorkspaceId, scope: str, merchant: str) -> CategoryRule | None: ...
     def delete(self, household_id: WorkspaceId, scope: str, merchant: str) -> None: ...
+
+
+class ReconciliationRepository(Protocol):
+    def add(self, reconciliation: Reconciliation) -> None: ...
+    def for_account(
+        self, household_id: WorkspaceId, account_id: AccountId, limit: int
+    ) -> list[Reconciliation]:
+        """Las últimas comprobaciones de la cuenta, de la más reciente a la más antigua."""
+        ...
 
 
 class LinkRepository(Protocol):
@@ -403,6 +418,8 @@ class UnitOfWork(Protocol):
     def splits(self) -> SplitRepository: ...
     @property
     def links(self) -> LinkRepository: ...
+    @property
+    def reconciliations(self) -> ReconciliationRepository: ...
     @property
     def member_patterns(self) -> MemberPatternRepository: ...
     @property

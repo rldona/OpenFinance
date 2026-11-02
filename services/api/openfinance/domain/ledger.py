@@ -140,6 +140,8 @@ class Transaction:
     """Nota de quien corrige el movimiento (OF-701)."""
     voided: bool = False
     """Anulado (borrado o importación deshecha): no cuenta en nada, pero no se borra (ADR-0017)."""
+    reviewed: bool = False
+    """Revisado contra el banco (OF-1006): deshacer una importación o aplicar reglas no lo toca."""
 
     def __post_init__(self) -> None:
         if self.kind is TransactionKind.CONTRIBUTION and self.member_id is None:

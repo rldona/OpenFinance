@@ -8,6 +8,7 @@ import { notifyUndoable } from '../../lib/undo'
 import { MonthPicker } from '../insights/common'
 import { kindLabel } from './labels'
 import { ManualForm } from './ManualForm'
+import { Reconcile } from './Reconcile'
 import { TransactionDetail } from './TransactionDetail'
 
 function CategorySelect({
@@ -47,6 +48,8 @@ export function TransactionsPage() {
   const [sinParam, setSinParam] = useHashParam('sin')
   const [accountParam, setAccountParam] = useHashParam('cuenta')
   const [tagParam, setTagParam] = useHashParam('etiqueta')
+  const [pendingParam, setPendingParam] = useHashParam('sinrevisar')
+  const onlyUnreviewed = pendingParam === '1'
   const tag = tagParam ?? ''
   const allMonths = allParam === '1'
   const onlyUncategorized = sinParam === '1'
@@ -59,6 +62,7 @@ export function TransactionsPage() {
   const debouncedQ = (qParam ?? '').trim()
   const [accounts, setAccounts] = useState<Account[]>([])
   const [tagList, setTagList] = useState<TagCount[]>([])
+  const selectedAccount = accounts.find((a) => a.id === accountId)
   const [version, setVersion] = useState(0)
   const [pending, setPending] = useState<string | null>(null)
   type Result = { key: string; page?: TransactionPage; rows?: Transaction[]; error?: string }
@@ -83,6 +87,7 @@ export function TransactionsPage() {
     uncategorized: onlyUncategorized,
     account_id: accountId || undefined,
     tag: tag || undefined,
+    reviewed: onlyUnreviewed ? ('false' as const) : undefined,
   }
   // La clave lleva la consulta tal cual: la búsqueda puede contener cualquier carácter.
   const key = JSON.stringify([query, version])
@@ -285,9 +290,14 @@ export function TransactionsPage() {
             Solo sin categoría ({uncategorized})
           </label>
           <label className="small">
+            <input type="checkbox" checked={onlyUnreviewed} onChange={(e) => setPendingParam(e.target.checked ? '1' : null)} /> Solo sin revisar
+          </label>
+          <label className="small">
             <input type="checkbox" checked={allMonths} onChange={(e) => setAllMonths(e.target.checked)} /> Todos los meses
           </label>
         </div>
+
+        {selectedAccount && <Reconcile key={selectedAccount.id} account={selectedAccount} />}
 
         {onlyUncategorized && chosen.length > 0 && (
           <div className="toolbar bulk" role="group" aria-label="Clasificar los seleccionados">
@@ -380,6 +390,7 @@ export function TransactionsPage() {
                         {t.merchant || t.description}
                       </button>
                       <div className="small muted">
+                        {t.reviewed && <span title="Revisado con el banco" aria-label="Revisado con el banco">✓ </span>}
                         {t.transfer_peer_id && <span title="Traspaso enlazado" aria-label="Traspaso enlazado">🔗 </span>}
                         {t.description} · {accountName(t.account_id)}
                         {t.note && <> · 📝 {t.note.split('\n')[0]}</>}
@@ -409,12 +420,16 @@ export function TransactionsPage() {
                     <tr role="row" className="detail-row">
                       <td role="cell" colSpan={onlyUncategorized ? 5 : 4}>
                         <TransactionDetail
-                          key={`${t.id}|${t.kind}|${t.member_id}|${t.note}|${t.tags.join()}|${t.parts.length}|${t.transfer_peer_id}`}
+                          key={`${t.id}|${t.kind}|${t.member_id}|${t.note}|${t.tags.join()}|${t.parts.length}|${t.transfer_peer_id}|${t.reviewed}`}
                           t={t}
                           version={version}
                           onClose={() => setOpenId(null)}
                           onDelete={t.source === 'manual' ? () => void deleteManual(t) : undefined}
                           accountName={accountName}
+                          onReviewChanged={(message, op) => {
+                            notifyUndoable(notify, me, message, op, refresh)
+                            refresh()
+                          }}
                           onLinkChanged={(message, op) => {
                             notifyUndoable(notify, me, message, op, refresh)
                             refresh()

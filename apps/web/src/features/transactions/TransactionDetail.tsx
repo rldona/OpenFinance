@@ -26,6 +26,7 @@ export function TransactionDetail({
   onSplitChanged,
   onLinkChanged,
   accountName,
+  onReviewChanged,
 }: {
   t: Transaction
   /** Cambia cuando el movimiento se ha corregido o deshecho, para recargar el historial. */
@@ -41,6 +42,8 @@ export function TransactionDetail({
   /** Tras enlazar o desenlazar un traspaso (OF-1004). */
   onLinkChanged?: (message: string, operationId: string | null) => void
   accountName?: (id: string) => string
+  /** Tras marcar o desmarcar como revisado (OF-1006). */
+  onReviewChanged?: (message: string, operationId: string | null) => void
 }) {
   const { me, notify } = useHousehold()
   const [kind, setKind] = useState<TransactionKind>(t.kind)
@@ -158,6 +161,22 @@ export function TransactionDetail({
         )}
       </form>
       {t.kind === 'expense' && onSplitChanged && <SplitEditor t={t} onChanged={onSplitChanged} />}
+      {onReviewChanged && (
+        <label className="small">
+          <input
+            type="checkbox"
+            checked={t.reviewed}
+            onChange={(e) => {
+              const reviewed = e.target.checked
+              api.reviewTransactions([t.id], reviewed).then(
+                (r) => onReviewChanged(reviewed ? 'Marcado como revisado' : 'Marca de revisado quitada', r.operation_id),
+                (err: unknown) => notify(err instanceof ApiError ? err.message : 'No se ha podido marcar'),
+              )
+            }}
+          />{' '}
+          Revisado con el banco
+        </label>
+      )}
       {onLinkChanged && accountName && <TransferLink t={t} accountName={accountName} onChanged={onLinkChanged} />}
       <p className="small muted">
         {onDelete

@@ -20,6 +20,7 @@ from openfinance.domain.ledger import (
     Transaction,
     TransactionKind,
 )
+from openfinance.domain.reconciliation import Reconciliation
 from openfinance.domain.shared import Money
 from openfinance.domain.workspaces import Household
 
@@ -115,6 +116,7 @@ class TransactionOut(BaseModel):
     parts: list[SplitPartOut] = Field(
         description="Partes con categoría si el gasto está dividido (suman su importe)"
     )
+    reviewed: bool = Field(description="Revisado contra el banco")
     transfer_peer_id: UUID | None = Field(
         description="El otro lado del traspaso, si está enlazado y tú también lo ves"
     )
@@ -137,6 +139,7 @@ class TransactionOut(BaseModel):
             source=t.source,
             note=t.note,
             tags=list(d.tags.get(t.id, ())),
+            reviewed=t.reviewed,
             transfer_peer_id=d.peers.get(t.id),
             parts=[
                 SplitPartOut(amount=MoneyOut.of(p.amount), category_id=p.category_id)
@@ -269,6 +272,9 @@ class ImportListItemOut(BaseModel):
 class UndoImportOut(BaseModel):
     voided: int = Field(description="Movimientos anulados")
     operation_id: UUID | None
+    kept_reviewed: int = Field(
+        default=0, description="Movimientos revisados que se han dejado como estaban"
+    )
 
 
 class ImportResultOut(BaseModel):
@@ -746,3 +752,44 @@ class AccountIn(BaseModel):
         pattern=AMOUNT_PATTERN_SIGNED,
         description="Saldo de partida. Una deuda (tarjeta o préstamo) va en negativo",
     )
+
+
+class ReviewIn(BaseModel):
+    ids: list[UUID] = Field(min_length=1, max_length=500)
+    reviewed: bool = Field(description="true = revisados; false = quitar la marca")
+
+
+class ReviewOut(BaseModel):
+    changed: int = Field(description="Movimientos que han cambiado de estado")
+    operation_id: UUID | None
+
+
+class ReconcileIn(BaseModel):
+    as_of: date = Field(description="Día del saldo que da el banco")
+    bank_balance: str = Field(pattern=AMOUNT_PATTERN_SIGNED, description="Saldo según el banco")
+
+
+class ReconciliationOut(BaseModel):
+    id: UUID
+    account_id: UUID
+    as_of: date
+    bank_balance: MoneyOut
+    computed_balance: MoneyOut
+    difference: MoneyOut = Field(description="Positivo: falta en OpenFinance; negativo: sobra")
+    matches: bool
+    created_by: UUID
+    created_at: datetime
+
+    @classmethod
+    def of(cls, r: Reconciliation) -> ReconciliationOut:
+        return cls(
+            id=r.id,
+            account_id=r.account_id,
+            as_of=r.as_of,
+            bank_balance=MoneyOut.of(r.bank_balance),
+            computed_balance=MoneyOut.of(r.computed_balance),
+            difference=MoneyOut.of(r.difference),
+            matches=r.matches,
+            created_by=r.created_by,
+            created_at=r.created_at,
+        )

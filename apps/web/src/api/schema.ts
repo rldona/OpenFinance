@@ -25,6 +25,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/accounts/{account_id}/reconciliations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Reconciliations
+         * @description Las últimas comprobaciones de saldo de la cuenta.
+         */
+        get: operations["list_reconciliations_api_v1_accounts__account_id__reconciliations_get"];
+        put?: never;
+        /**
+         * Reconcile Account
+         * @description Compara el saldo de la cuenta a una fecha con el que da el banco y guarda la diferencia.
+         */
+        post: operations["reconcile_account_api_v1_accounts__account_id__reconciliations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -701,6 +725,26 @@ export interface paths {
         get: operations["page_transactions_api_v1_transactions_page_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/transactions/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Review Transactions
+         * @description Marca (o desmarca) movimientos como revisados contra el banco; se puede deshacer.
+         */
+        post: operations["review_transactions_api_v1_transactions_review_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1750,6 +1794,54 @@ export interface components {
             /** Month */
             month: string;
         };
+        /** ReconcileIn */
+        ReconcileIn: {
+            /**
+             * As Of
+             * Format: date
+             * @description Día del saldo que da el banco
+             */
+            as_of: string;
+            /**
+             * Bank Balance
+             * @description Saldo según el banco
+             */
+            bank_balance: string;
+        };
+        /** ReconciliationOut */
+        ReconciliationOut: {
+            /**
+             * Account Id
+             * Format: uuid
+             */
+            account_id: string;
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            bank_balance: components["schemas"]["MoneyOut"];
+            computed_balance: components["schemas"]["MoneyOut"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Created By
+             * Format: uuid
+             */
+            created_by: string;
+            /** @description Positivo: falta en OpenFinance; negativo: sobra */
+            difference: components["schemas"]["MoneyOut"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Matches */
+            matches: boolean;
+        };
         /** RecurringOut */
         RecurringOut: {
             amount: components["schemas"]["MoneyOut"];
@@ -1780,6 +1872,26 @@ export interface components {
             /** Kept By */
             kept_by: string[];
             operation: components["schemas"]["OperationOut"];
+        };
+        /** ReviewIn */
+        ReviewIn: {
+            /** Ids */
+            ids: string[];
+            /**
+             * Reviewed
+             * @description true = revisados; false = quitar la marca
+             */
+            reviewed: boolean;
+        };
+        /** ReviewOut */
+        ReviewOut: {
+            /**
+             * Changed
+             * @description Movimientos que han cambiado de estado
+             */
+            changed: number;
+            /** Operation Id */
+            operation_id: string | null;
         };
         /** RevokedOut */
         RevokedOut: {
@@ -1963,6 +2075,11 @@ export interface components {
              * @description Partes con categoría si el gasto está dividido (suman su importe)
              */
             parts: components["schemas"]["SplitPartOut"][];
+            /**
+             * Reviewed
+             * @description Revisado contra el banco
+             */
+            reviewed: boolean;
             /** Source */
             source: string;
             /**
@@ -2037,6 +2154,12 @@ export interface components {
         };
         /** UndoImportOut */
         UndoImportOut: {
+            /**
+             * Kept Reviewed
+             * @description Movimientos revisados que se han dejado como estaban
+             * @default 0
+             */
+            kept_reviewed: number;
             /** Operation Id */
             operation_id: string | null;
             /**
@@ -2146,6 +2269,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AccountOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_reconciliations_api_v1_accounts__account_id__reconciliations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconciliationOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reconcile_account_api_v1_accounts__account_id__reconciliations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReconcileIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconciliationOut"];
                 };
             };
             /** @description Validation Error */
@@ -3264,6 +3453,8 @@ export interface operations {
                 category_id?: string | null;
                 /** @description Solo con esta etiqueta */
                 tag?: string | null;
+                /** @description Solo revisados o solo sin revisar */
+                reviewed?: boolean | null;
                 /** @description Solo cuentas del hogar (conjunta y huchas), como los gráficos */
                 shared_only?: boolean;
                 /** @description Solo tus cuentas personales, como la vista «mío» */
@@ -3372,6 +3563,8 @@ export interface operations {
                 category_id?: string | null;
                 /** @description Solo con esta etiqueta */
                 tag?: string | null;
+                /** @description Solo revisados o solo sin revisar */
+                reviewed?: boolean | null;
                 /** @description `next_cursor` anterior */
                 cursor?: string | null;
                 limit?: number;
@@ -3389,6 +3582,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TransactionPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_transactions_api_v1_transactions_review_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewOut"];
                 };
             };
             /** @description Validation Error */

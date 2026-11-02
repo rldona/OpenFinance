@@ -2220,6 +2220,84 @@
         "title": "PriceChangeOut",
         "type": "object"
       },
+      "ReconcileIn": {
+        "properties": {
+          "as_of": {
+            "description": "Día del saldo que da el banco",
+            "format": "date",
+            "title": "As Of",
+            "type": "string"
+          },
+          "bank_balance": {
+            "description": "Saldo según el banco",
+            "pattern": "^-?\\d{1,9}([.,]\\d{1,2})?$",
+            "title": "Bank Balance",
+            "type": "string"
+          }
+        },
+        "required": [
+          "as_of",
+          "bank_balance"
+        ],
+        "title": "ReconcileIn",
+        "type": "object"
+      },
+      "ReconciliationOut": {
+        "properties": {
+          "account_id": {
+            "format": "uuid",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "as_of": {
+            "format": "date",
+            "title": "As Of",
+            "type": "string"
+          },
+          "bank_balance": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "computed_balance": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "format": "uuid",
+            "title": "Created By",
+            "type": "string"
+          },
+          "difference": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Positivo: falta en OpenFinance; negativo: sobra"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "matches": {
+            "title": "Matches",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "account_id",
+          "as_of",
+          "bank_balance",
+          "computed_balance",
+          "difference",
+          "matches",
+          "created_by",
+          "created_at"
+        ],
+        "title": "ReconciliationOut",
+        "type": "object"
+      },
       "RecurringOut": {
         "properties": {
           "amount": {
@@ -2303,6 +2381,58 @@
           "kept_by"
         ],
         "title": "RevertOut",
+        "type": "object"
+      },
+      "ReviewIn": {
+        "properties": {
+          "ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Ids",
+            "type": "array"
+          },
+          "reviewed": {
+            "description": "true = revisados; false = quitar la marca",
+            "title": "Reviewed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ids",
+          "reviewed"
+        ],
+        "title": "ReviewIn",
+        "type": "object"
+      },
+      "ReviewOut": {
+        "properties": {
+          "changed": {
+            "description": "Movimientos que han cambiado de estado",
+            "title": "Changed",
+            "type": "integer"
+          },
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          }
+        },
+        "required": [
+          "changed",
+          "operation_id"
+        ],
+        "title": "ReviewOut",
         "type": "object"
       },
       "RevokedOut": {
@@ -2698,6 +2828,11 @@
             "title": "Parts",
             "type": "array"
           },
+          "reviewed": {
+            "description": "Revisado contra el banco",
+            "title": "Reviewed",
+            "type": "boolean"
+          },
           "source": {
             "title": "Source",
             "type": "string"
@@ -2744,6 +2879,7 @@
           "note",
           "tags",
           "parts",
+          "reviewed",
           "transfer_peer_id"
         ],
         "title": "TransactionOut",
@@ -2944,6 +3080,12 @@
       },
       "UndoImportOut": {
         "properties": {
+          "kept_reviewed": {
+            "default": 0,
+            "description": "Movimientos revisados que se han dejado como estaban",
+            "title": "Kept Reviewed",
+            "type": "integer"
+          },
           "operation_id": {
             "anyOf": [
               {
@@ -3163,6 +3305,106 @@
           }
         },
         "summary": "Create Account",
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
+    "/api/v1/accounts/{account_id}/reconciliations": {
+      "get": {
+        "description": "Las últimas comprobaciones de saldo de la cuenta.",
+        "operationId": "list_reconciliations_api_v1_accounts__account_id__reconciliations_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Account Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReconciliationOut"
+                  },
+                  "title": "Response List Reconciliations Api V1 Accounts  Account Id  Reconciliations Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Reconciliations",
+        "tags": [
+          "ledger"
+        ]
+      },
+      "post": {
+        "description": "Compara el saldo de la cuenta a una fecha con el que da el banco y guarda la diferencia.",
+        "operationId": "reconcile_account_api_v1_accounts__account_id__reconciliations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Account Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReconcileIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReconciliationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reconcile Account",
         "tags": [
           "ledger"
         ]
@@ -4778,6 +5020,24 @@
             }
           },
           {
+            "description": "Solo revisados o solo sin revisar",
+            "in": "query",
+            "name": "reviewed",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Solo revisados o solo sin revisar",
+              "title": "Reviewed"
+            }
+          },
+          {
             "description": "Solo cuentas del hogar (conjunta y huchas), como los gráficos",
             "in": "query",
             "name": "shared_only",
@@ -5031,6 +5291,24 @@
             }
           },
           {
+            "description": "Solo revisados o solo sin revisar",
+            "in": "query",
+            "name": "reviewed",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Solo revisados o solo sin revisar",
+              "title": "Reviewed"
+            }
+          },
+          {
             "description": "`next_cursor` anterior",
             "in": "query",
             "name": "cursor",
@@ -5085,6 +5363,48 @@
           }
         },
         "summary": "Page Transactions",
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
+    "/api/v1/transactions/review": {
+      "post": {
+        "description": "Marca (o desmarca) movimientos como revisados contra el banco; se puede deshacer.",
+        "operationId": "review_transactions_api_v1_transactions_review_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Transactions",
         "tags": [
           "ledger"
         ]

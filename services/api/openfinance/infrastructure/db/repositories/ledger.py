@@ -105,6 +105,7 @@ def _transaction(row: TransactionRow) -> Transaction:
         import_id=row.import_id,
         note=row.note,
         voided=row.voided,
+        reviewed=row.reviewed,
     )
 
 
@@ -141,6 +142,7 @@ def _new_row(t: Transaction) -> TransactionRow:
         import_id=t.import_id,
         note=t.note,
         voided=t.voided,
+        reviewed=t.reviewed,
     )
 
 
@@ -176,6 +178,8 @@ class SqlTransactionRepository:
                     ),
                 )
             )
+        if query.reviewed is not None:
+            stmt = stmt.where(TransactionRow.reviewed.is_(query.reviewed))
         if query.tag:
             stmt = stmt.where(
                 TransactionRow.id.in_(
@@ -232,21 +236,23 @@ class SqlTransactionRepository:
         return [_transaction(r) for r in rows]
 
     def balances(
-        self, household_id: WorkspaceId, account_ids: list[AccountId]
+        self,
+        household_id: WorkspaceId,
+        account_ids: list[AccountId],
+        until: datetime | None = None,
     ) -> dict[AccountId, Decimal]:
         """Lo que suman los movimientos activos de cada cuenta, calculado en la base de datos
         (OF-905): sin cargar los movimientos. Una cuenta sin movimientos no aparece."""
         if not account_ids:
             return {}
-        rows = self._s.execute(
-            select(TransactionRow.account_id, func.sum(TransactionRow.amount))
-            .where(
-                TransactionRow.household_id == household_id,
-                TransactionRow.account_id.in_(account_ids),
-                _ACTIVE,
-            )
-            .group_by(TransactionRow.account_id)
+        stmt = select(TransactionRow.account_id, func.sum(TransactionRow.amount)).where(
+            TransactionRow.household_id == household_id,
+            TransactionRow.account_id.in_(account_ids),
+            _ACTIVE,
         )
+        if until is not None:
+            stmt = stmt.where(TransactionRow.booked_at <= until)
+        rows = self._s.execute(stmt.group_by(TransactionRow.account_id))
         # SQLite suma en coma flotante: se redondea a la escala de la columna (4 decimales).
         return {
             AccountId(account_id): Decimal(str(total or 0)).quantize(_AMOUNT_QUANTUM)
@@ -290,6 +296,7 @@ class SqlTransactionRepository:
                 category_id=t.category_id,
                 note=t.note,
                 voided=t.voided,
+                reviewed=t.reviewed,
                 import_id=t.import_id,
             )
         )
@@ -416,6 +423,7 @@ class SqlTransactionRepository:
         rows = self._s.scalars(
             select(TransactionRow).where(
                 *self._uncategorized(household_id, account_ids),
+                TransactionRow.reviewed.is_(False),
                 TransactionRow.merchant == key,
             )
         )
@@ -427,6 +435,7 @@ class SqlTransactionRepository:
         rows = self._s.scalars(
             select(TransactionRow).where(
                 *self._uncategorized(household_id, account_ids),
+                TransactionRow.reviewed.is_(False),
                 or_(
                     TransactionRow.merchant == first_word,
                     TransactionRow.merchant.startswith(f"{first_word} ", autoescape=True),

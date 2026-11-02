@@ -42,6 +42,7 @@ def transaction_state(t: Transaction) -> dict[str, Value]:
         "category_id": str(t.category_id) if t.category_id else None,
         "note": t.note,
         "voided": t.voided,
+        "reviewed": t.reviewed,
     }
 
 
@@ -56,6 +57,7 @@ def with_state(t: Transaction, values: Mapping[str, Value]) -> Transaction:
         category_id=CategoryId(UUID(str(category))) if category else None,
         note=str(state["note"] or ""),
         voided=bool(state["voided"]),
+        reviewed=bool(state["reviewed"]),
     )
 
 
@@ -149,6 +151,8 @@ def display_summary(operation: Operation, visible: set[str] | None = None) -> st
         return f"{base} y {n - 1} más"
     if operation.action == "transactions.categorize":
         return f"{n} {'gasto' if n == 1 else 'gastos'} {base}"
+    if operation.action == "transactions.review":
+        return f"{n} {'movimiento' if n == 1 else 'movimientos'} {base}"
     if operation.action == "import.undo":
         return f"{base} ({n} movimientos)"
     return base

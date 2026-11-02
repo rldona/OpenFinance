@@ -405,6 +405,69 @@ describe('Tipos de cuenta (OF-1005)', () => {
   })
 })
 
+describe('Revisado y conciliación (OF-1006)', () => {
+  it('marca un movimiento como revisado y avisa con «Deshacer»', async () => {
+    window.location.hash = '#movimientos'
+    const calls = loggedIn({
+      'GET /api/v1/transactions/t4/history': { body: [] },
+      'POST /api/v1/transactions/review': { body: { changed: 1, operation_id: 'op-r' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Glovo' }))
+    await userEvent.click(await screen.findByLabelText('Revisado con el banco'))
+    const post = calls.find((c) => c.url.pathname === '/api/v1/transactions/review')!
+    expect(JSON.parse(String(post.body))).toEqual({ ids: ['t4'], reviewed: true })
+    expect(await screen.findByText('Marcado como revisado')).toBeInTheDocument()
+  })
+
+  it('filtra los movimientos sin revisar', async () => {
+    window.location.hash = '#movimientos'
+    const calls = loggedIn()
+    render(<App />)
+    await userEvent.click(await screen.findByLabelText('Solo sin revisar'))
+    await waitFor(() =>
+      expect(calls.some((c) => c.url.pathname === '/api/v1/transactions/page' && c.url.searchParams.get('reviewed') === 'false')).toBe(true),
+    )
+  })
+
+  const RECON = (matches: boolean, diff: string) => ({
+    id: 'r1',
+    account_id: 'a-joint',
+    as_of: '2026-10-31',
+    bank_balance: { amount: '1300.00', currency: 'EUR' },
+    computed_balance: { amount: '1227.26', currency: 'EUR' },
+    difference: { amount: diff, currency: 'EUR' },
+    matches,
+    created_by: 'u-raul',
+    created_at: '2026-11-02T10:00:00Z',
+  })
+
+  it('comprueba el saldo de una cuenta y dice lo que falta', async () => {
+    window.location.hash = '#movimientos?cuenta=a-joint'
+    const calls = loggedIn({
+      'GET /api/v1/accounts/a-joint/reconciliations': { body: [] },
+      'POST /api/v1/accounts/a-joint/reconciliations': { status: 201, body: RECON(false, '72.74') },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByText(/Comprobar el saldo de «Cuenta conjunta»/))
+    await userEvent.type(screen.getByLabelText('Saldo según el banco'), '1300')
+    await userEvent.click(screen.getByRole('button', { name: 'Comprobar' }))
+    const post = calls.find((c) => c.method === 'POST')!
+    expect(JSON.parse(String(post.body))).toMatchObject({ bank_balance: '1300' })
+    expect(await screen.findByText(/Faltan 72,74/)).toBeInTheDocument()
+  })
+
+  it('un saldo mal escrito se avisa junto al campo', async () => {
+    window.location.hash = '#movimientos?cuenta=a-joint'
+    loggedIn({ 'GET /api/v1/accounts/a-joint/reconciliations': { body: [] } })
+    render(<App />)
+    await userEvent.click(await screen.findByText(/Comprobar el saldo de «Cuenta conjunta»/))
+    await userEvent.type(screen.getByLabelText('Saldo según el banco'), 'mucho')
+    await userEvent.click(screen.getByRole('button', { name: 'Comprobar' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Escribe el saldo del banco')
+  })
+})
+
 describe('Varios a la vez y efectivo (OF-705)', () => {
   it('pone la misma categoría a los seleccionados sin aprender reglas y se puede deshacer', async () => {
     const calls = loggedIn({

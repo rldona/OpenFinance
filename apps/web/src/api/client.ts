@@ -2,6 +2,7 @@ import type { components, operations } from './schema'
 
 type Schemas = components['schemas']
 export type Me = Schemas['MeOut']
+export type Reconciliation = Schemas['ReconciliationOut']
 export type AccountType = Schemas['AccountType']
 export type LinkResult = Schemas['LinkOut']
 export type SplitResult = Schemas['SplitOut']
@@ -119,12 +120,12 @@ export const api = {
     request<Account>('POST', '/api/v1/accounts', { json: body }),
   accounts: (signal?: AbortSignal) => request<Account[]>('GET', '/api/v1/accounts', { signal }),
   transactions: (
-    query: { month?: string; q?: string; uncategorized?: boolean; account_id?: string; category_id?: string; tag?: string; shared_only?: boolean; mine_only?: boolean },
+    query: { month?: string; q?: string; uncategorized?: boolean; account_id?: string; category_id?: string; tag?: string; reviewed?: 'true' | 'false'; shared_only?: boolean; mine_only?: boolean },
     signal?: AbortSignal,
   ) => request<Transaction[]>('GET', '/api/v1/transactions', { query, signal }),
   /** Movimientos de 50 en 50 con el total del filtro (OF-803). */
   transactionsPage: (
-    query: { month?: string; q?: string; uncategorized?: boolean; account_id?: string; tag?: string; cursor?: string },
+    query: { month?: string; q?: string; uncategorized?: boolean; account_id?: string; tag?: string; reviewed?: 'true' | 'false'; cursor?: string },
     signal?: AbortSignal,
   ) => request<TransactionPage>('GET', '/api/v1/transactions/page', { query, signal }),
   previewImport: (accountId: string, file: File) => {
@@ -155,7 +156,7 @@ export const api = {
     request<{ operation_id: string | null }>('DELETE', `/api/v1/transactions/${encodeURIComponent(transactionId)}`),
   imports: (signal?: AbortSignal) => request<ImportItem[]>('GET', '/api/v1/imports', { signal }),
   undoImport: (importId: string) =>
-    request<{ voided: number; operation_id: string | null }>('POST', `/api/v1/imports/${encodeURIComponent(importId)}/undo`),
+    request<{ voided: number; operation_id: string | null; kept_reviewed?: number }>('POST', `/api/v1/imports/${encodeURIComponent(importId)}/undo`),
   changePassword: (currentPassword: string, newPassword: string) =>
     request<{ revoked: number }>('POST', '/api/v1/me/password', {
       json: { current_password: currentPassword, new_password: newPassword },
@@ -166,6 +167,15 @@ export const api = {
     request<MemberPattern>('POST', '/api/v1/me/patterns', { json: { pattern, direction } }),
   removePattern: (p: MemberPattern) =>
     request<void>('DELETE', `/api/v1/me/patterns/${p.direction}/${encodeURIComponent(p.pattern)}`),
+  /** Revisar movimientos y comprobar el saldo contra el banco (OF-1006). */
+  reviewTransactions: (ids: string[], reviewed: boolean) =>
+    request<{ changed: number; operation_id: string | null }>('POST', '/api/v1/transactions/review', { json: { ids, reviewed } }),
+  reconcileAccount: (accountId: string, asOf: string, bankBalance: string) =>
+    request<Reconciliation>('POST', `/api/v1/accounts/${encodeURIComponent(accountId)}/reconciliations`, {
+      json: { as_of: asOf, bank_balance: bankBalance },
+    }),
+  reconciliations: (accountId: string, signal?: AbortSignal) =>
+    request<Reconciliation[]>('GET', `/api/v1/accounts/${encodeURIComponent(accountId)}/reconciliations`, { signal }),
   /** Traspasos entre cuentas propias: candidatos, enlazar y desenlazar (OF-1004). */
   transferCandidates: (transactionId: string, signal?: AbortSignal) =>
     request<Transaction[]>('GET', `/api/v1/transactions/${encodeURIComponent(transactionId)}/transfer-candidates`, { signal }),

@@ -2,10 +2,11 @@ import base64
 from datetime import datetime
 from typing import Annotated
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from openfinance.api.deps import ActorDep, UowDep
+from openfinance.api.deps import ActorDep, SettingsDep, UowDep
 from openfinance.api.v1.schemas import (
     AccountIn,
     AccountOut,
@@ -17,6 +18,10 @@ from openfinance.api.v1.schemas import (
     ManualTransactionOut,
     MoneyOut,
     OperationRefOut,
+    ReconcileIn,
+    ReconciliationOut,
+    ReviewIn,
+    ReviewOut,
     SplitIn,
     SplitOut,
     TagOut,
@@ -25,7 +30,7 @@ from openfinance.api.v1.schemas import (
     TransactionOut,
     TransactionPageOut,
 )
-from openfinance.application import households, ledger, links, movements, splits
+from openfinance.application import households, ledger, links, movements, reconcile, splits
 from openfinance.application import tags as tags_app
 from openfinance.application.decorate import decorate
 from openfinance.application.ports import TransactionQuery, UnitOfWork
@@ -72,6 +77,7 @@ def list_transactions(
     account_id: UUID | None = None,
     category_id: UUID | None = None,
     tag: Annotated[str | None, Query(max_length=40, description="Solo con esta etiqueta")] = None,
+    reviewed: Annotated[bool | None, Query(description="Solo revisados o solo sin revisar")] = None,
     shared_only: Annotated[
         bool, Query(description="Solo cuentas del hogar (conjunta y huchas), como los gráficos")
     ] = False,
@@ -90,6 +96,7 @@ def list_transactions(
             account_id=AccountId(account_id) if account_id else None,
             category_id=CategoryId(category_id) if category_id else None,
             tag=tag or None,
+            reviewed=reviewed,
             shared_only=shared_only,
             mine_only=mine_only,
             limit=limit,
@@ -124,6 +131,7 @@ def page_transactions(
     account_id: UUID | None = None,
     category_id: UUID | None = None,
     tag: Annotated[str | None, Query(max_length=40, description="Solo con esta etiqueta")] = None,
+    reviewed: Annotated[bool | None, Query(description="Solo revisados o solo sin revisar")] = None,
     cursor: Annotated[
         str | None, Query(max_length=200, description="`next_cursor` anterior")
     ] = None,
@@ -140,6 +148,7 @@ def page_transactions(
             account_id=AccountId(account_id) if account_id else None,
             category_id=CategoryId(category_id) if category_id else None,
             tag=tag or None,
+            reviewed=reviewed,
             limit=limit,
             after=_decode_cursor(cursor) if cursor else None,
         )
@@ -285,3 +294,40 @@ def unlink_transfer(transaction_id: UUID, actor: ActorDep, uow: UowDep) -> LinkO
     return _link_out(
         uow, actor, links.unlink_transfer(uow, actor, TransactionId(transaction_id), utc_now())
     )
+
+
+@router.post("/transactions/review", response_model=ReviewOut)
+def review_transactions(body: ReviewIn, actor: ActorDep, uow: UowDep) -> ReviewOut:
+    """Marca (o desmarca) movimientos como revisados contra el banco; se puede deshacer."""
+    changed, operation_id = reconcile.set_reviewed(
+        uow, actor, [TransactionId(i) for i in body.ids], body.reviewed, utc_now()
+    )
+    return ReviewOut(changed=changed, operation_id=operation_id)
+
+
+@router.post(
+    "/accounts/{account_id}/reconciliations",
+    response_model=ReconciliationOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def reconcile_account(
+    account_id: UUID, body: ReconcileIn, actor: ActorDep, uow: UowDep, settings: SettingsDep
+) -> ReconciliationOut:
+    """Compara el saldo de la cuenta a una fecha con el que da el banco y guarda la diferencia."""
+    today = utc_now().astimezone(ZoneInfo(settings.timezone)).date()
+    result = reconcile.reconcile(
+        uow,
+        actor,
+        AccountId(account_id),
+        body.as_of,
+        body.bank_balance.replace(",", "."),
+        utc_now(),
+        today,
+    )
+    return ReconciliationOut.of(result)
+
+
+@router.get("/accounts/{account_id}/reconciliations", response_model=list[ReconciliationOut])
+def list_reconciliations(account_id: UUID, actor: ActorDep, uow: UowDep) -> list[ReconciliationOut]:
+    """Las últimas comprobaciones de saldo de la cuenta."""
+    return [ReconciliationOut.of(r) for r in reconcile.recent(uow, actor, AccountId(account_id))]
