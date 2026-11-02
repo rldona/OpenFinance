@@ -475,6 +475,21 @@ Alcance en [ADR-0020](../adr/0020-motor-de-reglas-e-importacion-universal.md). C
 
 ---
 
+## Fase 12 · Planificar (v0.5)
+
+Alcance en [ADR-0021](../adr/0021-pagos-programados-y-prevision.md) y [ADR-0022](../adr/0022-presupuestos-con-limites-o-sobres.md), ambos aceptados el 2 de noviembre de 2026. Cada ticket lleva su migración, su cambio de OpenAPI (`make openapi`), tests de privacidad negativos y, si cambia datos, registro de cambios con deshacer.
+
+| ID | Ticket | Criterio de hecho |
+| --- | --- | --- |
+| OF-1201 | Pagos programados: calendario, emparejado con lo cobrado y atrasos | Las ocurrencias son una función pura del calendario (meses cortos, fin, rango); emparejar no escribe movimientos y se deshace; convertir un cargo detectado en pago programado |
+| OF-1202 | Previsión de saldo por cuenta y del hogar | Saldo día a día; primer día en negativo y mínimo; una cuenta personal ajena no entra; `card` y `loan` fuera |
+| OF-1203 | Presupuestos con límites o sobres, arrastre e importes por mes (ADR-0022) | Los presupuestos existentes siguen siendo límites; el arrastre se recalcula (test de propiedades); un sobre en negativo arrastra el déficit |
+| OF-1204 | Plantillas de movimientos | Crear desde plantilla usa el flujo normal, con registro de cambios y deshacer; privacidad del ámbito |
+| OF-1205 | «Hoy podéis gastar» | Cifra con su desglose; sin datos suficientes lo dice en vez de inventar; respeta privacidad y sobres |
+| OF-1206 | Objetivos v2: aportaciones, prioridad y recordatorio | Las aportaciones alimentan lo ahorrado si no hay hucha; reparto por prioridad; se deshace |
+
+---
+
 ## Después de v0.2
 
 Inspirado en Wallet, Spendee, Fintonic y Actual Budget. Cada fase empieza con su ADR y se detalla en tickets al empezarla. Esfuerzo estimado para una persona a tiempo completo.

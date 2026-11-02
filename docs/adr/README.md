@@ -26,3 +26,5 @@ Formato: contexto → decisión → consecuencias. Un ADR aceptado no se edita; 
 | [0018](0018-libro-contable-completo.md) | Alcance del libro contable completo | Accepted |
 | [0019](0019-varias-monedas.md) | Varias monedas | Accepted |
 | [0020](0020-motor-de-reglas-e-importacion-universal.md) | Motor de reglas con condiciones e importación universal | Accepted |
+| [0021](0021-pagos-programados-y-prevision.md) | Pagos programados, previsión de saldo y «hoy podéis gastar» | Accepted |
+| [0022](0022-presupuestos-con-limites-o-sobres.md) | Presupuestos con límites o sobres, arrastre y objetivos v2 | Accepted |
