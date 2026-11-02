@@ -8,6 +8,9 @@ RUN npm run build
 
 FROM nginx:1.30-alpine@sha256:0e52bd054126cdc040b1276c0af347aeb02a41b9cfe305d6094767ac30e97949
 
+# Parches de seguridad de Alpine publicados después de la imagen base fijada por digest (OF-902).
+RUN apk upgrade --no-cache
+
 # direct (por defecto) o caddy; ver docs/deployment/home.md
 ENV OPENFINANCE_PROXY_MODE=direct
 
