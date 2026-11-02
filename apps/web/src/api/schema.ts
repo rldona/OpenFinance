@@ -245,6 +245,67 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/exchange-rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Rates
+         * @description Los tipos de cambio del hogar: 1 unidad de la moneda = tanto de la moneda del hogar.
+         */
+        get: operations["list_rates_api_v1_exchange_rates_get"];
+        /**
+         * Set Rate
+         * @description Pone o corrige el tipo de cambio de una moneda en una fecha; se puede deshacer.
+         */
+        put: operations["set_rate_api_v1_exchange_rates_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/exchange-rates/missing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Missing Rates
+         * @description Monedas con movimientos tuyos que no entran en los informes por falta de tipo.
+         */
+        get: operations["missing_rates_api_v1_exchange_rates_missing_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/exchange-rates/{currency}/{on}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Rate */
+        delete: operations["delete_rate_api_v1_exchange_rates__currency___on__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/export": {
         parameters: {
             query?: never;
@@ -1014,6 +1075,11 @@ export interface components {
     schemas: {
         /** AccountIn */
         AccountIn: {
+            /**
+             * Currency
+             * @description Moneda de la cuenta; por defecto, la del hogar
+             */
+            currency?: string | null;
             /** Name */
             name: string;
             /**
@@ -1688,6 +1754,22 @@ export interface components {
             /** Version */
             version: string;
         };
+        /** MissingRateOut */
+        MissingRateOut: {
+            /**
+             * Count
+             * @description Movimientos que no entran en los informes por falta de tipo
+             */
+            count: number;
+            /** Currency */
+            currency: string;
+            /**
+             * First
+             * Format: date
+             * @description Fecha del más antiguo: el tipo ha de ser de ese día o antes
+             */
+            first: string;
+        };
         /** MoneyOut */
         MoneyOut: {
             /**
@@ -1881,6 +1963,47 @@ export interface components {
             before: components["schemas"]["MoneyOut"];
             /** Month */
             month: string;
+        };
+        /** RateIn */
+        RateIn: {
+            /**
+             * Currency
+             * @description Código ISO, p. ej. USD
+             */
+            currency: string;
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /**
+             * Rate
+             * @description Mayor que cero
+             */
+            rate: string;
+        };
+        /** RateOut */
+        RateOut: {
+            /** Currency */
+            currency: string;
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /**
+             * Rate
+             * @description Unidades de la moneda del hogar por 1 de esta moneda
+             */
+            rate: string;
+            /** Source */
+            source: string;
+        };
+        /** RateSetOut */
+        RateSetOut: {
+            /** Operation Id */
+            operation_id: string | null;
+            rate: components["schemas"]["RateOut"];
         };
         /** ReconcileIn */
         ReconcileIn: {
@@ -2205,7 +2328,12 @@ export interface components {
              * @description Pásalo como `cursor` para pedir la página siguiente; null en la última
              */
             next_cursor: string | null;
-            /** @description Suma con signo de todos los que cumplen el filtro */
+            /**
+             * Other Currencies
+             * @description Monedas de movimientos del filtro que no entran en `total`
+             */
+            other_currencies: string[];
+            /** @description Suma con signo de los que cumplen el filtro y van en la moneda del hogar */
             total: components["schemas"]["MoneyOut"];
         };
         /** TrendCategoryOut */
@@ -2806,6 +2934,111 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RevertOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_rates_api_v1_exchange_rates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateOut"][];
+                };
+            };
+        };
+    };
+    set_rate_api_v1_exchange_rates_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateSetOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    missing_rates_api_v1_exchange_rates_missing_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MissingRateOut"][];
+                };
+            };
+        };
+    };
+    delete_rate_api_v1_exchange_rates__currency___on__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                currency: string;
+                on: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationRefOut"];
                 };
             };
             /** @description Validation Error */

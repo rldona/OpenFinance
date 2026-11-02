@@ -444,9 +444,9 @@ Notas de la implementación (sin probar en un equipo con Docker; lo comprueban l
 
 ---
 
-## Fase 10 · Libro contable completo (v0.3)
+## Fase 10 · Libro contable completo (v0.3) ✅
 
-Alcance en [ADR-0018](../adr/0018-libro-contable-completo.md) y [ADR-0019](../adr/0019-varias-monedas.md), ambos aceptados el 1 de noviembre de 2026. Cada ticket lleva su migración, su cambio de OpenAPI (`make openapi`), tests de privacidad negativos y registro de cambios con deshacer.
+Hecha (sin probar en un equipo con Docker: lo comprueba `compose-e2e`). Alcance en [ADR-0018](../adr/0018-libro-contable-completo.md) y [ADR-0019](../adr/0019-varias-monedas.md), ambos aceptados el 1 de noviembre de 2026. Cada ticket lleva su migración, su cambio de OpenAPI (`make openapi`), tests de privacidad negativos y registro de cambios con deshacer.
 
 | ID | Ticket | Criterio de hecho |
 | --- | --- | --- |
@@ -457,7 +457,7 @@ Alcance en [ADR-0018](../adr/0018-libro-contable-completo.md) y [ADR-0019](../ad
 | OF-1005 ✅ | Tipos de cuenta: efectivo, tarjeta, préstamo e inversión | El saldo de `card` y `loan` resta; no entran en gasto ni presupuestos; migración sin tocar cuentas existentes |
 | OF-1006 ✅ | Conciliación: revisado y saldo contra el del banco en una fecha | Un movimiento revisado no cambia con una importación; la diferencia de saldo se muestra |
 | OF-1007 ✅ | Adjuntos (ticket, factura) en un movimiento | En disco, con la privacidad del movimiento, en la copia de seguridad y con límite de tamaño y tipo |
-| OF-1008 | Varias monedas con tipos de cambio manuales (ADR-0019) | Sin tasa, el movimiento no se convierte y el informe lo dice; un hogar de una moneda no cambia |
+| OF-1008 ✅ | Varias monedas con tipos de cambio manuales (ADR-0019) | Sin tasa, el movimiento no se convierte y el informe lo dice; un hogar de una moneda no cambia |
 
 ---
 
@@ -467,7 +467,7 @@ Inspirado en Wallet, Spendee, Fintonic y Actual Budget. Cada fase empieza con su
 
 | Fase | Versión | Qué consigue | Tickets | Esfuerzo |
 | --- | --- | --- | --- | --- |
-| 10 · Libro contable completo | v0.3 | Detallada en [Fase 10](#fase-10--libro-contable-completo-v03) | OF-1001 … OF-1008 | 8 semanas |
+| 10 · Libro contable completo | v0.3 | Hecha: [Fase 10](#fase-10--libro-contable-completo-v03) | OF-1001 … OF-1008 | ✅ |
 | 11 · Reglas e importación universal | v0.4 | Motor de reglas con condiciones, acciones y fases (ADR-0020), vista previa y aplicar a lo existente, OFX, QIF y CAMT.053, CSV de cualquier banco con perfiles | OF-1101 … OF-1105 | 5 semanas |
 | 12 · Planificar | v0.5 | Pagos programados (ADR-0021), previsión de saldo, presupuestos con límites o sobres y arrastre (ADR-0022), plantillas, «hoy podéis gastar», objetivos v2 | OF-1201 … OF-1206 | 7 semanas |
 | 13 · Alertas | v0.6 | Avisos deterministas (comisiones, duplicados, recibos que suben…), notificaciones Web Push o ntfy (ADR-0023), resumen semanal | OF-1301 … OF-1303 | 4 semanas |

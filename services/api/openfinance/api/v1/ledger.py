@@ -58,6 +58,7 @@ def create_account(body: AccountIn, actor: ActorDep, uow: UowDep) -> AccountOut:
         body.type,
         shared=body.shared,
         opening_balance=body.opening_balance.replace(",", "."),
+        currency=body.currency,
     )
     return AccountOut.of(account, account.opening_balance)
 
@@ -161,6 +162,7 @@ def page_transactions(
         next_cursor=_encode_cursor(*page.next_after) if page.next_after else None,
         count=page.count,
         total=MoneyOut.of(page.total),
+        other_currencies=page.other_currencies,
     )
 
 

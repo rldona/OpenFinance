@@ -2,6 +2,8 @@ import type { components, operations } from './schema'
 
 type Schemas = components['schemas']
 export type Me = Schemas['MeOut']
+export type ExchangeRate = Schemas['RateOut']
+export type MissingRate = Schemas['MissingRateOut']
 export type Attachment = Schemas['AttachmentOut']
 export type Reconciliation = Schemas['ReconciliationOut']
 export type AccountType = Schemas['AccountType']
@@ -117,7 +119,7 @@ export const api = {
   /** Versión instalada y, si está activada la consulta, si hay una nueva (OF-907). */
   version: (signal?: AbortSignal) => request<VersionInfo>('GET', '/api/v1/version', { signal }),
   /** Añade una cuenta de efectivo, tarjeta, préstamo o inversión (OF-1005). */
-  createAccount: (body: { name: string; type: AccountType; shared: boolean; opening_balance: string }) =>
+  createAccount: (body: { name: string; type: AccountType; shared: boolean; opening_balance: string; currency?: string }) =>
     request<Account>('POST', '/api/v1/accounts', { json: body }),
   accounts: (signal?: AbortSignal) => request<Account[]>('GET', '/api/v1/accounts', { signal }),
   transactions: (
@@ -168,6 +170,13 @@ export const api = {
     request<MemberPattern>('POST', '/api/v1/me/patterns', { json: { pattern, direction } }),
   removePattern: (p: MemberPattern) =>
     request<void>('DELETE', `/api/v1/me/patterns/${p.direction}/${encodeURIComponent(p.pattern)}`),
+  /** Tipos de cambio manuales: 1 unidad de la moneda = tanto de la del hogar (OF-1008). */
+  exchangeRates: (signal?: AbortSignal) => request<ExchangeRate[]>('GET', '/api/v1/exchange-rates', { signal }),
+  setExchangeRate: (currency: string, on: string, rate: string) =>
+    request<{ rate: ExchangeRate; operation_id: string | null }>('PUT', '/api/v1/exchange-rates', { json: { currency, on, rate } }),
+  deleteExchangeRate: (currency: string, on: string) =>
+    request<{ operation_id: string | null }>('DELETE', `/api/v1/exchange-rates/${encodeURIComponent(currency)}/${encodeURIComponent(on)}`),
+  missingRates: (signal?: AbortSignal) => request<MissingRate[]>('GET', '/api/v1/exchange-rates/missing', { signal }),
   /** Tickets y facturas adjuntos a un movimiento (OF-1007). */
   attachments: (transactionId: string, signal?: AbortSignal) =>
     request<Attachment[]>('GET', `/api/v1/transactions/${encodeURIComponent(transactionId)}/attachments`, { signal }),

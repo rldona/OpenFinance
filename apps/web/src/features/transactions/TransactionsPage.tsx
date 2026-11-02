@@ -465,7 +465,10 @@ export function TransactionsPage() {
                 ? `Mostrando ${rows.length} de ${current.page.count} movimientos`
                 : `${current.page.count} movimientos`}
             </p>
-            <p className="small muted">Suma del filtro: {formatMoney(current.page.total, { signed: true })}</p>
+            <p className="small muted">
+              Suma del filtro: {formatMoney(current.page.total, { signed: true })}
+              {current.page.other_currencies.length > 0 && <> (sin contar {current.page.other_currencies.join(', ')})</>}
+            </p>
           </>
         )}
         {nextCursor && (

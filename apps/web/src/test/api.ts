@@ -99,5 +99,6 @@ export function page(
     next_cursor: extra.next_cursor ?? null,
     count: extra.count ?? items.length,
     total: { amount: extra.total ?? '-100.00', currency: 'EUR' },
+    other_currencies: [] as string[],
   }
 }

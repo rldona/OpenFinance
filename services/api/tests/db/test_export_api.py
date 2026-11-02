@@ -339,6 +339,7 @@ class TestUnit:
                 "budgets.csv",
                 "goals.csv",
                 "member_patterns.csv",
+                "exchange_rates.csv",
             ]
         )
         amounts = [t["amount"] for t in rows(files["transactions.csv"])]

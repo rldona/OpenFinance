@@ -217,6 +217,7 @@ def _accounts(args: argparse.Namespace) -> int:
         args.opening_balance,
         owner_email=args.email if kind is AccountKind.PERSONAL else None,
         type=AccountType(args.type),
+        currency=args.currency,
     )
     with get_session_factory()() as session:
         try:
@@ -393,6 +394,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     add.add_argument("name", help="Nombre de la cuenta, p. ej. 'Hucha viaje'")
     add.add_argument("--kind", choices=[k.value for k in AccountKind], default="savings")
     add.add_argument("--bank", choices=[i.value for i in Institution], default="revolut")
+    add.add_argument(
+        "--currency",
+        default=None,
+        help="Moneda de la cuenta (código ISO, p. ej. USD); por defecto, la del hogar",
+    )
     add.add_argument(
         "--type",
         choices=[t.value for t in AccountType],

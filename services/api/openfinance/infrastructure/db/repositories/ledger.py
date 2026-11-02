@@ -215,15 +215,15 @@ class SqlTransactionRepository:
 
     def totals(
         self, household_id: WorkspaceId, account_ids: list[AccountId], query: TransactionQuery
-    ) -> tuple[int, Decimal]:
+    ) -> tuple[int, dict[str, Decimal]]:
         filtered = self._filtered(household_id, account_ids, query).subquery()
         count = 0
-        total = Decimal(0)
+        totals: dict[str, Decimal] = {}
         # Se suma en Python: SUM sobre decimales exactos no es fiable en todos los motores.
-        for (amount,) in self._s.execute(select(filtered.c.amount)):
+        for currency, amount in self._s.execute(select(filtered.c.currency, filtered.c.amount)):
             count += 1
-            total += amount
-        return count, total
+            totals[currency] = totals.get(currency, Decimal(0)) + amount
+        return count, totals
 
     def for_account(self, household_id: WorkspaceId, account_id: AccountId) -> list[Transaction]:
         rows = self._s.scalars(

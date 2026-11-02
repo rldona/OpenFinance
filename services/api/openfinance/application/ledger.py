@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
@@ -75,7 +75,10 @@ class TransactionPage:
     count: int
     """Movimientos que cumplen el filtro en total, no solo los de esta página."""
     total: Money
-    """Suma de sus importes (con signo)."""
+    """Suma de sus importes (con signo), solo de los que van en la moneda del hogar."""
+    other_currencies: list[str] = field(default_factory=list)
+    """Monedas de movimientos del filtro que no entran en ``total`` (sumar monedas distintas no
+    tiene sentido) (OF-1008)."""
 
 
 def page_transactions(uow: UnitOfWork, actor: Actor, query: TransactionQuery) -> TransactionPage:
@@ -91,10 +94,12 @@ def page_transactions(uow: UnitOfWork, actor: Actor, query: TransactionQuery) ->
     )
     page = rows[: query.limit]
     last = page[-1] if len(rows) > query.limit else None
-    count, total = uow.transactions.totals(actor.household_id, ids, replace(query, after=None))
+    count, totals = uow.transactions.totals(actor.household_id, ids, replace(query, after=None))
+    reference = household.currency.code
     return TransactionPage(
         page,
         (last.booked_at, last.id) if last else None,
         count,
-        Money.of(total, household.currency),
+        Money.of(totals.get(reference, Decimal(0)), household.currency),
+        sorted(c for c in totals if c != reference),
     )

@@ -532,6 +532,80 @@ describe('Adjuntos (OF-1007)', () => {
   })
 })
 
+describe('Varias monedas (OF-1008)', () => {
+  const USD = { currency: 'USD', on: '2026-10-01', rate: '0.90000000', source: 'manual' }
+
+  it('lista los tipos de cambio y avisa de los movimientos sin tipo', async () => {
+    window.location.hash = '#ajustes'
+    loggedIn({
+      'GET /api/v1/me/patterns': { body: [] },
+      'GET /api/v1/exchange-rates': { body: [USD] },
+      'GET /api/v1/exchange-rates/missing': { body: [{ currency: 'GBP', count: 3, first: '2026-10-05' }] },
+    })
+    render(<App />)
+    const list = await screen.findByRole('list', { name: 'Tipos de cambio' })
+    expect(list).toHaveTextContent('1 USD = 0.9 EUR')
+    expect(await screen.findByText(/3 movimientos en GBP sin tipo de cambio/)).toBeInTheDocument()
+  })
+
+  it('guarda un tipo de cambio y avisa con «Deshacer»', async () => {
+    window.location.hash = '#ajustes'
+    const calls = loggedIn({
+      'GET /api/v1/me/patterns': { body: [] },
+      'GET /api/v1/exchange-rates': { body: [] },
+      'GET /api/v1/exchange-rates/missing': { body: [] },
+      'PUT /api/v1/exchange-rates': { body: { rate: USD, operation_id: 'op-x' } },
+    })
+    render(<App />)
+    await userEvent.type(await screen.findByLabelText('Moneda'), 'usd')
+    await userEvent.type(screen.getByLabelText(/Vale en EUR/), '0,9')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar tipo' }))
+    const put = calls.find((c) => c.method === 'PUT')!
+    expect(JSON.parse(String(put.body))).toMatchObject({ currency: 'USD', rate: '0,9' })
+    expect(await screen.findByText('Tipo de cambio USD guardado')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Deshacer' })).toBeInTheDocument()
+  })
+
+  it('un tipo no válido se avisa junto al campo', async () => {
+    window.location.hash = '#ajustes'
+    loggedIn({
+      'GET /api/v1/me/patterns': { body: [] },
+      'GET /api/v1/exchange-rates': { body: [] },
+      'GET /api/v1/exchange-rates/missing': { body: [] },
+      'PUT /api/v1/exchange-rates': { status: 422, body: { detail: 'EUR ya es la moneda del hogar: no necesita tipo de cambio' } },
+    })
+    render(<App />)
+    await userEvent.type(await screen.findByLabelText('Moneda'), 'EUR')
+    await userEvent.type(screen.getByLabelText(/Vale en EUR/), '1')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar tipo' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('ya es la moneda del hogar')
+    expect(screen.getByLabelText(/Vale en EUR/)).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('una cuenta puede ir en otra moneda', async () => {
+    window.location.hash = '#ajustes'
+    const calls = loggedIn({
+      'GET /api/v1/me/patterns': { body: [] },
+      'GET /api/v1/exchange-rates': { body: [] },
+      'GET /api/v1/exchange-rates/missing': { body: [] },
+      'POST /api/v1/accounts': { status: 201, body: { ...ACCOUNTS[0], name: 'Viajes', type: 'cash' } },
+    })
+    render(<App />)
+    await userEvent.type(await screen.findByLabelText('Nombre'), 'Viajes')
+    await userEvent.type(screen.getByLabelText(/Moneda \(vacío/), 'usd')
+    await userEvent.click(screen.getByRole('button', { name: 'Añadir cuenta' }))
+    const post = calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/accounts')!
+    expect(JSON.parse(String(post.body))).toMatchObject({ name: 'Viajes', currency: 'USD' })
+  })
+
+  it('la suma del filtro dice qué monedas no cuenta', async () => {
+    window.location.hash = '#movimientos'
+    loggedIn({ 'GET /api/v1/transactions/page': { body: { ...page(TRANSACTIONS), other_currencies: ['USD'] } } })
+    render(<App />)
+    expect(await screen.findByText(/sin contar USD/)).toBeInTheDocument()
+  })
+})
+
 describe('Varios a la vez y efectivo (OF-705)', () => {
   it('pone la misma categoría a los seleccionados sin aprender reglas y se puede deshacer', async () => {
     const calls = loggedIn({
@@ -1601,6 +1675,8 @@ describe('Accesibilidad (OF-804)', () => {
     'GET /api/v1/savings/overview': { body: SAVINGS },
     'GET /api/v1/rules': { body: RULES },
     'GET /api/v1/merchants': { body: MERCHANTS },
+    'GET /api/v1/exchange-rates': { body: [] },
+    'GET /api/v1/exchange-rates/missing': { body: [] },
     'GET /api/v1/changes': { body: [OP] },
     'GET /api/v1/me/patterns': { body: [] },
   })

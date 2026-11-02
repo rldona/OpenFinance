@@ -276,6 +276,24 @@ class AttachmentRow(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class ExchangeRateRow(Base):
+    """Tipo de cambio manual: 1 unidad de ``currency`` = ``rate`` de la moneda del hogar."""
+
+    __tablename__ = "exchange_rates"
+    __table_args__ = (
+        CheckConstraint("rate > 0", name="rate_positive"),
+        CheckConstraint("source IN ('manual', 'extracto')", name="source_valid"),
+    )
+
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"), primary_key=True)
+    currency: Mapped[str] = mapped_column(String(3), primary_key=True)
+    on_date: Mapped[date] = mapped_column(Date, primary_key=True)
+    rate: Mapped[Decimal] = mapped_column(Numeric(24, 8))
+    source: Mapped[str] = mapped_column(String(10), default="manual", server_default="manual")
+    created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class MerchantRow(Base):
     """Comercio con nombre propio (OF-1001). Los que nadie ha tocado no tienen fila."""
 

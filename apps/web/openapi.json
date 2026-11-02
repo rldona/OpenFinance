@@ -3,6 +3,19 @@
     "schemas": {
       "AccountIn": {
         "properties": {
+          "currency": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z]{3}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Moneda de la cuenta; por defecto, la del hogar",
+            "title": "Currency"
+          },
           "name": {
             "maxLength": 100,
             "minLength": 1,
@@ -1808,6 +1821,32 @@
         "title": "MetaResponse",
         "type": "object"
       },
+      "MissingRateOut": {
+        "properties": {
+          "count": {
+            "description": "Movimientos que no entran en los informes por falta de tipo",
+            "title": "Count",
+            "type": "integer"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "first": {
+            "description": "Fecha del más antiguo: el tipo ha de ser de ese día o antes",
+            "format": "date",
+            "title": "First",
+            "type": "string"
+          }
+        },
+        "required": [
+          "currency",
+          "count",
+          "first"
+        ],
+        "title": "MissingRateOut",
+        "type": "object"
+      },
       "MoneyOut": {
         "properties": {
           "amount": {
@@ -2305,6 +2344,89 @@
           "after"
         ],
         "title": "PriceChangeOut",
+        "type": "object"
+      },
+      "RateIn": {
+        "properties": {
+          "currency": {
+            "description": "Código ISO, p. ej. USD",
+            "pattern": "^[A-Za-z]{3}$",
+            "title": "Currency",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "rate": {
+            "description": "Mayor que cero",
+            "pattern": "^\\d{1,9}([.,]\\d{1,8})?$",
+            "title": "Rate",
+            "type": "string"
+          }
+        },
+        "required": [
+          "currency",
+          "on",
+          "rate"
+        ],
+        "title": "RateIn",
+        "type": "object"
+      },
+      "RateOut": {
+        "properties": {
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "rate": {
+            "description": "Unidades de la moneda del hogar por 1 de esta moneda",
+            "title": "Rate",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "currency",
+          "on",
+          "rate",
+          "source"
+        ],
+        "title": "RateOut",
+        "type": "object"
+      },
+      "RateSetOut": {
+        "properties": {
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "rate": {
+            "$ref": "#/components/schemas/RateOut"
+          }
+        },
+        "required": [
+          "rate",
+          "operation_id"
+        ],
+        "title": "RateSetOut",
         "type": "object"
       },
       "ReconcileIn": {
@@ -3004,16 +3126,25 @@
             "description": "Pásalo como `cursor` para pedir la página siguiente; null en la última",
             "title": "Next Cursor"
           },
+          "other_currencies": {
+            "description": "Monedas de movimientos del filtro que no entran en `total`",
+            "items": {
+              "type": "string"
+            },
+            "title": "Other Currencies",
+            "type": "array"
+          },
           "total": {
             "$ref": "#/components/schemas/MoneyOut",
-            "description": "Suma con signo de todos los que cumplen el filtro"
+            "description": "Suma con signo de los que cumplen el filtro y van en la moneda del hogar"
           }
         },
         "required": [
           "items",
           "next_cursor",
           "count",
-          "total"
+          "total",
+          "other_currencies"
         ],
         "title": "TransactionPageOut",
         "type": "object"
@@ -4009,6 +4140,150 @@
         "summary": "Undo",
         "tags": [
           "changes"
+        ]
+      }
+    },
+    "/api/v1/exchange-rates": {
+      "get": {
+        "description": "Los tipos de cambio del hogar: 1 unidad de la moneda = tanto de la moneda del hogar.",
+        "operationId": "list_rates_api_v1_exchange_rates_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RateOut"
+                  },
+                  "title": "Response List Rates Api V1 Exchange Rates Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Rates",
+        "tags": [
+          "rates"
+        ]
+      },
+      "put": {
+        "description": "Pone o corrige el tipo de cambio de una moneda en una fecha; se puede deshacer.",
+        "operationId": "set_rate_api_v1_exchange_rates_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateSetOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Rate",
+        "tags": [
+          "rates"
+        ]
+      }
+    },
+    "/api/v1/exchange-rates/missing": {
+      "get": {
+        "description": "Monedas con movimientos tuyos que no entran en los informes por falta de tipo.",
+        "operationId": "missing_rates_api_v1_exchange_rates_missing_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MissingRateOut"
+                  },
+                  "title": "Response Missing Rates Api V1 Exchange Rates Missing Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Missing Rates",
+        "tags": [
+          "rates"
+        ]
+      }
+    },
+    "/api/v1/exchange-rates/{currency}/{on}": {
+      "delete": {
+        "operationId": "delete_rate_api_v1_exchange_rates__currency___on__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "currency",
+            "required": true,
+            "schema": {
+              "title": "Currency",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "on",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "On",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationRefOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Rate",
+        "tags": [
+          "rates"
         ]
       }
     },

@@ -157,7 +157,12 @@ class TransactionPageOut(BaseModel):
         description="Pásalo como `cursor` para pedir la página siguiente; null en la última"
     )
     count: int = Field(description="Movimientos que cumplen el filtro en total")
-    total: MoneyOut = Field(description="Suma con signo de todos los que cumplen el filtro")
+    total: MoneyOut = Field(
+        description="Suma con signo de los que cumplen el filtro y van en la moneda del hogar"
+    )
+    other_currencies: list[str] = Field(
+        description="Monedas de movimientos del filtro que no entran en `total`"
+    )
 
 
 class PreviewRowOut(BaseModel):
@@ -750,6 +755,11 @@ class AccountIn(BaseModel):
         description="Efectivo, tarjeta, préstamo o inversión; las de banco, desde el servidor"
     )
     shared: bool = Field(description="De todo el hogar (true) o solo tuya (false)")
+    currency: str | None = Field(
+        default=None,
+        pattern=r"^[A-Za-z]{3}$",
+        description="Moneda de la cuenta; por defecto, la del hogar",
+    )
     opening_balance: str = Field(
         default="0",
         pattern=AMOUNT_PATTERN_SIGNED,
@@ -823,3 +833,27 @@ class AttachmentOut(BaseModel):
 class AttachmentAddedOut(BaseModel):
     attachment: AttachmentOut
     operation_id: UUID | None
+
+
+class RateOut(BaseModel):
+    currency: str
+    on: date
+    rate: str = Field(description="Unidades de la moneda del hogar por 1 de esta moneda")
+    source: str
+
+
+class RateIn(BaseModel):
+    currency: str = Field(pattern=r"^[A-Za-z]{3}$", description="Código ISO, p. ej. USD")
+    on: date
+    rate: str = Field(pattern=r"^\d{1,9}([.,]\d{1,8})?$", description="Mayor que cero")
+
+
+class RateSetOut(BaseModel):
+    rate: RateOut
+    operation_id: UUID | None
+
+
+class MissingRateOut(BaseModel):
+    currency: str
+    count: int = Field(description="Movimientos que no entran en los informes por falta de tipo")
+    first: date = Field(description="Fecha del más antiguo: el tipo ha de ser de ese día o antes")

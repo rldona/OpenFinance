@@ -26,9 +26,12 @@ def validate_link(a: Transaction, b: Transaction) -> None:
         raise LinkError("No se pueden enlazar movimientos borrados")
     if a.account_id == b.account_id:
         raise LinkError("Un traspaso va de una cuenta a otra distinta")
-    if a.amount.currency != b.amount.currency:
-        raise LinkError("Los dos lados del traspaso van en la misma moneda")
-    if a.amount + b.amount != a.amount.__class__.zero(a.amount.currency):
+    if a.amount.is_negative == b.amount.is_negative:
+        raise LinkError("Los dos lados de un traspaso tienen signo contrario")
+    # Entre monedas distintas cada lado conserva su importe real; el cambio se enseña (OF-1008).
+    if a.amount.currency == b.amount.currency and a.amount + b.amount != a.amount.__class__.zero(
+        a.amount.currency
+    ):
         raise LinkError("Los dos lados tienen que ser del mismo importe y de signo contrario")
 
 

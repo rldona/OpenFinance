@@ -5,6 +5,7 @@ import { FieldError } from '../../components/FieldError'
 import { invalid } from '../../lib/invalid'
 import { ErrorState, Loading } from '../../components/LoadState'
 import { formatMoney } from '../../lib/format'
+import { ExchangeRates } from './ExchangeRates'
 import { type Theme, getTheme, setTheme } from '../../lib/theme'
 import { useLoad } from '../../lib/useLoad'
 
@@ -147,6 +148,7 @@ function Accounts() {
   const [type, setType] = useState<AccountType>('cash')
   const [shared, setShared] = useState(true)
   const [opening, setOpening] = useState('0')
+  const [currency, setCurrency] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   async function add(e: FormEvent) {
@@ -157,7 +159,7 @@ function Accounts() {
       return
     }
     try {
-      await api.createAccount({ name, type, shared, opening_balance: text })
+      await api.createAccount({ name, type, shared, opening_balance: text, ...(currency.trim() ? { currency: currency.trim().toUpperCase() } : {}) })
       setName('')
       setOpening('0')
       setError(null)
@@ -217,6 +219,10 @@ function Accounts() {
           />
         </label>
         <FieldError id="account-opening-error" message={error} />
+        <label>
+          Moneda (vacío = la del hogar)
+          <input className="field amount" maxLength={3} placeholder="USD" value={currency} onChange={(e) => setCurrency(e.target.value)} />
+        </label>
         <label className="small">
           <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} /> De todo el hogar (si no, solo tuya)
         </label>
@@ -366,6 +372,7 @@ export function SettingsPage() {
           <RechargeCards />
           <Appearance />
           <Accounts />
+          <ExchangeRates />
           <Sessions />
           <Version />
           <div className="card stack">

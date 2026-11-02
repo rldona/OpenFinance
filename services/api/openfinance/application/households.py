@@ -36,6 +36,8 @@ class NewAccount:
     opening_balance: str = "0"
     owner_email: str | None = None
     type: AccountType = AccountType.BANK
+    currency: str | None = None
+    """Moneda de la cuenta (OF-1008); por defecto, la del hogar."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,6 +98,7 @@ def _account(spec: NewAccount, household: Household, members: dict[str, UserId])
         if owner is None:
             raise InvalidRequestError(f"El titular de «{spec.name}» no es del hogar")
     try:
+        currency = Currency(spec.currency.strip().upper()) if spec.currency else household.currency
         return Account(
             id=AccountId(uuid4()),
             household_id=household.id,
@@ -103,8 +106,8 @@ def _account(spec: NewAccount, household: Household, members: dict[str, UserId])
             institution=spec.institution,
             kind=spec.kind,
             type=spec.type,
-            currency=household.currency,
-            opening_balance=Money.of(spec.opening_balance, household.currency),
+            currency=currency,
+            opening_balance=Money.of(spec.opening_balance, currency),
             owner_id=owner,
         )
     except (LedgerError, ValueError, TypeError) as exc:
@@ -149,6 +152,7 @@ def create_account(
     *,
     shared: bool,
     opening_balance: str,
+    currency: str | None = None,
 ) -> Account:
     """Una cuenta nueva desde la web (OF-1005): de todo el hogar o solo de quien la crea.
 
@@ -168,6 +172,7 @@ def create_account(
         opening_balance,
         owner_email=None if shared else user.email,
         type=account_type,
+        currency=currency,
     )
     account = _account(spec, household, {user.email: user.id})
     uow.accounts.add(account)

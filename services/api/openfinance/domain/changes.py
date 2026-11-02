@@ -19,6 +19,9 @@ class Entity(StrEnum):
     RULE = "rule"
     """Regla «comercio → categoría». Su identificador es ``ámbito|comercio``."""
     IMPORT = "import"
+    RATE = "rate"
+    """Tipo de cambio (OF-1008). Su identificador es «MONEDA|AAAA-MM-DD»; campo ``rate``: el valor
+    como texto o ``None`` si no existe."""
     ATTACHMENT = "attachment"
     """Adjunto de un movimiento (OF-1007). Campo ``present``: ``True`` si está, ``False`` si se
     ha borrado (el archivo se conserva 30 días por si se deshace)."""

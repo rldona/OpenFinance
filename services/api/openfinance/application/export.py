@@ -51,6 +51,7 @@ class ExportedAccount:
     name: str
     institution: str
     kind: str
+    type: str
     currency: str
     opening_balance: Decimal
     balance: Decimal
@@ -128,6 +129,14 @@ class ExportedPattern:
 
 
 @dataclass(frozen=True, slots=True)
+class ExportedRate:
+    currency: str
+    on: date
+    rate: str
+    source: str
+
+
+@dataclass(frozen=True, slots=True)
 class HouseholdExport:
     meta: ExportMeta
     members: list[ExportedMember]
@@ -138,6 +147,7 @@ class HouseholdExport:
     budgets: list[ExportedBudget]
     goals: list[ExportedGoal]
     member_patterns: list[ExportedPattern]
+    exchange_rates: list[ExportedRate]
 
 
 def export_household(
@@ -168,6 +178,7 @@ def export_household(
                 name=account.name,
                 institution=account.institution.value,
                 kind=account.kind.value,
+                type=account.type.value,
                 currency=account.currency.code,
                 opening_balance=account.opening_balance.amount,
                 balance=account_balance(account, txns).amount,
@@ -273,4 +284,8 @@ def export_household(
         ],
         goals=goals,
         member_patterns=patterns,
+        exchange_rates=[
+            ExportedRate(r.currency.code, r.on, f"{r.rate:f}", r.source)
+            for r in uow.rates.all(household_id)
+        ],
     )

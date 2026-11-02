@@ -8,7 +8,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 from uuid import UUID, uuid4
 
 from openfinance.application.errors import ConflictError, NotFoundError
@@ -25,6 +26,8 @@ from openfinance.domain.changes import (
 from openfinance.domain.imports.batch import ImportStatus
 from openfinance.domain.ledger import LedgerError, Transaction, TransactionKind
 from openfinance.domain.merchants import Merchant, MerchantId, join_keys, split_keys
+from openfinance.domain.rates import ExchangeRate
+from openfinance.domain.shared import Currency
 from openfinance.domain.shared.ids import AccountId, TransactionId, UserId
 from openfinance.domain.splits import decode_parts, encode_parts
 from openfinance.domain.tags import join_tags, split_tags
@@ -229,6 +232,8 @@ def _apply(
             done, rest = _apply_transaction(uow, actor, visible, entity_id, changes)
         elif entity is Entity.RULE:
             done, rest = _apply_rule(uow, actor, entity_id, changes, now)
+        elif entity is Entity.RATE:
+            done, rest = _apply_rate(uow, actor, entity_id, changes)
         elif entity is Entity.ATTACHMENT:
             done, rest = _apply_attachment(uow, actor, visible, entity_id, changes, now)
         elif entity is Entity.LINK:
@@ -317,6 +322,31 @@ def _apply_rule(
                 CategoryRule(actor.household_id, merchant, CategoryId(UUID(str(c.after))), scope),
                 now,
             )
+        applied += 1
+    return applied, kept
+
+
+def _apply_rate(
+    uow: UnitOfWork, actor: Actor, entity_id: str, changes: list[Change]
+) -> tuple[int, list[Change]]:
+    """Un tipo de cambio (OF-1008): ``rate`` = valor como texto, o ``None`` si no existe."""
+    code, _, day = entity_id.partition("|")
+    currency, on = Currency(code), date.fromisoformat(day)
+    current = uow.rates.get(actor.household_id, currency, on)
+    state = f"{current.rate:f}" if current else None
+    applied, kept = 0, []
+    for c in changes:
+        if c.field != "rate" or state != c.before:
+            kept.append(c)
+            continue
+        if c.after is None:
+            uow.rates.delete(actor.household_id, currency, on)
+        else:
+            uow.rates.upsert(
+                ExchangeRate(actor.household_id, currency, on, Decimal(str(c.after))),
+                actor.user_id,
+            )
+        state = None if c.after is None else str(c.after)
         applied += 1
     return applied, kept
 
