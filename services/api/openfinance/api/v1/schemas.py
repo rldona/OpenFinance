@@ -28,6 +28,7 @@ from openfinance.domain.reconciliation import Reconciliation
 from openfinance.domain.savings import BudgetMode
 from openfinance.domain.schedule import Frequency, OccurrenceStatus, ScheduledPayment
 from openfinance.domain.shared import Money
+from openfinance.domain.templates import TransactionTemplate
 from openfinance.domain.workspaces import Household
 
 
@@ -1125,3 +1126,55 @@ class ForecastViewOut(BaseModel):
     until: date
     accounts: list[ForecastOut]
     totals: list[ForecastOut]
+
+
+# --- OF-1204 · Plantillas de movimientos ----------------------------------------------------
+
+
+class TemplateIn(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
+    kind: TransactionKind = TransactionKind.EXPENSE
+    amount: str = Field(pattern=AMOUNT_PATTERN, description="Positivo; el tipo da el signo")
+    description: str = Field(min_length=1, max_length=200)
+    account_id: UUID
+    personal: bool = Field(default=False, description="Solo la ve quien la crea")
+    category_id: UUID | None = None
+    tags: list[str] = Field(default_factory=list, max_length=10)
+    note: str = Field(default="", max_length=2000)
+
+
+class TemplateOut(BaseModel):
+    id: UUID
+    name: str
+    kind: TransactionKind
+    amount: MoneyOut
+    description: str
+    account_id: UUID
+    personal: bool
+    category_id: UUID | None
+    tags: list[str]
+    note: str
+
+    @classmethod
+    def of(cls, t: TransactionTemplate, currency: str) -> TemplateOut:
+        return cls(
+            id=t.id,
+            name=t.name,
+            kind=t.kind,
+            amount=MoneyOut(amount=str(t.amount), currency=currency),
+            description=t.description,
+            account_id=t.account_id,
+            personal=t.personal,
+            category_id=t.category_id,
+            tags=list(t.tags),
+            note=t.note,
+        )
+
+
+class TemplateChangeOut(BaseModel):
+    template: TemplateOut
+    operation_id: UUID | None
+
+
+class TemplateUseIn(BaseModel):
+    booked_on: date | None = Field(default=None, description="Por defecto, hoy")

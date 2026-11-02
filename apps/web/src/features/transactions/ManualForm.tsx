@@ -1,9 +1,11 @@
 import { type FormEvent, useRef, useState } from 'react'
-import { ApiError, api, type Account, type ManualTransactionResult } from '../../api/client'
+import { ApiError, api, type Account, type ManualTransactionResult, type Template } from '../../api/client'
 import { useHousehold } from '../../app/household-context'
 import { FieldError } from '../../components/FieldError'
 import { invalid } from '../../lib/invalid'
-import { parseAmountInput } from '../../lib/format'
+import { formatMoney, parseAmountInput } from '../../lib/format'
+import { notifyUndoable } from '../../lib/undo'
+import { useLoad } from '../../lib/useLoad'
 
 function today(): string {
   const d = new Date()
@@ -20,7 +22,8 @@ export function ManualForm({
   onSaved: (result: ManualTransactionResult) => void
   onClose: () => void
 }) {
-  const { categories, notify } = useHousehold()
+  const { me, categories, notify } = useHousehold()
+  const templates = useLoad<Template[]>('templates', (s) => api.templates(s))
   // Mejor en una cuenta que no sea de un banco: en la del banco, el saldo dejará de cuadrar.
   const preferred = accounts.find((a) => a.institution === 'other') ?? accounts[0]
   const [accountId, setAccountId] = useState(preferred?.id ?? '')
@@ -30,6 +33,7 @@ export function ManualForm({
   const [kind, setKind] = useState<'expense' | 'income'>('expense')
   const [categoryId, setCategoryId] = useState('')
   const [saving, setSaving] = useState(false)
+  const [templateName, setTemplateName] = useState<string | null>(null)
   const [amountError, setAmountError] = useState<string | null>(null)
   const amountInput = useRef<HTMLInputElement>(null)
   const account = accounts.find((a) => a.id === accountId)
@@ -63,9 +67,76 @@ export function ManualForm({
     }
   }
 
+  async function createFromTemplate(t: Template) {
+    setSaving(true)
+    try {
+      onSaved(await api.useTemplate(t.id, bookedOn))
+    } catch (err) {
+      notify(err instanceof ApiError ? err.message : 'No se ha podido usar la plantilla')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function removeTemplate(t: Template) {
+    try {
+      const r = await api.deleteTemplate(t.id)
+      notifyUndoable(notify, me, `Plantilla «${t.name}» borrada`, r.operation_id, templates.reload)
+      templates.reload()
+    } catch (err) {
+      notify(err instanceof ApiError ? err.message : 'No se ha podido borrar la plantilla')
+    }
+  }
+
+  async function saveTemplate() {
+    const value = parseAmountInput(amount)
+    if (!value) {
+      setAmountError('Escribe un importe mayor que cero, por ejemplo 7,50')
+      amountInput.current?.focus()
+      return
+    }
+    setAmountError(null)
+    try {
+      const r = await api.createTemplate({
+        name: templateName ?? '',
+        kind,
+        amount: value,
+        description,
+        account_id: accountId,
+        // Una cuenta personal solo la ve su titular: la plantilla también.
+        personal: account?.kind === 'personal',
+        category_id: kind === 'expense' && categoryId ? categoryId : null,
+        tags: [],
+        note: '',
+      })
+      setTemplateName(null)
+      notifyUndoable(notify, me, `Plantilla «${r.template.name}» guardada`, r.operation_id, templates.reload)
+      templates.reload()
+    } catch (err) {
+      notify(err instanceof ApiError ? err.message : 'No se ha podido guardar la plantilla')
+    }
+  }
+
   return (
     <form className="card manual" aria-label="Añadir a mano" onSubmit={(e) => void save(e)}>
       <h2>Añadir a mano</h2>
+      {templates.data && templates.data.length > 0 && (
+        <div className="stack">
+          <p className="small muted">Desde una plantilla (con la fecha de abajo):</p>
+          <ul className="plain toolbar wrap" aria-label="Plantillas">
+            {templates.data.map((t) => (
+              <li key={t.id} className="toolbar inline">
+                <button className="btn small" type="button" disabled={saving} onClick={() => void createFromTemplate(t)}>
+                  {t.name} · {formatMoney(t.amount)}
+                </button>
+                <button className="btn small" type="button" aria-label={`Borrar la plantilla ${t.name}`} onClick={() => void removeTemplate(t)}>
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="toolbar wrap">
         <label className="small">
           Tipo{' '}
@@ -133,7 +204,26 @@ export function ManualForm({
         <button className="btn" type="button" onClick={onClose}>
           Cancelar
         </button>
+        {templateName === null && (
+          <button className="btn" type="button" disabled={!accountId || !description.trim()} onClick={() => setTemplateName(description.trim().slice(0, 60))}>
+            Guardar como plantilla
+          </button>
+        )}
       </div>
+      {templateName !== null && (
+        <div className="toolbar wrap">
+          <label className="small">
+            Nombre de la plantilla{' '}
+            <input className="field" maxLength={60} value={templateName} onChange={(e) => setTemplateName(e.target.value)} />
+          </label>
+          <button className="btn" type="button" disabled={!templateName.trim()} onClick={() => void saveTemplate()}>
+            Guardar plantilla
+          </button>
+          <button className="btn" type="button" onClick={() => setTemplateName(null)}>
+            No guardar
+          </button>
+        </div>
+      )}
     </form>
   )
 }

@@ -34,6 +34,7 @@ from openfinance.domain.shared import Currency
 from openfinance.domain.shared.ids import AccountId, TransactionId, UserId
 from openfinance.domain.splits import decode_parts, encode_parts
 from openfinance.domain.tags import join_tags, split_tags
+from openfinance.domain.templates import from_definition as from_template_definition
 from openfinance.domain.workspaces import Actor
 
 MAX_SUMMARY = 200
@@ -241,6 +242,8 @@ def _apply(
             done, rest = _apply_csv_profile(uow, actor, entity_id, changes)
         elif entity is Entity.AUTOMATION:
             done, rest = _apply_automation(uow, actor, entity_id, changes)
+        elif entity is Entity.TEMPLATE:
+            done, rest = _apply_template(uow, actor, visible, entity_id, changes)
         elif entity is Entity.SCHEDULE:
             done, rest = _apply_schedule(uow, actor, visible, entity_id, changes)
         elif entity is Entity.RATE:
@@ -355,6 +358,40 @@ def _apply_csv_profile(
         else:
             current = from_csv_definition(profile_id, actor.household_id, str(c.after))
             uow.csv_profiles.save(current, actor.user_id)
+        applied += 1
+    return applied, kept
+
+
+def _apply_template(
+    uow: UnitOfWork, actor: Actor, visible: set[AccountId], entity_id: str, changes: list[Change]
+) -> tuple[int, list[Change]]:
+    """Una plantilla (OF-1204): ``definition`` es su texto canónico o ``None``.
+
+    La plantilla personal de otra persona no se toca, y tampoco una cuya cuenta no se ve.
+    """
+    template_id = UUID(entity_id)
+    current = uow.templates.get(actor.household_id, template_id)
+    applied, kept = 0, []
+    for c in changes:
+        state = current.definition() if current else None
+        target = current
+        if c.after is not None:
+            target = from_template_definition(template_id, actor.household_id, str(c.after))
+        blocked = any(
+            t is not None
+            and (t.scope not in ("", str(actor.user_id)) or t.account_id not in visible)
+            for t in (current, target)
+        )
+        if c.field != "definition" or state != c.before or blocked:
+            kept.append(c)
+            continue
+        if c.after is None:
+            uow.templates.delete(actor.household_id, template_id)
+            current = None
+        else:
+            current = target
+            assert current is not None
+            uow.templates.save(current, actor.user_id)
         applied += 1
     return applied, kept
 

@@ -35,6 +35,7 @@ from openfinance.infrastructure.db.repositories.savings import (
 from openfinance.infrastructure.db.repositories.schedule import SqlScheduleRepository
 from openfinance.infrastructure.db.repositories.splits import SqlSplitRepository
 from openfinance.infrastructure.db.repositories.tags import SqlTagRepository
+from openfinance.infrastructure.db.repositories.templates import SqlTemplateRepository
 from openfinance.infrastructure.db.repositories.unit_of_work import SqlUnitOfWork
 
 __all__ = [
@@ -59,6 +60,7 @@ __all__ = [
     "SqlSessionRepository",
     "SqlSplitRepository",
     "SqlTagRepository",
+    "SqlTemplateRepository",
     "SqlTransactionRepository",
     "SqlUnitOfWork",
     "SqlUserRepository",

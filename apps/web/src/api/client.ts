@@ -11,6 +11,8 @@ export type AutomationRuleInput = Schemas['AutomationRuleIn']
 export type RulePreview = Schemas['RulePreviewOut']
 export type ScheduleItem = Schemas['ScheduleItemOut']
 export type ForecastView = Schemas['ForecastViewOut']
+export type Template = Schemas['TemplateOut']
+export type TemplateInput = Schemas['TemplateIn']
 export type AccountForecast = Schemas['ForecastOut']
 export type ScheduledPayment = Schemas['ScheduledPaymentOut']
 export type ScheduledPaymentInput = Schemas['ScheduledPaymentIn']
@@ -200,6 +202,14 @@ export const api = {
     form.set('profile', JSON.stringify(profile))
     return request<CsvTest>('POST', '/api/v1/csv-profiles/test', { form })
   },
+  /** Plantillas de movimientos manuales (OF-1204). */
+  templates: (signal?: AbortSignal) => request<Template[]>('GET', '/api/v1/templates', { signal }),
+  createTemplate: (template: TemplateInput) =>
+    request<{ template: Template; operation_id: string | null }>('POST', '/api/v1/templates', { json: template }),
+  deleteTemplate: (id: string) =>
+    request<{ operation_id: string | null }>('DELETE', `/api/v1/templates/${encodeURIComponent(id)}`),
+  useTemplate: (id: string, bookedOn: string) =>
+    request<ManualTransactionResult>('POST', `/api/v1/templates/${encodeURIComponent(id)}/use`, { json: { booked_on: bookedOn } }),
   /** Pagos programados y sus próximas fechas (OF-1201). */
   schedule: (days: number, signal?: AbortSignal) =>
     request<ScheduleItem[]>('GET', `/api/v1/schedule?days=${days}`, { signal }),

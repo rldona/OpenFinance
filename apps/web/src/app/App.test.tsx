@@ -860,6 +860,85 @@ describe('Varios a la vez y efectivo (OF-705)', () => {
     expect(await screen.findByText('Añadido: Churrería')).toBeInTheDocument()
   })
 
+  it('crea un movimiento desde una plantilla con la fecha elegida', async () => {
+    const template = {
+      id: 'tpl1',
+      name: 'Café de la oficina',
+      kind: 'expense',
+      amount: { amount: '1.80', currency: 'EUR' },
+      description: 'Café',
+      account_id: 'a-joint',
+      personal: false,
+      category_id: null,
+      tags: [],
+      note: '',
+    }
+    const calls = loggedIn({
+      'GET /api/v1/templates': { body: [template] },
+      'POST /api/v1/templates/tpl1/use': {
+        status: 201,
+        body: { transaction: { ...TRANSACTIONS[3], id: 't9', description: 'Café', source: 'manual' }, operation_id: 'op-1' },
+      },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: '+ Añadir a mano' }))
+    const form = screen.getByRole('form', { name: 'Añadir a mano' })
+    fireEvent.change(within(form).getByLabelText('Fecha'), { target: { value: '2026-10-12' } })
+    await userEvent.click(await within(form).findByRole('button', { name: /Café de la oficina · 1,80/ }))
+    const post = calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/templates/tpl1/use')!
+    expect(JSON.parse(String(post.body))).toEqual({ booked_on: '2026-10-12' })
+    expect(await screen.findByText('Añadido: Café')).toBeInTheDocument()
+  })
+
+  it('guarda el formulario como plantilla y la borra con «Deshacer»', async () => {
+    const saved = {
+      id: 'tpl2',
+      name: 'Churros',
+      kind: 'expense',
+      amount: { amount: '7.50', currency: 'EUR' },
+      description: 'Churrería',
+      account_id: 'a-joint',
+      personal: false,
+      category_id: null,
+      tags: [],
+      note: '',
+    }
+    let current = [] as unknown[]
+    const calls = loggedIn({
+      'GET /api/v1/templates': () => ({ body: current }),
+      'POST /api/v1/templates': () => {
+        current = [saved]
+        return { status: 201, body: { template: saved, operation_id: 'op-5' } }
+      },
+      'DELETE /api/v1/templates/tpl2': () => {
+        current = []
+        return { body: { operation_id: 'op-6' } }
+      },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: '+ Añadir a mano' }))
+    const form = screen.getByRole('form', { name: 'Añadir a mano' })
+    await userEvent.type(within(form).getByLabelText('Concepto'), 'Churrería')
+    await userEvent.type(within(form).getByLabelText('Importe'), '7,50')
+    await userEvent.click(within(form).getByRole('button', { name: 'Guardar como plantilla' }))
+    const name = within(form).getByLabelText('Nombre de la plantilla')
+    await userEvent.clear(name)
+    await userEvent.type(name, 'Churros')
+    await userEvent.click(within(form).getByRole('button', { name: 'Guardar plantilla' }))
+    const post = calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/templates')!
+    expect(JSON.parse(String(post.body))).toMatchObject({
+      name: 'Churros',
+      kind: 'expense',
+      amount: '7.50',
+      description: 'Churrería',
+      account_id: 'a-joint',
+      personal: false,
+    })
+    await userEvent.click(await within(form).findByRole('button', { name: 'Borrar la plantilla Churros' }))
+    expect(await screen.findByText(/Plantilla «Churros» borrada/)).toBeInTheDocument()
+    expect(calls.some((c) => c.method === 'DELETE' && c.url.pathname === '/api/v1/templates/tpl2')).toBe(true)
+  })
+
   it('solo los movimientos añadidos a mano se pueden borrar', async () => {
     const manual = { ...TRANSACTIONS[3], source: 'manual' }
     const calls = loggedIn({

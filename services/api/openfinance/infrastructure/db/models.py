@@ -373,6 +373,21 @@ class ScheduledPaymentRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class TransactionTemplateRow(Base):
+    """Plantilla de movimiento manual (OF-1204). La definición es JSON."""
+
+    __tablename__ = "transaction_templates"
+    __table_args__ = (Index("ix_transaction_templates_household", "household_id"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    scope: Mapped[str] = mapped_column(String(36), default="", server_default="")
+    name: Mapped[str] = mapped_column(String(60))
+    definition: Mapped[str] = mapped_column(Text)
+    created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class MerchantRow(Base):
     """Comercio con nombre propio (OF-1001). Los que nadie ha tocado no tienen fila."""
 
@@ -559,7 +574,7 @@ class ChangeEntryRow(Base):
         CheckConstraint(
             "entity IN ('transaction', 'rule', 'import', 'merchant', 'tag', 'split', 'link', "
             "'account', 'attachment', 'reconciliation', 'rate', 'automation', 'csv_profile', "
-            "'schedule')",
+            "'schedule', 'template')",
             name="entity_valid",
         ),
     )
