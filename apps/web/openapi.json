@@ -155,6 +155,157 @@
         "title": "ActionIn",
         "type": "object"
       },
+      "AllowanceItemOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "due": {
+            "format": "date",
+            "title": "Due",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "due",
+          "amount"
+        ],
+        "title": "AllowanceItemOut",
+        "type": "object"
+      },
+      "AllowanceOut": {
+        "properties": {
+          "available": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Saldo menos lo comprometido; puede ser negativo"
+          },
+          "balance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "committed": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que está por pagar hasta el horizonte"
+          },
+          "days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days"
+          },
+          "envelopes": {
+            "items": {
+              "$ref": "#/components/schemas/EnvelopeLeftOut"
+            },
+            "title": "Envelopes",
+            "type": "array"
+          },
+          "horizon": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Horizon"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "next_income": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AllowanceItemOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pending": {
+            "items": {
+              "$ref": "#/components/schemas/AllowanceItemOut"
+            },
+            "title": "Pending",
+            "type": "array"
+          },
+          "per_day": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que se puede gastar cada día"
+          },
+          "short": {
+            "description": "Lo comprometido es más que el saldo",
+            "title": "Short",
+            "type": "boolean"
+          },
+          "status": {
+            "$ref": "#/components/schemas/Status"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Until"
+          }
+        },
+        "required": [
+          "status",
+          "balance",
+          "committed",
+          "available",
+          "per_day",
+          "days",
+          "until",
+          "horizon",
+          "short",
+          "pending",
+          "next_income",
+          "envelopes"
+        ],
+        "title": "AllowanceOut",
+        "type": "object"
+      },
       "AttachmentAddedOut": {
         "properties": {
           "attachment": {
@@ -1597,6 +1748,29 @@
         "title": "CsvTestRowOut",
         "type": "object"
       },
+      "EnvelopeLeftOut": {
+        "properties": {
+          "available": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "category_id": {
+            "format": "uuid",
+            "title": "Category Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "category_id",
+          "available",
+          "status"
+        ],
+        "title": "EnvelopeLeftOut",
+        "type": "object"
+      },
       "ForecastOut": {
         "properties": {
           "account_id": {
@@ -2038,6 +2212,14 @@
         ],
         "title": "HealthResponse",
         "type": "object"
+      },
+      "Horizon": {
+        "enum": [
+          "income",
+          "month_end"
+        ],
+        "title": "Horizon",
+        "type": "string"
       },
       "HouseholdOut": {
         "properties": {
@@ -4174,6 +4356,15 @@
         "title": "SplitPartOut",
         "type": "object"
       },
+      "Status": {
+        "enum": [
+          "ok",
+          "no_balance",
+          "no_schedule"
+        ],
+        "title": "Status",
+        "type": "string"
+      },
       "TagOut": {
         "properties": {
           "count": {
@@ -5095,6 +5286,28 @@
         "summary": "Reconcile Account",
         "tags": [
           "ledger"
+        ]
+      }
+    },
+    "/api/v1/allowance": {
+      "get": {
+        "description": "Cuánto se puede gastar al día con el dinero de la conjunta (OF-1205).",
+        "operationId": "allowance_api_v1_allowance_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AllowanceOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Allowance",
+        "tags": [
+          "schedule"
         ]
       }
     },

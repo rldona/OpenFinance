@@ -6,9 +6,12 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
 
+from openfinance.application.allowance import AllowanceView
+from openfinance.application.allowance import Status as AllowanceStatus
 from openfinance.application.decorate import Decor
 from openfinance.application.imports import ImportPreview, ImportResult
 from openfinance.application.savings import BudgetView, GoalView
+from openfinance.domain.allowance import Horizon as AllowanceHorizon
 from openfinance.domain.attachments import Attachment
 from openfinance.domain.automation import AutomationRule, Phase
 from openfinance.domain.categories import Category, merchant_label
@@ -26,7 +29,7 @@ from openfinance.domain.ledger import (
 )
 from openfinance.domain.reconciliation import Reconciliation
 from openfinance.domain.savings import BudgetMode
-from openfinance.domain.schedule import Frequency, OccurrenceStatus, ScheduledPayment
+from openfinance.domain.schedule import Frequency, Occurrence, OccurrenceStatus, ScheduledPayment
 from openfinance.domain.shared import Money
 from openfinance.domain.templates import TransactionTemplate
 from openfinance.domain.workspaces import Household
@@ -1178,3 +1181,82 @@ class TemplateChangeOut(BaseModel):
 
 class TemplateUseIn(BaseModel):
     booked_on: date | None = Field(default=None, description="Por defecto, hoy")
+
+
+# --- OF-1205 · «Hoy podéis gastar» ----------------------------------------------------------
+
+
+class AllowanceItemOut(BaseModel):
+    name: str
+    due: date
+    amount: MoneyOut
+
+
+class EnvelopeLeftOut(BaseModel):
+    category_id: UUID
+    available: MoneyOut
+    status: str
+
+
+class AllowanceOut(BaseModel):
+    status: AllowanceStatus
+    balance: MoneyOut | None
+    committed: MoneyOut | None = Field(description="Lo que está por pagar hasta el horizonte")
+    available: MoneyOut | None = Field(
+        description="Saldo menos lo comprometido; puede ser negativo"
+    )
+    per_day: MoneyOut | None = Field(description="Lo que se puede gastar cada día")
+    days: int | None
+    until: date | None
+    horizon: AllowanceHorizon | None
+    short: bool = Field(description="Lo comprometido es más que el saldo")
+    pending: list[AllowanceItemOut]
+    next_income: AllowanceItemOut | None
+    envelopes: list[EnvelopeLeftOut]
+
+    @classmethod
+    def of(cls, v: AllowanceView) -> AllowanceOut:
+        a = v.allowance
+        envelopes = [
+            EnvelopeLeftOut(
+                category_id=e.budget.category_id,
+                available=MoneyOut.of(e.available),
+                status=e.status.value,
+            )
+            for e in v.envelopes
+        ]
+        if a is None:
+            return cls(
+                status=v.status,
+                balance=None,
+                committed=None,
+                available=None,
+                per_day=None,
+                days=None,
+                until=None,
+                horizon=None,
+                short=False,
+                pending=[],
+                next_income=None,
+                envelopes=envelopes,
+            )
+
+        def item(o: Occurrence) -> AllowanceItemOut:
+            return AllowanceItemOut(
+                name=v.names.get(o.payment_id, "Pago"), due=o.due, amount=MoneyOut.of(o.amount)
+            )
+
+        return cls(
+            status=v.status,
+            balance=MoneyOut.of(a.balance),
+            committed=MoneyOut.of(a.committed),
+            available=MoneyOut.of(a.available),
+            per_day=MoneyOut.of(a.per_day),
+            days=a.days,
+            until=a.until,
+            horizon=a.horizon,
+            short=a.short,
+            pending=[item(o) for o in a.pending],
+            next_income=item(a.next_income) if a.next_income else None,
+            envelopes=envelopes,
+        )

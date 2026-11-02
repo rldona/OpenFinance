@@ -4,8 +4,9 @@ import { useHousehold } from '../../app/household-context'
 import { Donut, LineChart, geometry } from '../../components/charts'
 import { ErrorState, Loading } from '../../components/LoadState'
 import { useLoad } from '../../lib/useLoad'
-import { centsToAmount, formatMoney, formatMoneyRounded, monthLabel, shortMonth, toCents } from '../../lib/format'
+import { centsToAmount, currentMonth, formatMoney, formatMoneyRounded, monthLabel, shortMonth, toCents } from '../../lib/format'
 import { routeHref } from '../../app/router'
+import { AllowanceCard } from './AllowanceCard'
 import { Delta, MonthPicker, NoData, ViewPicker } from './common'
 import { sharePercent, useCategoryMeta } from './meta'
 
@@ -157,6 +158,8 @@ export function MonthPage() {
           <p className="small muted">Las cuotas que aún no han llegado se suman a la previsión; las retrasadas, no.</p>
         </div>
       )}
+
+      {month === currentMonth() && <AllowanceCard />}
 
       <div className="grid g12">
         <div className="card">

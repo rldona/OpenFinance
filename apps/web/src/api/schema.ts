@@ -49,6 +49,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/allowance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Allowance
+         * @description Cuánto se puede gastar al día con el dinero de la conjunta (OF-1205).
+         */
+        get: operations["allowance_api_v1_allowance_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/attachments/{attachment_id}": {
         parameters: {
             query?: never;
@@ -1441,6 +1461,43 @@ export interface components {
             /** Value */
             value: string | string[];
         };
+        /** AllowanceItemOut */
+        AllowanceItemOut: {
+            amount: components["schemas"]["MoneyOut"];
+            /**
+             * Due
+             * Format: date
+             */
+            due: string;
+            /** Name */
+            name: string;
+        };
+        /** AllowanceOut */
+        AllowanceOut: {
+            /** @description Saldo menos lo comprometido; puede ser negativo */
+            available: components["schemas"]["MoneyOut"] | null;
+            balance: components["schemas"]["MoneyOut"] | null;
+            /** @description Lo que está por pagar hasta el horizonte */
+            committed: components["schemas"]["MoneyOut"] | null;
+            /** Days */
+            days: number | null;
+            /** Envelopes */
+            envelopes: components["schemas"]["EnvelopeLeftOut"][];
+            horizon: components["schemas"]["Horizon"] | null;
+            next_income: components["schemas"]["AllowanceItemOut"] | null;
+            /** Pending */
+            pending: components["schemas"]["AllowanceItemOut"][];
+            /** @description Lo que se puede gastar cada día */
+            per_day: components["schemas"]["MoneyOut"] | null;
+            /**
+             * Short
+             * @description Lo comprometido es más que el saldo
+             */
+            short: boolean;
+            status: components["schemas"]["Status"];
+            /** Until */
+            until: string | null;
+        };
         /** AttachmentAddedOut */
         AttachmentAddedOut: {
             attachment: components["schemas"]["AttachmentOut"];
@@ -1993,6 +2050,17 @@ export interface components {
             /** Line */
             line: number;
         };
+        /** EnvelopeLeftOut */
+        EnvelopeLeftOut: {
+            available: components["schemas"]["MoneyOut"];
+            /**
+             * Category Id
+             * Format: uuid
+             */
+            category_id: string;
+            /** Status */
+            status: string;
+        };
         /** ForecastOut */
         ForecastOut: {
             /**
@@ -2134,6 +2202,11 @@ export interface components {
             /** Version */
             version: string;
         };
+        /**
+         * Horizon
+         * @enum {string}
+         */
+        Horizon: "income" | "month_end";
         /** HouseholdOut */
         HouseholdOut: {
             /** Currency */
@@ -3038,6 +3111,11 @@ export interface components {
              */
             category_id: string;
         };
+        /**
+         * Status
+         * @enum {string}
+         */
+        Status: "ok" | "no_balance" | "no_schedule";
         /** TagOut */
         TagOut: {
             /**
@@ -3462,6 +3540,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    allowance_api_v1_allowance_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllowanceOut"];
                 };
             };
         };

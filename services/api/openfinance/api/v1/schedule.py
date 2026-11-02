@@ -7,6 +7,7 @@ from fastapi import APIRouter, Query, status
 
 from openfinance.api.deps import ActorDep, UowDep
 from openfinance.api.v1.schemas import (
+    AllowanceOut,
     ForecastOut,
     ForecastViewOut,
     MoneyOut,
@@ -18,6 +19,7 @@ from openfinance.api.v1.schemas import (
     ScheduleItemOut,
 )
 from openfinance.application import schedule
+from openfinance.application.allowance import household_allowance
 from openfinance.application.forecast import household_forecast
 from openfinance.application.schedule import DEFAULT_HORIZON_DAYS, MAX_HORIZON_DAYS
 from openfinance.infrastructure.time import local_today, utc_now
@@ -97,3 +99,9 @@ def forecast(
         ],
         totals=[ForecastOut.of(t.forecast, t.currency.code) for t in view.totals],
     )
+
+
+@router.get("/allowance", response_model=AllowanceOut)
+def allowance(actor: ActorDep, uow: UowDep) -> AllowanceOut:
+    """Cuánto se puede gastar al día con el dinero de la conjunta (OF-1205)."""
+    return AllowanceOut.of(household_allowance(uow, actor, local_today()))

@@ -2371,6 +2371,77 @@ describe('Pagos programados', () => {
     expect(screen.queryByRole('list', { name: 'Avisos de saldo negativo' })).toBeNull()
   })
 
+  const eurm = (amount: string) => ({ amount, currency: 'EUR' })
+  const ALLOWANCE = {
+    status: 'ok',
+    balance: eurm('1227.26'),
+    committed: eurm('900.00'),
+    available: eurm('327.26'),
+    per_day: eurm('18.18'),
+    days: 18,
+    until: '2026-10-28',
+    horizon: 'income',
+    short: false,
+    pending: [{ name: 'Alquiler', due: '2026-10-20', amount: eurm('-900.00') }],
+    next_income: { name: 'Nómina', due: '2026-10-28', amount: eurm('1600.00') },
+    envelopes: [{ category_id: 'c-super', available: eurm('52.66'), status: 'ok' }],
+  }
+
+  it('Este mes enseña cuánto se puede gastar hoy, con su cuenta y los sobres', async () => {
+    window.location.hash = '#mes'
+    loggedIn({
+      'GET /api/v1/insights/month': { body: OVERVIEW },
+      'GET /api/v1/allowance': { body: ALLOWANCE },
+    })
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Hoy podéis gastar' })
+    expect(card).toHaveTextContent('18,18 € al día')
+    expect(card).toHaveTextContent('cuando llega Nómina (18 días)')
+    expect(card).toHaveTextContent('1227,26 € menos 900,00 € de pagos pendientes')
+    expect(within(card).getByRole('list', { name: 'Pagos que se descuentan' })).toHaveTextContent('Alquiler')
+    expect(within(card).getByRole('list', { name: 'Sobres' })).toHaveTextContent('quedan 52,66 € en el sobre')
+  })
+
+  it('si no llega, la tarjeta lo dice en lugar de repartir', async () => {
+    window.location.hash = '#mes'
+    loggedIn({
+      'GET /api/v1/insights/month': { body: OVERVIEW },
+      'GET /api/v1/allowance': {
+        body: { ...ALLOWANCE, short: true, available: eurm('-400.00'), per_day: eurm('0.00'), committed: eurm('1627.26') },
+      },
+    })
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Hoy podéis gastar' })
+    expect(within(card).getByRole('alert')).toHaveTextContent('no llega hasta el')
+    expect(card).not.toHaveTextContent(/€ al día/)
+  })
+
+  it('sin pagos programados no se inventa ninguna cifra', async () => {
+    window.location.hash = '#mes'
+    loggedIn({
+      'GET /api/v1/insights/month': { body: OVERVIEW },
+      'GET /api/v1/allowance': {
+        body: { ...ALLOWANCE, status: 'no_schedule', balance: null, committed: null, available: null, per_day: null, days: null, until: null, horizon: null, pending: [], next_income: null, envelopes: [] },
+      },
+    })
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Hoy podéis gastar' })
+    expect(card).toHaveTextContent('Programad el alquiler')
+    expect(card).not.toHaveTextContent(/€ al día/)
+    expect(within(card).getByRole('link', { name: /Programad el alquiler/ })).toHaveAttribute('href', '#pagos')
+  })
+
+  it('sin cuenta conjunta la tarjeta no aparece', async () => {
+    window.location.hash = '#mes'
+    loggedIn({
+      'GET /api/v1/insights/month': { body: OVERVIEW },
+      'GET /api/v1/allowance': { body: { ...ALLOWANCE, status: 'no_balance' } },
+    })
+    render(<App />)
+    await screen.findByRole('heading', { name: 'Este mes' })
+    expect(screen.queryByRole('region', { name: 'Hoy podéis gastar' })).toBeNull()
+  })
+
   it('un cargo detectado llega con su nombre, importe y fecha ya puestos', async () => {
     window.location.hash = '#pagos?nombre=Netflix&importe=-17.99&fecha=2026-11-02'
     loggedIn({ 'GET /api/v1/schedule': { body: [] } })

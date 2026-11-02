@@ -12,6 +12,7 @@ export type RulePreview = Schemas['RulePreviewOut']
 export type ScheduleItem = Schemas['ScheduleItemOut']
 export type ForecastView = Schemas['ForecastViewOut']
 export type Template = Schemas['TemplateOut']
+export type Allowance = Schemas['AllowanceOut']
 export type TemplateInput = Schemas['TemplateIn']
 export type AccountForecast = Schemas['ForecastOut']
 export type ScheduledPayment = Schemas['ScheduledPaymentOut']
@@ -202,6 +203,8 @@ export const api = {
     form.set('profile', JSON.stringify(profile))
     return request<CsvTest>('POST', '/api/v1/csv-profiles/test', { form })
   },
+  /** «Hoy podéis gastar» con el dinero de la conjunta (OF-1205). */
+  allowance: (signal?: AbortSignal) => request<Allowance>('GET', '/api/v1/allowance', { signal }),
   /** Plantillas de movimientos manuales (OF-1204). */
   templates: (signal?: AbortSignal) => request<Template[]>('GET', '/api/v1/templates', { signal }),
   createTemplate: (template: TemplateInput) =>
