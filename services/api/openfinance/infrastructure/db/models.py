@@ -433,6 +433,43 @@ class AlertDeliveryRow(Base):
     delivered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class BankConnectionRow(Base):
+    """Consentimiento de una persona con un banco, por un agregador PSD2 (ADR-0024)."""
+
+    __tablename__ = "bank_connections"
+    __table_args__ = (Index("ix_bank_connections_owner", "household_id", "owner_id"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    owner_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    aspsp: Mapped[str] = mapped_column(String(100))
+    country: Mapped[str] = mapped_column(String(2))
+    status: Mapped[str] = mapped_column(String(16))
+    state: Mapped[str] = mapped_column(String(64), default="", server_default="")
+    session_id: Mapped[str | None] = mapped_column(String(200))
+    valid_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_sync_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str] = mapped_column(String(300), default="", server_default="")
+
+
+class BankLinkRow(Base):
+    """Una cuenta del banco y, si ya se eligió, la cuenta del hogar a la que alimenta."""
+
+    __tablename__ = "bank_links"
+
+    connection_id: Mapped[UUID] = mapped_column(
+        ForeignKey("bank_connections.id", ondelete="CASCADE"), primary_key=True
+    )
+    remote_uid: Mapped[str] = mapped_column(String(200), primary_key=True)
+    iban_tail: Mapped[str] = mapped_column(String(4))
+    name: Mapped[str] = mapped_column(String(100))
+    currency: Mapped[str] = mapped_column(String(3))
+    account_id: Mapped[UUID | None] = mapped_column(ForeignKey("accounts.id"))
+    bank_balance: Mapped[Decimal | None] = mapped_column(AMOUNT)
+    bank_balance_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class MerchantRow(Base):
     """Comercio con nombre propio (OF-1001). Los que nadie ha tocado no tienen fila."""
 

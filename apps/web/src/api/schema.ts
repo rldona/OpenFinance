@@ -265,6 +265,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/bank": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Bank */
+        get: operations["get_bank_api_v1_bank_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bank/banks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Banks */
+        get: operations["list_banks_api_v1_bank_banks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bank/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start Connection */
+        post: operations["start_connection_api_v1_bank_connections_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bank/connections/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete Connection */
+        post: operations["complete_connection_api_v1_bank_connections_complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bank/connections/{connection_id}/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Link Account */
+        put: operations["link_account_api_v1_bank_connections__connection_id__link_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bank/connections/{connection_id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke Connection */
+        post: operations["revoke_connection_api_v1_bank_connections__connection_id__revoke_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/budgets": {
         parameters: {
             query?: never;
@@ -1811,6 +1913,115 @@ export interface components {
             /** Line */
             line: number;
             reported: components["schemas"]["MoneyOut"];
+        };
+        /** BankCompleteIn */
+        BankCompleteIn: {
+            /** Code */
+            code: string;
+            /** State */
+            state: string;
+        };
+        /** BankConnectionOut */
+        BankConnectionOut: {
+            /** Aspsp */
+            aspsp: string;
+            /** Country */
+            country: string;
+            /** Expires Soon */
+            expires_soon: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Last Error */
+            last_error: string;
+            /** Last Sync At */
+            last_sync_at: string | null;
+            /** Links */
+            links: components["schemas"]["BankLinkOut"][];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "active" | "expired" | "revoked";
+            /** Valid Until */
+            valid_until: string | null;
+        };
+        /** BankLinkIn */
+        BankLinkIn: {
+            /**
+             * Account Id
+             * @description Cuenta del hogar; null desenlaza
+             */
+            account_id: string | null;
+            /** Remote Uid */
+            remote_uid: string;
+        };
+        /** BankLinkOut */
+        BankLinkOut: {
+            /**
+             * Account Id
+             * @description Cuenta del hogar a la que alimenta, si se eligió
+             */
+            account_id: string | null;
+            /** @description Último saldo que informó el banco */
+            bank_balance: components["schemas"]["MoneyOut"] | null;
+            /** Bank Balance At */
+            bank_balance_at: string | null;
+            /** Currency */
+            currency: string;
+            /**
+             * Iban Tail
+             * @description Últimos cuatro caracteres del IBAN
+             */
+            iban_tail: string;
+            /** Name */
+            name: string;
+            /** Remote Uid */
+            remote_uid: string;
+        };
+        /** BankOut */
+        BankOut: {
+            /**
+             * Configured
+             * @description Hay aplicación del agregador y el servidor puede conectar
+             */
+            configured: boolean;
+            /** Connections */
+            connections: components["schemas"]["BankConnectionOut"][];
+        };
+        /** BankRevokeOut */
+        BankRevokeOut: {
+            /** Closed At Bank */
+            closed_at_bank: boolean;
+            connection: components["schemas"]["BankConnectionOut"];
+        };
+        /** BankStartIn */
+        BankStartIn: {
+            /**
+             * Aspsp
+             * @description Nombre del banco en el agregador
+             */
+            aspsp: string;
+            /**
+             * Country
+             * @example ES
+             */
+            country: string;
+        };
+        /** BankStartOut */
+        BankStartOut: {
+            /**
+             * Connection Id
+             * Format: uuid
+             */
+            connection_id: string;
+            /**
+             * Url
+             * @description Dirección del banco donde la persona autoriza
+             */
+            url: string;
         };
         /** Body_add_attachment_api_v1_transactions__transaction_id__attachments_post */
         Body_add_attachment_api_v1_transactions__transaction_id__attachments_post: {
@@ -4302,6 +4513,189 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RulePreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_bank_api_v1_bank_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankOut"];
+                };
+            };
+        };
+    };
+    list_banks_api_v1_bank_banks_get: {
+        parameters: {
+            query: {
+                country: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_connection_api_v1_bank_connections_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BankStartIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankStartOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_connection_api_v1_bank_connections_complete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BankCompleteIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankConnectionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    link_account_api_v1_bank_connections__connection_id__link_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BankLinkIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankConnectionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_connection_api_v1_bank_connections__connection_id__revoke_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankRevokeOut"];
                 };
             };
             /** @description Validation Error */

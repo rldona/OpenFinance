@@ -514,3 +514,17 @@ class SqlTransactionRepository:
                 if f is not None
             )
         return found
+
+    def adopt(
+        self,
+        household_id: WorkspaceId,
+        transaction_id: TransactionId,
+        fingerprint: str,
+        source: str,
+    ) -> None:
+        self._s.execute(
+            update(TransactionRow)
+            .where(TransactionRow.household_id == household_id, TransactionRow.id == transaction_id)
+            .values(fingerprint=fingerprint, source=source[:200])
+        )
+        _flush(self._s)

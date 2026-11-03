@@ -17,6 +17,8 @@ export type Alert = Schemas['AlertOut']
 export type WeeklySummary = Schemas['WeeklySummaryOut']
 export type Notifications = Schemas['NotificationsOut']
 export type AlertKind = Alert['kind']
+export type Bank = Schemas['BankOut']
+export type BankConnection = Schemas['BankConnectionOut']
 export type TemplateInput = Schemas['TemplateIn']
 export type AccountForecast = Schemas['ForecastOut']
 export type ScheduledPayment = Schemas['ScheduledPaymentOut']
@@ -224,6 +226,23 @@ export const api = {
     request<void>('POST', '/api/v1/notifications/subscriptions', { json: { endpoint, keys } }),
   unsubscribePush: (endpoint: string) =>
     request<void>('POST', '/api/v1/notifications/subscriptions/remove', { json: { endpoint } }),
+  /** Conexión con el banco por un agregador PSD2 (ADR-0024, OF-1401). */
+  bank: (signal?: AbortSignal) => request<Bank>('GET', '/api/v1/bank', { signal }),
+  bankNames: (country: string, signal?: AbortSignal) =>
+    request<string[]>('GET', `/api/v1/bank/banks?country=${encodeURIComponent(country)}`, { signal }),
+  startBank: (aspsp: string, country: string) =>
+    request<{ connection_id: string; url: string }>('POST', '/api/v1/bank/connections', { json: { aspsp, country } }),
+  completeBank: (state: string, code: string) =>
+    request<BankConnection>('POST', '/api/v1/bank/connections/complete', { json: { state, code } }),
+  linkBank: (connectionId: string, remoteUid: string, accountId: string | null) =>
+    request<BankConnection>('PUT', `/api/v1/bank/connections/${encodeURIComponent(connectionId)}/link`, {
+      json: { remote_uid: remoteUid, account_id: accountId },
+    }),
+  revokeBank: (connectionId: string) =>
+    request<{ connection: BankConnection; closed_at_bank: boolean }>(
+      'POST',
+      `/api/v1/bank/connections/${encodeURIComponent(connectionId)}/revoke`,
+    ),
   /** Plantillas de movimientos manuales (OF-1204). */
   templates: (signal?: AbortSignal) => request<Template[]>('GET', '/api/v1/templates', { signal }),
   createTemplate: (template: TemplateInput) =>

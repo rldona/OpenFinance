@@ -12,6 +12,7 @@ from openfinance.infrastructure.attachments import FileAttachmentStore
 from openfinance.infrastructure.config import Settings, get_settings
 from openfinance.infrastructure.db.repositories import SqlUnitOfWork
 from openfinance.infrastructure.db.session import get_session_factory
+from openfinance.infrastructure.enablebanking import EnableBankingAggregator
 from openfinance.infrastructure.importers import StatementParserRegistry
 from openfinance.infrastructure.security import Argon2PasswordHasher
 from openfinance.infrastructure.throttle import LoginThrottle
@@ -78,3 +79,11 @@ def get_parsers() -> StatementParserRegistry:
 AttachmentStoreDep = Annotated[FileAttachmentStore, Depends(get_attachment_store)]
 ReleaseSourceDep = Annotated[GithubLatestRelease | None, Depends(get_release_source)]
 ParsersDep = Annotated[StatementParserRegistry, Depends(get_parsers)]
+
+
+@lru_cache
+def get_bank_aggregator() -> EnableBankingAggregator:
+    return EnableBankingAggregator(get_settings())
+
+
+BankAggregatorDep = Annotated[EnableBankingAggregator, Depends(get_bank_aggregator)]

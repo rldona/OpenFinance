@@ -14,6 +14,7 @@ from openfinance.api import health, v1
 from openfinance.api.deps import get_attachment_store
 from openfinance.application.attachments import purge_deleted
 from openfinance.application.errors import (
+    AggregatorError,
     ApplicationError,
     AuthenticationError,
     ConflictError,
@@ -44,6 +45,7 @@ _STATUS = {
     NotFoundError: status.HTTP_404_NOT_FOUND,
     ConflictError: status.HTTP_409_CONFLICT,
     InvalidRequestError: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    AggregatorError: status.HTTP_502_BAD_GATEWAY,
 }
 
 

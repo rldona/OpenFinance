@@ -130,6 +130,17 @@ Los avisos (duplicados, comisiones, recibos que suben, pagos atrasados, saldo en
 
 El mensaje solo dice cuántos avisos hay y de qué tipo, sin importes ni comercios. Los servicios push de Google, Apple y Mozilla ven que hay una notificación, no su contenido financiero.
 
+### Conectar el banco
+
+Además de importar extractos, OpenFinance puede traer los movimientos directamente del banco por PSD2 ([ADR-0024](../adr/0024-conexion-con-el-banco.md)). Un banco solo entrega esos datos a un proveedor autorizado, así que usáis **vuestra propia cuenta** en [Enable Banking](https://enablebanking.com): sus datos de aplicación quedan en vuestro servidor y los movimientos no pasan por ningún servidor nuestro. Es solo lectura: nunca mueve dinero. Necesita el modo HTTPS.
+
+1. Entra en el panel de Enable Banking, registra una aplicación en modo de producción restringido (permite enlazar vuestras propias cuentas) y añade como dirección de vuelta la raíz de vuestra web, por ejemplo `https://finanzas.ejemplo.org/`. Te descarga la clave privada (un `.pem`).
+2. En `.env`: `OPENFINANCE_BANK_APP_ID` (el identificador de la aplicación), `OPENFINANCE_BANK_REDIRECT_URL` (esa misma dirección) y `OPENFINANCE_BANK_PRIVATE_KEY` con el PEM en **una sola línea**, cambiando cada salto de línea por `\n`. La clave es un secreto, como la contraseña de PostgreSQL. Después `docker compose up -d`.
+3. Cada persona, en **Ajustes → Conexión con el banco**, elige país y banco, autoriza en la web del banco y, al volver, elige a qué cuenta de OpenFinance alimenta cada cuenta del banco. Una conexión es de quien la crea: la otra persona no la ve.
+4. El consentimiento PSD2 caduca (hasta 180 días). Se avisa 14 días antes; renovarlo es conectar de nuevo. **Revocar** en Ajustes detiene la sincronización y pide al banco cerrar la sesión.
+
+Aún no se ha probado contra un banco real: la primera conexión puede pedir ajustes (cada banco tiene sus particularidades y límites).
+
 ### Restaurar
 
 ```bash

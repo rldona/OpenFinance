@@ -3,6 +3,7 @@
 from openfinance.infrastructure.db.repositories.alerts import SqlAlertRepository
 from openfinance.infrastructure.db.repositories.attachments import SqlAttachmentRepository
 from openfinance.infrastructure.db.repositories.automation import SqlAutomationRepository
+from openfinance.infrastructure.db.repositories.bank import SqlBankRepository
 from openfinance.infrastructure.db.repositories.categories import (
     SqlCategoryRepository,
     SqlRuleRepository,
@@ -45,6 +46,7 @@ __all__ = [
     "SqlAlertRepository",
     "SqlAttachmentRepository",
     "SqlAutomationRepository",
+    "SqlBankRepository",
     "SqlBudgetRepository",
     "SqlCategoryRepository",
     "SqlChangeRepository",

@@ -29,3 +29,4 @@ Formato: contexto → decisión → consecuencias. Un ADR aceptado no se edita; 
 | [0021](0021-pagos-programados-y-prevision.md) | Pagos programados, previsión de saldo y «hoy podéis gastar» | Accepted |
 | [0022](0022-presupuestos-con-limites-o-sobres.md) | Presupuestos con límites o sobres, arrastre y objetivos v2 | Accepted |
 | [0023](0023-avisos-y-notificaciones.md) | Avisos deterministas, notificaciones Web Push y resumen semanal | Accepted |
+| [0024](0024-conexion-con-el-banco.md) | Conexión con el banco mediante un agregador PSD2 | Accepted |

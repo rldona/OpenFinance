@@ -9,6 +9,7 @@ from openfinance.application.errors import ConflictError
 from openfinance.infrastructure.db.repositories.alerts import SqlAlertRepository
 from openfinance.infrastructure.db.repositories.attachments import SqlAttachmentRepository
 from openfinance.infrastructure.db.repositories.automation import SqlAutomationRepository
+from openfinance.infrastructure.db.repositories.bank import SqlBankRepository
 from openfinance.infrastructure.db.repositories.categories import (
     SqlCategoryRepository,
     SqlRuleRepository,
@@ -73,6 +74,7 @@ class SqlUnitOfWork:
         self.templates = SqlTemplateRepository(session)
         self.alerts = SqlAlertRepository(session)
         self.notifications = SqlNotificationRepository(session)
+        self.bank = SqlBankRepository(session)
         self.member_patterns = SqlMemberPatternRepository(session)
         self.changes = SqlChangeRepository(session)
 

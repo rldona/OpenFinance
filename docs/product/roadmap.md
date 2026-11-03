@@ -502,6 +502,19 @@ Hecha (sin probar en un móvil real ni con un servicio push de verdad: los tests
 
 ---
 
+## Fase 14 · Conexión con el banco (v0.7)
+
+En curso (sin probar contra un banco real: el cliente sigue la documentación pública de Enable Banking y los tests usan un agregador simulado). Alcance en [ADR-0024](../adr/0024-conexion-con-el-banco.md), aceptado el 3 de noviembre de 2026. Agregador PSD2 con la cuenta del propio hogar; solo lectura.
+
+| ID | Ticket | Criterio de hecho |
+| --- | --- | --- |
+| OF-1401 ✅ | Conexión y consentimiento | Cada persona conecta su banco y la conexión es suya (otra persona o de otro hogar recibe 404); el `state` es de un solo uso y solo lo completa quien lo creó; las cuentas del banco se enlazan solo con cuentas que la persona ve y de su moneda; la sesión del agregador no sale por la API; sin variables de Enable Banking está apagado y lo dice; revocar cierra la sesión y no borra movimientos |
+| OF-1402 | Sincronización por la tubería de importación | Misma huella y mismas reglas que un extracto; sincronizar dos veces no duplica; cada sincronización es un lote que se puede deshacer; los pendientes no entran; un fallo del banco no toca nada y queda dicho; `openfinance bank sync` para cron |
+| OF-1403 | Caducidad del consentimiento | Pasada la fecha deja de sincronizar y se ve como caducada; aviso 14 días antes y al caducar, solo para su titular; renovar no pierde el historial |
+| OF-1404 | Conciliación automática | Un movimiento anotado con el mismo importe a ≤ 3 días adopta la huella del banco en vez de duplicarse; con varios candidatos no se adivina; el saldo del banco se compara con el calculado y la diferencia se ve |
+
+---
+
 ## Después de v0.2
 
 Inspirado en Wallet, Spendee, Fintonic y Actual Budget. Cada fase empieza con su ADR y se detalla en tickets al empezarla. Esfuerzo estimado para una persona a tiempo completo.
@@ -512,7 +525,7 @@ Inspirado en Wallet, Spendee, Fintonic y Actual Budget. Cada fase empieza con su
 | 11 · Reglas e importación universal | v0.4 | Hecha: [Fase 11](#fase-11--reglas-e-importación-universal-v04) | OF-1101 … OF-1105 | ✅ |
 | 12 · Planificar | v0.5 | Hecha: [Fase 12](#fase-12--planificar-v05) | OF-1201 … OF-1206 | ✅ |
 | 13 · Alertas | v0.6 | Hecha: [Fase 13](#fase-13--alertas-v06) | OF-1301 … OF-1303 | ✅ |
-| 14 · Conexión con el banco | v0.7 | Agregador PSD2 con cuenta propia (ADR-0024), sincronización por la misma tubería que la importación, consentimientos y conciliación automática | OF-1401 … OF-1404 | 6 semanas |
+| 14 · Conexión con el banco | v0.7 | En curso: [Fase 14](#fase-14--conexión-con-el-banco-v07) | OF-1401 … OF-1404 | 6 semanas |
 | 15 · Informes y patrimonio | v0.8 | Patrimonio neto, flujo de caja, informes a medida y exportación v2 | OF-1501 … OF-1504 | 4 semanas |
 | 16 · Hogar ampliado | v0.9 | Más personas con roles mínimos (ADR-0002), reparto de gastos (ADR-0011), viajes y eventos | OF-1601 … OF-1603 | 5 semanas |
 | 17 · Plataforma 1.0 | v1.0 | API con tokens, servidor MCP de lectura, asistente con aprobación (ADR-0004, ADR-0005), auditoría externa de seguridad | OF-1701 … OF-1705 | 6 semanas |
