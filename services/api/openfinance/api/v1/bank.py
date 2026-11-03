@@ -13,6 +13,8 @@ from openfinance.api.v1.schemas import (
     BankRevokeOut,
     BankStartIn,
     BankStartOut,
+    BankSyncLinkOut,
+    BankSyncOut,
 )
 from openfinance.application import bank
 from openfinance.domain.shared.ids import AccountId
@@ -75,4 +77,27 @@ def revoke_connection(
     return BankRevokeOut(
         connection=BankConnectionOut.of(result.connection, utc_now()),
         closed_at_bank=result.closed_at_bank,
+    )
+
+
+@router.post("/bank/connections/{connection_id}/sync", response_model=BankSyncOut)
+def sync_connection(
+    connection_id: UUID, actor: ActorDep, uow: UowDep, aggregator: BankAggregatorDep
+) -> BankSyncOut:
+    now = utc_now()
+    report = bank.sync_owned(uow, aggregator, actor, connection_id, now)
+    return BankSyncOut(
+        connection=BankConnectionOut.of(report.connection, now),
+        created=report.created,
+        links=[
+            BankSyncLinkOut(
+                name=r.name,
+                created=r.created,
+                duplicates=r.duplicates,
+                skipped=r.skipped,
+                error=r.error,
+            )
+            for r in report.links
+        ],
+        skipped_reason=report.skipped_reason,
     )

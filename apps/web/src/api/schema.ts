@@ -367,6 +367,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/bank/connections/{connection_id}/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sync Connection */
+        post: operations["sync_connection_api_v1_bank_connections__connection_id__sync_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/budgets": {
         parameters: {
             query?: never;
@@ -2022,6 +2039,35 @@ export interface components {
              * @description Dirección del banco donde la persona autoriza
              */
             url: string;
+        };
+        /** BankSyncLinkOut */
+        BankSyncLinkOut: {
+            /** Created */
+            created: number;
+            /** Duplicates */
+            duplicates: number;
+            /** Error */
+            error: string;
+            /** Name */
+            name: string;
+            /** Skipped */
+            skipped: number;
+        };
+        /** BankSyncOut */
+        BankSyncOut: {
+            connection: components["schemas"]["BankConnectionOut"];
+            /**
+             * Created
+             * @description Movimientos nuevos guardados en todas las cuentas
+             */
+            created: number;
+            /** Links */
+            links: components["schemas"]["BankSyncLinkOut"][];
+            /**
+             * Skipped Reason
+             * @description Por qué no se intentó, si no se hizo
+             */
+            skipped_reason: string;
         };
         /** Body_add_attachment_api_v1_transactions__transaction_id__attachments_post */
         Body_add_attachment_api_v1_transactions__transaction_id__attachments_post: {
@@ -4696,6 +4742,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BankRevokeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sync_connection_api_v1_bank_connections__connection_id__sync_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankSyncOut"];
                 };
             };
             /** @description Validation Error */

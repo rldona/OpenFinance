@@ -2789,6 +2789,40 @@ describe('Conexión con el banco (OF-1401)', () => {
     expect(await screen.findByText(/el banco no confirmó el cierre/)).toBeInTheDocument()
   })
 
+  it('sincronizar ahora cuenta los movimientos nuevos o dice por qué no', async () => {
+    window.location.hash = '#ajustes'
+    const calls = loggedIn({
+      ...base({ configured: true, connections: [connection({ links: [link({ account_id: 'a-joint' })] })] }),
+      'POST /api/v1/bank/connections/conn-1/sync': {
+        body: { connection: connection(), created: 2, links: [], skipped_reason: '' },
+      },
+    })
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Banco' })
+    expect(card).toHaveTextContent('Aún sin sincronizar')
+    await userEvent.click(within(card).getByRole('button', { name: 'Sincronizar ahora' }))
+    expect(await screen.findByText('2 movimientos nuevos')).toBeInTheDocument()
+    expect(calls.some((c) => c.method === 'POST' && c.url.pathname === '/api/v1/bank/connections/conn-1/sync')).toBe(true)
+  })
+
+  it('un fallo del banco al sincronizar se enseña tal cual', async () => {
+    window.location.hash = '#ajustes'
+    loggedIn({
+      ...base({ configured: true, connections: [connection()] }),
+      'POST /api/v1/bank/connections/conn-1/sync': {
+        body: {
+          connection: connection({ last_error: 'El banco limita las consultas' }),
+          created: 0,
+          links: [{ name: 'Cuenta corriente', created: 0, duplicates: 0, skipped: 0, error: 'El banco limita las consultas' }],
+          skipped_reason: '',
+        },
+      },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Sincronizar ahora' }))
+    expect(await screen.findByText('El banco no respondió: El banco limita las consultas')).toBeInTheDocument()
+  })
+
   it('avisa cuando el consentimiento caduca pronto', async () => {
     window.location.hash = '#ajustes'
     loggedIn(base({ configured: true, connections: [connection({ expires_soon: true })] }))

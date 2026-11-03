@@ -84,6 +84,16 @@ export function BankSettings() {
       setBank((b) => b && { ...b, connections: b.connections.map((x) => (x.id === updated.id ? updated : x)) })
     }, 'No se ha podido enlazar la cuenta')
 
+  const sync = (c: BankConnection) =>
+    run(async () => {
+      const result = await api.syncBank(c.id)
+      setBank(await api.bank())
+      const error = result.links.find((l) => l.error)?.error
+      if (result.skipped_reason) notify(result.skipped_reason)
+      else if (error) notify(`El banco no respondió: ${error}`)
+      else notify(result.created === 1 ? '1 movimiento nuevo' : `${result.created} movimientos nuevos`)
+    }, 'No se ha podido sincronizar')
+
   const revoke = (c: BankConnection) =>
     run(async () => {
       const result = await api.revokeBank(c.id)
@@ -118,6 +128,11 @@ export function BankSettings() {
                 {c.valid_until && c.status === 'active' && ` hasta el ${dateLabel(c.valid_until)}`}
                 {c.expires_soon && ' (caduca pronto)'}
               </p>
+              {c.status === 'active' && (
+                <p className="small muted">
+                  {c.last_sync_at ? `Última sincronización: ${dateLabel(c.last_sync_at)}` : 'Aún sin sincronizar'}
+                </p>
+              )}
               {c.last_error && <p className="small warn">Último error: {c.last_error}</p>}
               {c.status === 'active' &&
                 c.links.map((l) => (
@@ -141,6 +156,11 @@ export function BankSettings() {
                     </select>
                   </label>
                 ))}
+              {c.status === 'active' && (
+                <button type="button" className="btn" disabled={busy} onClick={() => void sync(c)}>
+                  Sincronizar ahora
+                </button>
+              )}
               {c.status !== 'pending' && (
                 <button type="button" className="btn" disabled={busy} onClick={() => void revoke(c)}>
                   Revocar conexión

@@ -1460,3 +1460,18 @@ class BankLinkIn(BaseModel):
 class BankRevokeOut(BaseModel):
     connection: BankConnectionOut
     closed_at_bank: bool
+
+
+class BankSyncLinkOut(BaseModel):
+    name: str
+    created: int
+    duplicates: int
+    skipped: int
+    error: str
+
+
+class BankSyncOut(BaseModel):
+    connection: BankConnectionOut
+    created: int = Field(description="Movimientos nuevos guardados en todas las cuentas")
+    links: list[BankSyncLinkOut]
+    skipped_reason: str = Field(description="Por qué no se intentó, si no se hizo")

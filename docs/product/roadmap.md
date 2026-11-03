@@ -509,7 +509,7 @@ En curso (sin probar contra un banco real: el cliente sigue la documentación p�
 | ID | Ticket | Criterio de hecho |
 | --- | --- | --- |
 | OF-1401 ✅ | Conexión y consentimiento | Cada persona conecta su banco y la conexión es suya (otra persona o de otro hogar recibe 404); el `state` es de un solo uso y solo lo completa quien lo creó; las cuentas del banco se enlazan solo con cuentas que la persona ve y de su moneda; la sesión del agregador no sale por la API; sin variables de Enable Banking está apagado y lo dice; revocar cierra la sesión y no borra movimientos |
-| OF-1402 | Sincronización por la tubería de importación | Misma huella y mismas reglas que un extracto; sincronizar dos veces no duplica; cada sincronización es un lote que se puede deshacer; los pendientes no entran; un fallo del banco no toca nada y queda dicho; `openfinance bank sync` para cron |
+| OF-1402 ✅ | Sincronización por la tubería de importación | Misma huella y mismas reglas que un extracto; sincronizar dos veces no duplica; cada sincronización es un lote que se puede deshacer; los pendientes no entran; un fallo del banco no toca nada y queda dicho; `openfinance bank sync` para cron |
 | OF-1403 | Caducidad del consentimiento | Pasada la fecha deja de sincronizar y se ve como caducada; aviso 14 días antes y al caducar, solo para su titular; renovar no pierde el historial |
 | OF-1404 | Conciliación automática | Un movimiento anotado con el mismo importe a ≤ 3 días adopta la huella del banco en vez de duplicarse; con varios candidatos no se adivina; el saldo del banco se compara con el calculado y la diferencia se ve |
 

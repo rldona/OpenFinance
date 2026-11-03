@@ -8,26 +8,48 @@ from __future__ import annotations
 
 import re
 import secrets
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
-from openfinance.application.errors import AggregatorError, InvalidRequestError, NotFoundError
+from openfinance.application.errors import (
+    AggregatorError,
+    ApplicationError,
+    ConflictError,
+    InvalidRequestError,
+    NotFoundError,
+)
+from openfinance.application.imports import (
+    MAX_SOURCE,
+    classification_rules,
+    new_transaction,
+    preview_rows,
+)
 from openfinance.application.ledger import visible_accounts
 from openfinance.application.ports import BankAggregator, UnitOfWork
 from openfinance.domain.bank import (
     MAX_ASPSP,
+    SOURCE_PREFIX,
     BankConnection,
     BankError,
+    BankLink,
     ConsentStatus,
+    to_rows,
 )
-from openfinance.domain.shared.ids import AccountId
+from openfinance.domain.imports import ParseResult
+from openfinance.domain.imports.batch import ImportBatch
+from openfinance.domain.ledger import Transaction
+from openfinance.domain.shared.ids import AccountId, TransactionId
 from openfinance.domain.workspaces import Actor
 
 CONSENT_DAYS = 180
 """Lo máximo que PSD2 permite pedir; el agregador o el banco pueden dar menos."""
 MAX_PENDING = 5
 """Conexiones sin terminar por persona: una persona no llena la tabla con intentos."""
+MIN_MANUAL_INTERVAL = timedelta(minutes=5)
+"""«Sincronizar ahora» no se puede lanzar en bucle: los bancos limitan las consultas."""
+MIN_AUTO_INTERVAL = timedelta(hours=6)
+"""Sin presencia de la persona PSD2 admite unas 4 consultas al día por cuenta (cron)."""
 _COUNTRY = re.compile(r"^[A-Z]{2}$")
 
 
@@ -189,3 +211,176 @@ def revoke_connection(
     uow.bank.save(revoked)
     uow.commit()
     return RevokeResult(revoked, closed)
+
+
+@dataclass(frozen=True, slots=True)
+class LinkReport:
+    remote_uid: str
+    name: str
+    created: int = 0
+    duplicates: int = 0
+    skipped: int = 0
+    error: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class SyncReport:
+    connection: BankConnection
+    links: list[LinkReport] = field(default_factory=list)
+    skipped_reason: str = ""
+    """Por qué ni se intentó (caducada, demasiado pronto…); vacío si se sincronizó."""
+
+    @property
+    def created(self) -> int:
+        return sum(r.created for r in self.links)
+
+    @property
+    def errors(self) -> list[str]:
+        return [r.error for r in self.links if r.error]
+
+
+def _sync_link(
+    uow: UnitOfWork,
+    aggregator: BankAggregator,
+    actor: Actor,
+    connection: BankConnection,
+    link: BankLink,
+    now: datetime,
+) -> tuple[LinkReport, BankConnection]:
+    """Trae y guarda los movimientos de una cuenta del banco. Nada se guarda si el banco falla."""
+    accounts = {a.id: a for a in visible_accounts(uow, actor)}
+    account = accounts.get(link.account_id) if link.account_id else None
+    if account is None or connection.session_id is None:
+        return LinkReport(
+            link.remote_uid, link.name, error="La cuenta enlazada ya no está disponible"
+        ), connection
+    try:
+        remote = aggregator.transactions(
+            connection.session_id, link.remote_uid, connection.sync_start(now)
+        )
+    except AggregatorError as exc:
+        return LinkReport(link.remote_uid, link.name, error=str(exc)), connection
+    rules = classification_rules(
+        account,
+        uow.households.members(actor.household_id),
+        uow.member_patterns.for_household(actor.household_id),
+    )
+    rows, skipped = to_rows(connection.id, link.remote_uid, remote, rules, account.currency)
+    reviewed = preview_rows(uow, actor, account, ParseResult(rows=rows))
+    fresh = [r for r in reviewed if not r.duplicate]
+    voided = uow.transactions.voided_with_fingerprints(
+        actor.household_id, account.id, [r.row.fingerprint for r in fresh]
+    )
+    batch = ImportBatch(
+        id=uuid4(),
+        household_id=actor.household_id,
+        account_id=account.id,
+        filename=f"{SOURCE_PREFIX}{connection.aspsp} ····{link.iban_tail}"[:MAX_SOURCE],
+        created_by=actor.user_id,
+        created_at=now,
+    )
+    source = f"{SOURCE_PREFIX}{connection.aspsp}"[:MAX_SOURCE]
+    created = 0
+    new: list[Transaction] = []
+    tagged: dict[TransactionId, tuple[str, ...]] = {}
+    if fresh:
+        uow.imports.add(batch, b"")  # antes que los movimientos: recuperar uno ya lo enlaza
+    for r in fresh:
+        previous = voided.get(r.row.fingerprint)
+        if previous is not None:
+            uow.transactions.save(replace(previous, voided=False, import_id=batch.id))
+            created += 1
+            continue
+        transaction = new_transaction(actor, account, r, source, batch.id)
+        new.append(transaction)
+        if r.tags:
+            tagged[transaction.id] = r.tags
+        created += 1
+    if fresh:
+        uow.transactions.add_many(new)
+        for transaction_id, tags in tagged.items():
+            uow.tags.set(actor.household_id, transaction_id, tags)
+        uow.imports.save_committed(batch.committed(now, created, len(reviewed) - created, skipped))
+    updated = connection
+    try:
+        balance = aggregator.balance(connection.session_id, link.remote_uid)
+    except AggregatorError:
+        balance = None  # el saldo es un extra: sin él los movimientos valen igual
+    if balance is not None:
+        updated = connection.with_balance(link.remote_uid, balance)
+    return (
+        LinkReport(
+            link.remote_uid,
+            link.name,
+            created=created,
+            duplicates=len(reviewed) - len(fresh),
+            skipped=skipped,
+        ),
+        updated,
+    )
+
+
+def sync_connection(
+    uow: UnitOfWork,
+    aggregator: BankAggregator,
+    connection: BankConnection,
+    now: datetime,
+    *,
+    min_interval: timedelta = MIN_MANUAL_INTERVAL,
+) -> SyncReport:
+    """Trae los movimientos nuevos de las cuentas enlazadas, con quien dio el consentimiento.
+
+    Pasan por la misma tubería que un extracto: mismas huellas, reglas y comercios. Cada cuenta
+    con novedades es un lote de importación que se puede deshacer. Si el banco falla, esa
+    cuenta no cambia nada y el motivo queda en la conexión.
+    """
+    current = connection.current(now)
+    if current.status is not ConsentStatus.ACTIVE:
+        if current.status is not connection.status:
+            uow.bank.save(current)
+            uow.commit()
+        return SyncReport(current, skipped_reason="El consentimiento ha caducado: conecta de nuevo")
+    if current.last_sync_at is not None and now - current.last_sync_at < min_interval:
+        return SyncReport(current, skipped_reason="Se sincronizó hace poco; inténtalo más tarde")
+    actor = Actor(user_id=current.owner_id, household_id=current.household_id)
+    reports: list[LinkReport] = []
+    working = current
+    for link in current.links:
+        if link.account_id is None:
+            continue
+        report, working = _sync_link(uow, aggregator, actor, working, link, now)
+        reports.append(report)
+    errors = [r.error for r in reports if r.error]
+    working = working.failed(errors[0]) if errors else working.synced(now)
+    uow.bank.save(working)
+    uow.commit()
+    return SyncReport(working, reports)
+
+
+def sync_owned(
+    uow: UnitOfWork, aggregator: BankAggregator, actor: Actor, connection_id: UUID, now: datetime
+) -> SyncReport:
+    """«Sincronizar ahora»: solo la conexión de quien lo pide."""
+    _enabled(aggregator)
+    connection = _own(uow, actor, connection_id)
+    if connection.status is ConsentStatus.REVOKED:
+        raise ConflictError("Esta conexión está revocada")
+    if connection.status is ConsentStatus.PENDING:
+        raise ConflictError("Esta conexión aún no está autorizada")
+    return sync_connection(uow, aggregator, connection, now)
+
+
+def sync_all(uow: UnitOfWork, aggregator: BankAggregator, now: datetime) -> list[SyncReport]:
+    """Todas las conexiones activas de todos los hogares (``openfinance bank sync``, cron).
+
+    Una que falle no impide las demás. Respeta el límite de consultas diarias del banco.
+    """
+    reports: list[SyncReport] = []
+    for connection in uow.bank.active():
+        try:
+            reports.append(
+                sync_connection(uow, aggregator, connection, now, min_interval=MIN_AUTO_INTERVAL)
+            )
+        except ApplicationError as exc:
+            reports.append(SyncReport(connection, skipped_reason=str(exc)))
+    return reports

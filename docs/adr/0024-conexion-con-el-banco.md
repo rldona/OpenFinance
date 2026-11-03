@@ -30,7 +30,7 @@ Hasta ahora los movimientos entran por extractos (CSV, OFX, CAMT…) o a mano. R
 - Cada sincronización crea un **lote de importación** (`banco:<nombre>`), de modo que se ve en el historial y se puede deshacer como cualquier otra importación.
 - Solo entran movimientos **contabilizados** (`BOOK`); los pendientes no cuentan hasta que el banco los fije, para que un cargo retenido que luego cambia de importe no genere un duplicado.
 - Ventana: la primera vez, 90 días; después, desde 7 días antes de la última sincronización correcta (los bancos corrigen fechas con retraso, y las huellas evitan repetir).
-- **Nada corre dentro del servidor**: `openfinance bank sync` lo lanza cron, como las copias y los avisos. Hay también un botón «Sincronizar ahora» por conexión. Una sincronización fallida guarda el motivo y no toca nada más; no hay reintentos agresivos (los bancos limitan a unas 4 consultas diarias sin presencia de la persona).
+- **Nada corre dentro del servidor**: `openfinance bank sync` lo lanza cron, como las copias y los avisos. Hay también un botón «Sincronizar ahora» por conexión. Una sincronización fallida guarda el motivo y no toca nada de esa cuenta, y no hay reintentos agresivos: PSD2 admite unas 4 consultas diarias por cuenta sin presencia de la persona, así que `bank sync` no consulta una conexión que se sincronizó hace menos de 6 horas, y «Sincronizar ahora» (con la persona delante) espera 5 minutos entre pulsaciones.
 - La sincronización actúa **con la persona titular de la conexión** y solo escribe en las cuentas enlazadas, que esa persona ve.
 
 ### Caducidad del consentimiento (OF-1403)

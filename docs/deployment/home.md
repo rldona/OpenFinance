@@ -137,7 +137,14 @@ Además de importar extractos, OpenFinance puede traer los movimientos directame
 1. Entra en el panel de Enable Banking, registra una aplicación en modo de producción restringido (permite enlazar vuestras propias cuentas) y añade como dirección de vuelta la raíz de vuestra web, por ejemplo `https://finanzas.ejemplo.org/`. Te descarga la clave privada (un `.pem`).
 2. En `.env`: `OPENFINANCE_BANK_APP_ID` (el identificador de la aplicación), `OPENFINANCE_BANK_REDIRECT_URL` (esa misma dirección) y `OPENFINANCE_BANK_PRIVATE_KEY` con el PEM en **una sola línea**, cambiando cada salto de línea por `\n`. La clave es un secreto, como la contraseña de PostgreSQL. Después `docker compose up -d`.
 3. Cada persona, en **Ajustes → Conexión con el banco**, elige país y banco, autoriza en la web del banco y, al volver, elige a qué cuenta de OpenFinance alimenta cada cuenta del banco. Una conexión es de quien la crea: la otra persona no la ve.
-4. El consentimiento PSD2 caduca (hasta 180 días). Se avisa 14 días antes; renovarlo es conectar de nuevo. **Revocar** en Ajustes detiene la sincronización y pide al banco cerrar la sesión.
+4. Los movimientos se traen con **Sincronizar ahora** o programando `cron`; es idempotente (no duplica) y respeta el límite de consultas del banco (no vuelve a consultar una conexión sincronizada hace menos de 6 horas):
+
+```cron
+0 */6 * * * cd /ruta/a/openfinance && docker compose exec -T api openfinance bank sync >> /var/log/openfinance-bank.log 2>&1
+```
+
+   Cada sincronización con novedades es un lote en «Importar» y se puede deshacer como cualquier extracto.
+5. El consentimiento PSD2 caduca (hasta 180 días). Se avisa 14 días antes; renovarlo es conectar de nuevo. **Revocar** en Ajustes detiene la sincronización y pide al banco cerrar la sesión.
 
 Aún no se ha probado contra un banco real: la primera conexión puede pedir ajustes (cada banco tiene sus particularidades y límites).
 

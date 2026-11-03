@@ -917,6 +917,71 @@
         "title": "BankStartOut",
         "type": "object"
       },
+      "BankSyncLinkOut": {
+        "properties": {
+          "created": {
+            "title": "Created",
+            "type": "integer"
+          },
+          "duplicates": {
+            "title": "Duplicates",
+            "type": "integer"
+          },
+          "error": {
+            "title": "Error",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "skipped": {
+            "title": "Skipped",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "created",
+          "duplicates",
+          "skipped",
+          "error"
+        ],
+        "title": "BankSyncLinkOut",
+        "type": "object"
+      },
+      "BankSyncOut": {
+        "properties": {
+          "connection": {
+            "$ref": "#/components/schemas/BankConnectionOut"
+          },
+          "created": {
+            "description": "Movimientos nuevos guardados en todas las cuentas",
+            "title": "Created",
+            "type": "integer"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/BankSyncLinkOut"
+            },
+            "title": "Links",
+            "type": "array"
+          },
+          "skipped_reason": {
+            "description": "Por qué no se intentó, si no se hizo",
+            "title": "Skipped Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "connection",
+          "created",
+          "links",
+          "skipped_reason"
+        ],
+        "title": "BankSyncOut",
+        "type": "object"
+      },
       "Body_add_attachment_api_v1_transactions__transaction_id__attachments_post": {
         "properties": {
           "file": {
@@ -6816,6 +6881,49 @@
           }
         },
         "summary": "Revoke Connection",
+        "tags": [
+          "bank"
+        ]
+      }
+    },
+    "/api/v1/bank/connections/{connection_id}/sync": {
+      "post": {
+        "operationId": "sync_connection_api_v1_bank_connections__connection_id__sync_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Connection Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankSyncOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sync Connection",
         "tags": [
           "bank"
         ]
