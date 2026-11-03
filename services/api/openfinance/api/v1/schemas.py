@@ -11,6 +11,7 @@ from openfinance.application.allowance import Status as AllowanceStatus
 from openfinance.application.decorate import Decor
 from openfinance.application.imports import ImportPreview, ImportResult
 from openfinance.application.savings import BudgetView, GoalView
+from openfinance.domain.alerts import Alert
 from openfinance.domain.allowance import Horizon as AllowanceHorizon
 from openfinance.domain.attachments import Attachment
 from openfinance.domain.automation import AutomationRule, Phase
@@ -405,6 +406,34 @@ class ManualTransactionIn(BaseModel):
 class ManualTransactionOut(BaseModel):
     transaction: TransactionOut
     operation_id: UUID | None
+
+
+class AlertOut(BaseModel):
+    kind: Literal["late_payment", "low_balance", "budget_over", "duplicate", "price_rise", "fee"]
+    key: str = Field(description="Estable entre consultas; sirve para descartarlo")
+    severity: Literal["info", "warning", "critical"]
+    title: str
+    detail: str
+    on: date
+    amount: MoneyOut | None
+    account_id: UUID | None
+
+    @classmethod
+    def of(cls, a: Alert) -> AlertOut:
+        return cls(
+            kind=a.kind.value,
+            key=a.key,
+            severity=a.severity.value,
+            title=a.title,
+            detail=a.detail,
+            on=a.on,
+            amount=MoneyOut.of(a.amount) if a.amount else None,
+            account_id=UUID(a.account_id) if a.account_id else None,
+        )
+
+
+class AlertDismissIn(BaseModel):
+    key: str = Field(min_length=1, max_length=160)
 
 
 class OperationRefOut(BaseModel):

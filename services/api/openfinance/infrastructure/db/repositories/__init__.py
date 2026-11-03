@@ -1,5 +1,6 @@
 """Repositorios SQL (implementan los puertos de `application.ports`), uno por contexto."""
 
+from openfinance.infrastructure.db.repositories.alerts import SqlAlertRepository
 from openfinance.infrastructure.db.repositories.attachments import SqlAttachmentRepository
 from openfinance.infrastructure.db.repositories.automation import SqlAutomationRepository
 from openfinance.infrastructure.db.repositories.categories import (
@@ -40,6 +41,7 @@ from openfinance.infrastructure.db.repositories.unit_of_work import SqlUnitOfWor
 
 __all__ = [
     "SqlAccountRepository",
+    "SqlAlertRepository",
     "SqlAttachmentRepository",
     "SqlAutomationRepository",
     "SqlBudgetRepository",

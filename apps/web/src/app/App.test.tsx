@@ -2489,6 +2489,42 @@ describe('Pagos programados', () => {
     expect(within(card).getByRole('list', { name: 'Sobres' })).toHaveTextContent('quedan 52,66 € en el sobre')
   })
 
+  const ALERT = {
+    kind: 'fee',
+    key: 'fee:t1',
+    severity: 'info',
+    title: 'Comisión: Mantenimiento',
+    detail: '2.00 EUR cobrados por el banco.',
+    on: '2026-10-20',
+    amount: eurm('2.00'),
+    account_id: 'a-joint',
+  }
+
+  it('Este mes enseña los avisos y deja descartarlos', async () => {
+    window.location.hash = '#mes'
+    const calls = loggedIn({
+      'GET /api/v1/insights/month': { body: OVERVIEW },
+      'GET /api/v1/alerts': { body: [{ ...ALERT, kind: 'low_balance', key: 'low:1', severity: 'critical', title: 'Cuenta conjunta se queda en negativo' }, ALERT] },
+      'POST /api/v1/alerts/dismiss': { status: 204 },
+    })
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Avisos' })
+    const items = within(card).getAllByRole('listitem')
+    expect(items[0]).toHaveTextContent('Cuenta conjunta se queda en negativo')
+    await userEvent.click(within(card).getByRole('button', { name: 'Descartar: Comisión: Mantenimiento' }))
+    await waitFor(() => expect(within(card).queryByText('Comisión: Mantenimiento')).toBeNull())
+    const sent = calls.find((c) => c.url.pathname === '/api/v1/alerts/dismiss')
+    expect(JSON.parse(String(sent?.body))).toEqual({ key: 'fee:t1' })
+  })
+
+  it('sin avisos no hay tarjeta, y si no se pueden pedir Este mes sigue funcionando', async () => {
+    window.location.hash = '#mes'
+    loggedIn({ 'GET /api/v1/insights/month': { body: OVERVIEW }, 'GET /api/v1/alerts': { body: [] } })
+    render(<App />)
+    await screen.findByRole('heading', { name: '¿En qué se ha ido?' })
+    expect(screen.queryByRole('region', { name: 'Avisos' })).toBeNull()
+  })
+
   it('si no llega, la tarjeta lo dice en lugar de repartir', async () => {
     window.location.hash = '#mes'
     loggedIn({

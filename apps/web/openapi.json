@@ -155,6 +155,98 @@
         "title": "ActionIn",
         "type": "object"
       },
+      "AlertDismissIn": {
+        "properties": {
+          "key": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "title": "AlertDismissIn",
+        "type": "object"
+      },
+      "AlertOut": {
+        "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "key": {
+            "description": "Estable entre consultas; sirve para descartarlo",
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "late_payment",
+              "low_balance",
+              "budget_over",
+              "duplicate",
+              "price_rise",
+              "fee"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "info",
+              "warning",
+              "critical"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "key",
+          "severity",
+          "title",
+          "detail",
+          "on",
+          "amount",
+          "account_id"
+        ],
+        "title": "AlertOut",
+        "type": "object"
+      },
       "AllowanceItemOut": {
         "properties": {
           "amount": {
@@ -5434,6 +5526,66 @@
         "summary": "Reconcile Account",
         "tags": [
           "ledger"
+        ]
+      }
+    },
+    "/api/v1/alerts": {
+      "get": {
+        "description": "Los avisos de hoy que no has descartado, lo más grave primero.",
+        "operationId": "list_alerts_api_v1_alerts_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AlertOut"
+                  },
+                  "title": "Response List Alerts Api V1 Alerts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Alerts",
+        "tags": [
+          "alerts"
+        ]
+      }
+    },
+    "/api/v1/alerts/dismiss": {
+      "post": {
+        "operationId": "dismiss_alert_api_v1_alerts_dismiss_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlertDismissIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Dismiss Alert",
+        "tags": [
+          "alerts"
         ]
       }
     },

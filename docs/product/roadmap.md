@@ -490,6 +490,18 @@ Hecha (sin probar en un equipo con Docker ni con PostgreSQL: lo comprueba CI). A
 
 ---
 
+## Fase 13 · Alertas (v0.6)
+
+Alcance en [ADR-0023](../adr/0023-avisos-y-notificaciones.md), aceptado el 3 de noviembre de 2026. Los avisos son funciones puras que se recalculan; solo se guarda quién descartó cuál. Canal de notificaciones: Web Push.
+
+| ID | Ticket | Criterio de hecho |
+| --- | --- | --- |
+| OF-1301 ✅ | Motor de avisos y bandeja | Duplicados, comisiones, recibos que suben, pagos atrasados, saldo negativo previsto y presupuesto superado, cada uno con su test; descartar es por persona; una cuenta personal ajena no genera, muestra ni deja descartar avisos |
+| OF-1302 | Notificaciones Web Push y preferencias | Suscripción por dispositivo y tipos de aviso por persona; `openfinance alerts notify` es idempotente; el texto no lleva importes ni comercios; sin claves VAPID está apagado y lo dice |
+| OF-1303 | Resumen semanal | Gasto de la semana frente a la anterior, categorías que más pesan, pagos de los próximos 7 días y avisos abiertos; una vez por semana y persona; se puede apagar |
+
+---
+
 ## Después de v0.2
 
 Inspirado en Wallet, Spendee, Fintonic y Actual Budget. Cada fase empieza con su ADR y se detalla en tickets al empezarla. Esfuerzo estimado para una persona a tiempo completo.
@@ -499,7 +511,7 @@ Inspirado en Wallet, Spendee, Fintonic y Actual Budget. Cada fase empieza con su
 | 10 · Libro contable completo | v0.3 | Hecha: [Fase 10](#fase-10--libro-contable-completo-v03) | OF-1001 … OF-1008 | ✅ |
 | 11 · Reglas e importación universal | v0.4 | Hecha: [Fase 11](#fase-11--reglas-e-importación-universal-v04) | OF-1101 … OF-1105 | ✅ |
 | 12 · Planificar | v0.5 | Hecha: [Fase 12](#fase-12--planificar-v05) | OF-1201 … OF-1206 | ✅ |
-| 13 · Alertas | v0.6 | Avisos deterministas (comisiones, duplicados, recibos que suben…), notificaciones Web Push o ntfy (ADR-0023), resumen semanal | OF-1301 … OF-1303 | 4 semanas |
+| 13 · Alertas | v0.6 | En curso: [Fase 13](#fase-13--alertas-v06) · avisos deterministas, notificaciones Web Push (ADR-0023), resumen semanal | OF-1301 … OF-1303 | 4 semanas |
 | 14 · Conexión con el banco | v0.7 | Agregador PSD2 con cuenta propia (ADR-0024), sincronización por la misma tubería que la importación, consentimientos y conciliación automática | OF-1401 … OF-1404 | 6 semanas |
 | 15 · Informes y patrimonio | v0.8 | Patrimonio neto, flujo de caja, informes a medida y exportación v2 | OF-1501 … OF-1504 | 4 semanas |
 | 16 · Hogar ampliado | v0.9 | Más personas con roles mínimos (ADR-0002), reparto de gastos (ADR-0011), viajes y eventos | OF-1601 … OF-1603 | 5 semanas |

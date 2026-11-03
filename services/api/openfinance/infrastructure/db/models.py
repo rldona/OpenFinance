@@ -388,6 +388,16 @@ class TransactionTemplateRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class AlertDismissalRow(Base):
+    """Aviso descartado por una persona (OF-1301). Los avisos se recalculan; esto no."""
+
+    __tablename__ = "alert_dismissals"
+
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    key: Mapped[str] = mapped_column(String(160), primary_key=True)
+    dismissed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class MerchantRow(Base):
     """Comercio con nombre propio (OF-1001). Los que nadie ha tocado no tienen fila."""
 

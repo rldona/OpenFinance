@@ -13,6 +13,7 @@ export type ScheduleItem = Schemas['ScheduleItemOut']
 export type ForecastView = Schemas['ForecastViewOut']
 export type Template = Schemas['TemplateOut']
 export type Allowance = Schemas['AllowanceOut']
+export type Alert = Schemas['AlertOut']
 export type TemplateInput = Schemas['TemplateIn']
 export type AccountForecast = Schemas['ForecastOut']
 export type ScheduledPayment = Schemas['ScheduledPaymentOut']
@@ -207,6 +208,9 @@ export const api = {
   },
   /** «Hoy podéis gastar» con el dinero de la conjunta (OF-1205). */
   allowance: (signal?: AbortSignal) => request<Allowance>('GET', '/api/v1/allowance', { signal }),
+  /** Avisos deterministas de hoy y descartarlos (OF-1301). */
+  alerts: (signal?: AbortSignal) => request<Alert[]>('GET', '/api/v1/alerts', { signal }),
+  dismissAlert: (key: string) => request<void>('POST', '/api/v1/alerts/dismiss', { json: { key } }),
   /** Plantillas de movimientos manuales (OF-1204). */
   templates: (signal?: AbortSignal) => request<Template[]>('GET', '/api/v1/templates', { signal }),
   createTemplate: (template: TemplateInput) =>

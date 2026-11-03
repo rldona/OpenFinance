@@ -6,6 +6,7 @@ import { ErrorState, Loading } from '../../components/LoadState'
 import { useLoad } from '../../lib/useLoad'
 import { centsToAmount, currentMonth, formatMoney, formatMoneyRounded, monthLabel, shortMonth, toCents } from '../../lib/format'
 import { routeHref } from '../../app/router'
+import { AlertsCard } from './AlertsCard'
 import { AllowanceCard } from './AllowanceCard'
 import { Delta, MonthPicker, NoData, ViewPicker } from './common'
 import { sharePercent, useCategoryMeta } from './meta'
@@ -158,6 +159,8 @@ export function MonthPage() {
           <p className="small muted">Las cuotas que aún no han llegado se suman a la previsión; las retrasadas, no.</p>
         </div>
       )}
+
+      {month === currentMonth() && <AlertsCard />}
 
       {month === currentMonth() && <AllowanceCard />}
 

@@ -49,6 +49,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Alerts
+         * @description Los avisos de hoy que no has descartado, lo más grave primero.
+         */
+        get: operations["list_alerts_api_v1_alerts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/alerts/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dismiss Alert */
+        post: operations["dismiss_alert_api_v1_alerts_dismiss_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/allowance": {
         parameters: {
             query?: never;
@@ -1518,6 +1555,41 @@ export interface components {
             type: "set_category" | "set_kind" | "add_tags" | "set_note" | "set_merchant";
             /** Value */
             value: string | string[];
+        };
+        /** AlertDismissIn */
+        AlertDismissIn: {
+            /** Key */
+            key: string;
+        };
+        /** AlertOut */
+        AlertOut: {
+            /** Account Id */
+            account_id: string | null;
+            amount: components["schemas"]["MoneyOut"] | null;
+            /** Detail */
+            detail: string;
+            /**
+             * Key
+             * @description Estable entre consultas; sirve para descartarlo
+             */
+            key: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "late_payment" | "low_balance" | "budget_over" | "duplicate" | "price_rise" | "fee";
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "info" | "warning" | "critical";
+            /** Title */
+            title: string;
         };
         /** AllowanceItemOut */
         AllowanceItemOut: {
@@ -3658,6 +3730,57 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ReconciliationOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_alerts_api_v1_alerts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertOut"][];
+                };
+            };
+        };
+    };
+    dismiss_alert_api_v1_alerts_dismiss_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AlertDismissIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
