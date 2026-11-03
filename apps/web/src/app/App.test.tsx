@@ -3256,3 +3256,149 @@ describe('Personas del hogar (OF-1601)', () => {
     expect(calls.some((c) => c.url.pathname.includes('invitations/accept'))).toBe(false)
   })
 })
+
+describe('Reparto de gastos (OF-1602)', () => {
+  const eurs = (amount: string) => ({ amount, currency: 'EUR' })
+  const PEOPLE = [
+    { id: 'u-raul', name: 'Raúl', is_guest: false, active: true },
+    { id: 'u-elena', name: 'Elena', is_guest: false, active: true },
+    { id: 'g-marta', name: 'Marta', is_guest: true, active: true },
+  ]
+  const balance = (id: string, net: string, paid = '0.00', share = '0.00') => ({
+    participant: PEOPLE.find((p) => p.id === id)!,
+    paid: eurs(paid),
+    share: eurs(share),
+    settled: eurs('0.00'),
+    net: eurs(net),
+  })
+  const BALANCES = {
+    balances: [balance('u-raul', '60.00', '90.00', '30.00'), balance('u-elena', '-30.00', '0.00', '30.00'), balance('g-marta', '-30.00', '0.00', '30.00')],
+    suggestions: [
+      { from_id: 'u-elena', to_id: 'u-raul', amount: eurs('30.00') },
+      { from_id: 'g-marta', to_id: 'u-raul', amount: eurs('30.00') },
+    ],
+  }
+  const EXPENSE = {
+    id: 'e-1',
+    on: '2026-11-01',
+    description: 'Luz',
+    amount: eurs('90.00'),
+    method: 'equal',
+    payers: [{ participant_id: 'u-raul', amount: eurs('90.00') }],
+    parts: PEOPLE.map((p) => ({ participant_id: p.id, amount: eurs('30.00') })),
+    category_id: null,
+    created_by: 'u-raul',
+    voided: false,
+  }
+  const PENDING = { id: 's-1', from_id: 'u-elena', to_id: 'u-raul', amount: eurs('30.00'), on: '2026-11-02', status: 'pending', reference: null, created_by: 'u-elena', confirmed_by: null }
+  const data = (extra: object = {}) => ({
+    'GET /api/v1/sharing/participants': { body: PEOPLE },
+    'GET /api/v1/sharing/expenses': { body: [EXPENSE] },
+    'GET /api/v1/sharing/balances': { body: BALANCES },
+    'GET /api/v1/sharing/settlements': { body: [] },
+    ...extra,
+  })
+
+  beforeEach(() => {
+    window.location.hash = '#reparto'
+  })
+
+  it('enseña los saldos, los pagos sugeridos y los gastos repartidos', async () => {
+    loggedIn(data())
+    render(<App />)
+    const balances = await screen.findByRole('region', { name: 'Quién debe a quién' })
+    expect(within(balances).getByRole('list', { name: 'Saldos' })).toHaveTextContent('Raúl · +60,00 €')
+    const suggested = within(balances).getByRole('list', { name: 'Pagos sugeridos' })
+    expect(suggested).toHaveTextContent('Elena paga 30,00 € a Raúl')
+    expect(screen.getByRole('region', { name: 'Gastos compartidos' })).toHaveTextContent('Luz')
+  })
+
+  it('registra el pago de Marta, que es invitada, pero no el de Elena', async () => {
+    const calls = loggedIn(data({ 'POST /api/v1/sharing/settlements': { status: 201, body: PENDING } }))
+    render(<App />)
+    const balances = await screen.findByRole('region', { name: 'Quién debe a quién' })
+    expect(within(balances).queryByRole('button', { name: 'Registrar pago de Elena' })).toBeNull()
+    await userEvent.click(within(balances).getByRole('button', { name: 'Registrar pago de Marta' }))
+    expect(await screen.findByText(/falta que lo confirme/)).toBeInTheDocument()
+    const post = calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/sharing/settlements')
+    expect(JSON.parse(String(post?.body))).toMatchObject({ from_id: 'g-marta', to_id: 'u-raul', amount: '30.00' })
+  })
+
+  it('quien recibe confirma un pago pendiente', async () => {
+    const calls = loggedIn(
+      data({
+        'GET /api/v1/sharing/settlements': { body: [PENDING] },
+        'POST /api/v1/sharing/settlements/s-1/confirm': { body: { ...PENDING, status: 'confirmed' } },
+      }),
+    )
+    render(<App />)
+    const list = await screen.findByRole('region', { name: 'Pagos entre personas' })
+    expect(list).toHaveTextContent('Elena → Raúl')
+    await userEvent.click(within(list).getByRole('button', { name: 'Confirmar pago de Elena' }))
+    await waitFor(() => expect(calls.some((c) => c.url.pathname === '/api/v1/sharing/settlements/s-1/confirm')).toBe(true))
+  })
+
+  it('reparte un gasto por porcentaje con lo elegido', async () => {
+    const calls = loggedIn(data({ 'POST /api/v1/sharing/expenses': { status: 201, body: EXPENSE } }))
+    render(<App />)
+    const form = await screen.findByRole('region', { name: 'Nuevo gasto compartido' })
+    await userEvent.type(within(form).getByLabelText('Concepto'), 'Cena')
+    await userEvent.type(within(form).getByLabelText('Importe'), '100.00')
+    await userEvent.selectOptions(within(form).getByLabelText('Cómo se reparte'), 'percentage')
+    await userEvent.click(within(form).getByRole('checkbox', { name: 'Marta' }))
+    await userEvent.type(within(form).getByLabelText('Porcentaje (suman 100) de Raúl'), '60')
+    await userEvent.type(within(form).getByLabelText('Porcentaje (suman 100) de Elena'), '40')
+    await userEvent.click(within(form).getByRole('button', { name: 'Repartir' }))
+    expect(await screen.findByText('Gasto repartido')).toBeInTheDocument()
+    const post = calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/sharing/expenses')
+    expect(JSON.parse(String(post?.body))).toMatchObject({
+      amount: '100.00',
+      method: 'percentage',
+      payers: [{ participant_id: 'u-raul', amount: '100.00' }],
+      shares: [
+        { participant_id: 'u-raul', value: '60' },
+        { participant_id: 'u-elena', value: '40' },
+      ],
+    })
+  })
+
+  it('ver reparto calcula sin guardar', async () => {
+    const calls = loggedIn(
+      data({
+        'POST /api/v1/sharing/split-preview': {
+          body: [
+            { participant_id: 'u-raul', amount: eurs('33.34') },
+            { participant_id: 'u-elena', amount: eurs('33.33') },
+            { participant_id: 'g-marta', amount: eurs('33.33') },
+          ],
+        },
+      }),
+    )
+    render(<App />)
+    const form = await screen.findByRole('region', { name: 'Nuevo gasto compartido' })
+    await userEvent.type(within(form).getByLabelText('Importe'), '100.00')
+    await userEvent.click(within(form).getByRole('button', { name: 'Ver reparto' }))
+    expect(await within(form).findByRole('list', { name: 'Así quedaría' })).toHaveTextContent('Raúl · 33,34 €')
+    expect(calls.some((c) => c.url.pathname === '/api/v1/sharing/expenses' && c.method === 'POST')).toBe(false)
+  })
+
+  it('quien solo mira ve el reparto sin formularios ni botones de cambio', async () => {
+    mockApi({
+      'GET /api/v1/me': { body: { ...ME, role: 'viewer' } },
+      'GET /api/v1/accounts': { body: ACCOUNTS },
+      'GET /api/v1/transactions/uncategorized-count': { body: { count: 0 } },
+      ...data(),
+    })
+    render(<App />)
+    await screen.findByRole('region', { name: 'Gastos compartidos' })
+    expect(screen.queryByRole('region', { name: 'Nuevo gasto compartido' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Invitados' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Registrar pago|Anular|Confirmar/ })).toBeNull()
+  })
+
+  it('si no se puede cargar lo dice y deja reintentar', async () => {
+    loggedIn({ 'GET /api/v1/sharing/participants': { status: 500, body: { detail: 'boom' } }, 'GET /api/v1/sharing/expenses': { body: [] }, 'GET /api/v1/sharing/balances': { body: BALANCES }, 'GET /api/v1/sharing/settlements': { body: [] } })
+    render(<App />)
+    expect(await screen.findByRole('button', { name: /Reintentar/ })).toBeInTheDocument()
+  })
+})

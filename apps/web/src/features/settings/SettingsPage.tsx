@@ -394,6 +394,9 @@ export function SettingsPage() {
                 <a href="#pagos">Pagos programados</a> · alquiler, seguros, nóminas: lo que sabéis que va a llegar
               </li>
               <li>
+                <a href="#reparto">Reparto de gastos</a> · lo que paga uno por todos, quién debe a quién
+              </li>
+              <li>
                 <a href="#reglas">Reglas</a>
               </li>
               <li>

@@ -535,7 +535,7 @@ En curso. Alcance en [ADR-0026](../adr/0026-hogar-ampliado.md), aceptado el 3 de
 | ID | Ticket | Criterio de hecho |
 | --- | --- | --- |
 | OF-1601 ✅ | Más personas con roles e invitaciones | Roles `owner`, `editor` y `viewer` (hasta 10 personas); un `viewer` no escribe en ninguna ruta de escritura (se recorren todas); solo un `owner` invita, cambia roles y quita personas, sin dejar el hogar sin `owner` ni quitar a quien tiene cuentas personales; el rol no abre cuentas personales; la invitación se enseña una vez, solo se guarda su hash, vale 7 días y una sola vez, y todo fallo da el mismo mensaje; aceptar está limitado por intentos |
-| OF-1602 | Reparto de gastos | Partes que suman exactamente el importe (mayor resto); saldos entre personas que suman cero; sugerencias con el mínimo de transferencias; liquidaciones con doble confirmación e idempotentes; invitados sin usuario; nada de otro hogar |
+| OF-1602 ✅ | Reparto de gastos | Partes que suman exactamente el importe (mayor resto); saldos entre personas que suman cero; sugerencias con el mínimo de transferencias; liquidaciones con doble confirmación e idempotentes; invitados sin usuario; nada de otro hogar |
 | OF-1603 | Eventos y viajes | Un evento agrupa gastos compartidos y resume total, pagado, parte de cada uno, saldos solo con sus gastos y gasto por categoría; cerrado no admite gastos nuevos |
 
 ---

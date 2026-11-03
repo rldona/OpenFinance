@@ -1651,3 +1651,105 @@ class InvitationAcceptIn(BaseModel):
 
 class RoleIn(BaseModel):
     role: Literal["owner", "editor", "viewer"]
+
+
+class ParticipantOut(BaseModel):
+    id: UUID
+    name: str
+    is_guest: bool = Field(description="Persona del grupo sin usuario")
+    active: bool = Field(description="Las personas que se fueron y los invitados archivados no")
+
+
+class GuestIn(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
+
+
+class PayerIn(BaseModel):
+    participant_id: UUID
+    amount: str = Field(max_length=20, examples=["90.00"])
+
+
+class ShareIn(BaseModel):
+    participant_id: UUID
+    value: str | None = Field(
+        default=None,
+        max_length=20,
+        description="Porcentaje, importe o peso según el método; vacío con «equal»",
+    )
+
+
+class ExpenseIn(BaseModel):
+    on: date
+    description: str = Field(min_length=1, max_length=200)
+    amount: str = Field(max_length=20, examples=["90.00"])
+    payers: list[PayerIn] = Field(min_length=1, max_length=30)
+    method: Literal["equal", "percentage", "exact", "shares"]
+    shares: list[ShareIn] = Field(
+        min_length=1, max_length=30, description="Entre quién se reparte; el orden desempata"
+    )
+    category_id: UUID | None = None
+
+
+class SplitPreviewIn(BaseModel):
+    amount: str = Field(max_length=20)
+    method: Literal["equal", "percentage", "exact", "shares"]
+    shares: list[ShareIn] = Field(min_length=1, max_length=30)
+
+
+class AmountOfOut(BaseModel):
+    participant_id: UUID
+    amount: MoneyOut
+
+
+class ExpenseOut(BaseModel):
+    id: UUID
+    on: date
+    description: str
+    amount: MoneyOut
+    method: Literal["equal", "percentage", "exact", "shares"]
+    payers: list[AmountOfOut]
+    parts: list[AmountOfOut]
+    category_id: UUID | None
+    created_by: UUID
+    voided: bool
+
+
+class BalanceOut(BaseModel):
+    participant: ParticipantOut
+    paid: MoneyOut
+    share: MoneyOut
+    settled: MoneyOut = Field(description="Liquidaciones confirmadas: enviado menos recibido")
+    net: MoneyOut = Field(description="Positivo: le deben. Negativo: debe")
+
+
+class TransferOut(BaseModel):
+    from_id: UUID
+    to_id: UUID
+    amount: MoneyOut
+
+
+class BalancesOut(BaseModel):
+    balances: list[BalanceOut]
+    suggestions: list[TransferOut] = Field(description="Quién paga a quién, con el mínimo de pagos")
+
+
+class SettlementIn(BaseModel):
+    from_id: UUID
+    to_id: UUID
+    amount: str = Field(max_length=20)
+    on: date
+    reference: str | None = Field(
+        default=None, min_length=1, max_length=64, description="Repetirla no duplica la liquidación"
+    )
+
+
+class SettlementOut(BaseModel):
+    id: UUID
+    from_id: UUID
+    to_id: UUID
+    amount: MoneyOut
+    on: date
+    status: Literal["pending", "confirmed", "cancelled"]
+    reference: str | None
+    created_by: UUID
+    confirmed_by: UUID | None

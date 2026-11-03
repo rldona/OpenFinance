@@ -17,6 +17,7 @@ import { TrendsPage } from '../features/insights/TrendsPage'
 import { BudgetsPage } from '../features/savings/BudgetsPage'
 import { SchedulePage } from '../features/savings/SchedulePage'
 import { JoinPage } from '../features/auth/JoinPage'
+import { SharingPage } from '../features/sharing/SharingPage'
 import { ReportsPage } from '../features/insights/ReportsPage'
 import { CashFlowPage } from '../features/insights/CashFlowPage'
 import { NetWorthPage } from '../features/insights/NetWorthPage'
@@ -64,6 +65,8 @@ function Page({ route }: { route: RouteId }) {
       return <CashFlowPage />
     case 'informes':
       return <ReportsPage />
+    case 'reparto':
+      return <SharingPage />
     case 'pagos':
       return <SchedulePage />
     case 'cambios':

@@ -21,6 +21,12 @@ export type Bank = Schemas['BankOut']
 export type Member = Schemas['MemberDetailOut']
 export type Invitation = Schemas['InvitationOut']
 export type Role = Member['role']
+export type Participant = Schemas['ParticipantOut']
+export type Expense = Schemas['ExpenseOut']
+export type ExpenseInput = Schemas['ExpenseIn']
+export type Balances = Schemas['BalancesOut']
+export type Settlement = Schemas['SettlementOut']
+export type SplitPart = Schemas['AmountOfOut']
 export type NetWorth = Schemas['NetWorthOut']
 export type CashFlow = Schemas['CashFlowOut']
 export type ReportDefinition = Schemas['ReportDefinitionIn']
@@ -243,6 +249,22 @@ export const api = {
     request<Me>('POST', '/api/v1/auth/invitations/accept', {
       json: { token, display_name: displayName, email, password },
     }),
+  /** Reparto de gastos entre las personas del hogar y sus invitados (ADR-0026, OF-1602). */
+  participants: (signal?: AbortSignal) => request<Participant[]>('GET', '/api/v1/sharing/participants', { signal }),
+  addGuest: (name: string) => request<Participant>('POST', '/api/v1/sharing/guests', { json: { name } }),
+  expenses: (signal?: AbortSignal) => request<Expense[]>('GET', '/api/v1/sharing/expenses', { signal }),
+  createExpense: (body: ExpenseInput) => request<Expense>('POST', '/api/v1/sharing/expenses', { json: body }),
+  voidExpense: (id: string) => request<void>('DELETE', `/api/v1/sharing/expenses/${encodeURIComponent(id)}`),
+  previewSplit: (amount: string, method: ExpenseInput['method'], shares: ExpenseInput['shares']) =>
+    request<SplitPart[]>('POST', '/api/v1/sharing/split-preview', { json: { amount, method, shares } }),
+  balances: (signal?: AbortSignal) => request<Balances>('GET', '/api/v1/sharing/balances', { signal }),
+  settlements: (signal?: AbortSignal) => request<Settlement[]>('GET', '/api/v1/sharing/settlements', { signal }),
+  createSettlement: (body: { from_id: string; to_id: string; amount: string; on: string; reference?: string | null }) =>
+    request<Settlement>('POST', '/api/v1/sharing/settlements', { json: body }),
+  confirmSettlement: (id: string) =>
+    request<Settlement>('POST', `/api/v1/sharing/settlements/${encodeURIComponent(id)}/confirm`),
+  cancelSettlement: (id: string) =>
+    request<Settlement>('POST', `/api/v1/sharing/settlements/${encodeURIComponent(id)}/cancel`),
   /** Informes a medida y su guardado (ADR-0025, OF-1503). */
   runReport: (definition: ReportDefinition) => request<Report>('POST', '/api/v1/reports/run', { json: definition }),
   savedReports: (signal?: AbortSignal) => request<SavedReport[]>('GET', '/api/v1/reports', { signal }),

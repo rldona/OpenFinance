@@ -1500,6 +1500,179 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sharing/balances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Balances */
+        get: operations["get_balances_api_v1_sharing_balances_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sharing/expenses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Expenses */
+        get: operations["list_expenses_api_v1_sharing_expenses_get"];
+        put?: never;
+        /** Create Expense */
+        post: operations["create_expense_api_v1_sharing_expenses_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sharing/expenses/{expense_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Expense */
+        put: operations["update_expense_api_v1_sharing_expenses__expense_id__put"];
+        post?: never;
+        /** Void Expense */
+        delete: operations["void_expense_api_v1_sharing_expenses__expense_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sharing/guests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Guest */
+        post: operations["add_guest_api_v1_sharing_guests_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sharing/guests/{guest_id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive Guest */
+        post: operations["archive_guest_api_v1_sharing_guests__guest_id__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sharing/participants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Participants */
+        get: operations["list_participants_api_v1_sharing_participants_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sharing/settlements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Settlements */
+        get: operations["list_settlements_api_v1_sharing_settlements_get"];
+        put?: never;
+        /** Create Settlement */
+        post: operations["create_settlement_api_v1_sharing_settlements_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sharing/settlements/{settlement_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Settlement */
+        post: operations["cancel_settlement_api_v1_sharing_settlements__settlement_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sharing/settlements/{settlement_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm Settlement */
+        post: operations["confirm_settlement_api_v1_sharing_settlements__settlement_id__confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sharing/split-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview */
+        post: operations["preview_api_v1_sharing_split_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/summary/weekly": {
         parameters: {
             query?: never;
@@ -2068,6 +2241,15 @@ export interface components {
             /** Until */
             until: string | null;
         };
+        /** AmountOfOut */
+        AmountOfOut: {
+            amount: components["schemas"]["MoneyOut"];
+            /**
+             * Participant Id
+             * Format: uuid
+             */
+            participant_id: string;
+        };
         /** AttachmentAddedOut */
         AttachmentAddedOut: {
             attachment: components["schemas"]["AttachmentOut"];
@@ -2163,6 +2345,26 @@ export interface components {
             /** Line */
             line: number;
             reported: components["schemas"]["MoneyOut"];
+        };
+        /** BalanceOut */
+        BalanceOut: {
+            /** @description Positivo: le deben. Negativo: debe */
+            net: components["schemas"]["MoneyOut"];
+            paid: components["schemas"]["MoneyOut"];
+            participant: components["schemas"]["ParticipantOut"];
+            /** @description Liquidaciones confirmadas: enviado menos recibido */
+            settled: components["schemas"]["MoneyOut"];
+            share: components["schemas"]["MoneyOut"];
+        };
+        /** BalancesOut */
+        BalancesOut: {
+            /** Balances */
+            balances: components["schemas"]["BalanceOut"][];
+            /**
+             * Suggestions
+             * @description Quién paga a quién, con el mínimo de pagos
+             */
+            suggestions: components["schemas"]["TransferOut"][];
         };
         /** BankCompleteIn */
         BankCompleteIn: {
@@ -2838,6 +3040,69 @@ export interface components {
             /** Status */
             status: string;
         };
+        /** ExpenseIn */
+        ExpenseIn: {
+            /**
+             * Amount
+             * @example 90.00
+             */
+            amount: string;
+            /** Category Id */
+            category_id?: string | null;
+            /** Description */
+            description: string;
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "equal" | "percentage" | "exact" | "shares";
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /** Payers */
+            payers: components["schemas"]["PayerIn"][];
+            /**
+             * Shares
+             * @description Entre quién se reparte; el orden desempata
+             */
+            shares: components["schemas"]["ShareIn"][];
+        };
+        /** ExpenseOut */
+        ExpenseOut: {
+            amount: components["schemas"]["MoneyOut"];
+            /** Category Id */
+            category_id: string | null;
+            /**
+             * Created By
+             * Format: uuid
+             */
+            created_by: string;
+            /** Description */
+            description: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "equal" | "percentage" | "exact" | "shares";
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /** Parts */
+            parts: components["schemas"]["AmountOfOut"][];
+            /** Payers */
+            payers: components["schemas"]["AmountOfOut"][];
+            /** Voided */
+            voided: boolean;
+        };
         /** ForecastOut */
         ForecastOut: {
             /**
@@ -2976,6 +3241,11 @@ export interface components {
             saved?: string | null;
             /** Target */
             target?: string | null;
+        };
+        /** GuestIn */
+        GuestIn: {
+            /** Name */
+            name: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -3579,6 +3849,26 @@ export interface components {
             /** Operation Id */
             operation_id: string | null;
         };
+        /** ParticipantOut */
+        ParticipantOut: {
+            /**
+             * Active
+             * @description Las personas que se fueron y los invitados archivados no
+             */
+            active: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Is Guest
+             * @description Persona del grupo sin usuario
+             */
+            is_guest: boolean;
+            /** Name */
+            name: string;
+        };
         /** PasswordChangeIn */
         PasswordChangeIn: {
             /** Current Password */
@@ -3606,6 +3896,19 @@ export interface components {
             direction: components["schemas"]["PatternDirection"];
             /** Pattern */
             pattern: string;
+        };
+        /** PayerIn */
+        PayerIn: {
+            /**
+             * Amount
+             * @example 90.00
+             */
+            amount: string;
+            /**
+             * Participant Id
+             * Format: uuid
+             */
+            participant_id: string;
         };
         /** PendingChargeOut */
         PendingChargeOut: {
@@ -4164,6 +4467,82 @@ export interface components {
             /** Variable */
             variable: boolean;
         };
+        /** SettlementIn */
+        SettlementIn: {
+            /** Amount */
+            amount: string;
+            /**
+             * From Id
+             * Format: uuid
+             */
+            from_id: string;
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /**
+             * Reference
+             * @description Repetirla no duplica la liquidación
+             */
+            reference?: string | null;
+            /**
+             * To Id
+             * Format: uuid
+             */
+            to_id: string;
+        };
+        /** SettlementOut */
+        SettlementOut: {
+            amount: components["schemas"]["MoneyOut"];
+            /** Confirmed By */
+            confirmed_by: string | null;
+            /**
+             * Created By
+             * Format: uuid
+             */
+            created_by: string;
+            /**
+             * From Id
+             * Format: uuid
+             */
+            from_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /** Reference */
+            reference: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "confirmed" | "cancelled";
+            /**
+             * To Id
+             * Format: uuid
+             */
+            to_id: string;
+        };
+        /** ShareIn */
+        ShareIn: {
+            /**
+             * Participant Id
+             * Format: uuid
+             */
+            participant_id: string;
+            /**
+             * Value
+             * @description Porcentaje, importe o peso según el método; vacío con «equal»
+             */
+            value?: string | null;
+        };
         /** ShareOut */
         ShareOut: {
             /** @description Lo que se sugiere aportar a este objetivo */
@@ -4218,6 +4597,18 @@ export interface components {
              * Format: uuid
              */
             category_id: string;
+        };
+        /** SplitPreviewIn */
+        SplitPreviewIn: {
+            /** Amount */
+            amount: string;
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "equal" | "percentage" | "exact" | "shares";
+            /** Shares */
+            shares: components["schemas"]["ShareIn"][];
         };
         /**
          * Status
@@ -4418,6 +4809,20 @@ export interface components {
             other_currencies: string[];
             /** @description Suma con signo de los que cumplen el filtro y van en la moneda del hogar */
             total: components["schemas"]["MoneyOut"];
+        };
+        /** TransferOut */
+        TransferOut: {
+            amount: components["schemas"]["MoneyOut"];
+            /**
+             * From Id
+             * Format: uuid
+             */
+            from_id: string;
+            /**
+             * To Id
+             * Format: uuid
+             */
+            to_id: string;
         };
         /** TrendCategoryOut */
         TrendCategoryOut: {
@@ -7542,6 +7947,373 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OperationRefOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_balances_api_v1_sharing_balances_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BalancesOut"];
+                };
+            };
+        };
+    };
+    list_expenses_api_v1_sharing_expenses_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseOut"][];
+                };
+            };
+        };
+    };
+    create_expense_api_v1_sharing_expenses_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExpenseIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_expense_api_v1_sharing_expenses__expense_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                expense_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExpenseIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    void_expense_api_v1_sharing_expenses__expense_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                expense_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_guest_api_v1_sharing_guests_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuestIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParticipantOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    archive_guest_api_v1_sharing_guests__guest_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                guest_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_participants_api_v1_sharing_participants_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParticipantOut"][];
+                };
+            };
+        };
+    };
+    list_settlements_api_v1_sharing_settlements_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettlementOut"][];
+                };
+            };
+        };
+    };
+    create_settlement_api_v1_sharing_settlements_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettlementIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettlementOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_settlement_api_v1_sharing_settlements__settlement_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                settlement_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettlementOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_settlement_api_v1_sharing_settlements__settlement_id__confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                settlement_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettlementOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_api_v1_sharing_split_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SplitPreviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AmountOfOut"][];
                 };
             };
             /** @description Validation Error */
