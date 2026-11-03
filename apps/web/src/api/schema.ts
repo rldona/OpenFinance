@@ -1167,6 +1167,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/summary/weekly": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Weekly
+         * @description La última semana completa frente a la anterior, para las cuentas que ves.
+         */
+        get: operations["weekly_api_v1_summary_weekly_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tags": {
         parameters: {
             query?: never;
@@ -3674,6 +3694,17 @@ export interface components {
              */
             voided: number;
         };
+        /** UpcomingPaymentOut */
+        UpcomingPaymentOut: {
+            amount: components["schemas"]["MoneyOut"];
+            /**
+             * Due
+             * Format: date
+             */
+            due: string;
+            /** Name */
+            name: string;
+        };
         /** UserOut */
         UserOut: {
             /** Display Name */
@@ -3726,6 +3757,38 @@ export interface components {
          * @enum {string}
          */
         View: "household" | "mine";
+        /** WeekCategoryOut */
+        WeekCategoryOut: {
+            amount: components["schemas"]["MoneyOut"];
+            /** Category Id */
+            category_id: string | null;
+        };
+        /** WeeklySummaryOut */
+        WeeklySummaryOut: {
+            /**
+             * Change Percent
+             * @description Respecto a la semana anterior; nulo sin base
+             */
+            change_percent: number | null;
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            /** Open Alerts */
+            open_alerts: number;
+            previous: components["schemas"]["MoneyOut"];
+            spent: components["schemas"]["MoneyOut"];
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            /** Top */
+            top: components["schemas"]["WeekCategoryOut"][];
+            /** Upcoming */
+            upcoming: components["schemas"]["UpcomingPaymentOut"][];
+        };
     };
     responses: never;
     parameters: never;
@@ -6033,6 +6096,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    weekly_api_v1_summary_weekly_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WeeklySummaryOut"];
                 };
             };
         };

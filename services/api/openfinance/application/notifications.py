@@ -17,11 +17,13 @@ from openfinance.domain.notifications import (
     MAX_SUBSCRIPTIONS,
     NotificationError,
     NotificationPrefs,
+    PushMessage,
     PushSubscription,
     SendResult,
     digest_message,
 )
 from openfinance.domain.shared.ids import UserId, WorkspaceId
+from openfinance.domain.weekly import week_key
 from openfinance.domain.workspaces import Actor
 
 
@@ -81,30 +83,26 @@ class NotifyReport:
         )
 
 
-def _notify_person(
+WEEKLY_MESSAGE = PushMessage(
+    "Tu resumen de la semana",
+    "Ya está listo el resumen de la semana pasada.",
+    "/#semana",
+    "semana",
+)
+
+
+def _deliver(
     uow: UnitOfWork,
     sender: PushSender,
     user_id: UserId,
-    household_id: WorkspaceId,
-    today: date,
+    message: PushMessage,
+    keys: list[str],
     now: datetime,
 ) -> NotifyReport:
-    devices = uow.notifications.subscriptions(user_id)
-    if not devices:
-        return NotifyReport()
-    prefs = uow.notifications.prefs(user_id)
-    actor = Actor(user_id, household_id)
-    delivered = uow.notifications.delivered(user_id)
-    fresh = [
-        a
-        for a in list_alerts(uow, actor, today)
-        if a.kind in prefs.kinds and a.key not in delivered
-    ]
-    message = digest_message(fresh)
-    if message is None:
-        return NotifyReport()
+    """Manda un mensaje a todos los dispositivos de la persona. Solo si llega a alguno se da por
+    notificado; si no, se reintenta en la siguiente ejecución."""
     sent = removed = failed = 0
-    for device in devices:
+    for device in uow.notifications.subscriptions(user_id):
         result = sender.send(device, message)
         if result is SendResult.SENT:
             sent += 1
@@ -114,9 +112,39 @@ def _notify_person(
         else:
             failed += 1
     if sent:
-        uow.notifications.mark_delivered(user_id, [a.key for a in fresh], now)
+        uow.notifications.mark_delivered(user_id, keys, now)
     uow.commit()
-    return NotifyReport(1, sent, removed, failed)
+    return NotifyReport(0, sent, removed, failed)
+
+
+def _notify_person(
+    uow: UnitOfWork,
+    sender: PushSender,
+    user_id: UserId,
+    household_id: WorkspaceId,
+    today: date,
+    now: datetime,
+) -> NotifyReport:
+    if not uow.notifications.subscriptions(user_id):
+        return NotifyReport()
+    prefs = uow.notifications.prefs(user_id)
+    actor = Actor(user_id, household_id)
+    delivered = uow.notifications.delivered(user_id)
+    report = NotifyReport()
+    fresh = [
+        a
+        for a in list_alerts(uow, actor, today)
+        if a.kind in prefs.kinds and a.key not in delivered
+    ]
+    message = digest_message(fresh)
+    if message is not None:
+        report = report + _deliver(uow, sender, user_id, message, [a.key for a in fresh], now)
+    week = week_key(today)
+    if prefs.weekly and week not in delivered and uow.notifications.subscriptions(user_id):
+        report = report + _deliver(uow, sender, user_id, WEEKLY_MESSAGE, [week], now)
+    if report.sent or report.removed or report.failed:
+        report = report + NotifyReport(people=1)
+    return report
 
 
 def send_pending(uow: UnitOfWork, sender: PushSender, today: date, now: datetime) -> NotifyReport:

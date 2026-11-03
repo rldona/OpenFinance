@@ -19,6 +19,7 @@ from openfinance.api.v1 import (
     savings,
     schedule,
     settings,
+    summary,
     templates,
 )
 
@@ -39,6 +40,7 @@ router.include_router(schedule.router)
 router.include_router(templates.router)
 router.include_router(alerts.router)
 router.include_router(notifications.router)
+router.include_router(summary.router)
 router.include_router(export.router)
 router.include_router(changes.router)
 router.include_router(settings.router)

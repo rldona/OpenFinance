@@ -162,6 +162,12 @@ export function MonthPage() {
 
       {month === currentMonth() && <AlertsCard />}
 
+      {month === currentMonth() && (
+        <p className="small muted">
+          <a href="#semana">Resumen de la semana</a>
+        </p>
+      )}
+
       {month === currentMonth() && <AllowanceCard />}
 
       <div className="grid g12">

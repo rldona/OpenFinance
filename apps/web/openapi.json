@@ -5369,6 +5369,29 @@
         "title": "UndoImportOut",
         "type": "object"
       },
+      "UpcomingPaymentOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "due": {
+            "format": "date",
+            "title": "Due",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "due",
+          "amount"
+        ],
+        "title": "UpcomingPaymentOut",
+        "type": "object"
+      },
       "UserOut": {
         "properties": {
           "display_name": {
@@ -5490,6 +5513,93 @@
         ],
         "title": "View",
         "type": "string"
+      },
+      "WeekCategoryOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          }
+        },
+        "required": [
+          "category_id",
+          "amount"
+        ],
+        "title": "WeekCategoryOut",
+        "type": "object"
+      },
+      "WeeklySummaryOut": {
+        "properties": {
+          "change_percent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Respecto a la semana anterior; nulo sin base",
+            "title": "Change Percent"
+          },
+          "end": {
+            "format": "date",
+            "title": "End",
+            "type": "string"
+          },
+          "open_alerts": {
+            "title": "Open Alerts",
+            "type": "integer"
+          },
+          "previous": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "spent": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "start": {
+            "format": "date",
+            "title": "Start",
+            "type": "string"
+          },
+          "top": {
+            "items": {
+              "$ref": "#/components/schemas/WeekCategoryOut"
+            },
+            "title": "Top",
+            "type": "array"
+          },
+          "upcoming": {
+            "items": {
+              "$ref": "#/components/schemas/UpcomingPaymentOut"
+            },
+            "title": "Upcoming",
+            "type": "array"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "spent",
+          "previous",
+          "change_percent",
+          "top",
+          "upcoming",
+          "open_alerts"
+        ],
+        "title": "WeeklySummaryOut",
+        "type": "object"
       }
     }
   },
@@ -8653,6 +8763,28 @@
         "summary": "Update Payment",
         "tags": [
           "schedule"
+        ]
+      }
+    },
+    "/api/v1/summary/weekly": {
+      "get": {
+        "description": "La última semana completa frente a la anterior, para las cuentas que ves.",
+        "operationId": "weekly_api_v1_summary_weekly_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeeklySummaryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Weekly",
+        "tags": [
+          "summary"
         ]
       }
     },

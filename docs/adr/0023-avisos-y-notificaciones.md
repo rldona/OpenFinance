@@ -35,8 +35,8 @@ Con pagos programados, previsión y presupuestos (ADR-0021, ADR-0022) hay datos 
 
 ### Resumen semanal (OF-1303)
 
-- Una vista calculada, no un informe guardado: gasto de la semana anterior frente a la anterior a esa, las tres categorías que más pesan, los pagos de los próximos 7 días y los avisos abiertos. Se calcula sobre la conjunta y las cuentas visibles de quien lo pide.
-- Se envía como una notificación más (solo el aviso de que está listo; el contenido se abre en la app), una vez por semana y persona, cuando `alerts notify` corre en lunes. Cada persona puede apagarlo.
+- Una vista calculada, no un informe guardado: gasto de la última semana completa frente a la anterior a esa, las tres categorías que más pesan, los pagos de los próximos 7 días y los avisos abiertos. Se calcula sobre la conjunta y las cuentas visibles de quien lo pide.
+- Se envía como una notificación más (solo el aviso de que está listo; el contenido se abre en la app), una vez por semana ISO y persona: la primera vez que corre `alerts notify` cada semana, así que si cron falla un lunes llega al día siguiente. La semana resumida es la última completa (de lunes a domingo). Cada persona puede apagarlo.
 
 ## Consecuencias
 

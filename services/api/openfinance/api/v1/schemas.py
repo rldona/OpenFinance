@@ -1358,3 +1358,25 @@ class PushSubscriptionIn(BaseModel):
 
 class PushEndpointIn(BaseModel):
     endpoint: str = Field(min_length=1, max_length=500)
+
+
+class WeekCategoryOut(BaseModel):
+    category_id: UUID | None
+    amount: MoneyOut
+
+
+class UpcomingPaymentOut(BaseModel):
+    name: str
+    due: date
+    amount: MoneyOut
+
+
+class WeeklySummaryOut(BaseModel):
+    start: date
+    end: date
+    spent: MoneyOut
+    previous: MoneyOut
+    change_percent: int | None = Field(description="Respecto a la semana anterior; nulo sin base")
+    top: list[WeekCategoryOut]
+    upcoming: list[UpcomingPaymentOut]
+    open_alerts: int

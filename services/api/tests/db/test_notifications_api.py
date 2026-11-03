@@ -37,6 +37,24 @@ def subscribe(client, endpoint=FCM):
     )
 
 
+def alerts_only(client):
+    """Sin el resumen semanal, para contar solo los mensajes de avisos."""
+    client.put(
+        "/api/v1/notifications/preferences",
+        json={
+            "kinds": [
+                "late_payment",
+                "low_balance",
+                "budget_over",
+                "duplicate",
+                "price_rise",
+                "fee",
+            ],
+            "weekly": False,
+        },
+    )
+
+
 def fee(client, seed, description="Comisión de mantenimiento"):
     r = client.post(
         "/api/v1/transactions",
@@ -140,6 +158,7 @@ class TestSending:
         self, as_raul, seed, session_factory
     ) -> None:
         subscribe(as_raul)
+        alerts_only(as_raul)
         fee(as_raul, seed, "Comisión secreta Banco XYZ")
         sender = FakeSender()
         report = run(session_factory, sender)
@@ -168,6 +187,7 @@ class TestSending:
 
     def test_a_failed_delivery_is_retried_next_time(self, as_raul, seed, session_factory) -> None:
         subscribe(as_raul)
+        alerts_only(as_raul)
         fee(as_raul, seed)
         failing = FakeSender(result=SendResult.FAILED)
         assert run(session_factory, failing).failed == 1

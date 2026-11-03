@@ -2668,3 +2668,55 @@ describe('Notificaciones push (OF-1302)', () => {
     expect(calls.some((c) => c.url.pathname === '/api/v1/notifications/subscriptions')).toBe(false)
   })
 })
+
+describe('Resumen semanal (OF-1303)', () => {
+  const eurw = (amount: string) => ({ amount, currency: 'EUR' })
+  const WEEK = {
+    start: '2026-10-26',
+    end: '2026-11-01',
+    spent: eurw('120.00'),
+    previous: eurw('100.00'),
+    change_percent: 20,
+    top: [
+      { category_id: 'c-super', amount: eurw('80.00') },
+      { category_id: null, amount: eurw('40.00') },
+    ],
+    upcoming: [{ name: 'Gimnasio', due: '2026-11-05', amount: eurw('-30.00') }],
+    open_alerts: 2,
+  }
+
+  it('enseña el gasto, la comparación, lo que más pesó y lo que viene', async () => {
+    window.location.hash = '#semana'
+    loggedIn({ 'GET /api/v1/summary/weekly': { body: WEEK } })
+    render(<App />)
+    const spent = await screen.findByRole('region', { name: 'Gasto de la semana' })
+    expect(spent).toHaveTextContent('120,00 € gastados')
+    expect(spent).toHaveTextContent('20 % más que la semana anterior (100,00 €)')
+    const top = screen.getByRole('region', { name: 'Lo que más pesó' })
+    expect(top).toHaveTextContent('Supermercado')
+    expect(top).toHaveTextContent('Sin categoría')
+    expect(screen.getByRole('region', { name: 'Próximos 7 días' })).toHaveTextContent('Gimnasio')
+    expect(screen.getByText(/Tienes 2 avisos abiertos/)).toBeInTheDocument()
+  })
+
+  it('sin semana anterior con la que comparar no inventa un porcentaje', async () => {
+    window.location.hash = '#semana'
+    loggedIn({
+      'GET /api/v1/summary/weekly': {
+        body: { ...WEEK, previous: eurw('0.00'), change_percent: null, top: [], upcoming: [], open_alerts: 0 },
+      },
+    })
+    render(<App />)
+    const spent = await screen.findByRole('region', { name: 'Gasto de la semana' })
+    expect(spent).toHaveTextContent('no hay base para comparar')
+    expect(screen.getByText('Sin gastos esa semana.')).toBeInTheDocument()
+    expect(screen.getByText('Programar un pago')).toBeInTheDocument()
+  })
+
+  it('«Este mes» enlaza con el resumen', async () => {
+    window.location.hash = '#mes'
+    loggedIn({ 'GET /api/v1/insights/month': { body: OVERVIEW } })
+    render(<App />)
+    expect(await screen.findByRole('link', { name: 'Resumen de la semana' })).toHaveAttribute('href', '#semana')
+  })
+})
