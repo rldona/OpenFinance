@@ -34,7 +34,11 @@ curl "${curl_opts[@]}" -b "$jar" "$base/api/v1/accounts" \
 [ "$(jq length "$out")" -gt 0 ] || { echo "No hay cuentas visibles" >&2; exit 1; }
 
 curl "${curl_opts[@]}" -b "$jar" -o "$tmp/export.json" "$base/api/v1/export?format=json"
-jq -e '.format_version == 1' "$tmp/export.json" > /dev/null
+jq -e '.format_version == 2' "$tmp/export.json" > /dev/null
+
+# La v1 sigue disponible (ADR-0025).
+curl "${curl_opts[@]}" -b "$jar" -o "$tmp/export-v1.json" "$base/api/v1/export?format=json&version=1"
+jq -e '.format_version == 1' "$tmp/export-v1.json" > /dev/null
 
 curl "${curl_opts[@]}" -b "$jar" -o "$tmp/export.zip" "$base/api/v1/export?format=csv"
 unzip -tq "$tmp/export.zip"
