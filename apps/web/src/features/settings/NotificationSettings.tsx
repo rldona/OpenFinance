@@ -10,6 +10,7 @@ const KINDS: { id: AlertKind; label: string }[] = [
   { id: 'duplicate', label: 'Posibles cargos duplicados' },
   { id: 'price_rise', label: 'Recibos que suben' },
   { id: 'fee', label: 'Comisiones' },
+  { id: 'consent', label: 'Conexión bancaria por caducar' },
 ]
 
 /** Notificaciones push de esta persona (ADR-0023, OF-1302). */

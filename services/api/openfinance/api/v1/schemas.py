@@ -410,7 +410,9 @@ class ManualTransactionOut(BaseModel):
 
 
 class AlertOut(BaseModel):
-    kind: Literal["late_payment", "low_balance", "budget_over", "duplicate", "price_rise", "fee"]
+    kind: Literal[
+        "late_payment", "low_balance", "budget_over", "duplicate", "price_rise", "fee", "consent"
+    ]
     key: str = Field(description="Estable entre consultas; sirve para descartarlo")
     severity: Literal["info", "warning", "critical"]
     title: str
@@ -1332,7 +1334,15 @@ class AllowanceOut(BaseModel):
 
 class NotificationPrefsIn(BaseModel):
     kinds: list[
-        Literal["late_payment", "low_balance", "budget_over", "duplicate", "price_rise", "fee"]
+        Literal[
+            "late_payment",
+            "low_balance",
+            "budget_over",
+            "duplicate",
+            "price_rise",
+            "fee",
+            "consent",
+        ]
     ] = Field(max_length=6)
     weekly: bool
 
@@ -1342,7 +1352,15 @@ class NotificationsOut(BaseModel):
     public_key: str | None = Field(description="Clave pública VAPID para suscribirse")
     devices: int
     kinds: list[
-        Literal["late_payment", "low_balance", "budget_over", "duplicate", "price_rise", "fee"]
+        Literal[
+            "late_payment",
+            "low_balance",
+            "budget_over",
+            "duplicate",
+            "price_rise",
+            "fee",
+            "consent",
+        ]
     ]
     weekly: bool
 

@@ -26,6 +26,7 @@ class FakeAggregator:
         self.transactions_by_uid: dict[str, list[RemoteTransaction]] = {}
         self.balances: dict[str, RemoteBalance] = {}
         self.fail_transactions = False
+        self.valid_days = 120
         self.requested: list[tuple[str, str, object]] = []
 
     @property
@@ -44,7 +45,11 @@ class FakeAggregator:
     def authorize(self, code: str):
         if self.fail_authorize:
             raise AggregatorError("El banco rechazó la petición")
-        return "sess-secret-1", list(self.accounts), datetime.now(UTC) + timedelta(days=120)
+        return (
+            "sess-secret-1",
+            list(self.accounts),
+            datetime.now(UTC) + timedelta(days=self.valid_days),
+        )
 
     def transactions(self, session_id: str, remote_uid: str, since):
         self.requested.append((session_id, remote_uid, since))

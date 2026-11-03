@@ -36,7 +36,7 @@ Hasta ahora los movimientos entran por extractos (CSV, OFX, CAMT…) o a mano. R
 ### Caducidad del consentimiento (OF-1403)
 
 - PSD2 limita el consentimiento (hasta 180 días). Se guarda `valid_until`; pasada esa fecha la conexión pasa a **caducada** y deja de sincronizar.
-- Un aviso nuevo (`consent_expiring`, ADR-0023) salta 14 días antes de caducar, y otro cuando ya caducó, solo para la persona titular. Renovar es crear una conexión nueva; las cuentas enlazadas se pueden reasignar sin perder el historial.
+- Un aviso nuevo (`consent`, ADR-0023) salta 14 días antes de caducar y otro, más grave, cuando ya caducó (durante un mes; si ya hay otra conexión activa con el mismo banco se da por renovado). Son solo de la persona titular y se pueden descartar y elegir como notificación. Renovar es crear una conexión nueva y enlazarla a las mismas cuentas: la huella de cada movimiento es la referencia del banco, **sin** el identificador de la conexión ni el de la cuenta en el agregador (cambian al renovar), así que el historial no se duplica.
 
 ### Conciliación automática (OF-1404)
 

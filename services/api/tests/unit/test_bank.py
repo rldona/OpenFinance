@@ -103,31 +103,22 @@ RULES = ClassificationRules(currency="EUR")
 
 
 def test_rows_use_the_bank_id_so_syncing_twice_does_not_duplicate():
-    cid = uuid4()
-    first, _ = to_rows(cid, "u1", [tx("A1", "-10.00"), tx("A2", "-10.00")], RULES, EUR)
-    again, _ = to_rows(cid, "u1", [tx("A2", "-10.00"), tx("A1", "-10.00")], RULES, EUR)
+    first, _ = to_rows([tx("A1", "-10.00"), tx("A2", "-10.00")], RULES, EUR)
+    again, _ = to_rows([tx("A2", "-10.00"), tx("A1", "-10.00")], RULES, EUR)
     assert len({r.fingerprint for r in first}) == 2
     assert {r.fingerprint for r in first} == {r.fingerprint for r in again}
-    other, _ = to_rows(uuid4(), "u1", [tx("A1", "-10.00")], RULES, EUR)
-    assert other[0].fingerprint not in {r.fingerprint for r in first}
 
 
 def test_rows_without_bank_id_tell_identical_charges_apart_but_are_stable():
-    cid = uuid4()
-    rows, _ = to_rows(
-        cid, "u1", [tx(None, "-3.50", desc="Café"), tx(None, "-3.50", desc="café")], RULES, EUR
-    )
-    again, _ = to_rows(
-        cid, "u1", [tx(None, "-3.50", desc="Café"), tx(None, "-3.50", desc="café")], RULES, EUR
-    )
+    same_day = [tx(None, "-3.50", desc="Café"), tx(None, "-3.50", desc="café")]
+    rows, _ = to_rows(same_day, RULES, EUR)
+    again, _ = to_rows(list(same_day), RULES, EUR)
     assert len({r.fingerprint for r in rows}) == 2
     assert [r.fingerprint for r in rows] == [r.fingerprint for r in again]
 
 
 def test_rows_skip_other_currencies_and_zero_and_classify_by_sign():
     rows, skipped = to_rows(
-        uuid4(),
-        "u1",
         [
             tx("A", "-5.00"),
             tx("B", "20.00", desc="Nómina"),

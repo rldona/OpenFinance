@@ -11,10 +11,11 @@ import itertools
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from enum import StrEnum
 
+from openfinance.domain.bank import EXPIRY_WARNING_DAYS, BankConnection, ConsentStatus
 from openfinance.domain.insights import Month
 from openfinance.domain.ledger import Transaction, TransactionKind
 from openfinance.domain.savings import RecurringCharge
@@ -28,6 +29,8 @@ FEE_DAYS = 30
 PRICE_RISE_MIN = Decimal("0.05")
 """Un recibo que sube menos de un 5 % no se avisa."""
 LOW_BALANCE_DAYS = 30
+EXPIRED_NAG_DAYS = 30
+"""Un consentimiento caducado avisa durante un mes; luego se da por abandonado."""
 FEE_WORDS = ("comisión", "comision", "commission", "fee")
 """Palabras del concepto o del tipo de banco que marcan una comisión."""
 
@@ -39,6 +42,7 @@ class AlertKind(StrEnum):
     DUPLICATE = "duplicate"
     PRICE_RISE = "price_rise"
     FEE = "fee"
+    CONSENT = "consent"
 
 
 class Severity(StrEnum):
@@ -159,4 +163,53 @@ def price_rises(recurring: Iterable[RecurringCharge], today: date) -> list[Alert
                 change.after - change.before,
             )
         )
+    return found
+
+
+def consents(connections: Iterable[BankConnection], today: date) -> list[Alert]:
+    """Consentimientos con el banco que caducan en 14 días o caducaron en el último mes.
+
+    Si ya hay otra conexión activa con el mismo banco, la caducada se da por renovada.
+    """
+    live = list(connections)
+    renewed = {
+        (c.aspsp, c.country)
+        for c in live
+        if c.status is ConsentStatus.ACTIVE
+        and c.valid_until is not None
+        and c.valid_until.date() >= today
+    }
+    found: list[Alert] = []
+    for c in live:
+        if c.status not in (ConsentStatus.ACTIVE, ConsentStatus.EXPIRED) or c.valid_until is None:
+            continue
+        end = c.valid_until.date()
+        if end >= today:
+            if (end - today).days > EXPIRY_WARNING_DAYS:
+                continue
+            when = "hoy" if end == today else f"el {end.isoformat()}"
+            found.append(
+                Alert(
+                    AlertKind.CONSENT,
+                    f"consent:{c.id}:{end.isoformat()}",
+                    Severity.WARNING,
+                    f"La conexión con {c.aspsp} caduca {when}",
+                    "Después dejarán de llegar movimientos. Conéctala de nuevo en Ajustes.",
+                    end,
+                )
+            )
+        elif (c.aspsp, c.country) not in renewed and today - end <= timedelta(
+            days=EXPIRED_NAG_DAYS
+        ):
+            found.append(
+                Alert(
+                    AlertKind.CONSENT,
+                    f"consent_expired:{c.id}:{end.isoformat()}",
+                    Severity.CRITICAL,
+                    f"La conexión con {c.aspsp} ha caducado",
+                    f"Dejó de traer movimientos el {end.isoformat()}. "
+                    "Conéctala de nuevo en Ajustes.",
+                    end,
+                )
+            )
     return found

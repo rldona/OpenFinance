@@ -305,3 +305,40 @@ def test_one_failing_connection_does_not_stop_the_others(
     with session_factory() as s:
         reports = sync_all(SqlUnitOfWork(s), aggregator, datetime.now(UTC))
     assert sorted(r.created for r in reports) == [0, 1]
+
+
+def test_renewing_the_consent_does_not_bring_the_history_again(
+    as_raul, seed, aggregator, session_factory
+):
+    old = connect(as_raul, aggregator)
+    link(as_raul, old, seed.joint)
+    aggregator.transactions_by_uid["uid-1"] = [remote("A1", "-5.00"), remote("A2", "-7.00")]
+    assert synced(as_raul, old).json()["created"] == 2
+    as_raul.post(f"/api/v1/bank/connections/{old['id']}/revoke")
+    # otra sesión y otros ids de cuenta en el agregador, pero el banco repite sus referencias
+    renewed = connect(as_raul, aggregator)
+    link(as_raul, renewed, seed.joint)
+    again = synced(as_raul, renewed).json()
+    assert (again["created"], again["links"][0]["duplicates"]) == (0, 2)
+
+
+def test_sync_refuses_an_account_that_became_invisible(as_raul, seed, aggregator, session_factory):
+    connection = connect(as_raul, aggregator)
+    link(as_raul, connection, seed.raul_personal)
+    aggregator.transactions_by_uid["uid-1"] = [remote("A1", "-5.00")]
+    # la cuenta pasa a ser de Elena: Raúl ya no la ve y su conexión no puede escribir en ella
+    with session_factory() as s:
+        from sqlalchemy import update
+
+        from openfinance.infrastructure.db.models import AccountRow
+
+        s.execute(
+            update(AccountRow)
+            .where(AccountRow.id == seed.raul_personal.id)
+            .values(owner_id=seed.elena.id)
+        )
+        s.commit()
+    body = synced(as_raul, connection).json()
+    assert body["created"] == 0
+    assert "ya no está disponible" in body["links"][0]["error"]
+    assert aggregator.requested == []

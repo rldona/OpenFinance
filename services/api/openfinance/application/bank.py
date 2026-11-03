@@ -265,7 +265,7 @@ def _sync_link(
         uow.households.members(actor.household_id),
         uow.member_patterns.for_household(actor.household_id),
     )
-    rows, skipped = to_rows(connection.id, link.remote_uid, remote, rules, account.currency)
+    rows, skipped = to_rows(remote, rules, account.currency)
     reviewed = preview_rows(uow, actor, account, ParseResult(rows=rows))
     fresh = [r for r in reviewed if not r.duplicate]
     voided = uow.transactions.voided_with_fingerprints(

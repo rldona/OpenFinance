@@ -87,6 +87,7 @@ _LABEL = {
     AlertKind.DUPLICATE: ("posible duplicado", "posibles duplicados"),
     AlertKind.PRICE_RISE: ("subida de precio", "subidas de precio"),
     AlertKind.FEE: ("comisión", "comisiones"),
+    AlertKind.CONSENT: ("conexión bancaria por renovar", "conexiones bancarias por renovar"),
 }
 
 

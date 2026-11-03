@@ -190,22 +190,22 @@ class BankConnection:
         return (self.last_sync_at - timedelta(days=OVERLAP_DAYS)).date()
 
 
-def bank_fingerprint(connection_id: UUID, remote_uid: str, tx: RemoteTransaction) -> str | None:
-    """Huella de un movimiento con identificador del banco; ``None`` si el banco no lo da."""
+def bank_fingerprint(tx: RemoteTransaction) -> str | None:
+    """Huella de un movimiento con identificador del banco; ``None`` si el banco no lo da.
+
+    No lleva la conexión ni la cuenta del agregador: esos identificadores cambian al renovar
+    el consentimiento y todo el historial volvería a entrar. La huella ya se compara dentro de
+    cada cuenta del hogar, que es a quien se enlaza una sola cuenta del banco.
+    """
     if not tx.entry_id:
         return None
-    payload = f"bank|{connection_id}|{remote_uid}|{tx.entry_id}"
-    return hashlib.sha256(payload.encode()).hexdigest()
+    return hashlib.sha256(f"bank|{tx.entry_id}".encode()).hexdigest()
 
 
-def _fallback_fingerprint(
-    connection_id: UUID, remote_uid: str, tx: RemoteTransaction, occurrence: int
-) -> str:
+def _fallback_fingerprint(tx: RemoteTransaction, occurrence: int) -> str:
     payload = "|".join(
         [
             "bank-noid",
-            str(connection_id),
-            remote_uid,
             tx.booked_on.isoformat(),
             str(tx.amount),
             tx.currency,
@@ -217,8 +217,6 @@ def _fallback_fingerprint(
 
 
 def to_rows(
-    connection_id: UUID,
-    remote_uid: str,
     transactions: Iterable[RemoteTransaction],
     rules: ClassificationRules,
     currency: Currency,
@@ -238,12 +236,12 @@ def to_rows(
             skipped += 1
             continue
         description = re.sub(r"\s+", " ", tx.description).strip() or "Movimiento bancario"
-        fp = bank_fingerprint(connection_id, remote_uid, tx)
+        fp = bank_fingerprint(tx)
         if fp is None:
             key = (tx.booked_on, tx.amount, tx.currency, description.casefold())
             occurrence = seen.get(key, 0)
             seen[key] = occurrence + 1
-            fp = _fallback_fingerprint(connection_id, remote_uid, tx, occurrence)
+            fp = _fallback_fingerprint(tx, occurrence)
         amount = Money(tx.amount, currency)
         kind, member = suggest_kind(description, tx.amount > 0, rules)
         rows.append(

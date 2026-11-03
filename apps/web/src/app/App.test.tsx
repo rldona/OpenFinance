@@ -2517,6 +2517,30 @@ describe('Pagos programados', () => {
     expect(JSON.parse(String(sent?.body))).toEqual({ key: 'fee:t1' })
   })
 
+  it('el aviso de una conexión bancaria por caducar lleva a Ajustes', async () => {
+    window.location.hash = '#mes'
+    loggedIn({
+      'GET /api/v1/insights/month': { body: OVERVIEW },
+      'GET /api/v1/alerts': {
+        body: [
+          {
+            ...ALERT,
+            kind: 'consent',
+            key: 'consent:c1:2026-11-10',
+            severity: 'warning',
+            title: 'La conexión con Bankinter caduca el 2026-11-10',
+            amount: null,
+            account_id: null,
+          },
+        ],
+      },
+    })
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Avisos' })
+    expect(card).toHaveTextContent('La conexión con Bankinter caduca')
+    expect(within(card).getByRole('link', { name: 'Ir a Ajustes' })).toHaveAttribute('href', '#ajustes')
+  })
+
   it('sin avisos no hay tarjeta, y si no se pueden pedir Este mes sigue funcionando', async () => {
     window.location.hash = '#mes'
     loggedIn({ 'GET /api/v1/insights/month': { body: OVERVIEW }, 'GET /api/v1/alerts': { body: [] } })

@@ -1784,7 +1784,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "late_payment" | "low_balance" | "budget_over" | "duplicate" | "price_rise" | "fee";
+            kind: "late_payment" | "low_balance" | "budget_over" | "duplicate" | "price_rise" | "fee" | "consent";
             /**
              * On
              * Format: date
@@ -3128,7 +3128,7 @@ export interface components {
         /** NotificationPrefsIn */
         NotificationPrefsIn: {
             /** Kinds */
-            kinds: ("late_payment" | "low_balance" | "budget_over" | "duplicate" | "price_rise" | "fee")[];
+            kinds: ("late_payment" | "low_balance" | "budget_over" | "duplicate" | "price_rise" | "fee" | "consent")[];
             /** Weekly */
             weekly: boolean;
         };
@@ -3142,7 +3142,7 @@ export interface components {
             /** Devices */
             devices: number;
             /** Kinds */
-            kinds: ("late_payment" | "low_balance" | "budget_over" | "duplicate" | "price_rise" | "fee")[];
+            kinds: ("late_payment" | "low_balance" | "budget_over" | "duplicate" | "price_rise" | "fee" | "consent")[];
             /**
              * Public Key
              * @description Clave pública VAPID para suscribirse
