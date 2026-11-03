@@ -31,3 +31,4 @@ Formato: contexto → decisión → consecuencias. Un ADR aceptado no se edita; 
 | [0023](0023-avisos-y-notificaciones.md) | Avisos deterministas, notificaciones Web Push y resumen semanal | Accepted |
 | [0024](0024-conexion-con-el-banco.md) | Conexión con el banco mediante un agregador PSD2 | Accepted |
 | [0025](0025-informes-y-patrimonio.md) | Patrimonio neto, flujo de caja, informes a medida y exportación v2 | Accepted |
+| [0026](0026-hogar-ampliado.md) | Hogar ampliado: más personas con roles, reparto de gastos y eventos | Accepted |

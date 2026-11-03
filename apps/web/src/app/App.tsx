@@ -16,6 +16,7 @@ import { SpendingPage } from '../features/insights/SpendingPage'
 import { TrendsPage } from '../features/insights/TrendsPage'
 import { BudgetsPage } from '../features/savings/BudgetsPage'
 import { SchedulePage } from '../features/savings/SchedulePage'
+import { JoinPage } from '../features/auth/JoinPage'
 import { ReportsPage } from '../features/insights/ReportsPage'
 import { CashFlowPage } from '../features/insights/CashFlowPage'
 import { NetWorthPage } from '../features/insights/NetWorthPage'
@@ -107,7 +108,11 @@ export function App() {
         No se puede conectar con OpenFinance. ¿Está la API en marcha?
       </p>
     )
-  if (session.kind === 'anonymous') return <LoginPage onLogin={(me) => setSession({ kind: 'ready', me })} />
+  if (session.kind === 'anonymous') {
+    const join = window.location.hash.match(/^#unirse\?token=([\w-]+)/)
+    if (join) return <JoinPage token={join[1]} onJoined={(me) => setSession({ kind: 'ready', me })} />
+    return <LoginPage onLogin={(me) => setSession({ kind: 'ready', me })} />
+  }
 
   return (
     <HouseholdProvider me={session.me} notify={notify}>
@@ -171,6 +176,11 @@ function Shell({ route, onLogout }: { route: RouteId; onLogout: () => void }) {
         </div>
       </header>
       {/* Barra inferior en el móvil, carril en la tableta y barra lateral en el escritorio (OF-801). */}
+      {me.role === 'viewer' && (
+        <p className="notice" role="status">
+          Tu rol en este hogar solo permite leer: puedes mirar todo, pero no cambiar datos.
+        </p>
+      )}
       <nav className="nav" aria-label="Secciones">
         {ROUTES.map((r) => (
           <a

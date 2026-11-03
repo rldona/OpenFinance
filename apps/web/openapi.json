@@ -3166,6 +3166,111 @@
         "title": "Institution",
         "type": "string"
       },
+      "InvitationAcceptIn": {
+        "properties": {
+          "display_name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          },
+          "token": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "display_name",
+          "email",
+          "password"
+        ],
+        "title": "InvitationAcceptIn",
+        "type": "object"
+      },
+      "InvitationCreatedOut": {
+        "properties": {
+          "invitation": {
+            "$ref": "#/components/schemas/InvitationOut"
+          },
+          "token": {
+            "description": "El enlace de la invitación. Solo se muestra esta vez",
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "invitation",
+          "token"
+        ],
+        "title": "InvitationCreatedOut",
+        "type": "object"
+      },
+      "InvitationIn": {
+        "properties": {
+          "role": {
+            "default": "editor",
+            "enum": [
+              "owner",
+              "editor",
+              "viewer"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "title": "InvitationIn",
+        "type": "object"
+      },
+      "InvitationOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "owner",
+              "editor",
+              "viewer"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "created_at",
+          "expires_at"
+        ],
+        "title": "InvitationOut",
+        "type": "object"
+      },
       "LinkIn": {
         "properties": {
           "peer_id": {
@@ -3325,6 +3430,16 @@
             "title": "Members",
             "type": "array"
           },
+          "role": {
+            "description": "Tu rol en el hogar",
+            "enum": [
+              "owner",
+              "editor",
+              "viewer"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
           "user": {
             "$ref": "#/components/schemas/UserOut"
           }
@@ -3332,7 +3447,8 @@
         "required": [
           "user",
           "household",
-          "members"
+          "members",
+          "role"
         ],
         "title": "MeOut",
         "type": "object"
@@ -3353,6 +3469,40 @@
           "amount"
         ],
         "title": "MemberAmountOut",
+        "type": "object"
+      },
+      "MemberDetailOut": {
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_me": {
+            "title": "Is Me",
+            "type": "boolean"
+          },
+          "role": {
+            "enum": [
+              "owner",
+              "editor",
+              "viewer"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "display_name",
+          "role",
+          "is_me"
+        ],
+        "title": "MemberDetailOut",
         "type": "object"
       },
       "MemberOut": {
@@ -5020,6 +5170,24 @@
           "revoked"
         ],
         "title": "RevokedOut",
+        "type": "object"
+      },
+      "RoleIn": {
+        "properties": {
+          "role": {
+            "enum": [
+              "owner",
+              "editor",
+              "viewer"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "title": "RoleIn",
         "type": "object"
       },
       "RuleApplyOut": {
@@ -6880,6 +7048,48 @@
         "summary": "Download Attachment",
         "tags": [
           "attachments"
+        ]
+      }
+    },
+    "/api/v1/auth/invitations/accept": {
+      "post": {
+        "description": "Une a una persona nueva al hogar con una invitación vigente (ADR-0026).\n\nNo hay registro público: sin un enlace válido no se crea nada. Cada intento cuenta contra\nel límite por IP, como el inicio de sesión, y todo fallo da el mismo mensaje.",
+        "operationId": "accept_invitation_api_v1_auth_invitations_accept_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitationAcceptIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Accept Invitation",
+        "tags": [
+          "auth"
         ]
       }
     },
@@ -8881,6 +9091,213 @@
         "summary": "Delete Contribution",
         "tags": [
           "savings"
+        ]
+      }
+    },
+    "/api/v1/household/invitations": {
+      "get": {
+        "operationId": "list_invitations_api_v1_household_invitations_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InvitationOut"
+                  },
+                  "title": "Response List Invitations Api V1 Household Invitations Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Invitations",
+        "tags": [
+          "household"
+        ]
+      },
+      "post": {
+        "operationId": "create_invitation_api_v1_household_invitations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitationIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationCreatedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Invitation",
+        "tags": [
+          "household"
+        ]
+      }
+    },
+    "/api/v1/household/invitations/{invitation_id}": {
+      "delete": {
+        "operationId": "revoke_invitation_api_v1_household_invitations__invitation_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invitation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Invitation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Invitation",
+        "tags": [
+          "household"
+        ]
+      }
+    },
+    "/api/v1/household/members": {
+      "get": {
+        "operationId": "list_members_api_v1_household_members_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MemberDetailOut"
+                  },
+                  "title": "Response List Members Api V1 Household Members Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Members",
+        "tags": [
+          "household"
+        ]
+      }
+    },
+    "/api/v1/household/members/{user_id}": {
+      "delete": {
+        "operationId": "remove_member_api_v1_household_members__user_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Member",
+        "tags": [
+          "household"
+        ]
+      }
+    },
+    "/api/v1/household/members/{user_id}/role": {
+      "put": {
+        "operationId": "set_role_api_v1_household_members__user_id__role_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Role",
+        "tags": [
+          "household"
         ]
       }
     },

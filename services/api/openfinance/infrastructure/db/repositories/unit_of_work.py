@@ -25,6 +25,7 @@ from openfinance.infrastructure.db.repositories.imports import (
     SqlImportBatchRepository,
     SqlMemberPatternRepository,
 )
+from openfinance.infrastructure.db.repositories.invitations import SqlInvitationRepository
 from openfinance.infrastructure.db.repositories.ledger import (
     SqlAccountRepository,
     SqlTransactionRepository,
@@ -77,6 +78,7 @@ class SqlUnitOfWork:
         self.notifications = SqlNotificationRepository(session)
         self.bank = SqlBankRepository(session)
         self.reports = SqlSavedReportRepository(session)
+        self.invitations = SqlInvitationRepository(session)
         self.member_patterns = SqlMemberPatternRepository(session)
         self.changes = SqlChangeRepository(session)
 

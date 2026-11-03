@@ -48,11 +48,33 @@ UowDep = Annotated[SqlUnitOfWork, Depends(get_uow)]
 HasherDep = Annotated[Argon2PasswordHasher, Depends(get_hasher)]
 
 
+_SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+_VIEWER_MAY_WRITE = frozenset(
+    {
+        ("POST", "/api/v1/me/password"),
+        ("POST", "/api/v1/me/sessions/revoke-others"),
+        ("POST", "/api/v1/alerts/dismiss"),
+        ("POST", "/api/v1/notifications/subscriptions"),
+        ("POST", "/api/v1/notifications/subscriptions/remove"),
+        ("PUT", "/api/v1/notifications/preferences"),
+        ("POST", "/api/v1/reports/run"),
+    }
+)
+"""Lo que un ``viewer`` puede pedir sin ser lectura: lo suyo (contraseña, sesiones, avisos y
+notificaciones) y ejecutar informes. Todo lo demás que escribe datos del hogar, no (ADR-0026)."""
+
+
 def get_actor(request: Request, uow: UowDep, settings: SettingsDep) -> Actor:
     token = request.cookies.get(settings.session_cookie_name, "")
     actor = resolve_session(uow, token, utc_now())
     if actor is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Inicia sesión")
+    if (
+        not actor.role.can_write
+        and request.method not in _SAFE_METHODS
+        and (request.method, request.url.path) not in _VIEWER_MAY_WRITE
+    ):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Tu rol en el hogar solo permite leer")
     return actor
 
 

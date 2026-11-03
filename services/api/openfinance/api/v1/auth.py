@@ -5,8 +5,15 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.concurrency import run_in_threadpool
 
 from openfinance.api.deps import ActorDep, HasherDep, SettingsDep, ThrottleDep, UowDep
-from openfinance.api.v1.schemas import HouseholdOut, LoginIn, MemberOut, MeOut, UserOut
-from openfinance.application import identity
+from openfinance.api.v1.schemas import (
+    HouseholdOut,
+    InvitationAcceptIn,
+    LoginIn,
+    MemberOut,
+    MeOut,
+    UserOut,
+)
+from openfinance.application import identity, members
 from openfinance.application.errors import AuthenticationError
 from openfinance.infrastructure.time import utc_now
 
@@ -90,4 +97,54 @@ def _me(me: identity.Me) -> MeOut:
         user=UserOut.of(me.user),
         household=HouseholdOut.of(me.household),
         members=[MemberOut(id=m.id, display_name=m.display_name) for m in me.members],
+        role=me.role.value,
     )
+
+
+@router.post("/auth/invitations/accept", response_model=MeOut, status_code=status.HTTP_201_CREATED)
+async def accept_invitation(
+    body: InvitationAcceptIn,
+    request: Request,
+    response: Response,
+    uow: UowDep,
+    hasher: HasherDep,
+    settings: SettingsDep,
+    throttle: ThrottleDep,
+) -> MeOut:
+    """Une a una persona nueva al hogar con una invitación vigente (ADR-0026).
+
+    No hay registro público: sin un enlace válido no se crea nada. Cada intento cuenta contra
+    el límite por IP, como el inicio de sesión, y todo fallo da el mismo mensaje.
+    """
+    now = utc_now()
+    ip = request.client.host if request.client else "unknown"
+    # La clave «email» es la propia IP: un tercero no puede bloquear las invitaciones de todos.
+    key = f"invitation:{ip}"
+    if not throttle.try_acquire(key, ip, now):
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "Demasiados intentos. Espera unos minutos.",
+            headers={"Retry-After": str(settings.login_window_minutes * 60)},
+        )
+    session = await run_in_threadpool(
+        members.accept_invitation,
+        uow,
+        hasher,
+        body.token,
+        body.display_name,
+        body.email,
+        body.password,
+        now,
+        timedelta(days=settings.session_ttl_days),
+    )
+    throttle.release_success(key, ip, now)
+    response.set_cookie(
+        settings.session_cookie_name,
+        session.token,
+        max_age=settings.session_ttl_days * 86400,
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite="lax",
+        path="/",
+    )
+    return _me(await run_in_threadpool(identity.me, uow, session.actor))

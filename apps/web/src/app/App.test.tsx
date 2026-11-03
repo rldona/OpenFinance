@@ -3143,3 +3143,116 @@ describe('Informes a medida (OF-1503)', () => {
     expect(screen.queryByRole('region', { name: 'Resultado del informe' })).toBeNull()
   })
 })
+
+describe('Personas del hogar (OF-1601)', () => {
+  const MEMBERS = [
+    { id: 'u-elena', display_name: 'Elena', role: 'editor', is_me: false },
+    { id: 'u-raul', display_name: 'Raúl', role: 'owner', is_me: true },
+  ]
+  const base = (extra: object = {}) => ({
+    'GET /api/v1/version': { body: { current: '0.2.0', enabled: false, latest: null, url: null, update_available: false } },
+    'GET /api/v1/csv-profiles': { body: [] },
+    'GET /api/v1/rates': { body: [] },
+    'GET /api/v1/sessions': { body: [] },
+    'GET /api/v1/household/members': { body: MEMBERS },
+    'GET /api/v1/household/invitations': { body: [] },
+    ...extra,
+  })
+
+  it('quien administra cambia roles y quita personas, pero no se quita a sí mismo', async () => {
+    window.location.hash = '#ajustes'
+    const calls = loggedIn(
+      base({
+        'PUT /api/v1/household/members/u-elena/role': { status: 204 },
+        'DELETE /api/v1/household/members/u-elena': { status: 204 },
+      }),
+    )
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Personas del hogar' })
+    expect(within(card).queryByRole('button', { name: 'Quitar a Raúl' })).toBeNull()
+    expect(within(card).queryByRole('combobox', { name: 'Rol de Raúl' })).toBeNull()
+    await userEvent.selectOptions(within(card).getByRole('combobox', { name: 'Rol de Elena' }), 'viewer')
+    await waitFor(() => {
+      const put = calls.find((c) => c.method === 'PUT' && c.url.pathname.endsWith('/u-elena/role'))
+      expect(JSON.parse(String(put?.body))).toEqual({ role: 'viewer' })
+    })
+    await userEvent.click(within(card).getByRole('button', { name: 'Quitar a Elena' }))
+    expect(await screen.findByText('Elena ya no está en el hogar')).toBeInTheDocument()
+  })
+
+  it('la invitación enseña el enlace una vez y se puede revocar', async () => {
+    window.location.hash = '#ajustes'
+    const pending = { id: 'i-1', role: 'editor', created_at: '2026-11-03T10:00:00Z', expires_at: '2026-11-10T10:00:00Z' }
+    const calls = loggedIn(
+      base({
+        'GET /api/v1/household/invitations': { body: [pending] },
+        'POST /api/v1/household/invitations': { status: 201, body: { invitation: pending, token: 'tok-secreto-123' } },
+        'DELETE /api/v1/household/invitations/i-1': { status: 204 },
+      }),
+    )
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Personas del hogar' })
+    await userEvent.selectOptions(within(card).getByLabelText('Qué podrá hacer'), 'viewer')
+    await userEvent.click(within(card).getByRole('button', { name: 'Crear invitación' }))
+    const input = (await within(card).findByLabelText('Enlace de la invitación')) as HTMLInputElement
+    expect(input.value).toContain('#unirse?token=tok-secreto-123')
+    const post = calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/household/invitations')
+    expect(JSON.parse(String(post?.body))).toEqual({ role: 'viewer' })
+    await userEvent.click(within(card).getByRole('button', { name: 'Revocar invitación' }))
+    await waitFor(() => expect(within(card).queryByRole('list', { name: 'Invitaciones pendientes' })).toBeNull())
+  })
+
+  it('quien solo mira ve el aviso y ningún control de gestión', async () => {
+    window.location.hash = '#ajustes'
+    mockApi({
+      'GET /api/v1/me': { body: { ...ME, role: 'viewer' } },
+      'GET /api/v1/accounts': { body: ACCOUNTS },
+      'GET /api/v1/transactions/uncategorized-count': { body: { count: 0 } },
+      ...base({ 'GET /api/v1/household/members': { body: MEMBERS.map((m) => ({ ...m, is_me: m.id === 'u-raul', role: m.id === 'u-raul' ? 'viewer' : 'owner' })) } }),
+    })
+    render(<App />)
+    expect(await screen.findByText(/solo permite leer/)).toBeInTheDocument()
+    const card = await screen.findByRole('region', { name: 'Personas del hogar' })
+    expect(within(card).queryByRole('button')).toBeNull()
+    expect(within(card).queryByLabelText('Qué podrá hacer')).toBeNull()
+  })
+
+  it('el enlace de invitación lleva a unirse y entra con la sesión nueva', async () => {
+    window.location.hash = '#unirse?token=tok-abc_123'
+    const calls = mockApi({
+      'GET /api/v1/me': { status: 401, body: { detail: 'Inicia sesión' } },
+      'POST /api/v1/auth/invitations/accept': { status: 201, body: { ...ME, role: 'editor' } },
+      'GET /api/v1/accounts': { body: ACCOUNTS },
+      'GET /api/v1/transactions/page': { body: page([]) },
+      'GET /api/v1/categories': { body: CATEGORIES },
+      'GET /api/v1/transactions/uncategorized-count': { body: { count: 0 } },
+    })
+    render(<App />)
+    await userEvent.type(await screen.findByLabelText('Tu nombre'), 'Marta')
+    await userEvent.type(screen.getByLabelText('Email'), 'marta@example.org')
+    await userEvent.type(screen.getByLabelText(/^Contraseña/), 'contraseña-larga-1')
+    await userEvent.type(screen.getByLabelText('Repite la contraseña'), 'contraseña-larga-1')
+    await userEvent.click(screen.getByRole('button', { name: 'Unirme' }))
+    expect(await screen.findByText('Nuestra casa')).toBeInTheDocument()
+    const sent = calls.find((c) => c.url.pathname === '/api/v1/auth/invitations/accept')!
+    expect(JSON.parse(String(sent.body))).toEqual({
+      token: 'tok-abc_123',
+      display_name: 'Marta',
+      email: 'marta@example.org',
+      password: 'contraseña-larga-1',
+    })
+  })
+
+  it('no deja unirse si las contraseñas no coinciden y no llama a la API', async () => {
+    window.location.hash = '#unirse?token=tok-abc_123'
+    const calls = mockApi({ 'GET /api/v1/me': { status: 401 } })
+    render(<App />)
+    await userEvent.type(await screen.findByLabelText('Tu nombre'), 'Marta')
+    await userEvent.type(screen.getByLabelText('Email'), 'marta@example.org')
+    await userEvent.type(screen.getByLabelText(/^Contraseña/), 'contraseña-larga-1')
+    await userEvent.type(screen.getByLabelText('Repite la contraseña'), 'otra-distinta-99')
+    await userEvent.click(screen.getByRole('button', { name: 'Unirme' }))
+    expect(await screen.findByText('Las contraseñas no coinciden')).toBeInTheDocument()
+    expect(calls.some((c) => c.url.pathname.includes('invitations/accept'))).toBe(false)
+  })
+})

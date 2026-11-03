@@ -80,6 +80,7 @@ class MeOut(BaseModel):
     user: UserOut
     household: HouseholdOut
     members: list[MemberOut]
+    role: Literal["owner", "editor", "viewer"] = Field(description="Tu rol en el hogar")
 
 
 class AccountOut(BaseModel):
@@ -1616,3 +1617,37 @@ class SavedReportOut(BaseModel):
     mine: bool = Field(description="Lo creó quien pregunta; solo esa persona lo cambia")
     definition: ReportDefinitionOut
     created_at: datetime
+
+
+class MemberDetailOut(BaseModel):
+    id: UUID
+    display_name: str
+    role: Literal["owner", "editor", "viewer"]
+    is_me: bool
+
+
+class InvitationIn(BaseModel):
+    role: Literal["owner", "editor", "viewer"] = "editor"
+
+
+class InvitationOut(BaseModel):
+    id: UUID
+    role: Literal["owner", "editor", "viewer"]
+    created_at: datetime
+    expires_at: datetime
+
+
+class InvitationCreatedOut(BaseModel):
+    invitation: InvitationOut
+    token: str = Field(description="El enlace de la invitación. Solo se muestra esta vez")
+
+
+class InvitationAcceptIn(BaseModel):
+    token: str = Field(min_length=1, max_length=200)
+    display_name: str = Field(min_length=1, max_length=100)
+    email: EmailStr
+    password: str = Field(min_length=1, max_length=200)
+
+
+class RoleIn(BaseModel):
+    role: Literal["owner", "editor", "viewer"]

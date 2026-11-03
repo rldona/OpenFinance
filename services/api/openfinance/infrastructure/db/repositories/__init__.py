@@ -19,6 +19,7 @@ from openfinance.infrastructure.db.repositories.imports import (
     SqlImportBatchRepository,
     SqlMemberPatternRepository,
 )
+from openfinance.infrastructure.db.repositories.invitations import SqlInvitationRepository
 from openfinance.infrastructure.db.repositories.ledger import (
     SqlAccountRepository,
     SqlTransactionRepository,
@@ -56,6 +57,7 @@ __all__ = [
     "SqlHouseholdRepository",
     "SqlIdeaDismissalRepository",
     "SqlImportBatchRepository",
+    "SqlInvitationRepository",
     "SqlLinkRepository",
     "SqlMemberPatternRepository",
     "SqlMerchantRepository",

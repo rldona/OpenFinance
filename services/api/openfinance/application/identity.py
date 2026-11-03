@@ -20,7 +20,7 @@ from openfinance.domain.identity import (
     normalize_email,
     validate_password,
 )
-from openfinance.domain.workspaces import Actor, Household
+from openfinance.domain.workspaces import Actor, Household, Role
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,6 +36,7 @@ class Me:
     user: User
     household: Household
     members: list[User]
+    role: Role = Role.OWNER
 
 
 def _hash_token(token: str) -> str:
@@ -68,7 +69,8 @@ def open_session(
     session = StoredSession(_hash_token(token), user.id, households[0], now + ttl)
     uow.sessions.add(session)
     uow.commit()
-    return NewSession(token, session.expires_at, Actor(user.id, session.household_id))
+    role = uow.households.role_of(session.household_id, user.id) or Role.VIEWER
+    return NewSession(token, session.expires_at, Actor(user.id, session.household_id, role))
 
 
 def login(
@@ -100,9 +102,10 @@ def resolve_session(uow: UnitOfWork, token: str, now: datetime) -> Actor | None:
         uow.sessions.delete(session.token_hash)
         uow.commit()
         return None
-    if session.household_id not in uow.households.households_of(session.user_id):
+    role = uow.households.role_of(session.household_id, session.user_id)
+    if role is None:
         return None
-    return Actor(session.user_id, session.household_id)
+    return Actor(session.user_id, session.household_id, role)
 
 
 def logout(uow: UnitOfWork, token: str) -> None:
@@ -180,4 +183,4 @@ def me(uow: UnitOfWork, actor: Actor) -> Me:
     household = uow.households.get(actor.household_id)
     if user is None or household is None:
         raise NotFoundError("Sesión sin usuario u hogar")
-    return Me(user, household, uow.households.members(actor.household_id))
+    return Me(user, household, uow.households.members(actor.household_id), actor.role)

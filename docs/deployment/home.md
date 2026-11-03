@@ -33,7 +33,7 @@ Por defecto solo se entra desde el propio equipo: http://localhost:8080. Ni la b
 docker compose exec api openfinance bootstrap
 ```
 
-Pregunta el nombre del hogar, el nombre, el email y la contraseña de cada persona y las cuentas. No hay registro público.
+Pregunta el nombre del hogar, el nombre, el email y la contraseña de cada persona y las cuentas. No hay registro público: más personas entran con una invitación que crea quien administra el hogar en **Ajustes → Personas del hogar** (un enlace de un solo uso que vale 7 días).
 
 Para identificar las aportaciones que no llevan vuestro nombre (recargas con tarjeta, salidas de las cuentas personales), consulta `docker compose exec api openfinance member-patterns --help`.
 

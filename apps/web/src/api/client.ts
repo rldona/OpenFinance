@@ -18,6 +18,9 @@ export type WeeklySummary = Schemas['WeeklySummaryOut']
 export type Notifications = Schemas['NotificationsOut']
 export type AlertKind = Alert['kind']
 export type Bank = Schemas['BankOut']
+export type Member = Schemas['MemberDetailOut']
+export type Invitation = Schemas['InvitationOut']
+export type Role = Member['role']
 export type NetWorth = Schemas['NetWorthOut']
 export type CashFlow = Schemas['CashFlowOut']
 export type ReportDefinition = Schemas['ReportDefinitionIn']
@@ -226,6 +229,20 @@ export const api = {
   netWorth: (signal?: AbortSignal) => request<NetWorth>('GET', '/api/v1/net-worth', { signal }),
   /** Flujo de caja mensual del dinero líquido (ADR-0025, OF-1502). */
   cashFlow: (signal?: AbortSignal) => request<CashFlow>('GET', '/api/v1/cash-flow', { signal }),
+  /** Personas del hogar, roles e invitaciones (ADR-0026, OF-1601). */
+  members: (signal?: AbortSignal) => request<Member[]>('GET', '/api/v1/household/members', { signal }),
+  setMemberRole: (userId: string, role: Role) =>
+    request<void>('PUT', `/api/v1/household/members/${encodeURIComponent(userId)}/role`, { json: { role } }),
+  removeMember: (userId: string) =>
+    request<void>('DELETE', `/api/v1/household/members/${encodeURIComponent(userId)}`),
+  invitations: (signal?: AbortSignal) => request<Invitation[]>('GET', '/api/v1/household/invitations', { signal }),
+  createInvitation: (role: Role) =>
+    request<{ invitation: Invitation; token: string }>('POST', '/api/v1/household/invitations', { json: { role } }),
+  revokeInvitation: (id: string) => request<void>('DELETE', `/api/v1/household/invitations/${encodeURIComponent(id)}`),
+  acceptInvitation: (token: string, displayName: string, email: string, password: string) =>
+    request<Me>('POST', '/api/v1/auth/invitations/accept', {
+      json: { token, display_name: displayName, email, password },
+    }),
   /** Informes a medida y su guardado (ADR-0025, OF-1503). */
   runReport: (definition: ReportDefinition) => request<Report>('POST', '/api/v1/reports/run', { json: definition }),
   savedReports: (signal?: AbortSignal) => request<SavedReport[]>('GET', '/api/v1/reports', { signal }),

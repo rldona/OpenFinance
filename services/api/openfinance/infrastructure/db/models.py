@@ -50,10 +50,29 @@ class HouseholdRow(Base):
 
 class MembershipRow(Base):
     __tablename__ = "memberships"
+    __table_args__ = (CheckConstraint("role IN ('owner', 'editor', 'viewer')", name="role_valid"),)
 
     household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"), primary_key=True)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), primary_key=True, index=True)
+    role: Mapped[str] = mapped_column(String(10), default="owner", server_default="owner")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class InvitationRow(Base):
+    """Invitación para unirse al hogar (ADR-0026). Solo se guarda el hash del enlace."""
+
+    __tablename__ = "invitations"
+    __table_args__ = (Index("ix_invitations_household", "household_id"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    role: Mapped[str] = mapped_column(String(10))
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa_false())
 
 
 class AccountRow(Base):
