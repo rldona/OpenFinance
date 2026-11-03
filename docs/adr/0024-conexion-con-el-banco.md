@@ -48,5 +48,6 @@ Hasta ahora los movimientos entran por extractos (CSV, OFX, CAMT…) o a mano. R
 
 - Se añaden `bank_connections` y `bank_links`, y `transactions.bank_ref`. Los movimientos traídos entran en el registro de cambios por su lote de importación, como los de un extracto.
 - Los datos bancarios pasan por el agregador elegido por el hogar. La documentación de despliegue explica cómo crear la aplicación, qué se comparte y cómo revocar.
-- **No probado contra un banco real**: el adaptador sigue la documentación pública del agregador y se prueba con respuestas simuladas. La primera conexión real puede pedir ajustes (campos opcionales, límites de cada banco).
+- **Probado con Revolut (`ES`) el 3 de noviembre de 2026**: firma del JWT, lista de bancos, autorización, vuelta del banco, cuentas y una sincronización real (132 movimientos de 90 días, suma igual al saldo del banco). **Bankinter aún no** se ha probado. El adaptador se sigue probando en CI con respuestas simuladas.
+- El agregador **solo acepta direcciones de vuelta `https`**; para pruebas locales sirve `https://localhost/` con el modo `https` de Compose. El saldo inicial de una cuenta es el anterior al primer movimiento sincronizado (ver la guía de despliegue).
 - Los pagos y las transferencias iniciadas desde OpenFinance quedan fuera: solo lectura de cuentas.

@@ -134,9 +134,20 @@ El mensaje solo dice cuántos avisos hay y de qué tipo, sin importes ni comerci
 
 Además de importar extractos, OpenFinance puede traer los movimientos directamente del banco por PSD2 ([ADR-0024](../adr/0024-conexion-con-el-banco.md)). Un banco solo entrega esos datos a un proveedor autorizado, así que usáis **vuestra propia cuenta** en [Enable Banking](https://enablebanking.com): sus datos de aplicación quedan en vuestro servidor y los movimientos no pasan por ningún servidor nuestro. Es solo lectura: nunca mueve dinero. Necesita el modo HTTPS.
 
-1. Entra en el panel de Enable Banking, registra una aplicación en modo de producción restringido (permite enlazar vuestras propias cuentas) y añade como dirección de vuelta la raíz de vuestra web, por ejemplo `https://finanzas.ejemplo.org/`. Te descarga la clave privada (un `.pem`).
-2. En `.env`: `OPENFINANCE_BANK_APP_ID` (el identificador de la aplicación), `OPENFINANCE_BANK_REDIRECT_URL` (esa misma dirección) y `OPENFINANCE_BANK_PRIVATE_KEY` con el PEM en **una sola línea**, cambiando cada salto de línea por `\n`. La clave es un secreto, como la contraseña de PostgreSQL. Después `docker compose up -d`.
-3. Cada persona, en **Ajustes → Conexión con el banco**, elige país y banco, autoriza en la web del banco y, al volver, elige a qué cuenta de OpenFinance alimenta cada cuenta del banco. Una conexión es de quien la crea: la otra persona no la ve.
+1. Entra en el [panel de Enable Banking](https://enablebanking.com/cp/applications) y registra una aplicación:
+   - **Entorno: Production** (no Sandbox: Sandbox solo habla con bancos simulados). Queda «Inactive».
+   - **Clave:** deja «Generate in the browser». Al registrar se descarga un `.pem` con el identificador de la aplicación como nombre. Guárdalo **fuera del repositorio**; es la clave que firma todas las peticiones.
+   - **Allowed redirect URLs:** la raíz de vuestra web, **solo con `https`** (`http://…` se rechaza: «unsupported scheme»), con la barra final: `https://finanzas.ejemplo.org/`. Para probar en tu equipo vale `https://localhost/` con el modo `https` de Compose (Caddy usa una CA interna: el navegador avisa del certificado y se acepta una vez).
+   - **Privacy URL y Terms URL:** el formulario los pide aunque se marquen como opcionales. Para uso propio vale la dirección del repositorio.
+   - Pulsa **Activate by linking accounts** y autoriza tus cuentas en el banco. Hasta entonces la aplicación está inactiva y solo puede leer las cuentas **enlazadas** (modo restringido, para uso individual y no comercial). La pantalla «Billing» es una solicitud de presupuesto comercial: no hace falta.
+2. En `.env`: `OPENFINANCE_BANK_APP_ID` (el identificador de la aplicación), `OPENFINANCE_BANK_REDIRECT_URL` (esa misma dirección, idéntica) y `OPENFINANCE_BANK_PRIVATE_KEY` con el PEM en **una sola línea**, cambiando cada salto de línea por `\n` y **entre comillas simples** (con comillas dobles Compose expande `\n`). La clave es un secreto, como la contraseña de PostgreSQL. Después `docker compose up -d`. Un comando que lo escribe sin mostrar la clave:
+
+```bash
+PEM=/ruta/a/ID-DE-LA-APLICACION.pem
+printf "OPENFINANCE_BANK_PRIVATE_KEY='%s'\n" "$(awk '{printf "%s\\n",$0}' "$PEM")" >> .env
+```
+
+3. Cada persona, en **Ajustes → Conexión con el banco**, elige país y banco (el que dice el agregador: **Revolut** y **Bankinter** salen con país `ES`; el desplegable propone los nombres exactos), autoriza en la web del banco y, al volver, elige a qué cuenta de OpenFinance alimenta cada cuenta del banco. Una conexión es de quien la crea: la otra persona no la ve.
 4. Los movimientos se traen con **Sincronizar ahora** o programando `cron`; es idempotente (no duplica) y respeta el límite de consultas del banco (no vuelve a consultar una conexión sincronizada hace menos de 6 horas):
 
 ```cron
@@ -146,7 +157,9 @@ Además de importar extractos, OpenFinance puede traer los movimientos directame
    Cada sincronización con novedades es un lote en «Importar» y se puede deshacer como cualquier extracto.
 5. El consentimiento PSD2 caduca (hasta 180 días). Se avisa 14 días antes; renovarlo es conectar de nuevo. **Revocar** en Ajustes detiene la sincronización y pide al banco cerrar la sesión.
 
-Aún no se ha probado contra un banco real: la primera conexión puede pedir ajustes (cada banco tiene sus particularidades y límites).
+**Probado con Revolut (`ES`, el 3 de noviembre de 2026)**: autorización, lectura de cuentas y una sincronización de 90 días (132 movimientos) cuya suma coincide con el saldo del banco al céntimo. Bankinter aún no.
+
+**El saldo inicial de la cuenta es el de antes del primer movimiento que se trae, no el de hoy.** Si pones el saldo actual, tras la primera sincronización Ajustes enseñará una diferencia igual (con signo contrario) a la suma de los movimientos traídos. Esa diferencia es la que corrige el saldo inicial: `saldo del banco − suma de los movimientos`. Desde la primera sincronización se piden 90 días de historial; lo anterior hay que importarlo con un extracto.
 
 ### Restaurar
 

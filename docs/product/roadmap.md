@@ -504,7 +504,7 @@ Hecha (sin probar en un móvil real ni con un servicio push de verdad: los tests
 
 ## Fase 14 · Conexión con el banco (v0.7) ✅
 
-Hecha (sin probar contra un banco real: el cliente sigue la documentación pública de Enable Banking y los tests usan un agregador simulado). Alcance en [ADR-0024](../adr/0024-conexion-con-el-banco.md), aceptado el 3 de noviembre de 2026. Agregador PSD2 con la cuenta del propio hogar; solo lectura.
+Hecha. Probada con Revolut (`ES`) el 3 de noviembre de 2026; Bankinter pendiente de probar. Los tests de CI usan un agregador simulado. Alcance en [ADR-0024](../adr/0024-conexion-con-el-banco.md), aceptado el 3 de noviembre de 2026. Agregador PSD2 con la cuenta del propio hogar; solo lectura.
 
 | ID | Ticket | Criterio de hecho |
 | --- | --- | --- |
