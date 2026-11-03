@@ -1517,6 +1517,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sharing/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Events */
+        get: operations["list_events_api_v1_sharing_events_get"];
+        put?: never;
+        /** Create Event */
+        post: operations["create_event_api_v1_sharing_events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sharing/events/{event_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Event */
+        get: operations["get_event_api_v1_sharing_events__event_id__get"];
+        /** Update Event */
+        put: operations["update_event_api_v1_sharing_events__event_id__put"];
+        post?: never;
+        /** Delete Event */
+        delete: operations["delete_event_api_v1_sharing_events__event_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sharing/events/{event_id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Close Event */
+        post: operations["close_event_api_v1_sharing_events__event_id__close_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sharing/events/{event_id}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reopen Event */
+        post: operations["reopen_event_api_v1_sharing_events__event_id__reopen_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sharing/expenses": {
         parameters: {
             query?: never;
@@ -3040,6 +3111,67 @@ export interface components {
             /** Status */
             status: string;
         };
+        /** EventCategoryOut */
+        EventCategoryOut: {
+            amount: components["schemas"]["MoneyOut"];
+            /** Category Id */
+            category_id: string | null;
+            /** Name */
+            name: string;
+        };
+        /** EventIn */
+        EventIn: {
+            /** Ends On */
+            ends_on?: string | null;
+            /**
+             * Icon
+             * @default 🧳
+             */
+            icon: string;
+            /** Name */
+            name: string;
+            /** Starts On */
+            starts_on?: string | null;
+        };
+        /** EventOut */
+        EventOut: {
+            /** Closed */
+            closed: boolean;
+            /** Ends On */
+            ends_on: string | null;
+            /** Icon */
+            icon: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Starts On */
+            starts_on: string | null;
+        };
+        /** EventSummaryOut */
+        EventSummaryOut: {
+            /**
+             * Balances
+             * @description Solo con los gastos del evento; suman cero
+             */
+            balances: components["schemas"]["BalanceOut"][];
+            /** By Category */
+            by_category: components["schemas"]["EventCategoryOut"][];
+            /**
+             * Count
+             * @description Gastos activos del evento
+             */
+            count: number;
+            event: components["schemas"]["EventOut"];
+            /** Expenses */
+            expenses: components["schemas"]["ExpenseOut"][];
+            /** Suggestions */
+            suggestions: components["schemas"]["TransferOut"][];
+            total: components["schemas"]["MoneyOut"];
+        };
         /** ExpenseIn */
         ExpenseIn: {
             /**
@@ -3051,6 +3183,11 @@ export interface components {
             category_id?: string | null;
             /** Description */
             description: string;
+            /**
+             * Event Id
+             * @description Viaje o evento al que pertenece
+             */
+            event_id?: string | null;
             /**
              * Method
              * @enum {string}
@@ -3081,6 +3218,8 @@ export interface components {
             created_by: string;
             /** Description */
             description: string;
+            /** Event Id */
+            event_id: string | null;
             /**
              * Id
              * Format: uuid
@@ -7976,6 +8115,216 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BalancesOut"];
+                };
+            };
+        };
+    };
+    list_events_api_v1_sharing_events_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventOut"][];
+                };
+            };
+        };
+    };
+    create_event_api_v1_sharing_events_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_event_api_v1_sharing_events__event_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventSummaryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_event_api_v1_sharing_events__event_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_event_api_v1_sharing_events__event_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    close_event_api_v1_sharing_events__event_id__close_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reopen_event_api_v1_sharing_events__event_id__reopen_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

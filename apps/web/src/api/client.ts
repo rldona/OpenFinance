@@ -27,6 +27,8 @@ export type ExpenseInput = Schemas['ExpenseIn']
 export type Balances = Schemas['BalancesOut']
 export type Settlement = Schemas['SettlementOut']
 export type SplitPart = Schemas['AmountOfOut']
+export type TripEvent = Schemas['EventOut']
+export type EventSummary = Schemas['EventSummaryOut']
 export type NetWorth = Schemas['NetWorthOut']
 export type CashFlow = Schemas['CashFlowOut']
 export type ReportDefinition = Schemas['ReportDefinitionIn']
@@ -265,6 +267,14 @@ export const api = {
     request<Settlement>('POST', `/api/v1/sharing/settlements/${encodeURIComponent(id)}/confirm`),
   cancelSettlement: (id: string) =>
     request<Settlement>('POST', `/api/v1/sharing/settlements/${encodeURIComponent(id)}/cancel`),
+  /** Viajes y eventos que agrupan gastos compartidos (ADR-0026, OF-1603). */
+  events: (signal?: AbortSignal) => request<TripEvent[]>('GET', '/api/v1/sharing/events', { signal }),
+  createEvent: (name: string, icon?: string) =>
+    request<TripEvent>('POST', '/api/v1/sharing/events', { json: { name, ...(icon ? { icon } : {}) } }),
+  closeEvent: (id: string) => request<TripEvent>('POST', `/api/v1/sharing/events/${encodeURIComponent(id)}/close`),
+  reopenEvent: (id: string) => request<TripEvent>('POST', `/api/v1/sharing/events/${encodeURIComponent(id)}/reopen`),
+  eventSummary: (id: string, signal?: AbortSignal) =>
+    request<EventSummary>('GET', `/api/v1/sharing/events/${encodeURIComponent(id)}`, { signal }),
   /** Informes a medida y su guardado (ADR-0025, OF-1503). */
   runReport: (definition: ReportDefinition) => request<Report>('POST', '/api/v1/reports/run', { json: definition }),
   savedReports: (signal?: AbortSignal) => request<SavedReport[]>('GET', '/api/v1/reports', { signal }),

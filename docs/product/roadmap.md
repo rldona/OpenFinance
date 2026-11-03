@@ -528,15 +528,15 @@ Hecha. Alcance en [ADR-0025](../adr/0025-informes-y-patrimonio.md), aceptado el 
 
 ---
 
-## Fase 16 · Hogar ampliado (v0.9)
+## Fase 16 · Hogar ampliado (v0.9) ✅
 
-En curso. Alcance en [ADR-0026](../adr/0026-hogar-ampliado.md), aceptado el 3 de noviembre de 2026. Se reutiliza el hogar como frontera: un hogar de cuatro personas es el «piso compartido».
+Hecha (sin probar con personas reales invitando y repartiendo; solo tests y la instalación de demostración). Alcance en [ADR-0026](../adr/0026-hogar-ampliado.md), aceptado el 3 de noviembre de 2026. Se reutiliza el hogar como frontera: un hogar de cuatro personas es el «piso compartido».
 
 | ID | Ticket | Criterio de hecho |
 | --- | --- | --- |
 | OF-1601 ✅ | Más personas con roles e invitaciones | Roles `owner`, `editor` y `viewer` (hasta 10 personas); un `viewer` no escribe en ninguna ruta de escritura (se recorren todas); solo un `owner` invita, cambia roles y quita personas, sin dejar el hogar sin `owner` ni quitar a quien tiene cuentas personales; el rol no abre cuentas personales; la invitación se enseña una vez, solo se guarda su hash, vale 7 días y una sola vez, y todo fallo da el mismo mensaje; aceptar está limitado por intentos |
 | OF-1602 ✅ | Reparto de gastos | Partes que suman exactamente el importe (mayor resto); saldos entre personas que suman cero; sugerencias con el mínimo de transferencias; liquidaciones con doble confirmación e idempotentes; invitados sin usuario; nada de otro hogar |
-| OF-1603 | Eventos y viajes | Un evento agrupa gastos compartidos y resume total, pagado, parte de cada uno, saldos solo con sus gastos y gasto por categoría; cerrado no admite gastos nuevos |
+| OF-1603 ✅ | Eventos y viajes | Un evento agrupa gastos compartidos y resume total, pagado, parte de cada uno, saldos solo con sus gastos y gasto por categoría; cerrado no admite gastos nuevos |
 
 ---
 
@@ -552,7 +552,7 @@ Inspirado en Wallet, Spendee, Fintonic y Actual Budget. Cada fase empieza con su
 | 13 · Alertas | v0.6 | Hecha: [Fase 13](#fase-13--alertas-v06) | OF-1301 … OF-1303 | ✅ |
 | 14 · Conexión con el banco | v0.7 | Hecha: [Fase 14](#fase-14--conexión-con-el-banco-v07) | OF-1401 … OF-1404 | ✅ |
 | 15 · Informes y patrimonio | v0.8 | Hecha: [Fase 15](#fase-15--informes-y-patrimonio-v08) | OF-1501 … OF-1504 | ✅ |
-| 16 · Hogar ampliado | v0.9 | En curso: [Fase 16](#fase-16--hogar-ampliado-v09) | OF-1601 … OF-1603 | 5 semanas |
+| 16 · Hogar ampliado | v0.9 | Hecha: [Fase 16](#fase-16--hogar-ampliado-v09) | OF-1601 … OF-1603 | ✅ |
 | 17 · Plataforma 1.0 | v1.0 | API con tokens, servidor MCP de lectura, asistente con aprobación (ADR-0004, ADR-0005), auditoría externa de seguridad | OF-1701 … OF-1705 | 6 semanas |
 
 Fuera de alcance a propósito: nota financiera, préstamos, seguros y cuentas remuneradas (son negocio de intermediación) y cifrado de extremo a extremo (impediría calcular los agregados en el servidor; se cubre con disco y copias cifradas).

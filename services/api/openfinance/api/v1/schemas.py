@@ -1688,6 +1688,7 @@ class ExpenseIn(BaseModel):
         min_length=1, max_length=30, description="Entre quién se reparte; el orden desempata"
     )
     category_id: UUID | None = None
+    event_id: UUID | None = Field(default=None, description="Viaje o evento al que pertenece")
 
 
 class SplitPreviewIn(BaseModel):
@@ -1710,6 +1711,7 @@ class ExpenseOut(BaseModel):
     payers: list[AmountOfOut]
     parts: list[AmountOfOut]
     category_id: UUID | None
+    event_id: UUID | None
     created_by: UUID
     voided: bool
 
@@ -1753,3 +1755,35 @@ class SettlementOut(BaseModel):
     reference: str | None
     created_by: UUID
     confirmed_by: UUID | None
+
+
+class EventIn(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    icon: str = Field(default="🧳", min_length=1, max_length=8)
+    starts_on: date | None = None
+    ends_on: date | None = None
+
+
+class EventOut(BaseModel):
+    id: UUID
+    name: str
+    icon: str
+    starts_on: date | None
+    ends_on: date | None
+    closed: bool
+
+
+class EventCategoryOut(BaseModel):
+    category_id: UUID | None
+    name: str
+    amount: MoneyOut
+
+
+class EventSummaryOut(BaseModel):
+    event: EventOut
+    total: MoneyOut
+    count: int = Field(description="Gastos activos del evento")
+    balances: list[BalanceOut] = Field(description="Solo con los gastos del evento; suman cero")
+    by_category: list[EventCategoryOut]
+    suggestions: list[TransferOut]
+    expenses: list[ExpenseOut]

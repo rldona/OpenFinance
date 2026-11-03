@@ -231,3 +231,42 @@ def test_a_link_to_an_account_you_cannot_see_is_dropped(
     )
     assert export(as_elena).json()["bank_links"][0]["account_id"] == str(seed.elena_personal.id)
     assert str(seed.elena_personal.id) not in export(as_raul).text
+
+
+def test_the_group_expenses_events_and_settlements_are_exported(as_raul, as_elena, as_ana, seed):
+    from tests.db.test_sharing_api import expense, guest, me
+
+    raul, elena = me(as_raul), me(as_elena)
+    marta = guest(as_raul, "Marta")
+    trip = as_raul.post("/api/v1/sharing/events", json={"name": "Roma"}).json()
+    created = expense(
+        as_raul, "100.00", [(raul, "100.00")],
+        shares=[(raul, None), (elena, None), (marta, None)], event_id=trip["id"],
+    ).json()  # fmt: skip
+    pay = as_elena.post(
+        "/api/v1/sharing/settlements",
+        json={
+            "from_id": elena,
+            "to_id": raul,
+            "amount": "33.33",
+            "on": "2026-11-02",
+            "reference": "r-1",
+        },
+    ).json()
+    body = export(as_raul).json()
+    assert [g["name"] for g in body["guests"]] == ["Marta"]
+    assert [e["name"] for e in body["events"]] == ["Roma"]
+    [spent] = body["shared_expenses"]
+    assert spent["id"] == created["id"] and spent["event_id"] == trip["id"]
+    assert spent["payers"] == f"{raul}:100.00" and spent["parts"].count("|") == 2
+    assert [(s["id"], s["status"], s["reference"]) for s in body["settlements"]] == [
+        (pay["id"], "pending", "r-1")
+    ]
+    # Elena, del mismo hogar, exporta lo mismo; otro hogar no recibe nada de esto
+    assert export(as_elena).json()["shared_expenses"][0]["id"] == created["id"]
+    other = export(as_ana).text
+    assert "Marta" not in other and created["id"] not in other
+    # y la v1 sigue sin llevarlo
+    assert "shared_expenses" not in export(as_raul, version=1).json()
+    files = zip_files(export(as_raul, fmt="csv").content)
+    assert {"guests.csv", "events.csv", "shared_expenses.csv", "settlements.csv"} <= set(files)

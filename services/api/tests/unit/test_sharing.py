@@ -1,6 +1,7 @@
 """OF-1602: el reparto suma exactamente y los saldos suman cero."""
 
 import random
+from dataclasses import replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
@@ -265,3 +266,40 @@ def test_settlements_and_guests_validate():
     with pytest.raises(SharingError):
         Guest(uuid4(), uuid4(), "   ")
     assert Balance  # exported
+
+
+# --- eventos ----------------------------------------------------------------------------------
+
+
+def test_the_summary_of_an_event_only_counts_active_expenses():
+    from openfinance.domain.sharing import Event, summarize_event
+
+    cat = uuid4()
+    kept = expense("60.00", [(A, "60")], [(A, "30"), (B, "30")])
+    kept = replace(kept, category_id=cat)
+    gone = expense("40.00", [(A, "40")], [(A, "20"), (B, "20")], voided=True)
+    summary = summarize_event([kept, gone], EUR)
+    assert (summary.total, summary.count) == (eur("60.00"), 1)
+    assert summary.by_category == {cat: eur("60.00")}
+    assert summary.balances[B].net == eur("-30.00")
+    assert sum(b.net.amount for b in summary.balances.values()) == 0
+    empty = summarize_event([], EUR)
+    assert empty.total.is_zero and empty.count == 0 and empty.balances == {}
+    assert Event
+
+
+def test_events_validate_their_name_icon_and_dates():
+    from openfinance.domain.sharing import Event
+
+    ok = Event(
+        uuid4(), uuid4(), "Roma", NOW, starts_on=date(2026, 12, 1), ends_on=date(2026, 12, 1)
+    )
+    assert ok.closed is False
+    for kwargs in (
+        {"name": " "},
+        {"name": "x" * 81},
+        {"name": "Roma", "icon": " "},
+        {"name": "Roma", "starts_on": date(2026, 12, 2), "ends_on": date(2026, 12, 1)},
+    ):
+        with pytest.raises(SharingError):
+            Event(uuid4(), uuid4(), created_at=NOW, **kwargs)

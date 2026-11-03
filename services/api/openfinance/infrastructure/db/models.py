@@ -521,6 +521,22 @@ class GuestRow(Base):
     archived: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa_false())
 
 
+class EventRow(Base):
+    """Un viaje o evento que agrupa gastos compartidos (ADR-0026, OF-1603)."""
+
+    __tablename__ = "events"
+    __table_args__ = (Index("ix_events_household", "household_id"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    name: Mapped[str] = mapped_column(String(80))
+    icon: Mapped[str] = mapped_column(String(8))
+    starts_on: Mapped[date | None] = mapped_column(Date)
+    ends_on: Mapped[date | None] = mapped_column(Date)
+    closed: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa_false())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class SharedExpenseRow(Base):
     __tablename__ = "shared_expenses"
     __table_args__ = (Index("ix_shared_expenses_household_on", "household_id", "on_date"),)
@@ -533,6 +549,7 @@ class SharedExpenseRow(Base):
     currency: Mapped[str] = mapped_column(String(3))
     method: Mapped[str] = mapped_column(String(12))
     category_id: Mapped[UUID | None] = mapped_column(ForeignKey("categories.id"))
+    event_id: Mapped[UUID | None] = mapped_column(ForeignKey("events.id"))
     created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     voided: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa_false())

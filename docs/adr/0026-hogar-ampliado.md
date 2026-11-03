@@ -40,4 +40,5 @@ Se reutiliza el **hogar** como frontera ([ADR-0002](0002-workspace-frontera-aisl
 - Se añaden `memberships.role`, `invitations`, `guests`, `shared_expenses` (con sus pagadores y partes), `settlements` y `events`.
 - `Actor` lleva el rol; los casos de uso existentes siguen funcionando porque el valor por defecto es `owner` y la restricción de `viewer` se aplica en la API.
 - Pruebas obligatorias: las partes suman el importe del gasto, los saldos suman cero, repetir una liquidación no cambia nada, un `viewer` no escribe en ninguna ruta de escritura (se recorren todas), una invitación vale una vez y caduca, y nada de otro hogar es visible ni modificable.
+- La exportación v2 ([ADR-0025](0025-informes-y-patrimonio.md)) incluye invitados, eventos, gastos compartidos y liquidaciones: son del hogar y los ven todas las personas.
 - Pendiente (sin ticket): gastos pagados con la cuenta común repartidos por persona, y enlazar un movimiento personal con un gasto compartido («Gasto compartido · Casa»).

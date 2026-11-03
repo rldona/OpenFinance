@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from openfinance.domain.shared import Currency, Money
 from openfinance.domain.shared.ids import UserId, WorkspaceId
 from openfinance.domain.sharing import (
+    Event,
     Guest,
     Settlement,
     SettlementStatus,
@@ -17,6 +18,7 @@ from openfinance.domain.sharing import (
     SplitMethod,
 )
 from openfinance.infrastructure.db.models import (
+    EventRow,
     GuestRow,
     SettlementRow,
     SharedExpensePartRow,
@@ -28,6 +30,19 @@ from openfinance.infrastructure.db.repositories._common import _as_utc, _flush
 
 def _guest(row: GuestRow) -> Guest:
     return Guest(row.id, WorkspaceId(row.household_id), row.name, row.archived)
+
+
+def _event(row: EventRow) -> Event:
+    return Event(
+        id=row.id,
+        household_id=WorkspaceId(row.household_id),
+        name=row.name,
+        created_at=_as_utc(row.created_at),
+        icon=row.icon,
+        starts_on=row.starts_on,
+        ends_on=row.ends_on,
+        closed=row.closed,
+    )
 
 
 def _settlement(row: SettlementRow) -> Settlement:
@@ -110,6 +125,7 @@ class SqlSharingRepository:
             created_by=UserId(row.created_by),
             created_at=_as_utc(row.created_at),
             category_id=row.category_id,
+            event_id=row.event_id,
             voided=row.voided,
         )
 
@@ -144,6 +160,7 @@ class SqlSharingRepository:
                 currency=expense.amount.currency.code,
                 method=expense.method.value,
                 category_id=expense.category_id,
+                event_id=expense.event_id,
                 created_by=expense.created_by,
                 created_at=expense.created_at,
                 voided=expense.voided,
@@ -161,6 +178,7 @@ class SqlSharingRepository:
         row.amount = expense.amount.amount
         row.method = expense.method.value
         row.category_id = expense.category_id
+        row.event_id = expense.event_id
         row.voided = expense.voided
         _flush(self._s)
         self._write_children(expense)
@@ -184,6 +202,67 @@ class SqlSharingRepository:
             )
         )
         return [self._expense(r) for r in rows]
+
+    # --- eventos ---
+    def events(self, household_id: WorkspaceId) -> list[Event]:
+        rows = self._s.scalars(
+            select(EventRow)
+            .where(EventRow.household_id == household_id)
+            .order_by(EventRow.created_at.desc(), EventRow.id)
+        )
+        return [_event(r) for r in rows]
+
+    def get_event(self, household_id: WorkspaceId, event_id: UUID) -> Event | None:
+        row = self._s.scalar(
+            select(EventRow).where(EventRow.household_id == household_id, EventRow.id == event_id)
+        )
+        return _event(row) if row else None
+
+    def add_event(self, event: Event) -> None:
+        self._s.add(
+            EventRow(
+                id=event.id,
+                household_id=event.household_id,
+                name=event.name.strip(),
+                icon=event.icon,
+                starts_on=event.starts_on,
+                ends_on=event.ends_on,
+                closed=event.closed,
+                created_at=event.created_at,
+            )
+        )
+        _flush(self._s)
+
+    def save_event(self, event: Event) -> None:
+        row = self._s.get(EventRow, event.id)
+        if row is None:
+            raise LookupError(event.id)
+        row.name = event.name.strip()
+        row.icon = event.icon
+        row.starts_on = event.starts_on
+        row.ends_on = event.ends_on
+        row.closed = event.closed
+        _flush(self._s)
+
+    def delete_event(self, household_id: WorkspaceId, event_id: UUID) -> None:
+        self._s.execute(
+            delete(EventRow).where(EventRow.household_id == household_id, EventRow.id == event_id)
+        )
+        _flush(self._s)
+
+    def event_expense_count(self, household_id: WorkspaceId, event_id: UUID) -> int:
+        """Los gastos que apuntan al evento, también los anulados."""
+        return int(
+            self._s.scalar(
+                select(func.count())
+                .select_from(SharedExpenseRow)
+                .where(
+                    SharedExpenseRow.household_id == household_id,
+                    SharedExpenseRow.event_id == event_id,
+                )
+            )
+            or 0
+        )
 
     # --- liquidaciones ---
     def add_settlement(self, s: Settlement) -> None:

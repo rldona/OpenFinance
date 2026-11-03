@@ -9,6 +9,10 @@ from openfinance.api.v1.schemas import (
     AmountOfOut,
     BalanceOut,
     BalancesOut,
+    EventCategoryOut,
+    EventIn,
+    EventOut,
+    EventSummaryOut,
     ExpenseIn,
     ExpenseOut,
     GuestIn,
@@ -22,7 +26,7 @@ from openfinance.api.v1.schemas import (
 )
 from openfinance.application import sharing
 from openfinance.application.errors import InvalidRequestError
-from openfinance.domain.sharing import Settlement, SharedExpense, SplitMethod
+from openfinance.domain.sharing import Event, Settlement, SharedExpense, SplitMethod
 from openfinance.infrastructure.time import utc_now
 
 router = APIRouter(prefix="/sharing", tags=["sharing"])
@@ -42,6 +46,7 @@ def _expense(e: SharedExpense) -> ExpenseOut:
         payers=[AmountOfOut(participant_id=p, amount=MoneyOut.of(m)) for p, m in e.payers],
         parts=[AmountOfOut(participant_id=p, amount=MoneyOut.of(m)) for p, m in e.parts],
         category_id=e.category_id,
+        event_id=e.event_id,
         created_by=e.created_by,
         voided=e.voided,
     )
@@ -114,6 +119,7 @@ def create_expense(body: ExpenseIn, actor: ActorDep, uow: UowDep) -> ExpenseOut:
         _shares(body.shares),
         body.category_id,
         utc_now(),
+        body.event_id,
     )
     return _expense(expense)
 
@@ -131,6 +137,7 @@ def update_expense(expense_id: UUID, body: ExpenseIn, actor: ActorDep, uow: UowD
         SplitMethod(body.method),
         _shares(body.shares),
         body.category_id,
+        body.event_id,
     )
     return _expense(expense)
 
@@ -187,3 +194,83 @@ def confirm_settlement(settlement_id: UUID, actor: ActorDep, uow: UowDep) -> Set
 @router.post("/settlements/{settlement_id}/cancel", response_model=SettlementOut)
 def cancel_settlement(settlement_id: UUID, actor: ActorDep, uow: UowDep) -> SettlementOut:
     return _settlement(sharing.cancel_settlement(uow, actor, settlement_id))
+
+
+def _event(e: Event) -> EventOut:
+    return EventOut(
+        id=e.id, name=e.name, icon=e.icon, starts_on=e.starts_on, ends_on=e.ends_on, closed=e.closed
+    )
+
+
+@router.get("/events", response_model=list[EventOut])
+def list_events(actor: ActorDep, uow: UowDep) -> list[EventOut]:
+    return [_event(e) for e in sharing.list_events(uow, actor)]
+
+
+@router.post("/events", response_model=EventOut, status_code=status.HTTP_201_CREATED)
+def create_event(body: EventIn, actor: ActorDep, uow: UowDep) -> EventOut:
+    return _event(
+        sharing.create_event(
+            uow, actor, body.name, body.icon, body.starts_on, body.ends_on, utc_now()
+        )
+    )
+
+
+@router.put("/events/{event_id}", response_model=EventOut)
+def update_event(event_id: UUID, body: EventIn, actor: ActorDep, uow: UowDep) -> EventOut:
+    return _event(
+        sharing.update_event(
+            uow, actor, event_id, body.name, body.icon, body.starts_on, body.ends_on
+        )
+    )
+
+
+@router.post("/events/{event_id}/close", response_model=EventOut)
+def close_event(event_id: UUID, actor: ActorDep, uow: UowDep) -> EventOut:
+    return _event(sharing.set_event_closed(uow, actor, event_id, True))
+
+
+@router.post("/events/{event_id}/reopen", response_model=EventOut)
+def reopen_event(event_id: UUID, actor: ActorDep, uow: UowDep) -> EventOut:
+    return _event(sharing.set_event_closed(uow, actor, event_id, False))
+
+
+@router.delete("/events/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_event(event_id: UUID, actor: ActorDep, uow: UowDep) -> Response:
+    sharing.delete_event(uow, actor, event_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/events/{event_id}", response_model=EventSummaryOut)
+def get_event(event_id: UUID, actor: ActorDep, uow: UowDep) -> EventSummaryOut:
+    view = sharing.event_view(uow, actor, event_id)
+    return EventSummaryOut(
+        event=_event(view.event),
+        total=MoneyOut.of(view.summary.total),
+        count=view.summary.count,
+        balances=[
+            BalanceOut(
+                participant=_participant(p),
+                paid=MoneyOut.of(view.summary.balances[p.id].paid),
+                share=MoneyOut.of(view.summary.balances[p.id].share),
+                settled=MoneyOut.of(view.summary.balances[p.id].settled),
+                net=MoneyOut.of(view.summary.balances[p.id].net),
+            )
+            for p in view.participants
+        ],
+        by_category=[
+            EventCategoryOut(
+                category_id=k,
+                name=view.category_names.get(k, "Sin categoría") if k else "Sin categoría",
+                amount=MoneyOut.of(v),
+            )
+            for k, v in sorted(
+                view.summary.by_category.items(), key=lambda i: (-i[1].amount, str(i[0]))
+            )
+        ],
+        suggestions=[
+            TransferOut(from_id=t.from_id, to_id=t.to_id, amount=MoneyOut.of(t.amount))
+            for t in view.suggestions
+        ],
+        expenses=[_expense(e) for e in view.expenses],
+    )

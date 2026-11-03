@@ -3296,6 +3296,7 @@ describe('Reparto de gastos (OF-1602)', () => {
     'GET /api/v1/sharing/expenses': { body: [EXPENSE] },
     'GET /api/v1/sharing/balances': { body: BALANCES },
     'GET /api/v1/sharing/settlements': { body: [] },
+    'GET /api/v1/sharing/events': { body: [] },
     ...extra,
   })
 
@@ -3397,8 +3398,89 @@ describe('Reparto de gastos (OF-1602)', () => {
   })
 
   it('si no se puede cargar lo dice y deja reintentar', async () => {
-    loggedIn({ 'GET /api/v1/sharing/participants': { status: 500, body: { detail: 'boom' } }, 'GET /api/v1/sharing/expenses': { body: [] }, 'GET /api/v1/sharing/balances': { body: BALANCES }, 'GET /api/v1/sharing/settlements': { body: [] } })
+    loggedIn({ 'GET /api/v1/sharing/participants': { status: 500, body: { detail: 'boom' } }, 'GET /api/v1/sharing/expenses': { body: [] }, 'GET /api/v1/sharing/balances': { body: BALANCES }, 'GET /api/v1/sharing/settlements': { body: [] }, 'GET /api/v1/sharing/events': { body: [] } })
     render(<App />)
     expect(await screen.findByRole('button', { name: /Reintentar/ })).toBeInTheDocument()
+  })
+
+  const TRIP = { id: 'ev-1', name: 'Roma', icon: '🧳', starts_on: null, ends_on: null, closed: false }
+  const SUMMARY = {
+    event: TRIP,
+    total: eurs('120.00'),
+    count: 2,
+    balances: [balance('u-raul', '50.00', '90.00', '40.00'), balance('u-elena', '-50.00', '30.00', '80.00')],
+    by_category: [{ category_id: 'c-super', name: 'Supermercado', amount: eurs('90.00') }, { category_id: null, name: 'Sin categoría', amount: eurs('30.00') }],
+    suggestions: [{ from_id: 'u-elena', to_id: 'u-raul', amount: eurs('50.00') }],
+    expenses: [EXPENSE],
+  }
+
+  it('un evento enseña su resumen con total, saldos, categorías y cómo saldarlo', async () => {
+    loggedIn(data({ 'GET /api/v1/sharing/events': { body: [TRIP] }, 'GET /api/v1/sharing/events/ev-1': { body: SUMMARY } }))
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Viajes y eventos' })
+    await userEvent.click(within(card).getByRole('button', { name: 'Ver resumen de Roma' }))
+    const summary = await within(card).findByRole('region', { name: 'Resumen de Roma' })
+    expect(summary).toHaveTextContent('120,00 € en 2 gastos')
+    expect(within(summary).getByRole('list', { name: 'Por persona' })).toHaveTextContent('Raúl · pagó 90,00 €')
+    expect(within(summary).getByRole('list', { name: 'Por categoría' })).toHaveTextContent('Supermercado')
+    expect(within(summary).getByRole('list', { name: 'Para saldarlo' })).toHaveTextContent('Elena paga 50,00 € a Raúl')
+  })
+
+  it('crea un evento, lo cierra y lo reabre', async () => {
+    const calls = loggedIn(
+      data({
+        'GET /api/v1/sharing/events': { body: [TRIP] },
+        'POST /api/v1/sharing/events': { status: 201, body: TRIP },
+        'POST /api/v1/sharing/events/ev-1/close': { body: { ...TRIP, closed: true } },
+      }),
+    )
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Viajes y eventos' })
+    await userEvent.type(within(card).getByLabelText('Nuevo viaje o evento'), 'Lisboa')
+    await userEvent.click(within(card).getByRole('button', { name: 'Crear evento' }))
+    await userEvent.click(within(card).getByRole('button', { name: 'Cerrar Roma' }))
+    await waitFor(() => {
+      expect(calls.some((c) => c.url.pathname === '/api/v1/sharing/events/ev-1/close')).toBe(true)
+      const created = calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/sharing/events')
+      expect(JSON.parse(String(created?.body))).toEqual({ name: 'Lisboa' })
+    })
+  })
+
+  it('un evento cerrado no se ofrece al repartir un gasto', async () => {
+    loggedIn(data({ 'GET /api/v1/sharing/events': { body: [TRIP, { ...TRIP, id: 'ev-2', name: 'Cerrado', closed: true }] } }))
+    render(<App />)
+    const form = await screen.findByRole('region', { name: 'Nuevo gasto compartido' })
+    const select = within(form).getByLabelText('Viaje o evento')
+    expect(within(select).getByRole('option', { name: '🧳 Roma' })).toBeInTheDocument()
+    expect(within(select).queryByRole('option', { name: /Cerrado/ })).toBeNull()
+  })
+
+  it('el gasto se envía con su evento', async () => {
+    const calls = loggedIn(
+      data({ 'GET /api/v1/sharing/events': { body: [TRIP] }, 'POST /api/v1/sharing/expenses': { status: 201, body: EXPENSE } }),
+    )
+    render(<App />)
+    const form = await screen.findByRole('region', { name: 'Nuevo gasto compartido' })
+    await userEvent.type(within(form).getByLabelText('Concepto'), 'Museo')
+    await userEvent.type(within(form).getByLabelText('Importe'), '40.00')
+    await userEvent.selectOptions(within(form).getByLabelText('Viaje o evento'), 'ev-1')
+    await userEvent.click(within(form).getByRole('button', { name: 'Repartir' }))
+    await waitFor(() => {
+      const post = calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/sharing/expenses')
+      expect(JSON.parse(String(post?.body))).toMatchObject({ event_id: 'ev-1' })
+    })
+  })
+
+  it('quien solo mira ve el resumen pero ningún botón de cambio de eventos', async () => {
+    mockApi({
+      'GET /api/v1/me': { body: { ...ME, role: 'viewer' } },
+      'GET /api/v1/accounts': { body: ACCOUNTS },
+      'GET /api/v1/transactions/uncategorized-count': { body: { count: 0 } },
+      ...data({ 'GET /api/v1/sharing/events': { body: [TRIP] } }),
+    })
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Viajes y eventos' })
+    expect(within(card).getByRole('button', { name: 'Ver resumen de Roma' })).toBeInTheDocument()
+    expect(within(card).queryByRole('button', { name: /Cerrar|Crear evento/ })).toBeNull()
   })
 })

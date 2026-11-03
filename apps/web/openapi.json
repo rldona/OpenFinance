@@ -2478,6 +2478,192 @@
         "title": "EnvelopeLeftOut",
         "type": "object"
       },
+      "EventCategoryOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "category_id",
+          "name",
+          "amount"
+        ],
+        "title": "EventCategoryOut",
+        "type": "object"
+      },
+      "EventIn": {
+        "properties": {
+          "ends_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends On"
+          },
+          "icon": {
+            "default": "🧳",
+            "maxLength": 8,
+            "minLength": 1,
+            "title": "Icon",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "starts_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts On"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "EventIn",
+        "type": "object"
+      },
+      "EventOut": {
+        "properties": {
+          "closed": {
+            "title": "Closed",
+            "type": "boolean"
+          },
+          "ends_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends On"
+          },
+          "icon": {
+            "title": "Icon",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "starts_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts On"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "icon",
+          "starts_on",
+          "ends_on",
+          "closed"
+        ],
+        "title": "EventOut",
+        "type": "object"
+      },
+      "EventSummaryOut": {
+        "properties": {
+          "balances": {
+            "description": "Solo con los gastos del evento; suman cero",
+            "items": {
+              "$ref": "#/components/schemas/BalanceOut"
+            },
+            "title": "Balances",
+            "type": "array"
+          },
+          "by_category": {
+            "items": {
+              "$ref": "#/components/schemas/EventCategoryOut"
+            },
+            "title": "By Category",
+            "type": "array"
+          },
+          "count": {
+            "description": "Gastos activos del evento",
+            "title": "Count",
+            "type": "integer"
+          },
+          "event": {
+            "$ref": "#/components/schemas/EventOut"
+          },
+          "expenses": {
+            "items": {
+              "$ref": "#/components/schemas/ExpenseOut"
+            },
+            "title": "Expenses",
+            "type": "array"
+          },
+          "suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/TransferOut"
+            },
+            "title": "Suggestions",
+            "type": "array"
+          },
+          "total": {
+            "$ref": "#/components/schemas/MoneyOut"
+          }
+        },
+        "required": [
+          "event",
+          "total",
+          "count",
+          "balances",
+          "by_category",
+          "suggestions",
+          "expenses"
+        ],
+        "title": "EventSummaryOut",
+        "type": "object"
+      },
       "ExpenseIn": {
         "properties": {
           "amount": {
@@ -2505,6 +2691,19 @@
             "minLength": 1,
             "title": "Description",
             "type": "string"
+          },
+          "event_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Viaje o evento al que pertenece",
+            "title": "Event Id"
           },
           "method": {
             "enum": [
@@ -2578,6 +2777,18 @@
             "title": "Description",
             "type": "string"
           },
+          "event_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Id"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -2626,6 +2837,7 @@
           "payers",
           "parts",
           "category_id",
+          "event_id",
           "created_by",
           "voided"
         ],
@@ -11285,6 +11497,284 @@
           }
         },
         "summary": "Get Balances",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
+    "/api/v1/sharing/events": {
+      "get": {
+        "operationId": "list_events_api_v1_sharing_events_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EventOut"
+                  },
+                  "title": "Response List Events Api V1 Sharing Events Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Events",
+        "tags": [
+          "sharing"
+        ]
+      },
+      "post": {
+        "operationId": "create_event_api_v1_sharing_events_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Event",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
+    "/api/v1/sharing/events/{event_id}": {
+      "delete": {
+        "operationId": "delete_event_api_v1_sharing_events__event_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Event",
+        "tags": [
+          "sharing"
+        ]
+      },
+      "get": {
+        "operationId": "get_event_api_v1_sharing_events__event_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventSummaryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Event",
+        "tags": [
+          "sharing"
+        ]
+      },
+      "put": {
+        "operationId": "update_event_api_v1_sharing_events__event_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Event",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
+    "/api/v1/sharing/events/{event_id}/close": {
+      "post": {
+        "operationId": "close_event_api_v1_sharing_events__event_id__close_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Close Event",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
+    "/api/v1/sharing/events/{event_id}/reopen": {
+      "post": {
+        "operationId": "reopen_event_api_v1_sharing_events__event_id__reopen_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reopen Event",
         "tags": [
           "sharing"
         ]

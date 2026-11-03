@@ -23,6 +23,9 @@ MAX_DESCRIPTION = 200
 MAX_NAME = 60
 MAX_GUESTS = 30
 MAX_REFERENCE = 64
+MAX_EVENT_NAME = 80
+MAX_ICON = 8
+MAX_EVENTS = 200
 HUNDRED = Decimal(100)
 
 
@@ -283,3 +286,46 @@ def suggest_transfers(nets: Mapping[UUID, Money], currency: Currency) -> list[Tr
         if due[c] == 0:
             c += 1
     return out
+
+
+@dataclass(frozen=True, slots=True)
+class Event:
+    """Un viaje, un cumpleaños, una obra: agrupa gastos compartidos (ADR-0026, OF-1603)."""
+
+    id: UUID
+    household_id: WorkspaceId
+    name: str
+    created_at: datetime
+    icon: str = "🧳"
+    starts_on: date | None = None
+    ends_on: date | None = None
+    closed: bool = False
+    """Cerrado no admite gastos nuevos ni cambios; se puede reabrir."""
+
+    def __post_init__(self) -> None:
+        text = self.name.strip()
+        if not text or len(text) > MAX_EVENT_NAME or not text.isprintable():
+            raise SharingError(f"El nombre va de 1 a {MAX_EVENT_NAME} caracteres")
+        if not self.icon.strip() or len(self.icon) > MAX_ICON or not self.icon.isprintable():
+            raise SharingError("El icono no es válido")
+        if self.starts_on and self.ends_on and self.ends_on < self.starts_on:
+            raise SharingError("El evento termina antes de empezar")
+
+
+@dataclass(frozen=True, slots=True)
+class EventSummary:
+    total: Money
+    count: int
+    balances: dict[UUID, Balance]
+    """Solo con los gastos del evento (sin liquidaciones): la suma es cero."""
+    by_category: dict[UUID | None, Money]
+
+
+def summarize_event(expenses: Iterable[SharedExpense], currency: Currency) -> EventSummary:
+    """Total, saldos y gasto por categoría de los gastos (activos) de un evento."""
+    active = [e for e in expenses if not e.voided]
+    total = _sum((e.amount for e in active), currency)
+    by_category: dict[UUID | None, Money] = {}
+    for e in active:
+        by_category[e.category_id] = by_category.get(e.category_id, Money.zero(currency)) + e.amount
+    return EventSummary(total, len(active), balances(active, [], currency), by_category)

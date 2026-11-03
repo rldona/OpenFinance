@@ -23,8 +23,11 @@ from openfinance.domain.categories import CategoryId
 from openfinance.domain.shared import Money
 from openfinance.domain.shared.ids import UserId
 from openfinance.domain.sharing import (
+    MAX_EVENTS,
     MAX_GUESTS,
     Balance,
+    Event,
+    EventSummary,
     Guest,
     Settlement,
     SettlementStatus,
@@ -35,6 +38,7 @@ from openfinance.domain.sharing import (
     balances,
     split_amount,
     suggest_transfers,
+    summarize_event,
 )
 from openfinance.domain.workspaces import Actor
 
@@ -127,6 +131,7 @@ def _build_expense(
     category_id: UUID | None,
     created_at: datetime,
     created_by: UserId,
+    event_id: UUID | None = None,
 ) -> SharedExpense:
     currency = _currency(uow, actor)
     valid = _active_ids(uow, actor)
@@ -143,6 +148,8 @@ def _build_expense(
         and uow.categories.get(actor.household_id, CategoryId(category_id)) is None
     ):
         raise NotFoundError("Categoría no encontrada")
+    if event_id is not None:
+        _open_event(uow, actor, event_id)
     try:
         who = list(values)  # el orden dado desempata los céntimos
         parts = split_amount(
@@ -163,6 +170,7 @@ def _build_expense(
             created_by=created_by,
             created_at=created_at,
             category_id=category_id,
+            event_id=event_id,
         )
     except SharingError as exc:
         raise InvalidRequestError(str(exc)) from exc
@@ -198,11 +206,12 @@ def create_expense(
     shares: dict[UUID, str],
     category_id: UUID | None,
     now: datetime,
+    event_id: UUID | None = None,
 ) -> SharedExpense:
     require_writer(actor)
     expense = _build_expense(
         uow, actor, uuid4(), on, description, amount, payers, method, shares, category_id, now,
-        actor.user_id,
+        actor.user_id, event_id,
     )  # fmt: skip
     uow.sharing.add_expense(expense)
     uow.commit()
@@ -220,17 +229,19 @@ def update_expense(
     method: SplitMethod,
     shares: dict[UUID, str],
     category_id: UUID | None,
+    event_id: UUID | None = None,
 ) -> SharedExpense:
-    """Corregir un gasto recalcula las partes. Uno anulado no se corrige."""
+    """Corregir un gasto recalcula las partes. Uno anulado o de un evento cerrado no se corrige."""
     require_writer(actor)
     current = uow.sharing.get_expense(actor.household_id, expense_id)
     if current is None:
         raise NotFoundError("Gasto no encontrado")
     if current.voided:
         raise ConflictError("Ese gasto está anulado")
+    _not_closed(uow, actor, current)
     expense = _build_expense(
         uow, actor, current.id, on, description, amount, payers, method, shares, category_id,
-        current.created_at, current.created_by,
+        current.created_at, current.created_by, event_id,
     )  # fmt: skip
     uow.sharing.save_expense(expense)
     uow.commit()
@@ -242,6 +253,7 @@ def void_expense(uow: UnitOfWork, actor: Actor, expense_id: UUID) -> None:
     current = uow.sharing.get_expense(actor.household_id, expense_id)
     if current is None:
         raise NotFoundError("Gasto no encontrado")
+    _not_closed(uow, actor, current)
     uow.sharing.save_expense(replace(current, voided=True))
     uow.commit()
 
@@ -374,3 +386,139 @@ def cancel_settlement(uow: UnitOfWork, actor: Actor, settlement_id: UUID) -> Set
     uow.sharing.save_settlement(cancelled)
     uow.commit()
     return cancelled
+
+
+# --- eventos ---------------------------------------------------------------------------------
+
+
+def _event(uow: UnitOfWork, actor: Actor, event_id: UUID) -> Event:
+    event = uow.sharing.get_event(actor.household_id, event_id)
+    if event is None:
+        raise NotFoundError("Evento no encontrado")
+    return event
+
+
+def _open_event(uow: UnitOfWork, actor: Actor, event_id: UUID) -> Event:
+    event = _event(uow, actor, event_id)
+    if event.closed:
+        raise ConflictError("Ese evento está cerrado: ábrelo de nuevo para añadir gastos")
+    return event
+
+
+def _not_closed(uow: UnitOfWork, actor: Actor, expense: SharedExpense) -> None:
+    if expense.event_id is not None and _event(uow, actor, expense.event_id).closed:
+        raise ConflictError("El evento de este gasto está cerrado: ábrelo para cambiarlo")
+
+
+def list_events(uow: UnitOfWork, actor: Actor) -> list[Event]:
+    return uow.sharing.events(actor.household_id)
+
+
+def create_event(
+    uow: UnitOfWork,
+    actor: Actor,
+    name: str,
+    icon: str,
+    starts_on: date | None,
+    ends_on: date | None,
+    now: datetime,
+) -> Event:
+    require_writer(actor)
+    if len(uow.sharing.events(actor.household_id)) >= MAX_EVENTS:
+        raise ConflictError(f"Un hogar admite hasta {MAX_EVENTS} eventos")
+    try:
+        event = Event(
+            uuid4(),
+            actor.household_id,
+            " ".join(name.split()),
+            now,
+            icon.strip(),
+            starts_on,
+            ends_on,
+        )
+    except SharingError as exc:
+        raise InvalidRequestError(str(exc)) from exc
+    uow.sharing.add_event(event)
+    uow.commit()
+    return event
+
+
+def update_event(
+    uow: UnitOfWork,
+    actor: Actor,
+    event_id: UUID,
+    name: str,
+    icon: str,
+    starts_on: date | None,
+    ends_on: date | None,
+) -> Event:
+    require_writer(actor)
+    current = _event(uow, actor, event_id)
+    try:
+        event = replace(
+            current,
+            name=" ".join(name.split()),
+            icon=icon.strip(),
+            starts_on=starts_on,
+            ends_on=ends_on,
+        )
+    except SharingError as exc:
+        raise InvalidRequestError(str(exc)) from exc
+    uow.sharing.save_event(event)
+    uow.commit()
+    return event
+
+
+def set_event_closed(uow: UnitOfWork, actor: Actor, event_id: UUID, closed: bool) -> Event:
+    require_writer(actor)
+    event = replace(_event(uow, actor, event_id), closed=closed)
+    uow.sharing.save_event(event)
+    uow.commit()
+    return event
+
+
+def delete_event(uow: UnitOfWork, actor: Actor, event_id: UUID) -> None:
+    """Solo un evento sin gastos (ni anulados): con gastos se cierra, no se borra."""
+    require_writer(actor)
+    event = _event(uow, actor, event_id)
+    if uow.sharing.event_expense_count(actor.household_id, event.id) > 0:
+        raise ConflictError("Un evento con gastos no se borra: ciérralo")
+    uow.sharing.delete_event(actor.household_id, event.id)
+    uow.commit()
+
+
+@dataclass(frozen=True, slots=True)
+class EventView:
+    event: Event
+    summary: EventSummary
+    expenses: list[SharedExpense]
+    participants: list[Participant]
+    """Quienes aparecen en sus gastos (también si ya no están)."""
+    category_names: dict[UUID, str]
+    suggestions: list[Transfer]
+
+
+def event_view(uow: UnitOfWork, actor: Actor, event_id: UUID) -> EventView:
+    """El resumen de un evento: total, lo pagado y la parte de cada uno, saldos y categorías.
+
+    Los saldos son solo con los gastos del evento, sin liquidaciones: dicen cómo quedaría
+    saldarlo por separado.
+    """
+    event = _event(uow, actor, event_id)
+    currency = _currency(uow, actor)
+    expenses = [e for e in uow.sharing.expenses(actor.household_id) if e.event_id == event.id]
+    summary = summarize_event(expenses, currency)
+    known = {p.id: p for p in participants(uow, actor)}
+    seen = list(summary.balances)
+    people = [known.get(i) or Participant(i, REMOVED, False, active=False) for i in seen]
+    people.sort(key=lambda p: (not p.active, p.name.casefold(), str(p.id)))
+    names = {c.id: c.name for c in uow.categories.for_household(actor.household_id)}
+    nets = {i: b.net for i, b in summary.balances.items()}
+    return EventView(
+        event,
+        summary,
+        [e for e in expenses if not e.voided],
+        people,
+        {k: v for k, v in names.items() if k in summary.by_category},
+        suggest_transfers(nets, currency),
+    )
