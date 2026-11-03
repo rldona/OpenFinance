@@ -1530,3 +1530,26 @@ class NetWorthOut(BaseModel):
     accounts: list[AccountWorthOut]
     by_type: list[TypeWorthOut]
     missing_rates: list[str] = Field(description="Monedas sin tipo de cambio para alguna fecha")
+
+
+class MonthFlowOut(BaseModel):
+    month: str = Field(examples=["2026-10"])
+    income: MoneyOut
+    contributions: MoneyOut = Field(
+        description="Neto: entra a la conjunta menos sale de una personal"
+    )
+    spending: MoneyOut = Field(description="Gasto neto de devoluciones, en positivo")
+    savings: MoneyOut = Field(description="Movido al ahorro, neto de lo que se saca, en positivo")
+    transfers: MoneyOut = Field(description="Traspasos entre cuentas propias, netos")
+    change: MoneyOut = Field(description="Variación del saldo del mes")
+    end_balance: MoneyOut
+    is_partial: bool
+
+
+class CashFlowOut(BaseModel):
+    currency: str
+    months: list[MonthFlowOut]
+    accounts: int = Field(description="Cuentas líquidas que entran en las cifras")
+    excluded_foreign: int = Field(
+        description="Cuentas líquidas en otra moneda, fuera de las cifras"
+    )

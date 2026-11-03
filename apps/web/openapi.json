@@ -1372,6 +1372,39 @@
         "title": "BulkCategorizeOut",
         "type": "object"
       },
+      "CashFlowOut": {
+        "properties": {
+          "accounts": {
+            "description": "Cuentas líquidas que entran en las cifras",
+            "title": "Accounts",
+            "type": "integer"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "excluded_foreign": {
+            "description": "Cuentas líquidas en otra moneda, fuera de las cifras",
+            "title": "Excluded Foreign",
+            "type": "integer"
+          },
+          "months": {
+            "items": {
+              "$ref": "#/components/schemas/MonthFlowOut"
+            },
+            "title": "Months",
+            "type": "array"
+          }
+        },
+        "required": [
+          "currency",
+          "months",
+          "accounts",
+          "excluded_foreign"
+        ],
+        "title": "CashFlowOut",
+        "type": "object"
+      },
       "CategorizeIn": {
         "description": "Corrección de un movimiento: solo cambia lo que se envía (OF-701).",
         "properties": {
@@ -3589,6 +3622,60 @@
           "has_data"
         ],
         "title": "MonthAmountOut",
+        "type": "object"
+      },
+      "MonthFlowOut": {
+        "properties": {
+          "change": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Variación del saldo del mes"
+          },
+          "contributions": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Neto: entra a la conjunta menos sale de una personal"
+          },
+          "end_balance": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "income": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "is_partial": {
+            "title": "Is Partial",
+            "type": "boolean"
+          },
+          "month": {
+            "examples": [
+              "2026-10"
+            ],
+            "title": "Month",
+            "type": "string"
+          },
+          "savings": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Movido al ahorro, neto de lo que se saca, en positivo"
+          },
+          "spending": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Gasto neto de devoluciones, en positivo"
+          },
+          "transfers": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Traspasos entre cuentas propias, netos"
+          }
+        },
+        "required": [
+          "month",
+          "income",
+          "contributions",
+          "spending",
+          "savings",
+          "transfers",
+          "change",
+          "end_balance",
+          "is_partial"
+        ],
+        "title": "MonthFlowOut",
         "type": "object"
       },
       "MonthOverviewOut": {
@@ -7349,6 +7436,51 @@
         "summary": "Set Month Amount",
         "tags": [
           "savings"
+        ]
+      }
+    },
+    "/api/v1/cash-flow": {
+      "get": {
+        "operationId": "get_cash_flow_api_v1_cash_flow_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "months",
+            "required": false,
+            "schema": {
+              "default": 12,
+              "maximum": 36,
+              "minimum": 1,
+              "title": "Months",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashFlowOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Cash Flow",
+        "tags": [
+          "cash-flow"
         ]
       }
     },

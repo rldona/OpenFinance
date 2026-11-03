@@ -20,9 +20,10 @@ Todo son **vistas calculadas** sobre los movimientos, sin tablas nuevas salvo lo
 
 ### Flujo de caja (OF-1502)
 
-- Por mes, sobre el **dinero líquido** que ve quien pregunta (cuentas bancarias y efectivo): lo que **entró** (ingresos y aportaciones), lo que **salió** (gasto neto de devoluciones), lo que se **movió al ahorro**, los **traspasos entre cuentas propias** (no son entrada ni salida: se muestran aparte) y el **saldo al final del mes**. Entrada − salida − ahorro = variación del mes, que cuadra con la diferencia entre saldos.
-- Los últimos 12 meses por defecto (hasta 36). El mes en curso se marca como parcial.
-- Las tarjetas y préstamos no son líquidos: sus compras ya son gasto de la cuenta desde la que se pagan o de la tarjeta (ADR-0018), y mezclarlos aquí contaría dos veces. Quedan fuera y la pantalla lo dice.
+- Por mes, sobre el **dinero líquido** que ve quien pregunta (cuentas bancarias y efectivo) **en la moneda del hogar**: **ingresos**, **aportaciones** (netas: lo que entra a la conjunta menos lo que sale de una personal, así que se compensan cuando se ven las dos), **gasto** (neto de devoluciones), **al ahorro** (neto de lo que se saca de la hucha), **traspasos propios** (netos, normalmente cero) y el **saldo al final del mes**. Ingresos + aportaciones − gasto − ahorro + traspasos = variación del mes = diferencia entre los saldos de fin de mes: la identidad se comprueba en tests.
+- Las cuentas líquidas en **otra moneda quedan fuera** (se cuentan en el resultado y la pantalla lo dice): convertir movimientos y saldos con tipos distintos haría que la identidad no cuadrase al céntimo, y es preferible no enseñar una cifra que parece exacta y no lo es.
+- Los últimos 12 meses por defecto (de 1 a 36). El mes en curso se marca como parcial.
+- Las tarjetas, los préstamos y las inversiones no son líquidos y quedan fuera: sus compras ya son gasto de la tarjeta (ADR-0018) y mezclarlas contaría dos veces.
 
 ### Informes a medida (OF-1503)
 

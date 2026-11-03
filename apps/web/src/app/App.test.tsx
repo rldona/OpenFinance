@@ -2979,3 +2979,53 @@ describe('Patrimonio neto (OF-1501)', () => {
     expect(await screen.findByRole('button', { name: /Reintentar/ })).toBeInTheDocument()
   })
 })
+
+describe('Flujo de caja (OF-1502)', () => {
+  const eurc = (amount: string) => ({ amount, currency: 'EUR' })
+  const month = (m: string, change: string, end: string, partial = false) => ({
+    month: m,
+    income: eurc('2000.00'),
+    contributions: eurc('0.00'),
+    spending: eurc('1500.00'),
+    savings: eurc('300.00'),
+    transfers: eurc('0.00'),
+    change: eurc(change),
+    end_balance: eurc(end),
+    is_partial: partial,
+  })
+  const FLOW = {
+    currency: 'EUR',
+    months: [month('2026-09', '200.00', '1000.00'), month('2026-10', '200.00', '1200.00'), month('2026-11', '-50.00', '1150.00', true)],
+    accounts: 3,
+    excluded_foreign: 0,
+  }
+
+  it('enseña cada mes con su variación y marca el que está en curso', async () => {
+    window.location.hash = '#flujo'
+    loggedIn({ 'GET /api/v1/cash-flow': { body: FLOW } })
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Flujo de caja' })
+    expect(card).toHaveTextContent('3 cuentas bancarias y de efectivo')
+    const table = within(card).getByRole('table', { name: 'Flujo de caja por mes' })
+    const rows = within(table).getAllByRole('row')
+    expect(rows).toHaveLength(4)
+    expect(rows[1]).toHaveTextContent('noviembre de 2026 (en curso)')
+    expect(rows[1]).toHaveTextContent('-50,00 €')
+    expect(within(card).getByRole('img', { name: 'Saldo líquido a fin de cada mes' })).toBeInTheDocument()
+  })
+
+  it('avisa de las cuentas en otra moneda que no entran', async () => {
+    window.location.hash = '#flujo'
+    loggedIn({ 'GET /api/v1/cash-flow': { body: { ...FLOW, excluded_foreign: 2 } } })
+    render(<App />)
+    expect(await screen.findByText(/2 cuentas en otra moneda no entran/)).toBeInTheDocument()
+  })
+
+  it('con un saldo negativo no dibuja el gráfico', async () => {
+    window.location.hash = '#flujo'
+    loggedIn({ 'GET /api/v1/cash-flow': { body: { ...FLOW, months: [month('2026-10', '-300.00', '-100.00'), FLOW.months[2]] } } })
+    render(<App />)
+    await screen.findByRole('region', { name: 'Flujo de caja' })
+    expect(screen.queryByRole('img', { name: 'Saldo líquido a fin de cada mes' })).toBeNull()
+  })
+})

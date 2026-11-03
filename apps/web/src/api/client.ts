@@ -19,6 +19,7 @@ export type Notifications = Schemas['NotificationsOut']
 export type AlertKind = Alert['kind']
 export type Bank = Schemas['BankOut']
 export type NetWorth = Schemas['NetWorthOut']
+export type CashFlow = Schemas['CashFlowOut']
 export type BankConnection = Schemas['BankConnectionOut']
 export type BankSync = Schemas['BankSyncOut']
 export type TemplateInput = Schemas['TemplateIn']
@@ -220,6 +221,8 @@ export const api = {
   dismissAlert: (key: string) => request<void>('POST', '/api/v1/alerts/dismiss', { json: { key } }),
   /** Patrimonio neto: activos menos deudas, hoy y a fin de cada mes (ADR-0025, OF-1501). */
   netWorth: (signal?: AbortSignal) => request<NetWorth>('GET', '/api/v1/net-worth', { signal }),
+  /** Flujo de caja mensual del dinero líquido (ADR-0025, OF-1502). */
+  cashFlow: (signal?: AbortSignal) => request<CashFlow>('GET', '/api/v1/cash-flow', { signal }),
   /** Resumen de la última semana completa (OF-1303). */
   weeklySummary: (signal?: AbortSignal) => request<WeeklySummary>('GET', '/api/v1/summary/weekly', { signal }),
   /** Notificaciones push de esta persona (OF-1302). */

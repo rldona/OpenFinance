@@ -16,6 +16,7 @@ import { SpendingPage } from '../features/insights/SpendingPage'
 import { TrendsPage } from '../features/insights/TrendsPage'
 import { BudgetsPage } from '../features/savings/BudgetsPage'
 import { SchedulePage } from '../features/savings/SchedulePage'
+import { CashFlowPage } from '../features/insights/CashFlowPage'
 import { NetWorthPage } from '../features/insights/NetWorthPage'
 import { WeeklyPage } from '../features/insights/WeeklyPage'
 import { SavingsPage } from '../features/savings/SavingsPage'
@@ -57,6 +58,8 @@ function Page({ route }: { route: RouteId }) {
       return <WeeklyPage />
     case 'patrimonio':
       return <NetWorthPage />
+    case 'flujo':
+      return <CashFlowPage />
     case 'pagos':
       return <SchedulePage />
     case 'cambios':

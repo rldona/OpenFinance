@@ -164,7 +164,7 @@ export function MonthPage() {
 
       {month === currentMonth() && (
         <p className="small muted">
-          <a href="#semana">Resumen de la semana</a> · <a href="#patrimonio">Patrimonio neto</a>
+          <a href="#semana">Resumen de la semana</a> · <a href="#patrimonio">Patrimonio neto</a> · <a href="#flujo">Flujo de caja</a>
         </p>
       )}
 

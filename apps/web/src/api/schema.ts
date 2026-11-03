@@ -443,6 +443,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/cash-flow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Cash Flow */
+        get: operations["get_cash_flow_api_v1_cash_flow_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/categories": {
         parameters: {
             query?: never;
@@ -2250,6 +2267,23 @@ export interface components {
             /** Updated */
             updated: number;
         };
+        /** CashFlowOut */
+        CashFlowOut: {
+            /**
+             * Accounts
+             * @description Cuentas líquidas que entran en las cifras
+             */
+            accounts: number;
+            /** Currency */
+            currency: string;
+            /**
+             * Excluded Foreign
+             * @description Cuentas líquidas en otra moneda, fuera de las cifras
+             */
+            excluded_foreign: number;
+            /** Months */
+            months: components["schemas"]["MonthFlowOut"][];
+        };
         /**
          * CategorizeIn
          * @description Corrección de un movimiento: solo cambia lo que se envía (OF-701).
@@ -3105,6 +3139,28 @@ export interface components {
             has_data: boolean;
             /** Month */
             month: string;
+        };
+        /** MonthFlowOut */
+        MonthFlowOut: {
+            /** @description Variación del saldo del mes */
+            change: components["schemas"]["MoneyOut"];
+            /** @description Neto: entra a la conjunta menos sale de una personal */
+            contributions: components["schemas"]["MoneyOut"];
+            end_balance: components["schemas"]["MoneyOut"];
+            income: components["schemas"]["MoneyOut"];
+            /** Is Partial */
+            is_partial: boolean;
+            /**
+             * Month
+             * @example 2026-10
+             */
+            month: string;
+            /** @description Movido al ahorro, neto de lo que se saca, en positivo */
+            savings: components["schemas"]["MoneyOut"];
+            /** @description Gasto neto de devoluciones, en positivo */
+            spending: components["schemas"]["MoneyOut"];
+            /** @description Traspasos entre cuentas propias, netos */
+            transfers: components["schemas"]["MoneyOut"];
         };
         /** MonthOverviewOut */
         MonthOverviewOut: {
@@ -5024,6 +5080,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_cash_flow_api_v1_cash_flow_get: {
+        parameters: {
+            query?: {
+                months?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashFlowOut"];
+                };
             };
             /** @description Validation Error */
             422: {
