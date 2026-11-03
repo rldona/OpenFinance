@@ -3029,3 +3029,117 @@ describe('Flujo de caja (OF-1502)', () => {
     expect(screen.queryByRole('img', { name: 'Saldo líquido a fin de cada mes' })).toBeNull()
   })
 })
+
+describe('Informes a medida (OF-1503)', () => {
+  const eurr = (amount: string) => ({ amount, currency: 'EUR' })
+  const REPORT = {
+    currency: 'EUR',
+    rows: [
+      { key: 'c-super', label: 'Supermercado', amount: eurr('87.34'), count: 1 },
+      { key: null, label: 'Sin categoría', amount: eurr('25.40'), count: 1 },
+    ],
+    total: eurr('112.74'),
+    count: 2,
+    hidden_rows: 0,
+    missing_rates: [],
+    ignored_accounts: 0,
+  }
+  const definition = {
+    from_month: '2026-09',
+    to_month: '2026-11',
+    measure: 'spent',
+    group_by: 'category',
+    account_ids: [],
+    category_ids: [],
+    uncategorized: false,
+    tags: [],
+    min_amount: null,
+  }
+  const SAVED = {
+    id: 'r-1',
+    name: 'Gasto trimestral',
+    shared: true,
+    mine: true,
+    definition,
+    created_at: '2026-11-01T10:00:00Z',
+  }
+
+  beforeEach(() => {
+    window.location.hash = '#informes'
+  })
+
+  it('ejecuta la definición y enseña filas y total', async () => {
+    const calls = loggedIn({
+      'GET /api/v1/reports': { body: [] },
+      'POST /api/v1/reports/run': { body: REPORT },
+    })
+    render(<App />)
+    await userEvent.selectOptions(await screen.findByLabelText('Agrupar por'), 'merchant')
+    await userEvent.type(screen.getByLabelText('Importe mínimo'), '10.00')
+    await userEvent.type(screen.getByLabelText('Etiquetas (separadas por comas)'), 'viaje, cena')
+    await userEvent.click(screen.getByRole('button', { name: 'Ejecutar' }))
+    const result = await screen.findByRole('region', { name: 'Resultado del informe' })
+    expect(result).toHaveTextContent('Supermercado')
+    expect(result).toHaveTextContent('112,74 €')
+    const sent = calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/reports/run')
+    expect(JSON.parse(String(sent?.body))).toMatchObject({
+      measure: 'spent',
+      group_by: 'merchant',
+      min_amount: '10.00',
+      tags: ['viaje', 'cena'],
+      account_ids: [],
+    })
+  })
+
+  it('guarda un informe compartido con su nombre', async () => {
+    const calls = loggedIn({
+      'GET /api/v1/reports': { body: [] },
+      'POST /api/v1/reports': { status: 201, body: SAVED },
+    })
+    render(<App />)
+    await userEvent.type(await screen.findByLabelText('Nombre para guardarlo'), 'Gasto trimestral')
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Compartir con el hogar' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar informe' }))
+    const list = await screen.findByRole('region', { name: 'Informes guardados' })
+    expect(list).toHaveTextContent('Gasto trimestral · compartido')
+    const post = calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/reports')
+    expect(JSON.parse(String(post?.body))).toMatchObject({ name: 'Gasto trimestral', shared: true })
+  })
+
+  it('ejecuta un guardado; uno compartido por otra persona no se puede borrar', async () => {
+    loggedIn({
+      'GET /api/v1/reports': { body: [SAVED, { ...SAVED, id: 'r-2', name: 'De Elena', mine: false }] },
+      'GET /api/v1/reports/r-2/run': { body: { ...REPORT, ignored_accounts: 1 } },
+    })
+    render(<App />)
+    const list = await screen.findByRole('region', { name: 'Informes guardados' })
+    expect(within(list).getByRole('button', { name: 'Borrar Gasto trimestral' })).toBeInTheDocument()
+    expect(within(list).queryByRole('button', { name: 'Borrar De Elena' })).toBeNull()
+    await userEvent.click(within(list).getByRole('button', { name: 'Ejecutar De Elena' }))
+    const result = await screen.findByRole('region', { name: 'Resultado del informe' })
+    expect(result).toHaveTextContent('De Elena')
+    expect(result).toHaveTextContent('1 cuentas del filtro no las ves tú')
+  })
+
+  it('borra un informe guardado', async () => {
+    const calls = loggedIn({
+      'GET /api/v1/reports': { body: [SAVED] },
+      'DELETE /api/v1/reports/r-1': { status: 204 },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Borrar Gasto trimestral' }))
+    expect(await screen.findByText('Todavía no has guardado ninguno.')).toBeInTheDocument()
+    expect(calls.some((c) => c.method === 'DELETE')).toBe(true)
+  })
+
+  it('un error de la API se enseña y no deja resultado', async () => {
+    loggedIn({
+      'GET /api/v1/reports': { body: [] },
+      'POST /api/v1/reports/run': { status: 404, body: { detail: 'Cuenta no encontrada' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Ejecutar' }))
+    expect(await screen.findByText('Cuenta no encontrada')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Resultado del informe' })).toBeNull()
+  })
+})

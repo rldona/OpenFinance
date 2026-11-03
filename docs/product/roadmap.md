@@ -523,7 +523,7 @@ En curso. Alcance en [ADR-0025](../adr/0025-informes-y-patrimonio.md), aceptado 
 | --- | --- | --- |
 | OF-1501 ✅ | Patrimonio neto | Activos (saldos positivos) menos deudas (negativos) de las cuentas que ve quien pregunta; hoy y 12 fines de mes; una cuenta personal ajena nunca suma; otras monedas se convierten y, sin tipo de cambio, se listan aparte en vez de inventar; los movimientos anulados no cuentan |
 | OF-1502 ✅ | Flujo de caja | Por mes y sobre el dinero líquido que ve quien pregunta, en la moneda del hogar: ingresos, aportaciones netas, gasto, ahorro y traspasos propios; su suma es exactamente la variación del saldo del mes; tarjetas, préstamos, inversiones y cuentas en otra moneda fuera (y se dice) |
-| OF-1503 | Informes a medida | Definición cerrada (periodo, medida, agrupación, filtros) que se ejecuta con los permisos de quien la ejecuta; guardar personal o compartido; filtrar por una cuenta que no se ve es 404; CSV protegido frente a fórmulas |
+| OF-1503 ✅ | Informes a medida | Definición cerrada (periodo, medida, agrupación, filtros) que se ejecuta con los permisos de quien la ejecuta; guardar personal o compartido (un compartido no filtra por cuentas personales y, si una cuenta deja de verse, no se ensancha); filtrar por una cuenta que no se ve es 404; CSV protegido frente a fórmulas |
 | OF-1504 | Exportación v2 | `format_version` 2 con presupuestos por mes, aportaciones, pagos programados, plantillas, reglas, comercios, informes y conexiones bancarias (sin sesión ni `state`); v1 sigue con `?version=1`; lista de campos que nunca salen |
 
 ---

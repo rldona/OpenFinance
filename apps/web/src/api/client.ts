@@ -20,6 +20,9 @@ export type AlertKind = Alert['kind']
 export type Bank = Schemas['BankOut']
 export type NetWorth = Schemas['NetWorthOut']
 export type CashFlow = Schemas['CashFlowOut']
+export type ReportDefinition = Schemas['ReportDefinitionIn']
+export type Report = Schemas['ReportOut']
+export type SavedReport = Schemas['SavedReportOut']
 export type BankConnection = Schemas['BankConnectionOut']
 export type BankSync = Schemas['BankSyncOut']
 export type TemplateInput = Schemas['TemplateIn']
@@ -223,6 +226,13 @@ export const api = {
   netWorth: (signal?: AbortSignal) => request<NetWorth>('GET', '/api/v1/net-worth', { signal }),
   /** Flujo de caja mensual del dinero líquido (ADR-0025, OF-1502). */
   cashFlow: (signal?: AbortSignal) => request<CashFlow>('GET', '/api/v1/cash-flow', { signal }),
+  /** Informes a medida y su guardado (ADR-0025, OF-1503). */
+  runReport: (definition: ReportDefinition) => request<Report>('POST', '/api/v1/reports/run', { json: definition }),
+  savedReports: (signal?: AbortSignal) => request<SavedReport[]>('GET', '/api/v1/reports', { signal }),
+  saveReport: (name: string, shared: boolean, definition: ReportDefinition) =>
+    request<SavedReport>('POST', '/api/v1/reports', { json: { name, shared, definition } }),
+  runSavedReport: (id: string) => request<Report>('GET', `/api/v1/reports/${encodeURIComponent(id)}/run`),
+  deleteSavedReport: (id: string) => request<void>('DELETE', `/api/v1/reports/${encodeURIComponent(id)}`),
   /** Resumen de la última semana completa (OF-1303). */
   weeklySummary: (signal?: AbortSignal) => request<WeeklySummary>('GET', '/api/v1/summary/weekly', { signal }),
   /** Notificaciones push de esta persona (OF-1302). */
@@ -388,4 +398,19 @@ export const api = {
   savingsOverview: (signal?: AbortSignal) => request<SavingsOverview>('GET', '/api/v1/savings/overview', { signal }),
   uncategorizedCount: (signal?: AbortSignal) =>
     request<{ count: number }>('GET', '/api/v1/transactions/uncategorized-count', { signal }),
+}
+
+/** Descarga el resultado de un informe en CSV (la definición viaja en el cuerpo, no en la dirección). */
+export async function downloadReportCsv(definition: ReportDefinition): Promise<Blob> {
+  const response = await fetch('/api/v1/reports/run?format=csv', {
+    method: 'POST',
+    headers: { ...CSRF_HEADER, 'Content-Type': 'application/json' },
+    body: JSON.stringify(definition),
+    credentials: 'include',
+  })
+  if (!response.ok) {
+    const data: unknown = await response.json().catch(() => null)
+    throw new ApiError(response.status, detailOf(data, response.status))
+  }
+  return response.blob()
 }

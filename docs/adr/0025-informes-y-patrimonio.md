@@ -27,9 +27,10 @@ Todo son **vistas calculadas** sobre los movimientos, sin tablas nuevas salvo lo
 
 ### Informes a medida (OF-1503)
 
-- Un informe es una **definición** (no un resultado): periodo (de mes a mes, máximo 36 meses), qué medir (gasto, ingreso, ahorro o neto), por qué agrupar (categoría, comercio, cuenta, mes o persona) y filtros opcionales (cuentas, categorías, etiquetas, importe mínimo). Se ejecuta siempre con los **permisos de quien lo ejecuta**: la misma definición da resultados distintos a cada persona porque cada una ve cuentas distintas, y nunca se guarda un resultado.
-- Se pueden **guardar** (`saved_reports`): personales o compartidos con el hogar. Compartir comparte la definición, no los datos. Máximo 30 por persona. Solo su dueño los cambia o borra; un informe personal ajeno es 404. Filtrar por una cuenta que no se ve es 404, no un resultado vacío.
-- El resultado se puede descargar en **CSV** con la misma protección frente a fórmulas que la exportación (OF-501).
+- Un informe es una **definición** (no un resultado): periodo (de mes a mes, máximo 36 meses), qué medir (**gasto** neto de devoluciones, **ingresos**, **ahorro** neto o **neto** = ingresos menos gasto), por qué agrupar (categoría, comercio, cuenta o mes) y filtros opcionales: cuentas, categorías (con «sin categoría»), etiquetas (movimientos con **alguna** de ellas) e importe mínimo por movimiento. Cuentan las cuentas que ve quien lo ejecuta y que entran en informes (no préstamos ni inversiones), en la moneda del hogar; los movimientos en otra moneda sin tipo de cambio quedan fuera y se avisa.
+- Se ejecuta siempre con los **permisos de quien lo ejecuta**: la misma definición da resultados distintos a cada persona porque cada una ve cuentas distintas, y nunca se guarda un resultado. Filtrar por una cuenta que no se ve es **404**, no un resultado vacío.
+- Se pueden **guardar** (`saved_reports`): personales o compartidos con el hogar. Máximo 30 por persona. Un informe personal no existe para nadie más (404). Uno compartido lo pueden ejecutar los del hogar, con sus permisos; solo su dueño lo cambia o borra. **Un informe compartido no puede filtrar por cuentas personales** (enseñaría sus identificadores). Si una cuenta del filtro de un informe compartido deja de ser visible para quien lo ejecuta, se ignora y se avisa; si no queda ninguna, el resultado es **vacío**, nunca «todas las cuentas».
+- El resultado se puede descargar en **CSV** con la misma protección frente a fórmulas que la exportación (OF-501). La lista enseña hasta 100 grupos (los de más peso); el total incluye todos y se dice cuántos no caben.
 - No hay lenguaje de consulta ni expresiones: solo campos cerrados, validados.
 
 ### Exportación v2 (OF-1504)

@@ -19,6 +19,7 @@ from openfinance.api.v1 import (
     networth,
     notifications,
     rates,
+    reports,
     savings,
     schedule,
     settings,
@@ -30,6 +31,7 @@ router = APIRouter(prefix="/api/v1")
 router.include_router(meta.router)
 router.include_router(merchants.router)
 router.include_router(rates.router)
+router.include_router(reports.router)
 router.include_router(attachments.router)
 router.include_router(automation.router)
 router.include_router(auth.router)
