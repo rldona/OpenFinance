@@ -31,6 +31,9 @@ def _link(row: BankLinkRow) -> BankLink:
         AccountId(row.account_id) if row.account_id else None,
         balance,
         _opt(row.bank_balance_at),
+        Money(row.balance_difference, Currency(row.currency))
+        if row.balance_difference is not None
+        else None,
     )
 
 
@@ -98,6 +101,9 @@ class SqlBankRepository:
                     account_id=link.account_id,
                     bank_balance=link.bank_balance.amount if link.bank_balance else None,
                     bank_balance_at=link.bank_balance_at,
+                    balance_difference=(
+                        link.balance_difference.amount if link.balance_difference else None
+                    ),
                 )
             )
         _flush(self._s)

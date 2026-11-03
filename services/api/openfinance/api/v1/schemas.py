@@ -1409,6 +1409,9 @@ class BankLinkOut(BaseModel):
     account_id: UUID | None = Field(description="Cuenta del hogar a la que alimenta, si se eligió")
     bank_balance: MoneyOut | None = Field(description="Último saldo que informó el banco")
     bank_balance_at: datetime | None
+    balance_difference: MoneyOut | None = Field(
+        description="Saldo del banco menos el calculado en OpenFinance al sincronizar"
+    )
 
 
 class BankConnectionOut(BaseModel):
@@ -1442,6 +1445,9 @@ class BankConnectionOut(BaseModel):
                     account_id=link.account_id,
                     bank_balance=MoneyOut.of(link.bank_balance) if link.bank_balance else None,
                     bank_balance_at=link.bank_balance_at,
+                    balance_difference=(
+                        MoneyOut.of(link.balance_difference) if link.balance_difference else None
+                    ),
                 )
                 for link in c.links
             ],
@@ -1484,6 +1490,7 @@ class BankSyncLinkOut(BaseModel):
     name: str
     created: int
     duplicates: int
+    reconciled: int = Field(description="Conciliados con un movimiento ya anotado")
     skipped: int
     error: str
 

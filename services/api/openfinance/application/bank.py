@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 import secrets
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from uuid import UUID, uuid4
 
 from openfinance.application.errors import (
@@ -21,6 +21,7 @@ from openfinance.application.errors import (
 )
 from openfinance.application.imports import (
     MAX_SOURCE,
+    PreviewRow,
     classification_rules,
     new_transaction,
     preview_rows,
@@ -34,12 +35,14 @@ from openfinance.domain.bank import (
     BankError,
     BankLink,
     ConsentStatus,
+    reconcile_candidate,
     to_rows,
 )
 from openfinance.domain.imports import ParseResult
 from openfinance.domain.imports.batch import ImportBatch
-from openfinance.domain.ledger import Transaction
-from openfinance.domain.shared.ids import AccountId, TransactionId
+from openfinance.domain.ledger import Account, Transaction
+from openfinance.domain.shared import Money
+from openfinance.domain.shared.ids import AccountId
 from openfinance.domain.workspaces import Actor
 
 CONSENT_DAYS = 180
@@ -219,6 +222,8 @@ class LinkReport:
     name: str
     created: int = 0
     duplicates: int = 0
+    reconciled: int = 0
+    """Filas del banco que se concilian con un movimiento ya anotado en vez de duplicarlo."""
     skipped: int = 0
     error: str = ""
 
@@ -280,44 +285,68 @@ def _sync_link(
         created_at=now,
     )
     source = f"{SOURCE_PREFIX}{connection.aspsp}"[:MAX_SOURCE]
-    created = 0
-    new: list[Transaction] = []
-    tagged: dict[TransactionId, tuple[str, ...]] = {}
-    if fresh:
-        uow.imports.add(batch, b"")  # antes que los movimientos: recuperar uno ya lo enlaza
+    # Qué se hace con cada fila nueva: recuperar una anulada, conciliarla con lo ya anotado
+    # (un solo candidato, ADR-0024) o guardarla.
+    restore: list[Transaction] = []
+    adopt: list[tuple[Transaction, str]] = []
+    create: list[PreviewRow] = []
+    annotated = uow.transactions.for_account(actor.household_id, account.id)
+    taken: set[UUID] = set()
     for r in fresh:
         previous = voided.get(r.row.fingerprint)
         if previous is not None:
-            uow.transactions.save(replace(previous, voided=False, import_id=batch.id))
-            created += 1
+            restore.append(previous)
             continue
-        transaction = new_transaction(actor, account, r, source, batch.id)
-        new.append(transaction)
+        candidate = reconcile_candidate(r.row, annotated, taken)
+        if candidate is not None:
+            taken.add(candidate.id)
+            adopt.append((candidate, r.row.fingerprint))
+            continue
+        create.append(r)
+    created = len(restore) + len(create)
+    if created:
+        uow.imports.add(batch, b"")  # antes que los movimientos: recuperar uno ya lo enlaza
+    for previous in restore:
+        uow.transactions.save(replace(previous, voided=False, import_id=batch.id))
+    for candidate, fingerprint in adopt:
+        uow.transactions.adopt(actor.household_id, candidate.id, fingerprint)
+    new = [new_transaction(actor, account, r, source, batch.id) for r in create]
+    uow.transactions.add_many(new)
+    for transaction, r in zip(new, create, strict=True):
         if r.tags:
-            tagged[transaction.id] = r.tags
-        created += 1
-    if fresh:
-        uow.transactions.add_many(new)
-        for transaction_id, tags in tagged.items():
-            uow.tags.set(actor.household_id, transaction_id, tags)
+            uow.tags.set(actor.household_id, transaction.id, r.tags)
+    if created:
         uow.imports.save_committed(batch.committed(now, created, len(reviewed) - created, skipped))
     updated = connection
     try:
         balance = aggregator.balance(connection.session_id, link.remote_uid)
     except AggregatorError:
         balance = None  # el saldo es un extra: sin él los movimientos valen igual
-    if balance is not None:
-        updated = connection.with_balance(link.remote_uid, balance)
+    if balance is not None and balance.amount.currency == account.currency:
+        updated = connection.with_balance(
+            link.remote_uid,
+            balance,
+            balance.amount - _computed_balance(uow, actor, account, balance.at),
+        )
     return (
         LinkReport(
             link.remote_uid,
             link.name,
             created=created,
             duplicates=len(reviewed) - len(fresh),
+            reconciled=len(adopt),
             skipped=skipped,
         ),
         updated,
     )
+
+
+def _computed_balance(uow: UnitOfWork, actor: Actor, account: Account, at: datetime) -> Money:
+    """El saldo de OpenFinance al final del día en que el banco informó el suyo."""
+    sums = uow.transactions.balances(
+        actor.household_id, [account.id], until=datetime.combine(at.date(), time.max)
+    )
+    return account.opening_balance + Money.of(sums.get(account.id, 0), account.currency)
 
 
 def sync_connection(

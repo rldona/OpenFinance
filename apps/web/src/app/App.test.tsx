@@ -2754,6 +2754,7 @@ describe('Conexión con el banco (OF-1401)', () => {
     account_id: null,
     bank_balance: null,
     bank_balance_at: null,
+    balance_difference: null,
     ...extra,
   })
   const connection = (extra: object = {}) => ({
@@ -2829,6 +2830,34 @@ describe('Conexión con el banco (OF-1401)', () => {
     expect(calls.some((c) => c.method === 'POST' && c.url.pathname === '/api/v1/bank/connections/conn-1/sync')).toBe(true)
   })
 
+  it('al sincronizar cuenta también lo conciliado y enseña la diferencia con el saldo del banco', async () => {
+    window.location.hash = '#ajustes'
+    const eur = (amount: string) => ({ amount, currency: 'EUR' })
+    loggedIn({
+      ...base({
+        configured: true,
+        connections: [
+          connection({
+            links: [link({ account_id: 'a-joint', bank_balance: eur('100.00'), balance_difference: eur('-12.50') })],
+          }),
+        ],
+      }),
+      'POST /api/v1/bank/connections/conn-1/sync': {
+        body: {
+          connection: connection(),
+          created: 1,
+          links: [{ name: 'Cuenta corriente', created: 1, duplicates: 0, reconciled: 2, skipped: 0, error: '' }],
+          skipped_reason: '',
+        },
+      },
+    })
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Banco' })
+    expect(card).toHaveTextContent('Diferencia con el saldo del banco: -12,50 €')
+    await userEvent.click(within(card).getByRole('button', { name: 'Sincronizar ahora' }))
+    expect(await screen.findByText('1 movimiento nuevo · 2 conciliados con lo que ya tenías')).toBeInTheDocument()
+  })
+
   it('un fallo del banco al sincronizar se enseña tal cual', async () => {
     window.location.hash = '#ajustes'
     loggedIn({
@@ -2837,7 +2866,7 @@ describe('Conexión con el banco (OF-1401)', () => {
         body: {
           connection: connection({ last_error: 'El banco limita las consultas' }),
           created: 0,
-          links: [{ name: 'Cuenta corriente', created: 0, duplicates: 0, skipped: 0, error: 'El banco limita las consultas' }],
+          links: [{ name: 'Cuenta corriente', created: 0, duplicates: 0, reconciled: 0, skipped: 0, error: 'El banco limita las consultas' }],
           skipped_reason: '',
         },
       },

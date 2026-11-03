@@ -1982,6 +1982,8 @@ export interface components {
              * @description Cuenta del hogar a la que alimenta, si se eligió
              */
             account_id: string | null;
+            /** @description Saldo del banco menos el calculado en OpenFinance al sincronizar */
+            balance_difference: components["schemas"]["MoneyOut"] | null;
             /** @description Último saldo que informó el banco */
             bank_balance: components["schemas"]["MoneyOut"] | null;
             /** Bank Balance At */
@@ -2050,6 +2052,11 @@ export interface components {
             error: string;
             /** Name */
             name: string;
+            /**
+             * Reconciled
+             * @description Conciliados con un movimiento ya anotado
+             */
+            reconciled: number;
             /** Skipped */
             skipped: number;
         };

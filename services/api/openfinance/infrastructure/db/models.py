@@ -102,6 +102,7 @@ class TransactionRow(Base):
             name="fk_transactions_member_membership",
         ),
         Index("ix_transactions_household_booked_at", "household_id", "booked_at"),
+        Index("ix_transactions_account_bank_ref", "account_id", "bank_ref"),
         Index("ix_transactions_household_merchant", "household_id", "merchant"),
         ForeignKeyConstraint(
             ["category_id", "household_id"],
@@ -125,6 +126,8 @@ class TransactionRow(Base):
     bank_type: Mapped[str] = mapped_column(String(40), default="")
     source: Mapped[str] = mapped_column(String(200), default="manual")
     fingerprint: Mapped[str | None] = mapped_column(String(64))
+    bank_ref: Mapped[str | None] = mapped_column(String(64))
+    """Huella del banco con que se concilió este movimiento (OF-1404)."""
     import_id: Mapped[UUID | None] = mapped_column(ForeignKey("import_batches.id"), index=True)
     note: Mapped[str] = mapped_column(String(2000), default="", server_default="")
     voided: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa_false())
@@ -468,6 +471,8 @@ class BankLinkRow(Base):
     account_id: Mapped[UUID | None] = mapped_column(ForeignKey("accounts.id"))
     bank_balance: Mapped[Decimal | None] = mapped_column(AMOUNT)
     bank_balance_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    balance_difference: Mapped[Decimal | None] = mapped_column(AMOUNT)
+    """Saldo del banco menos el calculado en OpenFinance a esa fecha, al sincronizar."""
 
 
 class MerchantRow(Base):

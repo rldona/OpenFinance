@@ -289,15 +289,11 @@ class TransactionRepository(Protocol):
         self, household_id: WorkspaceId, account_id: AccountId, fingerprints: list[str]
     ) -> set[str]: ...
     def adopt(
-        self,
-        household_id: WorkspaceId,
-        transaction_id: TransactionId,
-        fingerprint: str,
-        source: str,
+        self, household_id: WorkspaceId, transaction_id: TransactionId, bank_ref: str
     ) -> None:
-        """Un movimiento anotado adopta la huella y la procedencia del banco: queda conciliado
-        y la próxima sincronización lo reconoce. No cambia de lote: deshacer una
-        sincronización no debe anular lo que alguien escribió (OF-1404)."""
+        """Un movimiento ya anotado queda conciliado con el del banco (OF-1404): guarda la
+        huella del banco aparte, sin tocar la suya (reimportar su extracto sigue sin duplicar)
+        ni su lote (deshacer una sincronización no debe anular lo que alguien anotó)."""
         ...
 
 

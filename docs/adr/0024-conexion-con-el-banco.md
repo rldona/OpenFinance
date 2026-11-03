@@ -40,12 +40,13 @@ Hasta ahora los movimientos entran por extractos (CSV, OFX, CAMT…) o a mano. R
 
 ### Conciliación automática (OF-1404)
 
-- Al sincronizar, una fila del banco que no es duplicada por huella busca un movimiento **anotado a mano o importado de un extracto** en la misma cuenta con el **mismo importe** y fecha a **≤ 3 días**, que no venga ya del banco. Si hay **exactamente uno**, ese movimiento adopta la huella del banco (queda conciliado: no se crea otro y la próxima sincronización lo reconoce); si hay varios, no se adivina: se crea el movimiento nuevo y el hogar decide.
-- Tras sincronizar se compara el saldo que informa el banco con el calculado en OpenFinance y se guarda la diferencia en el enlace; si no cuadra, se ve en Ajustes. Es informativo: no se corrige nada solo.
+- Al sincronizar, una fila del banco que no es duplicada por huella busca un movimiento **ya anotado** (a mano o importado de un extracto) en la misma cuenta con el **mismo importe** y fecha a **≤ 3 días**, que no venga ya del banco ni esté conciliado. Si hay **exactamente uno**, queda conciliado: no se crea otro. Con varios candidatos no se adivina: se crea el movimiento nuevo y el hogar decide. Cada movimiento ya anotado se concilia con una sola fila.
+- La conciliación guarda la huella del banco **aparte** (`transactions.bank_ref`) y no toca la huella propia del movimiento ni su lote. Así reimportar el mismo extracto después de conciliar sigue sin duplicar (regla del hogar) y deshacer una sincronización no anula lo que alguien anotó. El texto, la categoría y la nota de lo anotado no se reescriben.
+- Tras sincronizar se compara el saldo que informa el banco (el contable al cierre, si lo da) con el calculado en OpenFinance a esa fecha y se guarda la diferencia en el enlace; se ve en Ajustes. Es informativo: no se corrige nada solo ni se crea una conciliación de saldo (OF-1006) sin que alguien la haga.
 
 ## Consecuencias
 
-- Se añaden `bank_connections` y `bank_links`. Los movimientos traídos entran en el registro de cambios por su lote de importación, como los de un extracto.
+- Se añaden `bank_connections` y `bank_links`, y `transactions.bank_ref`. Los movimientos traídos entran en el registro de cambios por su lote de importación, como los de un extracto.
 - Los datos bancarios pasan por el agregador elegido por el hogar. La documentación de despliegue explica cómo crear la aplicación, qué se comparte y cómo revocar.
 - **No probado contra un banco real**: el adaptador sigue la documentación pública del agregador y se prueba con respuestas simuladas. La primera conexión real puede pedir ajustes (campos opcionales, límites de cada banco).
 - Los pagos y las transferencias iniciadas desde OpenFinance quedan fuera: solo lectura de cuentas.

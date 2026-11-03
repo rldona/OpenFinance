@@ -75,6 +75,9 @@ class BankLink:
     bank_balance: Money | None = None
     """Último saldo que informó el banco."""
     bank_balance_at: datetime | None = None
+    balance_difference: Money | None = None
+    """Saldo del banco menos el calculado en OpenFinance a esa fecha, al sincronizar. Informativo:
+    no se corrige nada solo."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -163,11 +166,18 @@ class BankConnection:
             ),
         )
 
-    def with_balance(self, remote_uid: str, balance: RemoteBalance) -> BankConnection:
+    def with_balance(
+        self, remote_uid: str, balance: RemoteBalance, difference: Money
+    ) -> BankConnection:
         return replace(
             self,
             links=tuple(
-                replace(link, bank_balance=balance.amount, bank_balance_at=balance.at)
+                replace(
+                    link,
+                    bank_balance=balance.amount,
+                    bank_balance_at=balance.at,
+                    balance_difference=difference,
+                )
                 if link.remote_uid == remote_uid
                 else link
                 for link in self.links
@@ -273,6 +283,7 @@ def reconcile_candidate(
         for t in existing
         if not t.voided
         and t.id not in taken
+        and t.bank_ref is None
         and not t.source.startswith(SOURCE_PREFIX)
         and t.amount == row.amount
         and abs((t.booked_at.date() - row.booked_at.date()).days) <= RECONCILE_DAYS

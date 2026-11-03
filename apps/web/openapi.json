@@ -780,6 +780,17 @@
             "description": "Cuenta del hogar a la que alimenta, si se eligió",
             "title": "Account Id"
           },
+          "balance_difference": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Saldo del banco menos el calculado en OpenFinance al sincronizar"
+          },
           "bank_balance": {
             "anyOf": [
               {
@@ -828,7 +839,8 @@
           "currency",
           "account_id",
           "bank_balance",
-          "bank_balance_at"
+          "bank_balance_at",
+          "balance_difference"
         ],
         "title": "BankLinkOut",
         "type": "object"
@@ -936,6 +948,11 @@
             "title": "Name",
             "type": "string"
           },
+          "reconciled": {
+            "description": "Conciliados con un movimiento ya anotado",
+            "title": "Reconciled",
+            "type": "integer"
+          },
           "skipped": {
             "title": "Skipped",
             "type": "integer"
@@ -945,6 +962,7 @@
           "name",
           "created",
           "duplicates",
+          "reconciled",
           "skipped",
           "error"
         ],

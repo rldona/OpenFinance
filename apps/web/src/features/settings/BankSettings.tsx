@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ApiError, api, type Account, type Bank, type BankConnection } from '../../api/client'
 import { useHousehold } from '../../app/household-context'
+import { formatMoney } from '../../lib/format'
 
 const STATUS: Record<BankConnection['status'], string> = {
   pending: 'Sin terminar',
@@ -91,7 +92,11 @@ export function BankSettings() {
       const error = result.links.find((l) => l.error)?.error
       if (result.skipped_reason) notify(result.skipped_reason)
       else if (error) notify(`El banco no respondió: ${error}`)
-      else notify(result.created === 1 ? '1 movimiento nuevo' : `${result.created} movimientos nuevos`)
+      else {
+        const reconciled = result.links.reduce((total, l) => total + l.reconciled, 0)
+        const news = result.created === 1 ? '1 movimiento nuevo' : `${result.created} movimientos nuevos`
+        notify(reconciled > 0 ? `${news} · ${reconciled} conciliados con lo que ya tenías` : news)
+      }
     }, 'No se ha podido sincronizar')
 
   const revoke = (c: BankConnection) =>
@@ -140,6 +145,13 @@ export function BankSettings() {
                     <span>
                       {l.name} ····{l.iban_tail} ({l.currency})
                     </span>
+                    {l.balance_difference && (
+                      <small className="muted">
+                        {Number(l.balance_difference.amount) === 0
+                          ? 'El saldo coincide con el del banco'
+                          : `Diferencia con el saldo del banco: ${formatMoney(l.balance_difference)}`}
+                      </small>
+                    )}
                     <select
                       value={l.account_id ?? ''}
                       disabled={busy}

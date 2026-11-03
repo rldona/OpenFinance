@@ -246,7 +246,8 @@ def _bank(_: argparse.Namespace) -> int:
             else:
                 print(
                     f"{bank} · {line.name}: {line.created} nuevos, "
-                    f"{line.duplicates} ya estaban, {line.skipped} descartados"
+                    f"{line.reconciled} conciliados, {line.duplicates} ya estaban, "
+                    f"{line.skipped} descartados"
                 )
     print(f"{len(reports)} conexiones revisadas · {failed} cuentas con error")
     return 1 if failed else 0

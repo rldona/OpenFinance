@@ -94,6 +94,7 @@ def sync_connection(
                 name=r.name,
                 created=r.created,
                 duplicates=r.duplicates,
+                reconciled=r.reconciled,
                 skipped=r.skipped,
                 error=r.error,
             )
