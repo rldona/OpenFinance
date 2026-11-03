@@ -162,7 +162,7 @@ class TestJson:
         assert_private_data_absent(blob, seed)
 
         body = json.loads(blob)
-        assert body["format_version"] == EXPORT_FORMAT_VERSION == 1
+        assert body["format_version"] == EXPORT_FORMAT_VERSION == 2
         assert body["meta"]["exported_by_email"] == "raul@example.org"
         assert body["meta"]["household_name"] == "Nuestra casa"
         assert {a["name"] for a in body["accounts"]} == {
@@ -186,6 +186,8 @@ class TestJson:
                 "category_id": body["budgets"][0]["category_id"],
                 "amount": "400.00",
                 "currency": "EUR",
+                "mode": "limit",
+                "started": None,
             }
         ]
         goals = {g["name"]: g for g in body["goals"]}
@@ -240,7 +242,7 @@ class TestCsvZip:
         for text in files.values():
             assert_private_data_absent(text, seed)
 
-        assert json.loads(files[MANIFEST])["format_version"] == 1
+        assert json.loads(files[MANIFEST])["format_version"] == 2
         accounts = {a["name"] for a in rows(files["accounts.csv"])}
         assert accounts == {"Cuenta conjunta", "Bankinter Raúl", "Hucha vacaciones"}
         txns = rows(files["transactions.csv"])
@@ -324,7 +326,7 @@ class TestUnit:
     def test_zip_names_and_negative_amounts_untouched(self, session_factory, seed, data) -> None:
         with session_factory() as s:
             export = export_household(
-                SqlUnitOfWork(s), Actor(seed.raul.id, seed.joint.household_id), NOW, "test"
+                SqlUnitOfWork(s), Actor(seed.raul.id, seed.joint.household_id), NOW, "test", 1
             )
         assert all(isinstance(t.amount, Decimal) for t in export.transactions)
         files = zip_files(render_csv_zip(export))

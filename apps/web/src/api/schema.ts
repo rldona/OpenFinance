@@ -701,9 +701,10 @@ export interface paths {
         };
         /**
          * Export
-         * @description Descarga los datos del hogar: JSON o ZIP con un CSV por entidad (OF-501).
+         * @description Descarga los datos del hogar: JSON o ZIP con un CSV por entidad (OF-501, OF-1504).
          *
-         *     Incluye lo que ve quien la pide; la cuenta personal de la otra persona no sale.
+         *     Incluye lo que ve quien la pide; la cuenta personal de la otra persona no sale, ni nada
+         *     de lo suyo (reglas, plantillas, informes o conexiones bancarias personales).
          */
         get: operations["export_api_v1_export_get"];
         put?: never;
@@ -5793,6 +5794,8 @@ export interface operations {
         parameters: {
             query?: {
                 format?: "json" | "csv";
+                /** @description Forma del archivo: 2 (por defecto) o la antigua 1 */
+                version?: number;
             };
             header?: never;
             path?: never;

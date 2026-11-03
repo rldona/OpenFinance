@@ -37,6 +37,7 @@ Todo son **vistas calculadas** sobre los movimientos, sin tablas nuevas salvo lo
 
 - `format_version: 2` añade lo que v1 no llevaba: importes de presupuesto por mes y modo (límite o sobre), aportaciones a objetivos, pagos programados, plantillas, reglas de automatización, comercios con nombre propio, etiquetas, informes guardados propios y compartidos, conexiones bancarias (banco, estado, caducidad y últimos cuatro dígitos del IBAN) y tipos de cambio.
 - **Nunca** se exporta el identificador de sesión del agregador, el `state` de una conexión, las claves VAPID, las suscripciones push, las huellas de movimientos, las sesiones ni los hashes de contraseña. Lo de otra persona del hogar (cuentas personales, informes personales, conexiones, sus reglas personales) tampoco, como en v1.
+- Cada bloque aplica su propia regla de visibilidad: pagos programados solo de cuentas que se ven; plantillas y reglas, las del hogar y las propias; informes guardados, los propios y los compartidos; conexiones bancarias, solo las propias (un enlace a una cuenta que no se ve sale sin cuenta). Un **comercio con nombre propio solo sale si alguna de sus variantes aparece en los movimientos exportados**: sus variantes podrían delatar un gasto de una cuenta personal ajena.
 - v1 sigue disponible con `?version=1` para quien lo use; sin parámetro se entrega v2. El CSV de movimientos no cambia.
 
 ## Consecuencias
