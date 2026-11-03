@@ -2917,3 +2917,65 @@ describe('Conexión con el banco (OF-1401)', () => {
     vi.unstubAllGlobals()
   })
 })
+
+describe('Patrimonio neto (OF-1501)', () => {
+  const eurn = (amount: string) => ({ amount, currency: 'EUR' })
+  const point = (on: string, assets: string, debts: string, net: string, excluded = 0) => ({
+    on,
+    assets: eurn(assets),
+    debts: eurn(debts),
+    net: eurn(net),
+    excluded,
+  })
+  const WORTH = {
+    currency: 'EUR',
+    today: point('2026-11-03', '2000.00', '500.00', '1500.00'),
+    history: [point('2026-10-31', '1800.00', '600.00', '1200.00'), point('2026-11-03', '2000.00', '500.00', '1500.00')],
+    accounts: [
+      { account_id: 'a-joint', name: 'Cuenta conjunta', type: 'bank', balance: eurn('2000.00'), value: eurn('2000.00') },
+      { account_id: 'a-visa', name: 'Visa', type: 'card', balance: eurn('-500.00'), value: eurn('-500.00') },
+      { account_id: 'a-usd', name: 'Viajes USD', type: 'cash', balance: { amount: '80.00', currency: 'USD' }, value: null },
+    ],
+    by_type: [
+      { type: 'bank', net: eurn('2000.00') },
+      { type: 'card', net: eurn('-500.00') },
+    ],
+    missing_rates: ['USD'],
+  }
+
+  it('enseña activos, deudas, el neto, el desglose y avisa de lo que no entra', async () => {
+    window.location.hash = '#patrimonio'
+    loggedIn({ 'GET /api/v1/net-worth': { body: WORTH } })
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Patrimonio neto' })
+    expect(card).toHaveTextContent('1500,00 €')
+    expect(card).toHaveTextContent('2000,00 € de activos menos 500,00 € de deudas')
+    expect(card).toHaveTextContent('No entran las cuentas en USD')
+    expect(screen.getByRole('region', { name: 'Por tipo de cuenta' })).toHaveTextContent('Tarjetas · -500,00 €')
+    expect(screen.getByRole('region', { name: 'Cuentas del patrimonio' })).toHaveTextContent('Viajes USD')
+    expect(screen.getByRole('region', { name: 'Cuentas del patrimonio' })).toHaveTextContent('sin tipo de cambio, no entra')
+    expect(screen.getByRole('img', { name: 'Patrimonio neto a fin de cada mes' })).toBeInTheDocument()
+    const table = screen.getByRole('table', { name: 'Patrimonio a fin de cada mes' })
+    expect(within(table).getAllByRole('row')).toHaveLength(3)
+  })
+
+  it('si alguna vez fue negativo no dibuja el gráfico y deja la tabla', async () => {
+    window.location.hash = '#patrimonio'
+    loggedIn({
+      'GET /api/v1/net-worth': {
+        body: { ...WORTH, history: [point('2026-10-31', '100.00', '300.00', '-200.00'), WORTH.history[1]], missing_rates: [] },
+      },
+    })
+    render(<App />)
+    await screen.findByRole('region', { name: 'Patrimonio neto' })
+    expect(screen.queryByRole('img', { name: 'Patrimonio neto a fin de cada mes' })).toBeNull()
+    expect(screen.getByRole('table', { name: 'Patrimonio a fin de cada mes' })).toHaveTextContent('-200,00 €')
+  })
+
+  it('si no se puede cargar lo dice y deja reintentar', async () => {
+    window.location.hash = '#patrimonio'
+    loggedIn({ 'GET /api/v1/net-worth': { status: 500, body: { detail: 'boom' } } })
+    render(<App />)
+    expect(await screen.findByRole('button', { name: /Reintentar/ })).toBeInTheDocument()
+  })
+})

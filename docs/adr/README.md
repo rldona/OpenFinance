@@ -30,3 +30,4 @@ Formato: contexto → decisión → consecuencias. Un ADR aceptado no se edita; 
 | [0022](0022-presupuestos-con-limites-o-sobres.md) | Presupuestos con límites o sobres, arrastre y objetivos v2 | Accepted |
 | [0023](0023-avisos-y-notificaciones.md) | Avisos deterministas, notificaciones Web Push y resumen semanal | Accepted |
 | [0024](0024-conexion-con-el-banco.md) | Conexión con el banco mediante un agregador PSD2 | Accepted |
+| [0025](0025-informes-y-patrimonio.md) | Patrimonio neto, flujo de caja, informes a medida y exportación v2 | Accepted |

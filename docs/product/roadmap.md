@@ -515,6 +515,19 @@ Hecha (sin probar contra un banco real: el cliente sigue la documentación públ
 
 ---
 
+## Fase 15 · Informes y patrimonio (v0.8)
+
+En curso. Alcance en [ADR-0025](../adr/0025-informes-y-patrimonio.md), aceptado el 3 de noviembre de 2026. Todo son vistas calculadas con los permisos de quien las pide.
+
+| ID | Ticket | Criterio de hecho |
+| --- | --- | --- |
+| OF-1501 ✅ | Patrimonio neto | Activos (saldos positivos) menos deudas (negativos) de las cuentas que ve quien pregunta; hoy y 12 fines de mes; una cuenta personal ajena nunca suma; otras monedas se convierten y, sin tipo de cambio, se listan aparte en vez de inventar; los movimientos anulados no cuentan |
+| OF-1502 | Flujo de caja | Por mes y sobre el dinero líquido que ve quien pregunta: entradas, salidas, ahorro y traspasos propios aparte; entradas − salidas − ahorro = variación del saldo del mes; tarjetas y préstamos fuera |
+| OF-1503 | Informes a medida | Definición cerrada (periodo, medida, agrupación, filtros) que se ejecuta con los permisos de quien la ejecuta; guardar personal o compartido; filtrar por una cuenta que no se ve es 404; CSV protegido frente a fórmulas |
+| OF-1504 | Exportación v2 | `format_version` 2 con presupuestos por mes, aportaciones, pagos programados, plantillas, reglas, comercios, informes y conexiones bancarias (sin sesión ni `state`); v1 sigue con `?version=1`; lista de campos que nunca salen |
+
+---
+
 ## Después de v0.2
 
 Inspirado en Wallet, Spendee, Fintonic y Actual Budget. Cada fase empieza con su ADR y se detalla en tickets al empezarla. Esfuerzo estimado para una persona a tiempo completo.
@@ -526,7 +539,7 @@ Inspirado en Wallet, Spendee, Fintonic y Actual Budget. Cada fase empieza con su
 | 12 · Planificar | v0.5 | Hecha: [Fase 12](#fase-12--planificar-v05) | OF-1201 … OF-1206 | ✅ |
 | 13 · Alertas | v0.6 | Hecha: [Fase 13](#fase-13--alertas-v06) | OF-1301 … OF-1303 | ✅ |
 | 14 · Conexión con el banco | v0.7 | Hecha: [Fase 14](#fase-14--conexión-con-el-banco-v07) | OF-1401 … OF-1404 | ✅ |
-| 15 · Informes y patrimonio | v0.8 | Patrimonio neto, flujo de caja, informes a medida y exportación v2 | OF-1501 … OF-1504 | 4 semanas |
+| 15 · Informes y patrimonio | v0.8 | En curso: [Fase 15](#fase-15--informes-y-patrimonio-v08) | OF-1501 … OF-1504 | 4 semanas |
 | 16 · Hogar ampliado | v0.9 | Más personas con roles mínimos (ADR-0002), reparto de gastos (ADR-0011), viajes y eventos | OF-1601 … OF-1603 | 5 semanas |
 | 17 · Plataforma 1.0 | v1.0 | API con tokens, servidor MCP de lectura, asistente con aprobación (ADR-0004, ADR-0005), auditoría externa de seguridad | OF-1701 … OF-1705 | 6 semanas |
 

@@ -1098,6 +1098,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/net-worth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Net Worth */
+        get: operations["get_net_worth_api_v1_net_worth_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications": {
         parameters: {
             query?: never;
@@ -1753,6 +1770,25 @@ export interface components {
          * @enum {string}
          */
         AccountType: "bank" | "cash" | "card" | "loan" | "investment";
+        /** AccountWorthOut */
+        AccountWorthOut: {
+            /**
+             * Account Id
+             * Format: uuid
+             */
+            account_id: string;
+            /** @description En la moneda de la cuenta */
+            balance: components["schemas"]["MoneyOut"];
+            /** Name */
+            name: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "bank" | "cash" | "card" | "loan" | "investment";
+            /** @description En la moneda del hogar; null si falta el tipo */
+            value: components["schemas"]["MoneyOut"] | null;
+        };
         /** ActionIn */
         ActionIn: {
             /**
@@ -3132,6 +3168,26 @@ export interface components {
             month: string;
             saved: components["schemas"]["MoneyOut"];
         };
+        /** NetWorthOut */
+        NetWorthOut: {
+            /** Accounts */
+            accounts: components["schemas"]["AccountWorthOut"][];
+            /** By Type */
+            by_type: components["schemas"]["TypeWorthOut"][];
+            /** Currency */
+            currency: string;
+            /**
+             * History
+             * @description Fines de mes y hoy, del más antiguo al nuevo
+             */
+            history: components["schemas"]["WorthPointOut"][];
+            /**
+             * Missing Rates
+             * @description Monedas sin tipo de cambio para alguna fecha
+             */
+            missing_rates: string[];
+            today: components["schemas"]["WorthPointOut"];
+        };
         /** NotificationPrefsIn */
         NotificationPrefsIn: {
             /** Kinds */
@@ -3942,6 +3998,15 @@ export interface components {
             total_spent: components["schemas"]["MoneyOut"];
             worst: components["schemas"]["MonthSavedOut"] | null;
         };
+        /** TypeWorthOut */
+        TypeWorthOut: {
+            net: components["schemas"]["MoneyOut"];
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "bank" | "cash" | "card" | "loan" | "investment";
+        };
         /** UndoImportOut */
         UndoImportOut: {
             /**
@@ -4052,6 +4117,23 @@ export interface components {
             top: components["schemas"]["WeekCategoryOut"][];
             /** Upcoming */
             upcoming: components["schemas"]["UpcomingPaymentOut"][];
+        };
+        /** WorthPointOut */
+        WorthPointOut: {
+            assets: components["schemas"]["MoneyOut"];
+            /** @description Cuánto se debe, en positivo */
+            debts: components["schemas"]["MoneyOut"];
+            /**
+             * Excluded
+             * @description Cuentas que no entran por falta de tipo de cambio
+             */
+            excluded: number;
+            net: components["schemas"]["MoneyOut"];
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
         };
     };
     responses: never;
@@ -6199,6 +6281,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MetaResponse"];
+                };
+            };
+        };
+    };
+    get_net_worth_api_v1_net_worth_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetWorthOut"];
                 };
             };
         };

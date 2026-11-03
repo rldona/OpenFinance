@@ -120,6 +120,54 @@
         "title": "AccountType",
         "type": "string"
       },
+      "AccountWorthOut": {
+        "properties": {
+          "account_id": {
+            "format": "uuid",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "balance": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "En la moneda de la cuenta"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "bank",
+              "cash",
+              "card",
+              "loan",
+              "investment"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "En la moneda del hogar; null si falta el tipo"
+          }
+        },
+        "required": [
+          "account_id",
+          "name",
+          "type",
+          "balance",
+          "value"
+        ],
+        "title": "AccountWorthOut",
+        "type": "object"
+      },
       "ActionIn": {
         "properties": {
           "type": {
@@ -3730,6 +3778,57 @@
         "title": "MonthSavedOut",
         "type": "object"
       },
+      "NetWorthOut": {
+        "properties": {
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/AccountWorthOut"
+            },
+            "title": "Accounts",
+            "type": "array"
+          },
+          "by_type": {
+            "items": {
+              "$ref": "#/components/schemas/TypeWorthOut"
+            },
+            "title": "By Type",
+            "type": "array"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "history": {
+            "description": "Fines de mes y hoy, del más antiguo al nuevo",
+            "items": {
+              "$ref": "#/components/schemas/WorthPointOut"
+            },
+            "title": "History",
+            "type": "array"
+          },
+          "missing_rates": {
+            "description": "Monedas sin tipo de cambio para alguna fecha",
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Rates",
+            "type": "array"
+          },
+          "today": {
+            "$ref": "#/components/schemas/WorthPointOut"
+          }
+        },
+        "required": [
+          "currency",
+          "today",
+          "history",
+          "accounts",
+          "by_type",
+          "missing_rates"
+        ],
+        "title": "NetWorthOut",
+        "type": "object"
+      },
       "NotificationPrefsIn": {
         "properties": {
           "kinds": {
@@ -5705,6 +5804,30 @@
         "title": "TrendsOut",
         "type": "object"
       },
+      "TypeWorthOut": {
+        "properties": {
+          "net": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "type": {
+            "enum": [
+              "bank",
+              "cash",
+              "card",
+              "loan",
+              "investment"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "net"
+        ],
+        "title": "TypeWorthOut",
+        "type": "object"
+      },
       "UndoImportOut": {
         "properties": {
           "kept_reviewed": {
@@ -5968,6 +6091,39 @@
           "open_alerts"
         ],
         "title": "WeeklySummaryOut",
+        "type": "object"
+      },
+      "WorthPointOut": {
+        "properties": {
+          "assets": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "debts": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Cuánto se debe, en positivo"
+          },
+          "excluded": {
+            "description": "Cuentas que no entran por falta de tipo de cambio",
+            "title": "Excluded",
+            "type": "integer"
+          },
+          "net": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "on",
+          "assets",
+          "debts",
+          "net",
+          "excluded"
+        ],
+        "title": "WorthPointOut",
         "type": "object"
       }
     }
@@ -8939,6 +9095,27 @@
         "summary": "Get Meta",
         "tags": [
           "meta"
+        ]
+      }
+    },
+    "/api/v1/net-worth": {
+      "get": {
+        "operationId": "get_net_worth_api_v1_net_worth_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetWorthOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Net Worth",
+        "tags": [
+          "net-worth"
         ]
       }
     },

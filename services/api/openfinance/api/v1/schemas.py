@@ -1500,3 +1500,33 @@ class BankSyncOut(BaseModel):
     created: int = Field(description="Movimientos nuevos guardados en todas las cuentas")
     links: list[BankSyncLinkOut]
     skipped_reason: str = Field(description="Por qué no se intentó, si no se hizo")
+
+
+class WorthPointOut(BaseModel):
+    on: date
+    assets: MoneyOut
+    debts: MoneyOut = Field(description="Cuánto se debe, en positivo")
+    net: MoneyOut
+    excluded: int = Field(description="Cuentas que no entran por falta de tipo de cambio")
+
+
+class AccountWorthOut(BaseModel):
+    account_id: UUID
+    name: str
+    type: Literal["bank", "cash", "card", "loan", "investment"]
+    balance: MoneyOut = Field(description="En la moneda de la cuenta")
+    value: MoneyOut | None = Field(description="En la moneda del hogar; null si falta el tipo")
+
+
+class TypeWorthOut(BaseModel):
+    type: Literal["bank", "cash", "card", "loan", "investment"]
+    net: MoneyOut
+
+
+class NetWorthOut(BaseModel):
+    currency: str
+    today: WorthPointOut
+    history: list[WorthPointOut] = Field(description="Fines de mes y hoy, del más antiguo al nuevo")
+    accounts: list[AccountWorthOut]
+    by_type: list[TypeWorthOut]
+    missing_rates: list[str] = Field(description="Monedas sin tipo de cambio para alguna fecha")
