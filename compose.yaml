@@ -54,6 +54,9 @@ services:
       OPENFINANCE_SESSION_TTL_DAYS: ${OPENFINANCE_SESSION_TTL_DAYS:-30}
       # Avisar de versiones nuevas consultando GitHub una vez al día (OF-907). Apagado por defecto.
       OPENFINANCE_UPDATE_CHECK: ${OPENFINANCE_UPDATE_CHECK:-false}
+      OPENFINANCE_VAPID_PUBLIC_KEY: ${OPENFINANCE_VAPID_PUBLIC_KEY:-}
+      OPENFINANCE_VAPID_PRIVATE_KEY: ${OPENFINANCE_VAPID_PRIVATE_KEY:-}
+      OPENFINANCE_VAPID_SUBJECT: ${OPENFINANCE_VAPID_SUBJECT:-}
       OPENFINANCE_ATTACHMENTS_DIR: /data/attachments
     <<: *hardening
     logging: *logging

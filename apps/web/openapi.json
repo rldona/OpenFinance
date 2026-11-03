@@ -3363,6 +3363,89 @@
         "title": "MonthSavedOut",
         "type": "object"
       },
+      "NotificationPrefsIn": {
+        "properties": {
+          "kinds": {
+            "items": {
+              "enum": [
+                "late_payment",
+                "low_balance",
+                "budget_over",
+                "duplicate",
+                "price_rise",
+                "fee"
+              ],
+              "type": "string"
+            },
+            "maxItems": 6,
+            "title": "Kinds",
+            "type": "array"
+          },
+          "weekly": {
+            "title": "Weekly",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kinds",
+          "weekly"
+        ],
+        "title": "NotificationPrefsIn",
+        "type": "object"
+      },
+      "NotificationsOut": {
+        "properties": {
+          "configured": {
+            "description": "Hay claves VAPID y el servidor puede enviar",
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "devices": {
+            "title": "Devices",
+            "type": "integer"
+          },
+          "kinds": {
+            "items": {
+              "enum": [
+                "late_payment",
+                "low_balance",
+                "budget_over",
+                "duplicate",
+                "price_rise",
+                "fee"
+              ],
+              "type": "string"
+            },
+            "title": "Kinds",
+            "type": "array"
+          },
+          "public_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Clave pública VAPID para suscribirse",
+            "title": "Public Key"
+          },
+          "weekly": {
+            "title": "Weekly",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "configured",
+          "public_key",
+          "devices",
+          "kinds",
+          "weekly"
+        ],
+        "title": "NotificationsOut",
+        "type": "object"
+      },
       "OccurrenceOut": {
         "properties": {
           "amount": {
@@ -3751,6 +3834,62 @@
           "changes"
         ],
         "title": "ProposedOut",
+        "type": "object"
+      },
+      "PushEndpointIn": {
+        "properties": {
+          "endpoint": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Endpoint",
+            "type": "string"
+          }
+        },
+        "required": [
+          "endpoint"
+        ],
+        "title": "PushEndpointIn",
+        "type": "object"
+      },
+      "PushKeysIn": {
+        "properties": {
+          "auth": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Auth",
+            "type": "string"
+          },
+          "p256dh": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "P256Dh",
+            "type": "string"
+          }
+        },
+        "required": [
+          "p256dh",
+          "auth"
+        ],
+        "title": "PushKeysIn",
+        "type": "object"
+      },
+      "PushSubscriptionIn": {
+        "properties": {
+          "endpoint": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Endpoint",
+            "type": "string"
+          },
+          "keys": {
+            "$ref": "#/components/schemas/PushKeysIn"
+          }
+        },
+        "required": [
+          "endpoint",
+          "keys"
+        ],
+        "title": "PushSubscriptionIn",
         "type": "object"
       },
       "RateIn": {
@@ -8028,6 +8167,136 @@
         "summary": "Get Meta",
         "tags": [
           "meta"
+        ]
+      }
+    },
+    "/api/v1/notifications": {
+      "get": {
+        "operationId": "get_notifications_api_v1_notifications_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Notifications",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/v1/notifications/preferences": {
+      "put": {
+        "operationId": "save_preferences_api_v1_notifications_preferences_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationPrefsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Preferences",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/v1/notifications/subscriptions": {
+      "post": {
+        "operationId": "subscribe_api_v1_notifications_subscriptions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushSubscriptionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Subscribe",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/v1/notifications/subscriptions/remove": {
+      "post": {
+        "operationId": "unsubscribe_api_v1_notifications_subscriptions_remove_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushEndpointIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unsubscribe",
+        "tags": [
+          "notifications"
         ]
       }
     },

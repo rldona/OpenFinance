@@ -2590,3 +2590,81 @@ describe('Pagos programados', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Ya hay un pago con ese nombre')
   })
 })
+
+describe('Notificaciones push (OF-1302)', () => {
+  const NOTIFICATIONS = {
+    configured: true,
+    public_key: 'BPublicKey',
+    devices: 0,
+    kinds: ['low_balance', 'late_payment', 'budget_over', 'duplicate', 'price_rise', 'fee'],
+    weekly: true,
+  }
+  const base = (notifications: object) => ({
+    'GET /api/v1/version': { body: { current: '0.2.0', enabled: false, latest: null, url: null, update_available: false } },
+    'GET /api/v1/csv-profiles': { body: [] },
+    'GET /api/v1/rates': { body: [] },
+    'GET /api/v1/sessions': { body: [] },
+    'GET /api/v1/notifications': { body: notifications },
+  })
+
+  function supportPush() {
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: { ready: Promise.resolve({ pushManager: { getSubscription: async () => null } }) },
+    })
+    vi.stubGlobal('PushManager', class {})
+    vi.stubGlobal('Notification', class {})
+    Object.defineProperty(window, 'isSecureContext', { configurable: true, value: true })
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    Reflect.deleteProperty(navigator, 'serviceWorker')
+  })
+
+  it('sin claves VAPID Ajustes lo dice y no ofrece activar nada', async () => {
+    window.location.hash = '#ajustes'
+    loggedIn(base({ ...NOTIFICATIONS, configured: false, public_key: null }))
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Notificaciones' })
+    expect(card).toHaveTextContent('faltan las claves VAPID')
+    expect(within(card).queryByRole('button')).toBeNull()
+  })
+
+  it('si el navegador no admite push, explica qué hace falta', async () => {
+    window.location.hash = '#ajustes'
+    loggedIn(base(NOTIFICATIONS))
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Notificaciones' })
+    expect(card).toHaveTextContent('iOS 16.4')
+  })
+
+  it('guarda qué avisos se quieren recibir', async () => {
+    supportPush()
+    window.location.hash = '#ajustes'
+    const calls = loggedIn({
+      ...base(NOTIFICATIONS),
+      'PUT /api/v1/notifications/preferences': {
+        body: { ...NOTIFICATIONS, kinds: ['low_balance', 'late_payment', 'budget_over', 'duplicate', 'price_rise'] },
+      },
+    })
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Notificaciones' })
+    expect(within(card).getByRole('button', { name: 'Activar en este dispositivo' })).toBeEnabled()
+    await userEvent.click(within(card).getByRole('checkbox', { name: 'Comisiones' }))
+    await waitFor(() => expect(within(card).getByRole('checkbox', { name: 'Comisiones' })).not.toBeChecked())
+    const put = calls.find((c) => c.method === 'PUT' && c.url.pathname === '/api/v1/notifications/preferences')
+    expect(JSON.parse(String(put?.body)).kinds).not.toContain('fee')
+  })
+
+  it('sin permiso del navegador no se suscribe nada', async () => {
+    supportPush()
+    vi.stubGlobal('Notification', Object.assign(class {}, { requestPermission: async () => 'denied' }))
+    window.location.hash = '#ajustes'
+    const calls = loggedIn(base(NOTIFICATIONS))
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Activar en este dispositivo' }))
+    expect(await screen.findByText('Sin permiso del navegador no se pueden enviar avisos')).toBeInTheDocument()
+    expect(calls.some((c) => c.url.pathname === '/api/v1/notifications/subscriptions')).toBe(false)
+  })
+})

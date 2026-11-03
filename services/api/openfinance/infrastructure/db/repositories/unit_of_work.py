@@ -30,6 +30,7 @@ from openfinance.infrastructure.db.repositories.ledger import (
 )
 from openfinance.infrastructure.db.repositories.links import SqlLinkRepository
 from openfinance.infrastructure.db.repositories.merchants import SqlMerchantRepository
+from openfinance.infrastructure.db.repositories.notifications import SqlNotificationRepository
 from openfinance.infrastructure.db.repositories.rates import SqlRateRepository
 from openfinance.infrastructure.db.repositories.reconciliations import (
     SqlReconciliationRepository,
@@ -71,6 +72,7 @@ class SqlUnitOfWork:
         self.schedule = SqlScheduleRepository(session)
         self.templates = SqlTemplateRepository(session)
         self.alerts = SqlAlertRepository(session)
+        self.notifications = SqlNotificationRepository(session)
         self.member_patterns = SqlMemberPatternRepository(session)
         self.changes = SqlChangeRepository(session)
 

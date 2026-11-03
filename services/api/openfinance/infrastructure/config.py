@@ -33,6 +33,11 @@ class Settings(BaseSettings):
     update_check: bool = False
     """Avisar de versiones nuevas consultando GitHub (OF-907). Apagado por defecto."""
     update_repo: str = "rldona/OpenFinance"
+    vapid_public_key: str = ""
+    """Claves VAPID (Web Push, OF-1302). Sin las tres, las notificaciones están apagadas."""
+    vapid_private_key: str = ""
+    vapid_subject: str = ""
+    """Contacto de quien envía, ``mailto:`` o https (lo exige el estándar)."""
 
     @model_validator(mode="after")
     def _check(self) -> "Settings":
@@ -45,6 +50,10 @@ class Settings(BaseSettings):
         if "*" in self.cors_origins:
             raise ValueError("OPENFINANCE_CORS_ORIGINS no admite '*' con cookies de sesión")
         return self
+
+    @property
+    def push_enabled(self) -> bool:
+        return bool(self.vapid_public_key and self.vapid_private_key and self.vapid_subject)
 
     @property
     def cookie_secure(self) -> bool:

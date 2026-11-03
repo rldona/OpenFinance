@@ -1327,3 +1327,34 @@ class AllowanceOut(BaseModel):
             next_income=item(a.next_income) if a.next_income else None,
             envelopes=envelopes,
         )
+
+
+class NotificationPrefsIn(BaseModel):
+    kinds: list[
+        Literal["late_payment", "low_balance", "budget_over", "duplicate", "price_rise", "fee"]
+    ] = Field(max_length=6)
+    weekly: bool
+
+
+class NotificationsOut(BaseModel):
+    configured: bool = Field(description="Hay claves VAPID y el servidor puede enviar")
+    public_key: str | None = Field(description="Clave pública VAPID para suscribirse")
+    devices: int
+    kinds: list[
+        Literal["late_payment", "low_balance", "budget_over", "duplicate", "price_rise", "fee"]
+    ]
+    weekly: bool
+
+
+class PushKeysIn(BaseModel):
+    p256dh: str = Field(min_length=1, max_length=200)
+    auth: str = Field(min_length=1, max_length=100)
+
+
+class PushSubscriptionIn(BaseModel):
+    endpoint: str = Field(min_length=1, max_length=500)
+    keys: PushKeysIn
+
+
+class PushEndpointIn(BaseModel):
+    endpoint: str = Field(min_length=1, max_length=500)

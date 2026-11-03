@@ -14,6 +14,7 @@ from openfinance.api.v1 import (
     ledger,
     merchants,
     meta,
+    notifications,
     rates,
     savings,
     schedule,
@@ -37,6 +38,7 @@ router.include_router(savings.router)
 router.include_router(schedule.router)
 router.include_router(templates.router)
 router.include_router(alerts.router)
+router.include_router(notifications.router)
 router.include_router(export.router)
 router.include_router(changes.router)
 router.include_router(settings.router)

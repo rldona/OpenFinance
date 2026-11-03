@@ -497,7 +497,7 @@ Alcance en [ADR-0023](../adr/0023-avisos-y-notificaciones.md), aceptado el 3 de 
 | ID | Ticket | Criterio de hecho |
 | --- | --- | --- |
 | OF-1301 ✅ | Motor de avisos y bandeja | Duplicados, comisiones, recibos que suben, pagos atrasados, saldo negativo previsto y presupuesto superado, cada uno con su test; descartar es por persona; una cuenta personal ajena no genera, muestra ni deja descartar avisos |
-| OF-1302 | Notificaciones Web Push y preferencias | Suscripción por dispositivo y tipos de aviso por persona; `openfinance alerts notify` es idempotente; el texto no lleva importes ni comercios; sin claves VAPID está apagado y lo dice |
+| OF-1302 ✅ | Notificaciones Web Push y preferencias | Suscripción por dispositivo y tipos de aviso por persona; `openfinance alerts notify` es idempotente; el texto no lleva importes ni comercios; sin claves VAPID está apagado y lo dice |
 | OF-1303 | Resumen semanal | Gasto de la semana frente a la anterior, categorías que más pesan, pagos de los próximos 7 días y avisos abiertos; una vez por semana y persona; se puede apagar |
 
 ---

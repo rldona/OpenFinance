@@ -8,6 +8,9 @@ de cada persona, y ``openfinance statement-check`` comprueba un extracto sin bas
 mostrando solo recuentos. ``openfinance sessions revoke-all`` cierra todas las sesiones (se
 usa tras restaurar una copia).
 
+``openfinance alerts notify`` envía los avisos nuevos por Web Push (se programa con cron) y
+``openfinance alerts keys`` genera las claves VAPID.
+
 ``openfinance users set-password`` cambia la contraseña de alguien (y cierra sus sesiones) y
 ``openfinance accounts add`` añade una hucha o una cuenta al hogar ya creado.
 """
@@ -179,6 +182,39 @@ def _imports(_: argparse.Namespace) -> int:
         else f"{purged} vistas previas caducadas purgadas"
     )
     return 0
+
+
+def _alerts(args: argparse.Namespace) -> int:
+    if args.action == "keys":
+        from openfinance.infrastructure.push import generate_vapid_keys
+
+        public, private = generate_vapid_keys()
+        print("Añade esto al .env del servidor y reinícialo (la privada es un secreto):")
+        print(f"OPENFINANCE_VAPID_PUBLIC_KEY={public}")
+        print(f"OPENFINANCE_VAPID_PRIVATE_KEY={private}")
+        print("OPENFINANCE_VAPID_SUBJECT=mailto:tu-correo@ejemplo.org")
+        return 0
+
+    from openfinance.application.notifications import send_pending
+    from openfinance.infrastructure.config import get_settings
+    from openfinance.infrastructure.push import WebPushSender
+    from openfinance.infrastructure.time import local_today
+
+    sender = WebPushSender(get_settings())
+    if not sender.enabled:
+        print(
+            "Las notificaciones están apagadas: faltan las claves VAPID. "
+            "Créalas con `openfinance alerts keys`.",
+            file=sys.stderr,
+        )
+        return 1
+    with get_session_factory()() as session:
+        report = send_pending(SqlUnitOfWork(session), sender, local_today(), utc_now())
+    print(
+        f"{report.people} personas con avisos nuevos · {report.sent} notificaciones enviadas · "
+        f"{report.removed} dispositivos dados de baja · {report.failed} fallos"
+    )
+    return 1 if report.failed else 0
 
 
 def _sessions(_: argparse.Namespace) -> int:
@@ -358,6 +394,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     listing.add_argument("email", help="Email de alguien del hogar")
     listing.set_defaults(outflow=False)
     patterns.set_defaults(func=_member_patterns)
+
+    alerts = sub.add_parser("alerts", help="Avisos y notificaciones push")
+    alert_actions = alerts.add_subparsers(dest="action", required=True)
+    alert_actions.add_parser(
+        "notify",
+        help="Enviar los avisos nuevos a los móviles suscritos (para cron; no repite nada)",
+    )
+    alert_actions.add_parser("keys", help="Generar las claves VAPID de Web Push")
+    alerts.set_defaults(func=_alerts)
 
     sessions = sub.add_parser("sessions", help="Sesiones abiertas")
     session_actions = sessions.add_subparsers(dest="action", required=True)
