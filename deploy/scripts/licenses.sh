@@ -15,7 +15,7 @@ npm_checker="license-checker-rseidelsohn@5.0.1"
 
 # Compatibles con AGPL-3.0 (ver docs/legal/dependencias.md). Coincidencia parcial en Python:
 # «MIT» cubre «MIT License» y «MIT-0»; «BSD» cubre «BSD-3-Clause»; «Apache» cubre «Apache-2.0».
-python_allowed="MIT;BSD;Apache;ISC;Python Software Foundation;PSF-2.0;Unlicense;LGPL-3.0"
+python_allowed="MIT;BSD;Apache;ISC;Python Software Foundation;PSF-2.0;Unlicense;LGPL-3.0;MPL-2.0;Mozilla Public License 2.0"
 npm_allowed="MIT;MIT-0;ISC;BSD-2-Clause;BSD-3-Clause;Apache-2.0;0BSD;CC0-1.0;BlueOak-1.0.0;MPL-2.0"
 
 # Dependencias de runtime según uv.lock (sin el grupo dev ni el propio proyecto).
