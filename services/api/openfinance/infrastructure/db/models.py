@@ -21,6 +21,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy import false as sa_false
+from sqlalchemy import true as sa_true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from openfinance.infrastructure.db.base import Base
@@ -295,6 +296,42 @@ class ExchangeRateRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class AutomationRuleRow(Base):
+    """Regla con condiciones, acciones y fase (OF-1101). Condiciones y acciones son JSON."""
+
+    __tablename__ = "automation_rules"
+    __table_args__ = (
+        CheckConstraint("phase IN ('before', 'normal', 'after')", name="phase_valid"),
+        Index("ix_automation_rules_household", "household_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    scope: Mapped[str] = mapped_column(String(36), default="", server_default="")
+    name: Mapped[str] = mapped_column(String(80))
+    phase: Mapped[str] = mapped_column(String(10))
+    priority: Mapped[int] = mapped_column(Integer)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default=sa_true())
+    conditions: Mapped[str] = mapped_column(Text)
+    actions: Mapped[str] = mapped_column(Text)
+    created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CsvProfileRow(Base):
+    """Perfil de CSV del hogar (OF-1105). La configuración es JSON."""
+
+    __tablename__ = "csv_profiles"
+    __table_args__ = (Index("ix_csv_profiles_household", "household_id"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    name: Mapped[str] = mapped_column(String(80))
+    config: Mapped[str] = mapped_column(Text)
+    created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class MerchantRow(Base):
     """Comercio con nombre propio (OF-1001). Los que nadie ha tocado no tienen fila."""
 
@@ -390,6 +427,9 @@ class ImportBatchRow(Base):
     created_count: Mapped[int] = mapped_column(Integer, default=0)
     duplicate_count: Mapped[int] = mapped_column(Integer, default=0)
     skipped_count: Mapped[int] = mapped_column(Integer, default=0)
+    profile_id: Mapped[UUID | None] = mapped_column()
+    """Perfil de CSV con que se leyó el archivo (OF-1105); sin clave ajena: borrar un perfil no
+    debe borrar el historial."""
 
 
 class MemberPatternRow(Base):
@@ -452,7 +492,7 @@ class ChangeEntryRow(Base):
         Index("ix_change_entries_entity", "entity", "entity_id"),
         CheckConstraint(
             "entity IN ('transaction', 'rule', 'import', 'merchant', 'tag', 'split', 'link', "
-            "'account', 'attachment', 'reconciliation', 'rate')",
+            "'account', 'attachment', 'reconciliation', 'rate', 'automation', 'csv_profile')",
             name="entity_valid",
         ),
     )

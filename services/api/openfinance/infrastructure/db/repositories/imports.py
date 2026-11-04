@@ -39,6 +39,7 @@ def _batch(row: ImportBatchRow) -> ImportBatch:
         created_count=row.created_count,
         duplicate_count=row.duplicate_count,
         skipped_count=row.skipped_count,
+        profile_id=row.profile_id,
     )
 
 
@@ -57,6 +58,7 @@ class SqlImportBatchRepository:
                 status=batch.status.value,
                 created_by=batch.created_by,
                 created_at=batch.created_at,
+                profile_id=batch.profile_id,
             )
         )
         self._s.flush()

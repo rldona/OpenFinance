@@ -6,14 +6,17 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime
 from uuid import UUID, uuid4
 
+from openfinance.application.automation import rules_for_account as automation_rules_for_account
 from openfinance.application.categories import rules_for_account
 from openfinance.application.changes import record
 from openfinance.application.errors import ConflictError, InvalidRequestError, NotFoundError
 from openfinance.application.ledger import balance_of, visible_accounts
 from openfinance.application.member_patterns import members_without_recharge
 from openfinance.application.ports import StatementParsers, UnitOfWork
+from openfinance.domain.automation import GENERIC_KINDS, Fixed, RowView, decide
 from openfinance.domain.categories import CategoryId, best_rule, merchant_key
 from openfinance.domain.changes import Change, Entity
+from openfinance.domain.csv_profile import CsvProfile
 from openfinance.domain.identity import User
 from openfinance.domain.imports import (
     BalanceMismatch,
@@ -59,7 +62,20 @@ class PreviewRow:
     duplicate: bool
     member_id: UserId | None
     category_id: CategoryId | None = None
-    """Categoría propuesta por una regla aprendida."""
+    """Categoría propuesta por una regla (explícita o aprendida)."""
+    kind_override: TransactionKind | None = None
+    """Tipo que una regla corrige (solo gasto ↔ ingreso, OF-1101)."""
+    tags: tuple[str, ...] = ()
+    note: str = ""
+    merchant: str | None = None
+
+    @property
+    def kind(self) -> TransactionKind:
+        """El tipo con que se guardará: el de una regla o el sugerido por el lector."""
+        kind = self.kind_override or self.row.suggested_kind
+        if kind is TransactionKind.CONTRIBUTION and self.member_id is None:
+            return TransactionKind.INCOME
+        return kind
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,6 +137,7 @@ def classification_rules(
         return ClassificationRules(
             savings_patterns=DEFAULT_SAVINGS_PATTERNS,
             outflow_member_patterns={str(owner): [*defaults, *outflow]},
+            currency=account.currency.code,
         )
     inflow: dict[str, list[str]] = {}
     for m in members:
@@ -132,7 +149,11 @@ def classification_rules(
             p.pattern for p in known if p.direction is PatternDirection.INFLOW and p.user_id == m.id
         ]
         inflow[str(m.id)] = candidates
-    return ClassificationRules(member_patterns=inflow, savings_patterns=DEFAULT_SAVINGS_PATTERNS)
+    return ClassificationRules(
+        member_patterns=inflow,
+        savings_patterns=DEFAULT_SAVINGS_PATTERNS,
+        currency=account.currency.code,
+    )
 
 
 def _account(uow: UnitOfWork, actor: Actor, account_id: UUID) -> Account:
@@ -143,9 +164,14 @@ def _account(uow: UnitOfWork, actor: Actor, account_id: UUID) -> Account:
 
 
 def _parse(
-    uow: UnitOfWork, parsers: StatementParsers, actor: Actor, account: Account, content: bytes
+    uow: UnitOfWork,
+    parsers: StatementParsers,
+    actor: Actor,
+    account: Account,
+    content: bytes,
+    profile: CsvProfile | None = None,
 ) -> ParseResult:
-    parser = parsers.get(account.institution)
+    parser = parsers.csv(profile) if profile is not None else parsers.get(account.institution)
     if parser is None:
         raise InvalidRequestError(
             f"Todavía no se pueden importar extractos de {account.institution.value}"
@@ -181,16 +207,48 @@ def _preview_rows(
         actor.household_id, account.id, [r.fingerprint for r in result.rows]
     )
     rules = rules_for_account(uow, account)
+    explicit = automation_rules_for_account(uow, actor.household_id, account)
     hidden = {c.id for c in uow.categories.for_household(actor.household_id) if c.hidden}
     rows = []
     for r in result.rows:
-        category = None
+        learned = None
         if r.suggested_kind is TransactionKind.EXPENSE:
             rule = best_rule(rules, merchant_key(r.description))
             if rule is not None and rule.category_id not in hidden:
-                category = rule.category_id
+                learned = rule.category_id
         member = UserId(UUID(r.member)) if r.member else None
-        rows.append(PreviewRow(r, r.fingerprint in existing, member, category))
+        decision = decide(
+            explicit,
+            RowView(
+                description=r.description,
+                merchant=merchant_key(r.description),
+                amount=r.amount,
+                kind=r.suggested_kind,
+                account_id=str(account.id),
+                bank_type=r.bank_type,
+            ),
+            Fixed(
+                category=r.suggested_kind is not TransactionKind.EXPENSE,
+                kind=r.suggested_kind not in GENERIC_KINDS,
+            ),
+            learned,
+        )
+        kind = decision.kind or r.suggested_kind
+        category = decision.category_id if kind is TransactionKind.EXPENSE else None
+        if category in hidden:
+            category = None
+        rows.append(
+            PreviewRow(
+                r,
+                r.fingerprint in existing,
+                member,
+                category,
+                decision.kind,
+                decision.tags,
+                decision.note or "",
+                decision.merchant,
+            )
+        )
     return rows
 
 
@@ -225,13 +283,19 @@ def preview_import(
     filename: str,
     content: bytes,
     now: datetime,
+    profile_id: UUID | None = None,
 ) -> ImportPreview:
     if not content:
         raise InvalidRequestError("El archivo está vacío")
     if len(content) > MAX_FILE_BYTES:
         raise InvalidRequestError("El archivo es demasiado grande (máximo 5 MB)")
     account = _account(uow, actor, account_id)
-    result = _parse(uow, parsers, actor, account, content)
+    profile = None
+    if profile_id is not None:
+        profile = uow.csv_profiles.get(actor.household_id, profile_id)
+        if profile is None:
+            raise NotFoundError("Perfil de CSV no encontrado")
+    result = _parse(uow, parsers, actor, account, content, profile)
     batch = ImportBatch(
         id=uuid4(),
         household_id=actor.household_id,
@@ -239,6 +303,7 @@ def preview_import(
         filename=safe_filename(filename),
         created_by=actor.user_id,
         created_at=now,
+        profile_id=profile_id,
     )
     uow.imports.purge_expired_content(now)
     uow.imports.add(batch, content)
@@ -273,7 +338,12 @@ def commit_import(
 
     # Se vuelve a leer el archivo con las reglas actuales; el resultado coincide con la vista
     # previa salvo que entre medias cambien los miembros del hogar o sus patrones.
-    result = _parse(uow, parsers, actor, account, content)
+    profile = None
+    if batch.profile_id is not None:
+        profile = uow.csv_profiles.get(actor.household_id, batch.profile_id)
+        if profile is None:
+            raise ConflictError("El perfil de CSV de esta importación ya no existe")
+    result = _parse(uow, parsers, actor, account, content, profile)
     rows = _preview_rows(uow, actor, account, result)
     # Lo de una importación deshecha vuelve con su identificador y sus correcciones en lugar
     # de duplicarse (ADR-0017): deshacer y volver a importar da el mismo resultado.
@@ -282,6 +352,7 @@ def commit_import(
     )
     created = 0
     new: list[Transaction] = []
+    tagged: dict[TransactionId, tuple[str, ...]] = {}
     for r in rows:
         if r.duplicate:
             continue
@@ -291,10 +362,8 @@ def commit_import(
             uow.transactions.save(replace(previous, voided=False, import_id=batch.id))
             created += 1
             continue
-        kind = row.suggested_kind
+        kind = r.kind
         member = r.member_id
-        if kind is TransactionKind.CONTRIBUTION and member is None:
-            kind = TransactionKind.INCOME
         try:
             transaction = Transaction(
                 id=TransactionId(uuid4()),
@@ -308,6 +377,8 @@ def commit_import(
                 member_id=member if kind is TransactionKind.CONTRIBUTION else None,
                 category_id=r.category_id if kind is TransactionKind.EXPENSE else None,
                 bank_type=row.bank_type,
+                note=r.note,
+                merchant=r.merchant or "",
                 source=f"import:{batch.filename}"[:MAX_SOURCE],
                 fingerprint=row.fingerprint,
                 import_id=batch.id,
@@ -319,8 +390,12 @@ def commit_import(
                 f"La fila {row.line} del extracto no se puede guardar: {exc}"
             ) from exc
         new.append(transaction)
+        if r.tags:
+            tagged[transaction.id] = r.tags
         created += 1
     uow.transactions.add_many(new)  # un solo flush para todo el extracto (OF-905)
+    for transaction_id, tags in tagged.items():
+        uow.tags.set(actor.household_id, transaction_id, tags)
     done = batch.committed(now, created, len(rows) - created, len(result.skipped))
     uow.imports.save_committed(done)
     uow.commit()

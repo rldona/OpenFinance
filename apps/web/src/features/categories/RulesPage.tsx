@@ -1,6 +1,7 @@
 import { ApiError, api, type RuleView } from '../../api/client'
 import { useHousehold } from '../../app/household-context'
 import { ErrorState, Loading } from '../../components/LoadState'
+import { AutomationRules } from './AutomationRules'
 import { notifyUndoable } from '../../lib/undo'
 import { useLoad } from '../../lib/useLoad'
 
@@ -77,6 +78,7 @@ export function RulesPage() {
           </table>
         </div>
       )}
+      <AutomationRules />
     </section>
   )
 }

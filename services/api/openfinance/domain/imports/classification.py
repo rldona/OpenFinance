@@ -69,6 +69,8 @@ class ClassificationRules:
     internal_patterns: Sequence[str] = ()
     outflow_member_patterns: Mapping[str, Sequence[str]] = field(default_factory=dict)
     """Persona → patrones de salidas de su cuenta que son su aportación al hogar."""
+    currency: str = "EUR"
+    """Moneda de la cuenta: los formatos que no la traen (QIF, CSV) usan esta (OF-1103)."""
 
 
 def _contains_word(text: str, pattern: str) -> bool:

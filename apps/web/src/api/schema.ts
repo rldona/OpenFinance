@@ -112,6 +112,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/automation-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Rules
+         * @description Las reglas del hogar y las tuyas, en el orden en que se evalúan.
+         */
+        get: operations["list_rules_api_v1_automation_rules_get"];
+        put?: never;
+        /** Create Rule */
+        post: operations["create_rule_api_v1_automation_rules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automation-rules/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Draft
+         * @description Prueba una regla sin guardarla: qué movimientos cambiaría. No escribe nada.
+         */
+        post: operations["preview_draft_api_v1_automation_rules_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automation-rules/{rule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Rule */
+        put: operations["update_rule_api_v1_automation_rules__rule_id__put"];
+        post?: never;
+        /** Delete Rule */
+        delete: operations["delete_rule_api_v1_automation_rules__rule_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automation-rules/{rule_id}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply Rule
+         * @description Aplica la regla a lo que ya hay, en una sola operación que se deshace de una vez.
+         */
+        post: operations["apply_rule_api_v1_automation_rules__rule_id__apply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automation-rules/{rule_id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview Saved */
+        post: operations["preview_saved_api_v1_automation_rules__rule_id__preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/budgets": {
         parameters: {
             query?: never;
@@ -240,6 +336,82 @@ export interface paths {
          */
         post: operations["undo_api_v1_changes__operation_id__undo_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/csv-profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Profiles */
+        get: operations["list_profiles_api_v1_csv_profiles_get"];
+        put?: never;
+        /** Create Profile */
+        post: operations["create_profile_api_v1_csv_profiles_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/csv-profiles/sample": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sample
+         * @description Las primeras filas del archivo y un separador y una codificación propuestos. No guarda.
+         */
+        post: operations["sample_api_v1_csv_profiles_sample_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/csv-profiles/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Profile
+         * @description Lee el archivo con un perfil (sin guardarlo) y enseña las primeras filas. No guarda.
+         */
+        post: operations["test_profile_api_v1_csv_profiles_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/csv-profiles/{profile_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Profile */
+        put: operations["update_profile_api_v1_csv_profiles__profile_id__put"];
+        post?: never;
+        /** Delete Profile */
+        delete: operations["delete_profile_api_v1_csv_profiles__profile_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1126,6 +1298,16 @@ export interface components {
          * @enum {string}
          */
         AccountType: "bank" | "cash" | "card" | "loan" | "investment";
+        /** ActionIn */
+        ActionIn: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "set_category" | "set_kind" | "add_tags" | "set_note" | "set_merchant";
+            /** Value */
+            value: string | string[];
+        };
         /** AttachmentAddedOut */
         AttachmentAddedOut: {
             attachment: components["schemas"]["AttachmentOut"];
@@ -1161,6 +1343,60 @@ export interface components {
              */
             transaction_id: string;
         };
+        /** AutomationRuleChangeOut */
+        AutomationRuleChangeOut: {
+            /** Operation Id */
+            operation_id: string | null;
+            rule: components["schemas"]["AutomationRuleOut"];
+        };
+        /** AutomationRuleIn */
+        AutomationRuleIn: {
+            /** Actions */
+            actions: components["schemas"]["ActionIn"][];
+            /** Conditions */
+            conditions: components["schemas"]["ConditionIn"][];
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /** Name */
+            name: string;
+            /**
+             * Personal
+             * @description Solo tuya (si no, de todo el hogar)
+             * @default false
+             */
+            personal: boolean;
+            /** @default normal */
+            phase: components["schemas"]["Phase"];
+            /**
+             * Priority
+             * @description Menor = antes
+             */
+            priority?: number | null;
+        };
+        /** AutomationRuleOut */
+        AutomationRuleOut: {
+            /** Actions */
+            actions: components["schemas"]["ActionIn"][];
+            /** Conditions */
+            conditions: components["schemas"]["ConditionIn"][];
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Personal */
+            personal: boolean;
+            phase: components["schemas"]["Phase"];
+            /** Priority */
+            priority: number;
+        };
         /** BalanceMismatchOut */
         BalanceMismatchOut: {
             expected: components["schemas"]["MoneyOut"];
@@ -1185,9 +1421,35 @@ export interface components {
             account_id: string;
             /**
              * File
-             * @description Extracto del banco (CSV o XLSX)
+             * @description Extracto del banco (CSV, XLSX, OFX, QIF…)
              */
             file: string;
+            /**
+             * Profile Id
+             * @description Perfil de CSV con que leer el archivo (OF-1105)
+             */
+            profile_id?: string | null;
+        };
+        /** Body_sample_api_v1_csv_profiles_sample_post */
+        Body_sample_api_v1_csv_profiles_sample_post: {
+            /**
+             * File
+             * @description El CSV del banco
+             */
+            file: string;
+        };
+        /** Body_test_profile_api_v1_csv_profiles_test_post */
+        Body_test_profile_api_v1_csv_profiles_test_post: {
+            /**
+             * File
+             * @description El CSV del banco
+             */
+            file: string;
+            /**
+             * Profile
+             * @description El perfil a probar, en JSON
+             */
+            profile: string;
         };
         /** BudgetIn */
         BudgetIn: {
@@ -1368,10 +1630,195 @@ export interface components {
             /** Field */
             field: string;
         };
+        /** ConditionIn */
+        ConditionIn: {
+            /**
+             * Field
+             * @enum {string}
+             */
+            field: "description" | "merchant" | "amount" | "direction" | "account" | "bank_type";
+            /**
+             * Op
+             * @description contains, starts_with, equals, between, is, in
+             * @default equals
+             */
+            op: string;
+            /** Value */
+            value: string | string[];
+        };
         /** CountOut */
         CountOut: {
             /** Count */
             count: number;
+        };
+        /** CsvProfileChangeOut */
+        CsvProfileChangeOut: {
+            /** Operation Id */
+            operation_id: string | null;
+            profile: components["schemas"]["CsvProfileOut"];
+        };
+        /** CsvProfileIn */
+        CsvProfileIn: {
+            /** Amount Column */
+            amount_column?: number | null;
+            /**
+             * Amount Mode
+             * @default single
+             * @enum {string}
+             */
+            amount_mode: "single" | "debit_credit";
+            /** Balance Column */
+            balance_column?: number | null;
+            /** Credit Column */
+            credit_column?: number | null;
+            /** Date Column */
+            date_column: number;
+            /** Date Format */
+            date_format: string;
+            /** Debit Column */
+            debit_column?: number | null;
+            /**
+             * Decimal Separator
+             * @default ,
+             * @enum {string}
+             */
+            decimal_separator: "," | ".";
+            /**
+             * Delimiter
+             * @description Coma, punto y coma, tabulador o barra vertical
+             * @default ,
+             */
+            delimiter: string;
+            /** Description Columns */
+            description_columns: number[];
+            /**
+             * Encoding
+             * @description utf-8, cp1252 o latin-1
+             * @default utf-8
+             */
+            encoding: string;
+            /**
+             * Has Header
+             * @default true
+             */
+            has_header: boolean;
+            /**
+             * Invert Sign
+             * @default false
+             */
+            invert_sign: boolean;
+            /** Name */
+            name: string;
+            /**
+             * Skip Rows
+             * @description Líneas antes de la cabecera
+             * @default 0
+             */
+            skip_rows: number;
+        };
+        /** CsvProfileOut */
+        CsvProfileOut: {
+            /** Amount Column */
+            amount_column?: number | null;
+            /**
+             * Amount Mode
+             * @default single
+             * @enum {string}
+             */
+            amount_mode: "single" | "debit_credit";
+            /** Balance Column */
+            balance_column?: number | null;
+            /** Credit Column */
+            credit_column?: number | null;
+            /** Date Column */
+            date_column: number;
+            /** Date Format */
+            date_format: string;
+            /** Debit Column */
+            debit_column?: number | null;
+            /**
+             * Decimal Separator
+             * @default ,
+             * @enum {string}
+             */
+            decimal_separator: "," | ".";
+            /**
+             * Delimiter
+             * @description Coma, punto y coma, tabulador o barra vertical
+             * @default ,
+             */
+            delimiter: string;
+            /** Description Columns */
+            description_columns: number[];
+            /**
+             * Encoding
+             * @description utf-8, cp1252 o latin-1
+             * @default utf-8
+             */
+            encoding: string;
+            /**
+             * Has Header
+             * @default true
+             */
+            has_header: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Invert Sign
+             * @default false
+             */
+            invert_sign: boolean;
+            /** Name */
+            name: string;
+            /**
+             * Skip Rows
+             * @description Líneas antes de la cabecera
+             * @default 0
+             */
+            skip_rows: number;
+        };
+        /** CsvSampleOut */
+        CsvSampleOut: {
+            /** Delimiter */
+            delimiter: string;
+            /** Encoding */
+            encoding: string;
+            /**
+             * Rows
+             * @description Las primeras filas, tal cual, para elegir columnas
+             */
+            rows: string[][];
+        };
+        /** CsvTestOut */
+        CsvTestOut: {
+            /** Rows */
+            rows: components["schemas"]["CsvTestRowOut"][];
+            /** Skipped */
+            skipped: components["schemas"]["SkippedRowOut"][];
+            /** Skipped Total */
+            skipped_total: number;
+            /**
+             * Total
+             * @description Filas que se leen bien en todo el archivo
+             */
+            total: number;
+        };
+        /** CsvTestRowOut */
+        CsvTestRowOut: {
+            amount: components["schemas"]["MoneyOut"];
+            balance: components["schemas"]["MoneyOut"] | null;
+            /**
+             * Booked At
+             * Format: date-time
+             */
+            booked_at: string;
+            /** Description */
+            description: string;
+            /** Line */
+            line: number;
         };
         /** GoalIn */
         GoalIn: {
@@ -1934,6 +2381,11 @@ export interface components {
             /** Merchant */
             merchant: string;
         };
+        /**
+         * Phase
+         * @enum {string}
+         */
+        Phase: "before" | "normal" | "after";
         /** PreviewRowOut */
         PreviewRowOut: {
             amount: components["schemas"]["MoneyOut"];
@@ -1944,7 +2396,7 @@ export interface components {
             booked_at: string;
             /**
              * Category Id
-             * @description Categoría propuesta por una regla aprendida
+             * @description Categoría propuesta por una regla
              */
             category_id: string | null;
             /** Description */
@@ -1956,6 +2408,11 @@ export interface components {
             line: number;
             /** Member Id */
             member_id: string | null;
+            /**
+             * Tags
+             * @description Etiquetas que pondrán las reglas
+             */
+            tags: string[];
         };
         /** PriceChangeOut */
         PriceChangeOut: {
@@ -1963,6 +2420,21 @@ export interface components {
             before: components["schemas"]["MoneyOut"];
             /** Month */
             month: string;
+        };
+        /** ProposedChangeOut */
+        ProposedChangeOut: {
+            /** After */
+            after: string | boolean | null;
+            /** Before */
+            before: string | boolean | null;
+            /** Field */
+            field: string;
+        };
+        /** ProposedOut */
+        ProposedOut: {
+            /** Changes */
+            changes: components["schemas"]["ProposedChangeOut"][];
+            transaction: components["schemas"]["TransactionOut"];
         };
         /** RateIn */
         RateIn: {
@@ -2112,6 +2584,13 @@ export interface components {
              */
             revoked: number;
         };
+        /** RuleApplyOut */
+        RuleApplyOut: {
+            /** Changed */
+            changed: number;
+            /** Operation Id */
+            operation_id: string | null;
+        };
         /** RuleOut */
         RuleOut: {
             /**
@@ -2121,6 +2600,19 @@ export interface components {
             category_id: string;
             /** Merchant */
             merchant: string;
+        };
+        /** RulePreviewOut */
+        RulePreviewOut: {
+            /**
+             * Count
+             * @description Movimientos que cambiaría, de los que ves
+             */
+            count: number;
+            /**
+             * Items
+             * @description Los primeros 100
+             */
+            items: components["schemas"]["ProposedOut"][];
         };
         /** RuleViewOut */
         RuleViewOut: {
@@ -2682,6 +3174,220 @@ export interface operations {
             };
         };
     };
+    list_rules_api_v1_automation_rules_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationRuleOut"][];
+                };
+            };
+        };
+    };
+    create_rule_api_v1_automation_rules_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationRuleIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationRuleChangeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_draft_api_v1_automation_rules_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationRuleIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RulePreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_rule_api_v1_automation_rules__rule_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationRuleIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationRuleChangeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_rule_api_v1_automation_rules__rule_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationRefOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_rule_api_v1_automation_rules__rule_id__apply_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleApplyOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_saved_api_v1_automation_rules__rule_id__preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RulePreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_budgets_api_v1_budgets_get: {
         parameters: {
             query?: {
@@ -2934,6 +3640,191 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RevertOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_profiles_api_v1_csv_profiles_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsvProfileOut"][];
+                };
+            };
+        };
+    };
+    create_profile_api_v1_csv_profiles_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CsvProfileIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsvProfileChangeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sample_api_v1_csv_profiles_sample_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_sample_api_v1_csv_profiles_sample_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsvSampleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_profile_api_v1_csv_profiles_test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_test_profile_api_v1_csv_profiles_test_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsvTestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_profile_api_v1_csv_profiles__profile_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CsvProfileIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsvProfileChangeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_profile_api_v1_csv_profiles__profile_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationRefOut"];
                 };
             };
             /** @description Validation Error */

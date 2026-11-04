@@ -120,6 +120,41 @@
         "title": "AccountType",
         "type": "string"
       },
+      "ActionIn": {
+        "properties": {
+          "type": {
+            "enum": [
+              "set_category",
+              "set_kind",
+              "add_tags",
+              "set_note",
+              "set_merchant"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "type",
+          "value"
+        ],
+        "title": "ActionIn",
+        "type": "object"
+      },
       "AttachmentAddedOut": {
         "properties": {
           "attachment": {
@@ -192,6 +227,149 @@
         "title": "AttachmentOut",
         "type": "object"
       },
+      "AutomationRuleChangeOut": {
+        "properties": {
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "rule": {
+            "$ref": "#/components/schemas/AutomationRuleOut"
+          }
+        },
+        "required": [
+          "rule",
+          "operation_id"
+        ],
+        "title": "AutomationRuleChangeOut",
+        "type": "object"
+      },
+      "AutomationRuleIn": {
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/ActionIn"
+            },
+            "maxItems": 6,
+            "minItems": 1,
+            "title": "Actions",
+            "type": "array"
+          },
+          "conditions": {
+            "items": {
+              "$ref": "#/components/schemas/ConditionIn"
+            },
+            "maxItems": 8,
+            "minItems": 1,
+            "title": "Conditions",
+            "type": "array"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "personal": {
+            "default": false,
+            "description": "Solo tuya (si no, de todo el hogar)",
+            "title": "Personal",
+            "type": "boolean"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/Phase",
+            "default": "normal"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "maximum": 100000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Menor = antes",
+            "title": "Priority"
+          }
+        },
+        "required": [
+          "name",
+          "conditions",
+          "actions"
+        ],
+        "title": "AutomationRuleIn",
+        "type": "object"
+      },
+      "AutomationRuleOut": {
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/ActionIn"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "conditions": {
+            "items": {
+              "$ref": "#/components/schemas/ConditionIn"
+            },
+            "title": "Conditions",
+            "type": "array"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "personal": {
+            "title": "Personal",
+            "type": "boolean"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/Phase"
+          },
+          "priority": {
+            "title": "Priority",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "personal",
+          "phase",
+          "priority",
+          "enabled",
+          "conditions",
+          "actions"
+        ],
+        "title": "AutomationRuleOut",
+        "type": "object"
+      },
       "BalanceMismatchOut": {
         "properties": {
           "expected": {
@@ -237,9 +415,22 @@
           },
           "file": {
             "contentMediaType": "application/octet-stream",
-            "description": "Extracto del banco (CSV o XLSX)",
+            "description": "Extracto del banco (CSV, XLSX, OFX, QIF…)",
             "title": "File",
             "type": "string"
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Perfil de CSV con que leer el archivo (OF-1105)",
+            "title": "Profile Id"
           }
         },
         "required": [
@@ -247,6 +438,42 @@
           "file"
         ],
         "title": "Body_create_import_api_v1_imports_post",
+        "type": "object"
+      },
+      "Body_sample_api_v1_csv_profiles_sample_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "description": "El CSV del banco",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_sample_api_v1_csv_profiles_sample_post",
+        "type": "object"
+      },
+      "Body_test_profile_api_v1_csv_profiles_test_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "description": "El CSV del banco",
+            "title": "File",
+            "type": "string"
+          },
+          "profile": {
+            "description": "El perfil a probar, en JSON",
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file",
+          "profile"
+        ],
+        "title": "Body_test_profile_api_v1_csv_profiles_test_post",
         "type": "object"
       },
       "BudgetIn": {
@@ -827,6 +1054,48 @@
         "title": "ChangeOut",
         "type": "object"
       },
+      "ConditionIn": {
+        "properties": {
+          "field": {
+            "enum": [
+              "description",
+              "merchant",
+              "amount",
+              "direction",
+              "account",
+              "bank_type"
+            ],
+            "title": "Field",
+            "type": "string"
+          },
+          "op": {
+            "default": "equals",
+            "description": "contains, starts_with, equals, between, is, in",
+            "title": "Op",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "field",
+          "value"
+        ],
+        "title": "ConditionIn",
+        "type": "object"
+      },
       "CountOut": {
         "properties": {
           "count": {
@@ -838,6 +1107,413 @@
           "count"
         ],
         "title": "CountOut",
+        "type": "object"
+      },
+      "CsvProfileChangeOut": {
+        "properties": {
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/CsvProfileOut"
+          }
+        },
+        "required": [
+          "profile",
+          "operation_id"
+        ],
+        "title": "CsvProfileChangeOut",
+        "type": "object"
+      },
+      "CsvProfileIn": {
+        "properties": {
+          "amount_column": {
+            "anyOf": [
+              {
+                "maximum": 29.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Column"
+          },
+          "amount_mode": {
+            "default": "single",
+            "enum": [
+              "single",
+              "debit_credit"
+            ],
+            "title": "Amount Mode",
+            "type": "string"
+          },
+          "balance_column": {
+            "anyOf": [
+              {
+                "maximum": 29.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Balance Column"
+          },
+          "credit_column": {
+            "anyOf": [
+              {
+                "maximum": 29.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credit Column"
+          },
+          "date_column": {
+            "maximum": 29.0,
+            "minimum": 0.0,
+            "title": "Date Column",
+            "type": "integer"
+          },
+          "date_format": {
+            "title": "Date Format",
+            "type": "string"
+          },
+          "debit_column": {
+            "anyOf": [
+              {
+                "maximum": 29.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Debit Column"
+          },
+          "decimal_separator": {
+            "default": ",",
+            "enum": [
+              ",",
+              "."
+            ],
+            "title": "Decimal Separator",
+            "type": "string"
+          },
+          "delimiter": {
+            "default": ",",
+            "description": "Coma, punto y coma, tabulador o barra vertical",
+            "title": "Delimiter",
+            "type": "string"
+          },
+          "description_columns": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "Description Columns",
+            "type": "array"
+          },
+          "encoding": {
+            "default": "utf-8",
+            "description": "utf-8, cp1252 o latin-1",
+            "title": "Encoding",
+            "type": "string"
+          },
+          "has_header": {
+            "default": true,
+            "title": "Has Header",
+            "type": "boolean"
+          },
+          "invert_sign": {
+            "default": false,
+            "title": "Invert Sign",
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "skip_rows": {
+            "default": 0,
+            "description": "Líneas antes de la cabecera",
+            "maximum": 50.0,
+            "minimum": 0.0,
+            "title": "Skip Rows",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date_column",
+          "date_format",
+          "description_columns",
+          "name"
+        ],
+        "title": "CsvProfileIn",
+        "type": "object"
+      },
+      "CsvProfileOut": {
+        "properties": {
+          "amount_column": {
+            "anyOf": [
+              {
+                "maximum": 29.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Column"
+          },
+          "amount_mode": {
+            "default": "single",
+            "enum": [
+              "single",
+              "debit_credit"
+            ],
+            "title": "Amount Mode",
+            "type": "string"
+          },
+          "balance_column": {
+            "anyOf": [
+              {
+                "maximum": 29.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Balance Column"
+          },
+          "credit_column": {
+            "anyOf": [
+              {
+                "maximum": 29.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credit Column"
+          },
+          "date_column": {
+            "maximum": 29.0,
+            "minimum": 0.0,
+            "title": "Date Column",
+            "type": "integer"
+          },
+          "date_format": {
+            "title": "Date Format",
+            "type": "string"
+          },
+          "debit_column": {
+            "anyOf": [
+              {
+                "maximum": 29.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Debit Column"
+          },
+          "decimal_separator": {
+            "default": ",",
+            "enum": [
+              ",",
+              "."
+            ],
+            "title": "Decimal Separator",
+            "type": "string"
+          },
+          "delimiter": {
+            "default": ",",
+            "description": "Coma, punto y coma, tabulador o barra vertical",
+            "title": "Delimiter",
+            "type": "string"
+          },
+          "description_columns": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "Description Columns",
+            "type": "array"
+          },
+          "encoding": {
+            "default": "utf-8",
+            "description": "utf-8, cp1252 o latin-1",
+            "title": "Encoding",
+            "type": "string"
+          },
+          "has_header": {
+            "default": true,
+            "title": "Has Header",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "invert_sign": {
+            "default": false,
+            "title": "Invert Sign",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "skip_rows": {
+            "default": 0,
+            "description": "Líneas antes de la cabecera",
+            "maximum": 50.0,
+            "minimum": 0.0,
+            "title": "Skip Rows",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date_column",
+          "date_format",
+          "description_columns",
+          "id",
+          "name"
+        ],
+        "title": "CsvProfileOut",
+        "type": "object"
+      },
+      "CsvSampleOut": {
+        "properties": {
+          "delimiter": {
+            "title": "Delimiter",
+            "type": "string"
+          },
+          "encoding": {
+            "title": "Encoding",
+            "type": "string"
+          },
+          "rows": {
+            "description": "Las primeras filas, tal cual, para elegir columnas",
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "delimiter",
+          "encoding",
+          "rows"
+        ],
+        "title": "CsvSampleOut",
+        "type": "object"
+      },
+      "CsvTestOut": {
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/CsvTestRowOut"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/SkippedRowOut"
+            },
+            "title": "Skipped",
+            "type": "array"
+          },
+          "skipped_total": {
+            "title": "Skipped Total",
+            "type": "integer"
+          },
+          "total": {
+            "description": "Filas que se leen bien en todo el archivo",
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "total",
+          "skipped",
+          "skipped_total"
+        ],
+        "title": "CsvTestOut",
+        "type": "object"
+      },
+      "CsvTestRowOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "balance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "booked_at": {
+            "format": "date-time",
+            "title": "Booked At",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "line": {
+            "title": "Line",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "line",
+          "booked_at",
+          "description",
+          "amount",
+          "balance"
+        ],
+        "title": "CsvTestRowOut",
         "type": "object"
       },
       "GoalIn": {
@@ -2261,6 +2937,15 @@
         "title": "PendingChargeOut",
         "type": "object"
       },
+      "Phase": {
+        "enum": [
+          "before",
+          "normal",
+          "after"
+        ],
+        "title": "Phase",
+        "type": "string"
+      },
       "PreviewRowOut": {
         "properties": {
           "amount": {
@@ -2281,7 +2966,7 @@
                 "type": "null"
               }
             ],
-            "description": "Categoría propuesta por una regla aprendida",
+            "description": "Categoría propuesta por una regla",
             "title": "Category Id"
           },
           "description": {
@@ -2310,6 +2995,14 @@
               }
             ],
             "title": "Member Id"
+          },
+          "tags": {
+            "description": "Etiquetas que pondrán las reglas",
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
           }
         },
         "required": [
@@ -2320,6 +3013,7 @@
           "kind",
           "member_id",
           "category_id",
+          "tags",
           "duplicate"
         ],
         "title": "PreviewRowOut",
@@ -2344,6 +3038,69 @@
           "after"
         ],
         "title": "PriceChangeOut",
+        "type": "object"
+      },
+      "ProposedChangeOut": {
+        "properties": {
+          "after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "field": {
+            "title": "Field",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "before",
+          "after"
+        ],
+        "title": "ProposedChangeOut",
+        "type": "object"
+      },
+      "ProposedOut": {
+        "properties": {
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedChangeOut"
+            },
+            "title": "Changes",
+            "type": "array"
+          },
+          "transaction": {
+            "$ref": "#/components/schemas/TransactionOut"
+          }
+        },
+        "required": [
+          "transaction",
+          "changes"
+        ],
+        "title": "ProposedOut",
         "type": "object"
       },
       "RateIn": {
@@ -2658,6 +3415,32 @@
         "title": "RevokedOut",
         "type": "object"
       },
+      "RuleApplyOut": {
+        "properties": {
+          "changed": {
+            "title": "Changed",
+            "type": "integer"
+          },
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          }
+        },
+        "required": [
+          "changed",
+          "operation_id"
+        ],
+        "title": "RuleApplyOut",
+        "type": "object"
+      },
       "RuleOut": {
         "properties": {
           "category_id": {
@@ -2675,6 +3458,29 @@
           "category_id"
         ],
         "title": "RuleOut",
+        "type": "object"
+      },
+      "RulePreviewOut": {
+        "properties": {
+          "count": {
+            "description": "Movimientos que cambiaría, de los que ves",
+            "title": "Count",
+            "type": "integer"
+          },
+          "items": {
+            "description": "Los primeros 100",
+            "items": {
+              "$ref": "#/components/schemas/ProposedOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "items"
+        ],
+        "title": "RulePreviewOut",
         "type": "object"
       },
       "RuleViewOut": {
@@ -3774,6 +4580,294 @@
         ]
       }
     },
+    "/api/v1/automation-rules": {
+      "get": {
+        "description": "Las reglas del hogar y las tuyas, en el orden en que se evalúan.",
+        "operationId": "list_rules_api_v1_automation_rules_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AutomationRuleOut"
+                  },
+                  "title": "Response List Rules Api V1 Automation Rules Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Rules",
+        "tags": [
+          "automation"
+        ]
+      },
+      "post": {
+        "operationId": "create_rule_api_v1_automation_rules_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutomationRuleIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationRuleChangeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Rule",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/api/v1/automation-rules/preview": {
+      "post": {
+        "description": "Prueba una regla sin guardarla: qué movimientos cambiaría. No escribe nada.",
+        "operationId": "preview_draft_api_v1_automation_rules_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutomationRuleIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RulePreviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Draft",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/api/v1/automation-rules/{rule_id}": {
+      "delete": {
+        "operationId": "delete_rule_api_v1_automation_rules__rule_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Rule Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationRefOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Rule",
+        "tags": [
+          "automation"
+        ]
+      },
+      "put": {
+        "operationId": "update_rule_api_v1_automation_rules__rule_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Rule Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutomationRuleIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationRuleChangeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Rule",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/api/v1/automation-rules/{rule_id}/apply": {
+      "post": {
+        "description": "Aplica la regla a lo que ya hay, en una sola operación que se deshace de una vez.",
+        "operationId": "apply_rule_api_v1_automation_rules__rule_id__apply_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Rule Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleApplyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Apply Rule",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/api/v1/automation-rules/{rule_id}/preview": {
+      "post": {
+        "operationId": "preview_saved_api_v1_automation_rules__rule_id__preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Rule Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RulePreviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Saved",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
     "/api/v1/budgets": {
       "get": {
         "description": "Presupuestos mensuales con lo gastado en el mes (conjunta y huchas).",
@@ -4140,6 +5234,248 @@
         "summary": "Undo",
         "tags": [
           "changes"
+        ]
+      }
+    },
+    "/api/v1/csv-profiles": {
+      "get": {
+        "operationId": "list_profiles_api_v1_csv_profiles_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CsvProfileOut"
+                  },
+                  "title": "Response List Profiles Api V1 Csv Profiles Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Profiles",
+        "tags": [
+          "imports"
+        ]
+      },
+      "post": {
+        "operationId": "create_profile_api_v1_csv_profiles_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CsvProfileIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsvProfileChangeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Profile",
+        "tags": [
+          "imports"
+        ]
+      }
+    },
+    "/api/v1/csv-profiles/sample": {
+      "post": {
+        "description": "Las primeras filas del archivo y un separador y una codificación propuestos. No guarda.",
+        "operationId": "sample_api_v1_csv_profiles_sample_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_sample_api_v1_csv_profiles_sample_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsvSampleOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sample",
+        "tags": [
+          "imports"
+        ]
+      }
+    },
+    "/api/v1/csv-profiles/test": {
+      "post": {
+        "description": "Lee el archivo con un perfil (sin guardarlo) y enseña las primeras filas. No guarda.",
+        "operationId": "test_profile_api_v1_csv_profiles_test_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_test_profile_api_v1_csv_profiles_test_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsvTestOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Test Profile",
+        "tags": [
+          "imports"
+        ]
+      }
+    },
+    "/api/v1/csv-profiles/{profile_id}": {
+      "delete": {
+        "operationId": "delete_profile_api_v1_csv_profiles__profile_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Profile Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationRefOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Profile",
+        "tags": [
+          "imports"
+        ]
+      },
+      "put": {
+        "operationId": "update_profile_api_v1_csv_profiles__profile_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Profile Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CsvProfileIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsvProfileChangeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Profile",
+        "tags": [
+          "imports"
         ]
       }
     },

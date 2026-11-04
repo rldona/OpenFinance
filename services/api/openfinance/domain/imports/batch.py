@@ -34,6 +34,8 @@ class ImportBatch:
     created_count: int = 0
     duplicate_count: int = 0
     skipped_count: int = 0
+    profile_id: UUID | None = None
+    """Perfil de CSV con que se lee el archivo (OF-1105)."""
 
     def is_expired(self, now: datetime) -> bool:
         return self.status is ImportStatus.PREVIEW and now - self.created_at > PREVIEW_TTL

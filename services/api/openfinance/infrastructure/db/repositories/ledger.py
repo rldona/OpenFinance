@@ -295,6 +295,7 @@ class SqlTransactionRepository:
                 member_id=t.member_id,
                 category_id=t.category_id,
                 note=t.note,
+                merchant=t.merchant,
                 voided=t.voided,
                 reviewed=t.reviewed,
                 import_id=t.import_id,
