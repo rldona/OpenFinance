@@ -443,6 +443,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/cash-flow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Cash Flow */
+        get: operations["get_cash_flow_api_v1_cash_flow_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/categories": {
         parameters: {
             query?: never;
@@ -684,9 +701,10 @@ export interface paths {
         };
         /**
          * Export
-         * @description Descarga los datos del hogar: JSON o ZIP con un CSV por entidad (OF-501).
+         * @description Descarga los datos del hogar: JSON o ZIP con un CSV por entidad (OF-501, OF-1504).
          *
-         *     Incluye lo que ve quien la pide; la cuenta personal de la otra persona no sale.
+         *     Incluye lo que ve quien la pide; la cuenta personal de la otra persona no sale, ni nada
+         *     de lo suyo (reglas, plantillas, informes o conexiones bancarias personales).
          */
         get: operations["export_api_v1_export_get"];
         put?: never;
@@ -1098,6 +1116,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/net-worth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Net Worth */
+        get: operations["get_net_worth_api_v1_net_worth_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications": {
         parameters: {
             query?: never;
@@ -1160,6 +1195,76 @@ export interface paths {
         put?: never;
         /** Unsubscribe */
         post: operations["unsubscribe_api_v1_notifications_subscriptions_remove_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Saved */
+        get: operations["list_saved_api_v1_reports_get"];
+        put?: never;
+        /** Create Saved */
+        post: operations["create_saved_api_v1_reports_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run */
+        post: operations["run_api_v1_reports_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/{report_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Saved */
+        put: operations["update_saved_api_v1_reports__report_id__put"];
+        post?: never;
+        /** Delete Saved */
+        delete: operations["delete_saved_api_v1_reports__report_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/{report_id}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Run Saved */
+        get: operations["run_saved_api_v1_reports__report_id__run_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1753,6 +1858,25 @@ export interface components {
          * @enum {string}
          */
         AccountType: "bank" | "cash" | "card" | "loan" | "investment";
+        /** AccountWorthOut */
+        AccountWorthOut: {
+            /**
+             * Account Id
+             * Format: uuid
+             */
+            account_id: string;
+            /** @description En la moneda de la cuenta */
+            balance: components["schemas"]["MoneyOut"];
+            /** Name */
+            name: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "bank" | "cash" | "card" | "loan" | "investment";
+            /** @description En la moneda del hogar; null si falta el tipo */
+            value: components["schemas"]["MoneyOut"] | null;
+        };
         /** ActionIn */
         ActionIn: {
             /**
@@ -2213,6 +2337,23 @@ export interface components {
             operation_id: string | null;
             /** Updated */
             updated: number;
+        };
+        /** CashFlowOut */
+        CashFlowOut: {
+            /**
+             * Accounts
+             * @description Cuentas líquidas que entran en las cifras
+             */
+            accounts: number;
+            /** Currency */
+            currency: string;
+            /**
+             * Excluded Foreign
+             * @description Cuentas líquidas en otra moneda, fuera de las cifras
+             */
+            excluded_foreign: number;
+            /** Months */
+            months: components["schemas"]["MonthFlowOut"][];
         };
         /**
          * CategorizeIn
@@ -3070,6 +3211,28 @@ export interface components {
             /** Month */
             month: string;
         };
+        /** MonthFlowOut */
+        MonthFlowOut: {
+            /** @description Variación del saldo del mes */
+            change: components["schemas"]["MoneyOut"];
+            /** @description Neto: entra a la conjunta menos sale de una personal */
+            contributions: components["schemas"]["MoneyOut"];
+            end_balance: components["schemas"]["MoneyOut"];
+            income: components["schemas"]["MoneyOut"];
+            /** Is Partial */
+            is_partial: boolean;
+            /**
+             * Month
+             * @example 2026-10
+             */
+            month: string;
+            /** @description Movido al ahorro, neto de lo que se saca, en positivo */
+            savings: components["schemas"]["MoneyOut"];
+            /** @description Gasto neto de devoluciones, en positivo */
+            spending: components["schemas"]["MoneyOut"];
+            /** @description Traspasos entre cuentas propias, netos */
+            transfers: components["schemas"]["MoneyOut"];
+        };
         /** MonthOverviewOut */
         MonthOverviewOut: {
             /** @description Media de gasto de los meses anteriores con datos (hasta 12) */
@@ -3131,6 +3294,26 @@ export interface components {
             /** Month */
             month: string;
             saved: components["schemas"]["MoneyOut"];
+        };
+        /** NetWorthOut */
+        NetWorthOut: {
+            /** Accounts */
+            accounts: components["schemas"]["AccountWorthOut"][];
+            /** By Type */
+            by_type: components["schemas"]["TypeWorthOut"][];
+            /** Currency */
+            currency: string;
+            /**
+             * History
+             * @description Fines de mes y hoy, del más antiguo al nuevo
+             */
+            history: components["schemas"]["WorthPointOut"][];
+            /**
+             * Missing Rates
+             * @description Monedas sin tipo de cambio para alguna fecha
+             */
+            missing_rates: string[];
+            today: components["schemas"]["WorthPointOut"];
         };
         /** NotificationPrefsIn */
         NotificationPrefsIn: {
@@ -3435,6 +3618,108 @@ export interface components {
             /** Months */
             months: number;
         };
+        /** ReportDefinitionIn */
+        ReportDefinitionIn: {
+            /** Account Ids */
+            account_ids?: string[];
+            /** Category Ids */
+            category_ids?: string[];
+            /**
+             * From Month
+             * @example 2026-10
+             */
+            from_month: string;
+            /**
+             * Group By
+             * @enum {string}
+             */
+            group_by: "category" | "merchant" | "account" | "month";
+            /**
+             * Measure
+             * @description Gasto neto, ingresos, ahorro neto o ingresos menos gasto
+             * @enum {string}
+             */
+            measure: "spent" | "income" | "saved" | "net";
+            /**
+             * Min Amount
+             * @example 10.00
+             */
+            min_amount?: string | null;
+            /** Tags */
+            tags?: string[];
+            /**
+             * To Month
+             * @example 2026-10
+             */
+            to_month: string;
+            /**
+             * Uncategorized
+             * @default false
+             */
+            uncategorized: boolean;
+        };
+        /** ReportDefinitionOut */
+        ReportDefinitionOut: {
+            /** Account Ids */
+            account_ids: string[];
+            /** Category Ids */
+            category_ids: string[];
+            /** From Month */
+            from_month: string;
+            /**
+             * Group By
+             * @enum {string}
+             */
+            group_by: "category" | "merchant" | "account" | "month";
+            /**
+             * Measure
+             * @enum {string}
+             */
+            measure: "spent" | "income" | "saved" | "net";
+            /** Min Amount */
+            min_amount: string | null;
+            /** Tags */
+            tags: string[];
+            /** To Month */
+            to_month: string;
+            /** Uncategorized */
+            uncategorized: boolean;
+        };
+        /** ReportOut */
+        ReportOut: {
+            /**
+             * Count
+             * @description Movimientos que entran en el informe
+             */
+            count: number;
+            /** Currency */
+            currency: string;
+            /**
+             * Hidden Rows
+             * @description Filas que no caben en la lista
+             */
+            hidden_rows: number;
+            /**
+             * Ignored Accounts
+             * @description Cuentas del filtro que quien lo ejecuta no ve (informe compartido ajeno)
+             */
+            ignored_accounts: number;
+            /** Missing Rates */
+            missing_rates: string[];
+            /** Rows */
+            rows: components["schemas"]["ReportRowOut"][];
+            total: components["schemas"]["MoneyOut"];
+        };
+        /** ReportRowOut */
+        ReportRowOut: {
+            amount: components["schemas"]["MoneyOut"];
+            /** Count */
+            count: number;
+            /** Key */
+            key: string | null;
+            /** Label */
+            label: string;
+        };
         /** RevertOut */
         RevertOut: {
             /** Applied */
@@ -3534,6 +3819,40 @@ export interface components {
              * @enum {string}
              */
             scope: "household" | "personal";
+        };
+        /** SavedReportIn */
+        SavedReportIn: {
+            definition: components["schemas"]["ReportDefinitionIn"];
+            /** Name */
+            name: string;
+            /**
+             * Shared
+             * @default false
+             */
+            shared: boolean;
+        };
+        /** SavedReportOut */
+        SavedReportOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            definition: components["schemas"]["ReportDefinitionOut"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Mine
+             * @description Lo creó quien pregunta; solo esa persona lo cambia
+             */
+            mine: boolean;
+            /** Name */
+            name: string;
+            /** Shared */
+            shared: boolean;
         };
         /** SavingsOverviewOut */
         SavingsOverviewOut: {
@@ -3942,6 +4261,15 @@ export interface components {
             total_spent: components["schemas"]["MoneyOut"];
             worst: components["schemas"]["MonthSavedOut"] | null;
         };
+        /** TypeWorthOut */
+        TypeWorthOut: {
+            net: components["schemas"]["MoneyOut"];
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "bank" | "cash" | "card" | "loan" | "investment";
+        };
         /** UndoImportOut */
         UndoImportOut: {
             /**
@@ -4052,6 +4380,23 @@ export interface components {
             top: components["schemas"]["WeekCategoryOut"][];
             /** Upcoming */
             upcoming: components["schemas"]["UpcomingPaymentOut"][];
+        };
+        /** WorthPointOut */
+        WorthPointOut: {
+            assets: components["schemas"]["MoneyOut"];
+            /** @description Cuánto se debe, en positivo */
+            debts: components["schemas"]["MoneyOut"];
+            /**
+             * Excluded
+             * @description Cuentas que no entran por falta de tipo de cambio
+             */
+            excluded: number;
+            net: components["schemas"]["MoneyOut"];
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
         };
     };
     responses: never;
@@ -4954,6 +5299,37 @@ export interface operations {
             };
         };
     };
+    get_cash_flow_api_v1_cash_flow_get: {
+        parameters: {
+            query?: {
+                months?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashFlowOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_categories_api_v1_categories_get: {
         parameters: {
             query?: never;
@@ -5418,6 +5794,8 @@ export interface operations {
         parameters: {
             query?: {
                 format?: "json" | "csv";
+                /** @description Forma del archivo: 2 (por defecto) o la antigua 1 */
+                version?: number;
             };
             header?: never;
             path?: never;
@@ -6203,6 +6581,26 @@ export interface operations {
             };
         };
     };
+    get_net_worth_api_v1_net_worth_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetWorthOut"];
+                };
+            };
+        };
+    };
     get_notifications_api_v1_notifications_get: {
         parameters: {
             query?: never;
@@ -6306,6 +6704,193 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_saved_api_v1_reports_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedReportOut"][];
+                };
+            };
+        };
+    };
+    create_saved_api_v1_reports_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavedReportIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_api_v1_reports_run_post: {
+        parameters: {
+            query?: {
+                /** @description json (por defecto) o csv */
+                format?: "json" | "csv";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportDefinitionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_saved_api_v1_reports__report_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavedReportIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_saved_api_v1_reports__report_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_saved_api_v1_reports__report_id__run_get: {
+        parameters: {
+            query?: {
+                /** @description json (por defecto) o csv */
+                format?: "json" | "csv";
+            };
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportOut"];
+                };
             };
             /** @description Validation Error */
             422: {

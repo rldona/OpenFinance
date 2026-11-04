@@ -1596,3 +1596,9 @@ fieldset.appearance {
   align-items: center;
   gap: 16px;
 }
+
+/* Tablas anchas (flujo de caja): se desplazan dentro de su caja, la página no (OF-1502). */
+.table-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+}

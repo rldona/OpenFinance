@@ -20,13 +20,23 @@ from uuid import UUID
 
 from openfinance.application.export import (
     ExportedAccount,
+    ExportedAutomationRule,
+    ExportedBankConnection,
+    ExportedBankLink,
     ExportedBudget,
+    ExportedBudgetAllocation,
+    ExportedBudgetV2,
     ExportedCategory,
     ExportedGoal,
+    ExportedGoalContribution,
     ExportedMember,
+    ExportedMerchant,
     ExportedPattern,
     ExportedRate,
     ExportedRule,
+    ExportedSavedReport,
+    ExportedScheduledPayment,
+    ExportedTemplate,
     ExportedTransaction,
     HouseholdExport,
 )
@@ -36,7 +46,7 @@ from openfinance.application.export import (
 _FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
 _FORMULA = re.compile(r"(^|[;\t\r\n])\s*[=+\-@]")
 
-CSV_FILES: dict[str, type] = {
+CSV_FILES_V1: dict[str, type] = {
     "members": ExportedMember,
     "accounts": ExportedAccount,
     "transactions": ExportedTransaction,
@@ -49,6 +59,25 @@ CSV_FILES: dict[str, type] = {
 }
 """Un CSV por entidad: el nombre es el campo de ``HouseholdExport`` y las columnas, los
 campos de su tipo (aunque no haya filas)."""
+
+CSV_FILES_V2: dict[str, type] = {
+    **CSV_FILES_V1,
+    "budgets": ExportedBudgetV2,
+    "budget_allocations": ExportedBudgetAllocation,
+    "goal_contributions": ExportedGoalContribution,
+    "scheduled_payments": ExportedScheduledPayment,
+    "templates": ExportedTemplate,
+    "automation_rules": ExportedAutomationRule,
+    "merchants": ExportedMerchant,
+    "saved_reports": ExportedSavedReport,
+    "bank_connections": ExportedBankConnection,
+    "bank_links": ExportedBankLink,
+}
+"""La v2 (ADR-0025) cambia ``budgets`` (añade modo e inicio) y suma estas entidades."""
+
+CSV_FILES = CSV_FILES_V2
+V2_ONLY = frozenset(CSV_FILES_V2) - frozenset(CSV_FILES_V1)
+"""Campos de ``HouseholdExport`` que la v1 no lleva."""
 
 MANIFEST = "manifest.json"
 
@@ -76,6 +105,8 @@ def _plain(value: object) -> object:
 
 def _as_dict(export: HouseholdExport) -> dict[str, object]:
     data = dataclasses.asdict(export)
+    if export.meta.format_version < 2:
+        data = {k: v for k, v in data.items() if k not in V2_ONLY}
     return {"format_version": export.meta.format_version, **{k: _plain(v) for k, v in data.items()}}
 
 
@@ -107,7 +138,8 @@ def render_csv_zip(export: HouseholdExport) -> bytes:
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         archive.writestr(MANIFEST, manifest.encode("utf-8"))
-        for name, row_type in CSV_FILES.items():
+        files = CSV_FILES_V2 if export.meta.format_version >= 2 else CSV_FILES_V1
+        for name, row_type in files.items():
             columns = [f.name for f in dataclasses.fields(row_type)]
             archive.writestr(f"{name}.csv", _csv(getattr(export, name), columns))
     return buffer.getvalue()

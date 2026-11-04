@@ -36,6 +36,7 @@ from openfinance.infrastructure.db.repositories.rates import SqlRateRepository
 from openfinance.infrastructure.db.repositories.reconciliations import (
     SqlReconciliationRepository,
 )
+from openfinance.infrastructure.db.repositories.reports import SqlSavedReportRepository
 from openfinance.infrastructure.db.repositories.savings import (
     SqlBudgetRepository,
     SqlGoalRepository,
@@ -75,6 +76,7 @@ class SqlUnitOfWork:
         self.alerts = SqlAlertRepository(session)
         self.notifications = SqlNotificationRepository(session)
         self.bank = SqlBankRepository(session)
+        self.reports = SqlSavedReportRepository(session)
         self.member_patterns = SqlMemberPatternRepository(session)
         self.changes = SqlChangeRepository(session)
 

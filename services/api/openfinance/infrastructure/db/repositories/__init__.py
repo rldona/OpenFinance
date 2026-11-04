@@ -30,6 +30,7 @@ from openfinance.infrastructure.db.repositories.rates import SqlRateRepository
 from openfinance.infrastructure.db.repositories.reconciliations import (
     SqlReconciliationRepository,
 )
+from openfinance.infrastructure.db.repositories.reports import SqlSavedReportRepository
 from openfinance.infrastructure.db.repositories.savings import (
     SqlBudgetRepository,
     SqlGoalRepository,
@@ -62,6 +63,7 @@ __all__ = [
     "SqlRateRepository",
     "SqlReconciliationRepository",
     "SqlRuleRepository",
+    "SqlSavedReportRepository",
     "SqlScheduleRepository",
     "SqlSessionRepository",
     "SqlSplitRepository",

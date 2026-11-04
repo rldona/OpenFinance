@@ -483,7 +483,7 @@ Hecha (sin probar en un equipo con Docker ni con PostgreSQL: lo comprueba CI). A
 | --- | --- | --- |
 | OF-1201 ✅ | Pagos programados: calendario, emparejado con lo cobrado y atrasos | Las ocurrencias son una función pura del calendario (meses cortos, fin, rango); emparejar no escribe movimientos (se calcula, ver ADR-0021); crear, cambiar y borrar se deshace; un cargo detectado se convierte en pago programado desde «Ahorrar» |
 | OF-1202 ✅ | Previsión de saldo por cuenta y del hogar | Saldo día a día; primer día en negativo y mínimo; una cuenta personal ajena no entra; `card` y `loan` fuera; cada moneda se suma aparte, sin mezclar |
-| OF-1203 ✅ | Presupuestos con límites o sobres, arrastre e importes por mes (ADR-0022) | Los presupuestos existentes siguen siendo límites; el arrastre se recalcula desde el gasto (hasta 36 meses atrás); un sobre en negativo arrastra el déficit; las cuentas personales nunca cuentan. La exportación v1 solo lleva el importe base (la v2 es de la fase 15) |
+| OF-1203 ✅ | Presupuestos con límites o sobres, arrastre e importes por mes (ADR-0022) | Los presupuestos existentes siguen siendo límites; el arrastre se recalcula desde el gasto (hasta 36 meses atrás); un sobre en negativo arrastra el déficit; las cuentas personales nunca cuentan. La exportación v1 solo lleva el importe base (la v2, de la fase 15, lleva modo y importes por mes) |
 | OF-1204 ✅ | Plantillas de movimientos | Crear desde plantilla usa el alta manual normal, con registro de cambios y deshacer; una plantilla del hogar no usa cuentas personales y una personal solo la ve su dueño |
 | OF-1205 ✅ | «Hoy podéis gastar» | Cifra con su desglose; sin datos suficientes lo dice en vez de inventar; solo cuenta la conjunta, así que no depende de quién mire; muestra lo que queda en cada sobre |
 | OF-1206 ✅ | Objetivos v2: aportaciones, prioridad y recordatorio | Las aportaciones alimentan lo ahorrado si no hay hucha; reparto por prioridad (solo sugiere); aportar, retirar y borrar se deshace; el recordatorio es un pago programado ya rellenado |
@@ -515,6 +515,19 @@ Hecha (sin probar contra un banco real: el cliente sigue la documentación públ
 
 ---
 
+## Fase 15 · Informes y patrimonio (v0.8) ✅
+
+Hecha. Alcance en [ADR-0025](../adr/0025-informes-y-patrimonio.md), aceptado el 3 de noviembre de 2026. Todo son vistas calculadas con los permisos de quien las pide.
+
+| ID | Ticket | Criterio de hecho |
+| --- | --- | --- |
+| OF-1501 ✅ | Patrimonio neto | Activos (saldos positivos) menos deudas (negativos) de las cuentas que ve quien pregunta; hoy y 12 fines de mes; una cuenta personal ajena nunca suma; otras monedas se convierten y, sin tipo de cambio, se listan aparte en vez de inventar; los movimientos anulados no cuentan |
+| OF-1502 ✅ | Flujo de caja | Por mes y sobre el dinero líquido que ve quien pregunta, en la moneda del hogar: ingresos, aportaciones netas, gasto, ahorro y traspasos propios; su suma es exactamente la variación del saldo del mes; tarjetas, préstamos, inversiones y cuentas en otra moneda fuera (y se dice) |
+| OF-1503 ✅ | Informes a medida | Definición cerrada (periodo, medida, agrupación, filtros) que se ejecuta con los permisos de quien la ejecuta; guardar personal o compartido (un compartido no filtra por cuentas personales y, si una cuenta deja de verse, no se ensancha); filtrar por una cuenta que no se ve es 404; CSV protegido frente a fórmulas |
+| OF-1504 ✅ | Exportación v2 | `format_version` 2 con presupuestos por mes, aportaciones, pagos programados, plantillas, reglas, comercios, informes y conexiones bancarias (sin sesión ni `state`); v1 sigue con `?version=1`; lista de campos que nunca salen |
+
+---
+
 ## Después de v0.2
 
 Inspirado en Wallet, Spendee, Fintonic y Actual Budget. Cada fase empieza con su ADR y se detalla en tickets al empezarla. Esfuerzo estimado para una persona a tiempo completo.
@@ -526,7 +539,7 @@ Inspirado en Wallet, Spendee, Fintonic y Actual Budget. Cada fase empieza con su
 | 12 · Planificar | v0.5 | Hecha: [Fase 12](#fase-12--planificar-v05) | OF-1201 … OF-1206 | ✅ |
 | 13 · Alertas | v0.6 | Hecha: [Fase 13](#fase-13--alertas-v06) | OF-1301 … OF-1303 | ✅ |
 | 14 · Conexión con el banco | v0.7 | Hecha: [Fase 14](#fase-14--conexión-con-el-banco-v07) | OF-1401 … OF-1404 | ✅ |
-| 15 · Informes y patrimonio | v0.8 | Patrimonio neto, flujo de caja, informes a medida y exportación v2 | OF-1501 … OF-1504 | 4 semanas |
+| 15 · Informes y patrimonio | v0.8 | Hecha: [Fase 15](#fase-15--informes-y-patrimonio-v08) | OF-1501 … OF-1504 | ✅ |
 | 16 · Hogar ampliado | v0.9 | Más personas con roles mínimos (ADR-0002), reparto de gastos (ADR-0011), viajes y eventos | OF-1601 … OF-1603 | 5 semanas |
 | 17 · Plataforma 1.0 | v1.0 | API con tokens, servidor MCP de lectura, asistente con aprobación (ADR-0004, ADR-0005), auditoría externa de seguridad | OF-1701 … OF-1705 | 6 semanas |
 

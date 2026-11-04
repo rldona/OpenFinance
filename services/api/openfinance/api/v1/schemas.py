@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
@@ -1500,3 +1500,119 @@ class BankSyncOut(BaseModel):
     created: int = Field(description="Movimientos nuevos guardados en todas las cuentas")
     links: list[BankSyncLinkOut]
     skipped_reason: str = Field(description="Por qué no se intentó, si no se hizo")
+
+
+class WorthPointOut(BaseModel):
+    on: date
+    assets: MoneyOut
+    debts: MoneyOut = Field(description="Cuánto se debe, en positivo")
+    net: MoneyOut
+    excluded: int = Field(description="Cuentas que no entran por falta de tipo de cambio")
+
+
+class AccountWorthOut(BaseModel):
+    account_id: UUID
+    name: str
+    type: Literal["bank", "cash", "card", "loan", "investment"]
+    balance: MoneyOut = Field(description="En la moneda de la cuenta")
+    value: MoneyOut | None = Field(description="En la moneda del hogar; null si falta el tipo")
+
+
+class TypeWorthOut(BaseModel):
+    type: Literal["bank", "cash", "card", "loan", "investment"]
+    net: MoneyOut
+
+
+class NetWorthOut(BaseModel):
+    currency: str
+    today: WorthPointOut
+    history: list[WorthPointOut] = Field(description="Fines de mes y hoy, del más antiguo al nuevo")
+    accounts: list[AccountWorthOut]
+    by_type: list[TypeWorthOut]
+    missing_rates: list[str] = Field(description="Monedas sin tipo de cambio para alguna fecha")
+
+
+class MonthFlowOut(BaseModel):
+    month: str = Field(examples=["2026-10"])
+    income: MoneyOut
+    contributions: MoneyOut = Field(
+        description="Neto: entra a la conjunta menos sale de una personal"
+    )
+    spending: MoneyOut = Field(description="Gasto neto de devoluciones, en positivo")
+    savings: MoneyOut = Field(description="Movido al ahorro, neto de lo que se saca, en positivo")
+    transfers: MoneyOut = Field(description="Traspasos entre cuentas propias, netos")
+    change: MoneyOut = Field(description="Variación del saldo del mes")
+    end_balance: MoneyOut
+    is_partial: bool
+
+
+class CashFlowOut(BaseModel):
+    currency: str
+    months: list[MonthFlowOut]
+    accounts: int = Field(description="Cuentas líquidas que entran en las cifras")
+    excluded_foreign: int = Field(
+        description="Cuentas líquidas en otra moneda, fuera de las cifras"
+    )
+
+
+MonthStr = Annotated[str, Field(pattern=r"^(19|2\d)\d{2}-(0[1-9]|1[0-2])$", examples=["2026-10"])]
+
+
+class ReportDefinitionIn(BaseModel):
+    from_month: MonthStr
+    to_month: MonthStr
+    measure: Literal["spent", "income", "saved", "net"] = Field(
+        description="Gasto neto, ingresos, ahorro neto o ingresos menos gasto"
+    )
+    group_by: Literal["category", "merchant", "account", "month"]
+    account_ids: list[UUID] = Field(default_factory=list, max_length=50)
+    category_ids: list[UUID] = Field(default_factory=list, max_length=50)
+    uncategorized: bool = False
+    tags: list[str] = Field(default_factory=list, max_length=50)
+    min_amount: str | None = Field(default=None, max_length=20, examples=["10.00"])
+
+
+class ReportDefinitionOut(BaseModel):
+    from_month: str
+    to_month: str
+    measure: Literal["spent", "income", "saved", "net"]
+    group_by: Literal["category", "merchant", "account", "month"]
+    account_ids: list[UUID]
+    category_ids: list[UUID]
+    uncategorized: bool
+    tags: list[str]
+    min_amount: str | None
+
+
+class ReportRowOut(BaseModel):
+    key: str | None
+    label: str
+    amount: MoneyOut
+    count: int
+
+
+class ReportOut(BaseModel):
+    currency: str
+    rows: list[ReportRowOut]
+    total: MoneyOut
+    count: int = Field(description="Movimientos que entran en el informe")
+    hidden_rows: int = Field(description="Filas que no caben en la lista")
+    missing_rates: list[str]
+    ignored_accounts: int = Field(
+        description="Cuentas del filtro que quien lo ejecuta no ve (informe compartido ajeno)"
+    )
+
+
+class SavedReportIn(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    shared: bool = False
+    definition: ReportDefinitionIn
+
+
+class SavedReportOut(BaseModel):
+    id: UUID
+    name: str
+    shared: bool
+    mine: bool = Field(description="Lo creó quien pregunta; solo esa persona lo cambia")
+    definition: ReportDefinitionOut
+    created_at: datetime

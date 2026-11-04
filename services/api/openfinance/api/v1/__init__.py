@@ -6,6 +6,7 @@ from openfinance.api.v1 import (
     auth,
     automation,
     bank,
+    cashflow,
     categories,
     changes,
     csv_profiles,
@@ -15,8 +16,10 @@ from openfinance.api.v1 import (
     ledger,
     merchants,
     meta,
+    networth,
     notifications,
     rates,
+    reports,
     savings,
     schedule,
     settings,
@@ -28,9 +31,11 @@ router = APIRouter(prefix="/api/v1")
 router.include_router(meta.router)
 router.include_router(merchants.router)
 router.include_router(rates.router)
+router.include_router(reports.router)
 router.include_router(attachments.router)
 router.include_router(automation.router)
 router.include_router(auth.router)
+router.include_router(cashflow.router)
 router.include_router(categories.router)
 router.include_router(csv_profiles.router)
 router.include_router(ledger.router)
@@ -41,6 +46,7 @@ router.include_router(schedule.router)
 router.include_router(templates.router)
 router.include_router(alerts.router)
 router.include_router(bank.router)
+router.include_router(networth.router)
 router.include_router(notifications.router)
 router.include_router(summary.router)
 router.include_router(export.router)

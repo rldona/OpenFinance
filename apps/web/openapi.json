@@ -120,6 +120,54 @@
         "title": "AccountType",
         "type": "string"
       },
+      "AccountWorthOut": {
+        "properties": {
+          "account_id": {
+            "format": "uuid",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "balance": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "En la moneda de la cuenta"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "bank",
+              "cash",
+              "card",
+              "loan",
+              "investment"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "En la moneda del hogar; null si falta el tipo"
+          }
+        },
+        "required": [
+          "account_id",
+          "name",
+          "type",
+          "balance",
+          "value"
+        ],
+        "title": "AccountWorthOut",
+        "type": "object"
+      },
       "ActionIn": {
         "properties": {
           "type": {
@@ -1322,6 +1370,39 @@
           "operation_id"
         ],
         "title": "BulkCategorizeOut",
+        "type": "object"
+      },
+      "CashFlowOut": {
+        "properties": {
+          "accounts": {
+            "description": "Cuentas líquidas que entran en las cifras",
+            "title": "Accounts",
+            "type": "integer"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "excluded_foreign": {
+            "description": "Cuentas líquidas en otra moneda, fuera de las cifras",
+            "title": "Excluded Foreign",
+            "type": "integer"
+          },
+          "months": {
+            "items": {
+              "$ref": "#/components/schemas/MonthFlowOut"
+            },
+            "title": "Months",
+            "type": "array"
+          }
+        },
+        "required": [
+          "currency",
+          "months",
+          "accounts",
+          "excluded_foreign"
+        ],
+        "title": "CashFlowOut",
         "type": "object"
       },
       "CategorizeIn": {
@@ -3543,6 +3624,60 @@
         "title": "MonthAmountOut",
         "type": "object"
       },
+      "MonthFlowOut": {
+        "properties": {
+          "change": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Variación del saldo del mes"
+          },
+          "contributions": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Neto: entra a la conjunta menos sale de una personal"
+          },
+          "end_balance": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "income": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "is_partial": {
+            "title": "Is Partial",
+            "type": "boolean"
+          },
+          "month": {
+            "examples": [
+              "2026-10"
+            ],
+            "title": "Month",
+            "type": "string"
+          },
+          "savings": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Movido al ahorro, neto de lo que se saca, en positivo"
+          },
+          "spending": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Gasto neto de devoluciones, en positivo"
+          },
+          "transfers": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Traspasos entre cuentas propias, netos"
+          }
+        },
+        "required": [
+          "month",
+          "income",
+          "contributions",
+          "spending",
+          "savings",
+          "transfers",
+          "change",
+          "end_balance",
+          "is_partial"
+        ],
+        "title": "MonthFlowOut",
+        "type": "object"
+      },
       "MonthOverviewOut": {
         "properties": {
           "average_spent": {
@@ -3728,6 +3863,57 @@
           "saved"
         ],
         "title": "MonthSavedOut",
+        "type": "object"
+      },
+      "NetWorthOut": {
+        "properties": {
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/AccountWorthOut"
+            },
+            "title": "Accounts",
+            "type": "array"
+          },
+          "by_type": {
+            "items": {
+              "$ref": "#/components/schemas/TypeWorthOut"
+            },
+            "title": "By Type",
+            "type": "array"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "history": {
+            "description": "Fines de mes y hoy, del más antiguo al nuevo",
+            "items": {
+              "$ref": "#/components/schemas/WorthPointOut"
+            },
+            "title": "History",
+            "type": "array"
+          },
+          "missing_rates": {
+            "description": "Monedas sin tipo de cambio para alguna fecha",
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Rates",
+            "type": "array"
+          },
+          "today": {
+            "$ref": "#/components/schemas/WorthPointOut"
+          }
+        },
+        "required": [
+          "currency",
+          "today",
+          "history",
+          "accounts",
+          "by_type",
+          "missing_rates"
+        ],
+        "title": "NetWorthOut",
         "type": "object"
       },
       "NotificationPrefsIn": {
@@ -4475,6 +4661,269 @@
         "title": "RecurringOut",
         "type": "object"
       },
+      "ReportDefinitionIn": {
+        "properties": {
+          "account_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Account Ids",
+            "type": "array"
+          },
+          "category_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Category Ids",
+            "type": "array"
+          },
+          "from_month": {
+            "examples": [
+              "2026-10"
+            ],
+            "pattern": "^(19|2\\d)\\d{2}-(0[1-9]|1[0-2])$",
+            "title": "From Month",
+            "type": "string"
+          },
+          "group_by": {
+            "enum": [
+              "category",
+              "merchant",
+              "account",
+              "month"
+            ],
+            "title": "Group By",
+            "type": "string"
+          },
+          "measure": {
+            "description": "Gasto neto, ingresos, ahorro neto o ingresos menos gasto",
+            "enum": [
+              "spent",
+              "income",
+              "saved",
+              "net"
+            ],
+            "title": "Measure",
+            "type": "string"
+          },
+          "min_amount": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "examples": [
+              "10.00"
+            ],
+            "title": "Min Amount"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Tags",
+            "type": "array"
+          },
+          "to_month": {
+            "examples": [
+              "2026-10"
+            ],
+            "pattern": "^(19|2\\d)\\d{2}-(0[1-9]|1[0-2])$",
+            "title": "To Month",
+            "type": "string"
+          },
+          "uncategorized": {
+            "default": false,
+            "title": "Uncategorized",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "from_month",
+          "to_month",
+          "measure",
+          "group_by"
+        ],
+        "title": "ReportDefinitionIn",
+        "type": "object"
+      },
+      "ReportDefinitionOut": {
+        "properties": {
+          "account_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Account Ids",
+            "type": "array"
+          },
+          "category_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Category Ids",
+            "type": "array"
+          },
+          "from_month": {
+            "title": "From Month",
+            "type": "string"
+          },
+          "group_by": {
+            "enum": [
+              "category",
+              "merchant",
+              "account",
+              "month"
+            ],
+            "title": "Group By",
+            "type": "string"
+          },
+          "measure": {
+            "enum": [
+              "spent",
+              "income",
+              "saved",
+              "net"
+            ],
+            "title": "Measure",
+            "type": "string"
+          },
+          "min_amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Amount"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "to_month": {
+            "title": "To Month",
+            "type": "string"
+          },
+          "uncategorized": {
+            "title": "Uncategorized",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "from_month",
+          "to_month",
+          "measure",
+          "group_by",
+          "account_ids",
+          "category_ids",
+          "uncategorized",
+          "tags",
+          "min_amount"
+        ],
+        "title": "ReportDefinitionOut",
+        "type": "object"
+      },
+      "ReportOut": {
+        "properties": {
+          "count": {
+            "description": "Movimientos que entran en el informe",
+            "title": "Count",
+            "type": "integer"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "hidden_rows": {
+            "description": "Filas que no caben en la lista",
+            "title": "Hidden Rows",
+            "type": "integer"
+          },
+          "ignored_accounts": {
+            "description": "Cuentas del filtro que quien lo ejecuta no ve (informe compartido ajeno)",
+            "title": "Ignored Accounts",
+            "type": "integer"
+          },
+          "missing_rates": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Rates",
+            "type": "array"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ReportRowOut"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "total": {
+            "$ref": "#/components/schemas/MoneyOut"
+          }
+        },
+        "required": [
+          "currency",
+          "rows",
+          "total",
+          "count",
+          "hidden_rows",
+          "missing_rates",
+          "ignored_accounts"
+        ],
+        "title": "ReportOut",
+        "type": "object"
+      },
+      "ReportRowOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "amount",
+          "count"
+        ],
+        "title": "ReportRowOut",
+        "type": "object"
+      },
       "RevertOut": {
         "properties": {
           "applied": {
@@ -4681,6 +5130,70 @@
           "matches"
         ],
         "title": "RuleViewOut",
+        "type": "object"
+      },
+      "SavedReportIn": {
+        "properties": {
+          "definition": {
+            "$ref": "#/components/schemas/ReportDefinitionIn"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "shared": {
+            "default": false,
+            "title": "Shared",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "definition"
+        ],
+        "title": "SavedReportIn",
+        "type": "object"
+      },
+      "SavedReportOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "definition": {
+            "$ref": "#/components/schemas/ReportDefinitionOut"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "mine": {
+            "description": "Lo creó quien pregunta; solo esa persona lo cambia",
+            "title": "Mine",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "shared": {
+            "title": "Shared",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "shared",
+          "mine",
+          "definition",
+          "created_at"
+        ],
+        "title": "SavedReportOut",
         "type": "object"
       },
       "SavingsOverviewOut": {
@@ -5705,6 +6218,30 @@
         "title": "TrendsOut",
         "type": "object"
       },
+      "TypeWorthOut": {
+        "properties": {
+          "net": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "type": {
+            "enum": [
+              "bank",
+              "cash",
+              "card",
+              "loan",
+              "investment"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "net"
+        ],
+        "title": "TypeWorthOut",
+        "type": "object"
+      },
       "UndoImportOut": {
         "properties": {
           "kept_reviewed": {
@@ -5968,6 +6505,39 @@
           "open_alerts"
         ],
         "title": "WeeklySummaryOut",
+        "type": "object"
+      },
+      "WorthPointOut": {
+        "properties": {
+          "assets": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "debts": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Cuánto se debe, en positivo"
+          },
+          "excluded": {
+            "description": "Cuentas que no entran por falta de tipo de cambio",
+            "title": "Excluded",
+            "type": "integer"
+          },
+          "net": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "on",
+          "assets",
+          "debts",
+          "net",
+          "excluded"
+        ],
+        "title": "WorthPointOut",
         "type": "object"
       }
     }
@@ -7196,6 +7766,51 @@
         ]
       }
     },
+    "/api/v1/cash-flow": {
+      "get": {
+        "operationId": "get_cash_flow_api_v1_cash_flow_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "months",
+            "required": false,
+            "schema": {
+              "default": 12,
+              "maximum": 36,
+              "minimum": 1,
+              "title": "Months",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashFlowOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Cash Flow",
+        "tags": [
+          "cash-flow"
+        ]
+      }
+    },
     "/api/v1/categories": {
       "get": {
         "operationId": "list_categories_api_v1_categories_get",
@@ -7815,7 +8430,7 @@
     },
     "/api/v1/export": {
       "get": {
-        "description": "Descarga los datos del hogar: JSON o ZIP con un CSV por entidad (OF-501).\n\nIncluye lo que ve quien la pide; la cuenta personal de la otra persona no sale.",
+        "description": "Descarga los datos del hogar: JSON o ZIP con un CSV por entidad (OF-501, OF-1504).\n\nIncluye lo que ve quien la pide; la cuenta personal de la otra persona no sale, ni nada\nde lo suyo (reglas, plantillas, informes o conexiones bancarias personales).",
         "operationId": "export_api_v1_export_get",
         "parameters": [
           {
@@ -7830,6 +8445,20 @@
               ],
               "title": "Format",
               "type": "string"
+            }
+          },
+          {
+            "description": "Forma del archivo: 2 (por defecto) o la antigua 1",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "default": 2,
+              "description": "Forma del archivo: 2 (por defecto) o la antigua 1",
+              "maximum": 2,
+              "minimum": 1,
+              "title": "Version",
+              "type": "integer"
             }
           }
         ],
@@ -8942,6 +9571,27 @@
         ]
       }
     },
+    "/api/v1/net-worth": {
+      "get": {
+        "operationId": "get_net_worth_api_v1_net_worth_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetWorthOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Net Worth",
+        "tags": [
+          "net-worth"
+        ]
+      }
+    },
     "/api/v1/notifications": {
       "get": {
         "operationId": "get_notifications_api_v1_notifications_get",
@@ -9069,6 +9719,275 @@
         "summary": "Unsubscribe",
         "tags": [
           "notifications"
+        ]
+      }
+    },
+    "/api/v1/reports": {
+      "get": {
+        "operationId": "list_saved_api_v1_reports_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SavedReportOut"
+                  },
+                  "title": "Response List Saved Api V1 Reports Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Saved",
+        "tags": [
+          "reports"
+        ]
+      },
+      "post": {
+        "operationId": "create_saved_api_v1_reports_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavedReportIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Saved",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/reports/run": {
+      "post": {
+        "operationId": "run_api_v1_reports_run_post",
+        "parameters": [
+          {
+            "description": "json (por defecto) o csv",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "json",
+              "description": "json (por defecto) o csv",
+              "enum": [
+                "json",
+                "csv"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportDefinitionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/reports/{report_id}": {
+      "delete": {
+        "operationId": "delete_saved_api_v1_reports__report_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Saved",
+        "tags": [
+          "reports"
+        ]
+      },
+      "put": {
+        "operationId": "update_saved_api_v1_reports__report_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavedReportIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Saved",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/reports/{report_id}/run": {
+      "get": {
+        "operationId": "run_saved_api_v1_reports__report_id__run_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Report Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "json (por defecto) o csv",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "json",
+              "description": "json (por defecto) o csv",
+              "enum": [
+                "json",
+                "csv"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Saved",
+        "tags": [
+          "reports"
         ]
       }
     },

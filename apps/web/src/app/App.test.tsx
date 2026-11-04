@@ -2917,3 +2917,229 @@ describe('Conexión con el banco (OF-1401)', () => {
     vi.unstubAllGlobals()
   })
 })
+
+describe('Patrimonio neto (OF-1501)', () => {
+  const eurn = (amount: string) => ({ amount, currency: 'EUR' })
+  const point = (on: string, assets: string, debts: string, net: string, excluded = 0) => ({
+    on,
+    assets: eurn(assets),
+    debts: eurn(debts),
+    net: eurn(net),
+    excluded,
+  })
+  const WORTH = {
+    currency: 'EUR',
+    today: point('2026-11-03', '2000.00', '500.00', '1500.00'),
+    history: [point('2026-10-31', '1800.00', '600.00', '1200.00'), point('2026-11-03', '2000.00', '500.00', '1500.00')],
+    accounts: [
+      { account_id: 'a-joint', name: 'Cuenta conjunta', type: 'bank', balance: eurn('2000.00'), value: eurn('2000.00') },
+      { account_id: 'a-visa', name: 'Visa', type: 'card', balance: eurn('-500.00'), value: eurn('-500.00') },
+      { account_id: 'a-usd', name: 'Viajes USD', type: 'cash', balance: { amount: '80.00', currency: 'USD' }, value: null },
+    ],
+    by_type: [
+      { type: 'bank', net: eurn('2000.00') },
+      { type: 'card', net: eurn('-500.00') },
+    ],
+    missing_rates: ['USD'],
+  }
+
+  it('enseña activos, deudas, el neto, el desglose y avisa de lo que no entra', async () => {
+    window.location.hash = '#patrimonio'
+    loggedIn({ 'GET /api/v1/net-worth': { body: WORTH } })
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Patrimonio neto' })
+    expect(card).toHaveTextContent('1500,00 €')
+    expect(card).toHaveTextContent('2000,00 € de activos menos 500,00 € de deudas')
+    expect(card).toHaveTextContent('No entran las cuentas en USD')
+    expect(screen.getByRole('region', { name: 'Por tipo de cuenta' })).toHaveTextContent('Tarjetas · -500,00 €')
+    expect(screen.getByRole('region', { name: 'Cuentas del patrimonio' })).toHaveTextContent('Viajes USD')
+    expect(screen.getByRole('region', { name: 'Cuentas del patrimonio' })).toHaveTextContent('sin tipo de cambio, no entra')
+    expect(screen.getByRole('img', { name: 'Patrimonio neto a fin de cada mes' })).toBeInTheDocument()
+    const table = screen.getByRole('table', { name: 'Patrimonio a fin de cada mes' })
+    expect(within(table).getAllByRole('row')).toHaveLength(3)
+  })
+
+  it('si alguna vez fue negativo no dibuja el gráfico y deja la tabla', async () => {
+    window.location.hash = '#patrimonio'
+    loggedIn({
+      'GET /api/v1/net-worth': {
+        body: { ...WORTH, history: [point('2026-10-31', '100.00', '300.00', '-200.00'), WORTH.history[1]], missing_rates: [] },
+      },
+    })
+    render(<App />)
+    await screen.findByRole('region', { name: 'Patrimonio neto' })
+    expect(screen.queryByRole('img', { name: 'Patrimonio neto a fin de cada mes' })).toBeNull()
+    expect(screen.getByRole('table', { name: 'Patrimonio a fin de cada mes' })).toHaveTextContent('-200,00 €')
+  })
+
+  it('si no se puede cargar lo dice y deja reintentar', async () => {
+    window.location.hash = '#patrimonio'
+    loggedIn({ 'GET /api/v1/net-worth': { status: 500, body: { detail: 'boom' } } })
+    render(<App />)
+    expect(await screen.findByRole('button', { name: /Reintentar/ })).toBeInTheDocument()
+  })
+})
+
+describe('Flujo de caja (OF-1502)', () => {
+  const eurc = (amount: string) => ({ amount, currency: 'EUR' })
+  const month = (m: string, change: string, end: string, partial = false) => ({
+    month: m,
+    income: eurc('2000.00'),
+    contributions: eurc('0.00'),
+    spending: eurc('1500.00'),
+    savings: eurc('300.00'),
+    transfers: eurc('0.00'),
+    change: eurc(change),
+    end_balance: eurc(end),
+    is_partial: partial,
+  })
+  const FLOW = {
+    currency: 'EUR',
+    months: [month('2026-09', '200.00', '1000.00'), month('2026-10', '200.00', '1200.00'), month('2026-11', '-50.00', '1150.00', true)],
+    accounts: 3,
+    excluded_foreign: 0,
+  }
+
+  it('enseña cada mes con su variación y marca el que está en curso', async () => {
+    window.location.hash = '#flujo'
+    loggedIn({ 'GET /api/v1/cash-flow': { body: FLOW } })
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Flujo de caja' })
+    expect(card).toHaveTextContent('3 cuentas bancarias y de efectivo')
+    const table = within(card).getByRole('table', { name: 'Flujo de caja por mes' })
+    const rows = within(table).getAllByRole('row')
+    expect(rows).toHaveLength(4)
+    expect(rows[1]).toHaveTextContent('noviembre de 2026 (en curso)')
+    expect(rows[1]).toHaveTextContent('-50,00 €')
+    expect(within(card).getByRole('img', { name: 'Saldo líquido a fin de cada mes' })).toBeInTheDocument()
+  })
+
+  it('avisa de las cuentas en otra moneda que no entran', async () => {
+    window.location.hash = '#flujo'
+    loggedIn({ 'GET /api/v1/cash-flow': { body: { ...FLOW, excluded_foreign: 2 } } })
+    render(<App />)
+    expect(await screen.findByText(/2 cuentas en otra moneda no entran/)).toBeInTheDocument()
+  })
+
+  it('con un saldo negativo no dibuja el gráfico', async () => {
+    window.location.hash = '#flujo'
+    loggedIn({ 'GET /api/v1/cash-flow': { body: { ...FLOW, months: [month('2026-10', '-300.00', '-100.00'), FLOW.months[2]] } } })
+    render(<App />)
+    await screen.findByRole('region', { name: 'Flujo de caja' })
+    expect(screen.queryByRole('img', { name: 'Saldo líquido a fin de cada mes' })).toBeNull()
+  })
+})
+
+describe('Informes a medida (OF-1503)', () => {
+  const eurr = (amount: string) => ({ amount, currency: 'EUR' })
+  const REPORT = {
+    currency: 'EUR',
+    rows: [
+      { key: 'c-super', label: 'Supermercado', amount: eurr('87.34'), count: 1 },
+      { key: null, label: 'Sin categoría', amount: eurr('25.40'), count: 1 },
+    ],
+    total: eurr('112.74'),
+    count: 2,
+    hidden_rows: 0,
+    missing_rates: [],
+    ignored_accounts: 0,
+  }
+  const definition = {
+    from_month: '2026-09',
+    to_month: '2026-11',
+    measure: 'spent',
+    group_by: 'category',
+    account_ids: [],
+    category_ids: [],
+    uncategorized: false,
+    tags: [],
+    min_amount: null,
+  }
+  const SAVED = {
+    id: 'r-1',
+    name: 'Gasto trimestral',
+    shared: true,
+    mine: true,
+    definition,
+    created_at: '2026-11-01T10:00:00Z',
+  }
+
+  beforeEach(() => {
+    window.location.hash = '#informes'
+  })
+
+  it('ejecuta la definición y enseña filas y total', async () => {
+    const calls = loggedIn({
+      'GET /api/v1/reports': { body: [] },
+      'POST /api/v1/reports/run': { body: REPORT },
+    })
+    render(<App />)
+    await userEvent.selectOptions(await screen.findByLabelText('Agrupar por'), 'merchant')
+    await userEvent.type(screen.getByLabelText('Importe mínimo'), '10.00')
+    await userEvent.type(screen.getByLabelText('Etiquetas (separadas por comas)'), 'viaje, cena')
+    await userEvent.click(screen.getByRole('button', { name: 'Ejecutar' }))
+    const result = await screen.findByRole('region', { name: 'Resultado del informe' })
+    expect(result).toHaveTextContent('Supermercado')
+    expect(result).toHaveTextContent('112,74 €')
+    const sent = calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/reports/run')
+    expect(JSON.parse(String(sent?.body))).toMatchObject({
+      measure: 'spent',
+      group_by: 'merchant',
+      min_amount: '10.00',
+      tags: ['viaje', 'cena'],
+      account_ids: [],
+    })
+  })
+
+  it('guarda un informe compartido con su nombre', async () => {
+    const calls = loggedIn({
+      'GET /api/v1/reports': { body: [] },
+      'POST /api/v1/reports': { status: 201, body: SAVED },
+    })
+    render(<App />)
+    await userEvent.type(await screen.findByLabelText('Nombre para guardarlo'), 'Gasto trimestral')
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Compartir con el hogar' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar informe' }))
+    const list = await screen.findByRole('region', { name: 'Informes guardados' })
+    expect(list).toHaveTextContent('Gasto trimestral · compartido')
+    const post = calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/reports')
+    expect(JSON.parse(String(post?.body))).toMatchObject({ name: 'Gasto trimestral', shared: true })
+  })
+
+  it('ejecuta un guardado; uno compartido por otra persona no se puede borrar', async () => {
+    loggedIn({
+      'GET /api/v1/reports': { body: [SAVED, { ...SAVED, id: 'r-2', name: 'De Elena', mine: false }] },
+      'GET /api/v1/reports/r-2/run': { body: { ...REPORT, ignored_accounts: 1 } },
+    })
+    render(<App />)
+    const list = await screen.findByRole('region', { name: 'Informes guardados' })
+    expect(within(list).getByRole('button', { name: 'Borrar Gasto trimestral' })).toBeInTheDocument()
+    expect(within(list).queryByRole('button', { name: 'Borrar De Elena' })).toBeNull()
+    await userEvent.click(within(list).getByRole('button', { name: 'Ejecutar De Elena' }))
+    const result = await screen.findByRole('region', { name: 'Resultado del informe' })
+    expect(result).toHaveTextContent('De Elena')
+    expect(result).toHaveTextContent('1 cuentas del filtro no las ves tú')
+  })
+
+  it('borra un informe guardado', async () => {
+    const calls = loggedIn({
+      'GET /api/v1/reports': { body: [SAVED] },
+      'DELETE /api/v1/reports/r-1': { status: 204 },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Borrar Gasto trimestral' }))
+    expect(await screen.findByText('Todavía no has guardado ninguno.')).toBeInTheDocument()
+    expect(calls.some((c) => c.method === 'DELETE')).toBe(true)
+  })
+
+  it('un error de la API se enseña y no deja resultado', async () => {
+    loggedIn({
+      'GET /api/v1/reports': { body: [] },
+      'POST /api/v1/reports/run': { status: 404, body: { detail: 'Cuenta no encontrada' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Ejecutar' }))
+    expect(await screen.findByText('Cuenta no encontrada')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Resultado del informe' })).toBeNull()
+  })
+})

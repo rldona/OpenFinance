@@ -475,6 +475,21 @@ class BankLinkRow(Base):
     """Saldo del banco menos el calculado en OpenFinance a esa fecha, al sincronizar."""
 
 
+class SavedReportRow(Base):
+    """Definición de un informe a medida; nunca guarda resultados (ADR-0025, OF-1503)."""
+
+    __tablename__ = "saved_reports"
+    __table_args__ = (Index("ix_saved_reports_household", "household_id", "owner_id"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    owner_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    name: Mapped[str] = mapped_column(String(80))
+    definition: Mapped[str] = mapped_column(Text)
+    shared: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa_false())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class MerchantRow(Base):
     """Comercio con nombre propio (OF-1001). Los que nadie ha tocado no tienen fila."""
 
