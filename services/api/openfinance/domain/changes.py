@@ -19,9 +19,24 @@ class Entity(StrEnum):
     RULE = "rule"
     """Regla «comercio → categoría». Su identificador es ``ámbito|comercio``."""
     IMPORT = "import"
+    RATE = "rate"
+    """Tipo de cambio (OF-1008). Su identificador es «MONEDA|AAAA-MM-DD»; campo ``rate``: el valor
+    como texto o ``None`` si no existe."""
+    ATTACHMENT = "attachment"
+    """Adjunto de un movimiento (OF-1007). Campo ``present``: ``True`` si está, ``False`` si se
+    ha borrado (el archivo se conserva 30 días por si se deshace)."""
+    LINK = "link"
+    """Traspaso enlazado (OF-1004). Su identificador es el del lado con menor identificador;
+    campo ``peer`` = identificador del otro lado, o ``None`` si no hay enlace."""
+    SPLIT = "split"
+    """Partes de un movimiento dividido (OF-1003). Su identificador es el del movimiento; campo
+    ``parts`` = «importe@categoría|…» o ``None`` si no está dividido."""
+    MERCHANT = "merchant"
+    """Comercio con nombre propio (OF-1001). Campos: ``name`` y ``keys`` (variantes con «|»);
+    ``None`` en ``name`` significa que el comercio no existe."""
 
 
-TRANSACTION_FIELDS = ("kind", "member_id", "category_id", "note", "voided")
+TRANSACTION_FIELDS = ("kind", "member_id", "category_id", "note", "voided", "reviewed")
 """Campos corregibles de un movimiento. El importe, la fecha y el concepto nunca cambian."""
 
 

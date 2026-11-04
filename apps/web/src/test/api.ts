@@ -31,8 +31,8 @@ export const ME = {
 const eur = (amount: string) => ({ amount, currency: 'EUR' })
 
 export const ACCOUNTS = [
-  { id: 'a-joint', name: 'Cuenta conjunta', institution: 'revolut', kind: 'joint', owner_id: null, opening_balance: eur('100.00'), balance: eur('1227.26') },
-  { id: 'a-raul', name: 'Bankinter Raúl', institution: 'bankinter', kind: 'personal', owner_id: 'u-raul', opening_balance: eur('0.00'), balance: eur('500.00') },
+  { id: 'a-joint', name: 'Cuenta conjunta', institution: 'revolut', kind: 'joint', type: 'bank', owner_id: null, opening_balance: eur('100.00'), balance: eur('1227.26') },
+  { id: 'a-raul', name: 'Bankinter Raúl', institution: 'bankinter', kind: 'personal', type: 'bank', owner_id: 'u-raul', opening_balance: eur('0.00'), balance: eur('500.00') },
 ]
 
 export const CATEGORIES = [
@@ -54,6 +54,11 @@ const tx = (id: string, description: string, amount: string, kind: string, extra
   member_id: null,
   source: 'import:revolut.csv',
   note: '',
+  tags: [],
+  parts: [],
+  transfer_peer_id: null,
+  reviewed: false,
+  attachment_count: 0,
   ...extra,
 })
 
@@ -94,5 +99,6 @@ export function page(
     next_cursor: extra.next_cursor ?? null,
     count: extra.count ?? items.length,
     total: { amount: extra.total ?? '-100.00', currency: 'EUR' },
+    other_currencies: [] as string[],
   }
 }

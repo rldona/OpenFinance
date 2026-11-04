@@ -39,6 +39,7 @@ La fase 5 (OF-501, OF-502) pone OpenFinance en uso real en un equipo de casa (x8
 
 - `GET /api/v1/export?format=json|csv` exporta **lo que ve quien la pide**: cuentas visibles (sin la personal de la otra persona) con sus movimientos y saldos, categorías, reglas del hogar y las personales propias, presupuestos, objetivos (sin la cuenta vinculada si no es visible), y los patrones propios y los de entrada de los demás. Nunca sesiones, hashes, lotes de importación ni huellas de movimientos. Se decide en un único caso de uso (`application/export.py`).
 - JSON: importes como texto decimal exacto (`"-12.30"`), fechas ISO 8601. CSV: un ZIP con `manifest.json` y un CSV por entidad (UTF-8 con BOM, RFC 4180 con todos los campos entre comillas, punto decimal); los textos que empiezan por `=`, `+`, `-`, `@`, tabulador o retorno de carro, o que tras un `;`, tabulador o salto de línea (y espacios) tienen uno de `=`, `+`, `-`, `@`, llevan delante un apóstrofo para que una hoja de cálculo (Excel en español separa con `;`) no los ejecute como fórmula. Importes y fechas nunca se tocan.
+- Desde OF-1002 cada movimiento lleva `tags` (etiquetas separadas por «|»). Añadir un campo no cambia `format_version`.
 - El archivo lleva `format_version` (hoy `1`): sube si cambia su forma. Las respuestas van con `Content-Disposition: attachment`, `Cache-Control: no-store` y `X-Content-Type-Options: nosniff`.
 
 ## Consecuencias
@@ -56,3 +57,9 @@ La fase 5 (OF-501, OF-502) pone OpenFinance en uso real en un equipo de casa (x8
 - **Observabilidad:** `OPENFINANCE_LOG_LEVEL` se aplica; cada petición lleva `X-Request-ID` (el de nginx si es válido) y deja una línea sin query ni cabeceras. `/ready` comprueba la base de datos y es el `healthcheck` de la API.
 - **Imágenes publicadas y firmadas:** en cada etiqueta `vX.Y.Z`, ghcr.io con cosign sin claves (OIDC de GitHub). Quien prefiera construir en local puede seguir haciéndolo.
 - **Aviso de versión nueva opt-in:** consultar GitHub revela que hay una instalación en esa IP, y el proyecto es local-first (ADR-0007), así que `OPENFINANCE_UPDATE_CHECK` está apagado por defecto; no envía datos y solo avisa.
+
+## Adjuntos (OF-1007)
+
+- Los adjuntos de movimientos son archivos en el volumen `attachments` (`/data/attachments` en la API), con el identificador por nombre en dos niveles de carpetas y permisos 600; los metadatos están en la tabla `attachments`. Solo PDF, PNG, JPEG y WebP reconocidos por su contenido, 5 MB como máximo y 10 por movimiento. Se descargan siempre como descarga (`Content-Disposition: attachment`, `nosniff`, `no-store` y CSP `sandbox`).
+- Heredan la visibilidad del movimiento: quien no ve la cuenta no puede listarlos, descargarlos, borrarlos ni deshacer su alta. Borrar es suave: el archivo se conserva 30 días y se purga al arrancar la API.
+- `make backup` guarda los adjuntos en un segundo fichero con la misma fecha y el mismo cifrado; `make restore` los restaura. La exportación JSON/CSV solo lleva su número, no los archivos.

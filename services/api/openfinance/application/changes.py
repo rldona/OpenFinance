@@ -8,7 +8,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 from uuid import UUID, uuid4
 
 from openfinance.application.errors import ConflictError, NotFoundError
@@ -24,7 +25,12 @@ from openfinance.domain.changes import (
 )
 from openfinance.domain.imports.batch import ImportStatus
 from openfinance.domain.ledger import LedgerError, Transaction, TransactionKind
+from openfinance.domain.merchants import Merchant, MerchantId, join_keys, split_keys
+from openfinance.domain.rates import ExchangeRate
+from openfinance.domain.shared import Currency
 from openfinance.domain.shared.ids import AccountId, TransactionId, UserId
+from openfinance.domain.splits import decode_parts, encode_parts
+from openfinance.domain.tags import join_tags, split_tags
 from openfinance.domain.workspaces import Actor
 
 MAX_SUMMARY = 200
@@ -39,6 +45,7 @@ def transaction_state(t: Transaction) -> dict[str, Value]:
         "category_id": str(t.category_id) if t.category_id else None,
         "note": t.note,
         "voided": t.voided,
+        "reviewed": t.reviewed,
     }
 
 
@@ -53,6 +60,7 @@ def with_state(t: Transaction, values: Mapping[str, Value]) -> Transaction:
         category_id=CategoryId(UUID(str(category))) if category else None,
         note=str(state["note"] or ""),
         voided=bool(state["voided"]),
+        reviewed=bool(state["reviewed"]),
     )
 
 
@@ -146,6 +154,8 @@ def display_summary(operation: Operation, visible: set[str] | None = None) -> st
         return f"{base} y {n - 1} más"
     if operation.action == "transactions.categorize":
         return f"{n} {'gasto' if n == 1 else 'gastos'} {base}"
+    if operation.action == "transactions.review":
+        return f"{n} {'movimiento' if n == 1 else 'movimientos'} {base}"
     if operation.action == "import.undo":
         return f"{base} ({n} movimientos)"
     return base
@@ -222,6 +232,16 @@ def _apply(
             done, rest = _apply_transaction(uow, actor, visible, entity_id, changes)
         elif entity is Entity.RULE:
             done, rest = _apply_rule(uow, actor, entity_id, changes, now)
+        elif entity is Entity.RATE:
+            done, rest = _apply_rate(uow, actor, entity_id, changes)
+        elif entity is Entity.ATTACHMENT:
+            done, rest = _apply_attachment(uow, actor, visible, entity_id, changes, now)
+        elif entity is Entity.LINK:
+            done, rest = _apply_link(uow, actor, visible, entity_id, changes)
+        elif entity is Entity.SPLIT:
+            done, rest = _apply_split(uow, actor, visible, entity_id, changes)
+        elif entity is Entity.MERCHANT:
+            done, rest = _apply_merchant(uow, actor, entity_id, changes)
         else:
             done, rest = _apply_import(uow, actor, entity_id, changes)
         applied += done
@@ -244,20 +264,42 @@ def _apply_transaction(
     current = transaction_state(t)
     values: dict[str, Value] = {}
     kept: list[Change] = []
+    tag_changes = [c for c in changes if c.field == "tags"]
+    changes = [c for c in changes if c.field != "tags"]
     for c in changes:
         if current.get(c.field) == c.before and c.field not in values:
             values[c.field] = c.after
         else:
             kept.append(c)
+    applied_tags = _apply_tags(uow, actor, t, tag_changes, kept)
     if not values:
-        return 0, kept
+        return applied_tags, kept
     try:
         updated = with_state(t, values)
     except LedgerError:
         # Lo que queda no formaría un movimiento válido (p. ej. persona sin aportación).
         return 0, changes
     uow.transactions.save(updated)
-    return len(values), kept
+    return len(values) + applied_tags, kept
+
+
+def _apply_tags(
+    uow: UnitOfWork, actor: Actor, t: Transaction, changes: list[Change], kept: list[Change]
+) -> int:
+    """Etiquetas de un movimiento (OF-1002): «a|b|c», o ``None`` si no tiene ninguna."""
+    if not changes:
+        return 0
+    start = uow.tags.for_transactions(actor.household_id, [t.id]).get(t.id, ())
+    state, applied = join_tags(start) or None, 0
+    for c in changes:
+        if state == c.before:
+            state = None if c.after is None else str(c.after)
+            applied += 1
+        else:
+            kept.append(c)
+    if applied:
+        uow.tags.set(actor.household_id, t.id, split_tags(state or ""))
+    return applied
 
 
 def _apply_rule(
@@ -281,6 +323,149 @@ def _apply_rule(
                 now,
             )
         applied += 1
+    return applied, kept
+
+
+def _apply_rate(
+    uow: UnitOfWork, actor: Actor, entity_id: str, changes: list[Change]
+) -> tuple[int, list[Change]]:
+    """Un tipo de cambio (OF-1008): ``rate`` = valor como texto, o ``None`` si no existe."""
+    code, _, day = entity_id.partition("|")
+    currency, on = Currency(code), date.fromisoformat(day)
+    current = uow.rates.get(actor.household_id, currency, on)
+    state = f"{current.rate:f}" if current else None
+    applied, kept = 0, []
+    for c in changes:
+        if c.field != "rate" or state != c.before:
+            kept.append(c)
+            continue
+        if c.after is None:
+            uow.rates.delete(actor.household_id, currency, on)
+        else:
+            uow.rates.upsert(
+                ExchangeRate(actor.household_id, currency, on, Decimal(str(c.after))),
+                actor.user_id,
+            )
+        state = None if c.after is None else str(c.after)
+        applied += 1
+    return applied, kept
+
+
+def _apply_attachment(
+    uow: UnitOfWork,
+    actor: Actor,
+    visible: set[AccountId],
+    entity_id: str,
+    changes: list[Change],
+    now: datetime,
+) -> tuple[int, list[Change]]:
+    """Un adjunto está o no está (OF-1007). Borrar conserva el archivo, así que se recupera."""
+    attachment = uow.attachments.get(actor.household_id, UUID(entity_id))
+    if attachment is None:
+        return 0, changes
+    t = uow.transactions.get(actor.household_id, attachment.transaction_id, include_voided=True)
+    if t is None or t.account_id not in visible:
+        return 0, changes
+    present = not attachment.is_deleted
+    applied, kept = 0, []
+    for c in changes:
+        if c.field != "present" or present != c.before:
+            kept.append(c)
+            continue
+        uow.attachments.set_deleted(actor.household_id, attachment.id, None if c.after else now)
+        present = bool(c.after)
+        applied += 1
+    return applied, kept
+
+
+def _apply_link(
+    uow: UnitOfWork,
+    actor: Actor,
+    visible: set[AccountId],
+    entity_id: str,
+    changes: list[Change],
+) -> tuple[int, list[Change]]:
+    """Enlace de un traspaso (OF-1004): ``peer`` es el otro lado o ``None``."""
+    first = TransactionId(UUID(entity_id))
+    state = uow.links.peers(actor.household_id, [first]).get(first)
+    current = str(state) if state else None
+    applied, kept = 0, []
+    for c in changes:
+        if c.field != "peer" or current != c.before:
+            kept.append(c)
+            continue
+        other = TransactionId(UUID(str(c.after if c.after is not None else c.before)))
+        accounts = uow.transactions.accounts_of(actor.household_id, [first, other])
+        if not {accounts.get(first), accounts.get(other)} <= visible:
+            kept.append(c)  # quien no ve alguno de los dos lados no lo toca
+            continue
+        if c.after is None:
+            uow.links.unlink(actor.household_id, first)
+        else:
+            uow.links.link(actor.household_id, first, other)
+        current = None if c.after is None else str(c.after)
+        applied += 1
+    return applied, kept
+
+
+def _apply_split(
+    uow: UnitOfWork,
+    actor: Actor,
+    visible: set[AccountId],
+    entity_id: str,
+    changes: list[Change],
+) -> tuple[int, list[Change]]:
+    """Partes de un movimiento dividido (OF-1003)."""
+    tid = TransactionId(UUID(entity_id))
+    t = uow.transactions.get(actor.household_id, tid, include_voided=True)
+    if t is None or t.account_id not in visible:
+        return 0, changes
+    state = encode_parts(uow.splits.for_transactions(actor.household_id, [tid]).get(tid, []))
+    applied, kept = 0, []
+    for c in changes:
+        if c.field == "parts" and state == c.before:
+            state = None if c.after is None else str(c.after)
+            applied += 1
+        else:
+            kept.append(c)
+    if applied:
+        uow.splits.set(actor.household_id, tid, decode_parts(state, t.amount.currency.code))
+    return applied, kept
+
+
+def _apply_merchant(
+    uow: UnitOfWork, actor: Actor, entity_id: str, changes: list[Change]
+) -> tuple[int, list[Change]]:
+    """Nombre y variantes de un comercio (OF-1001). ``name`` = ``None`` es «no existe».
+
+    Los cambios se recorren en orden sobre un estado en memoria y el resultado se escribe una
+    sola vez: así da igual en qué orden lleguen el nombre y las variantes de un mismo comercio.
+    """
+    merchant_id = MerchantId(UUID(entity_id))
+    merchant = uow.merchants.get(actor.household_id, merchant_id)
+    start_name = merchant.name if merchant else None
+    start_keys = join_keys(merchant.keys) if merchant else None
+    name, keys = start_name, start_keys
+    applied, kept = 0, []
+    for c in changes:
+        if c.field == "name" and name == c.before:
+            name = None if c.after is None else str(c.after)
+            applied += 1
+        elif c.field == "keys" and keys == c.before:
+            keys = None if c.after is None else str(c.after)
+            applied += 1
+        else:
+            kept.append(c)
+    if name is None:
+        if merchant is not None:
+            uow.merchants.delete(actor.household_id, merchant_id)
+        return applied, kept
+    if merchant is None:
+        uow.merchants.add(Merchant(merchant_id, actor.household_id, name, ()))
+    elif name != start_name:
+        uow.merchants.set_name(actor.household_id, merchant_id, name)
+    if keys is not None and keys != start_keys:
+        uow.merchants.set_keys(actor.household_id, merchant_id, split_keys(keys))
     return applied, kept
 
 

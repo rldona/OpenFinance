@@ -7,7 +7,7 @@ hashes de contraseña, lotes de importación ni huellas de movimientos.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
@@ -20,6 +20,7 @@ from openfinance.application.savings import goal_saved
 from openfinance.domain.categories import HOUSEHOLD_SCOPE
 from openfinance.domain.imports import PatternDirection
 from openfinance.domain.ledger import account_balance
+from openfinance.domain.tags import join_tags
 from openfinance.domain.workspaces import Actor
 
 EXPORT_FORMAT_VERSION = 1
@@ -50,6 +51,7 @@ class ExportedAccount:
     name: str
     institution: str
     kind: str
+    type: str
     currency: str
     opening_balance: Decimal
     balance: Decimal
@@ -74,6 +76,12 @@ class ExportedTransaction:
     bank_type: str
     source: str
     note: str
+    tags: str
+    """Etiquetas separadas por «|» (OF-1002)."""
+    transfer_peer_id: UUID | None
+    """El otro lado de un traspaso enlazado, si también lo ves (OF-1004)."""
+    parts: str
+    """Partes de un gasto dividido: «categoría:importe|…» (OF-1003)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,6 +129,14 @@ class ExportedPattern:
 
 
 @dataclass(frozen=True, slots=True)
+class ExportedRate:
+    currency: str
+    on: date
+    rate: str
+    source: str
+
+
+@dataclass(frozen=True, slots=True)
 class HouseholdExport:
     meta: ExportMeta
     members: list[ExportedMember]
@@ -131,6 +147,7 @@ class HouseholdExport:
     budgets: list[ExportedBudget]
     goals: list[ExportedGoal]
     member_patterns: list[ExportedPattern]
+    exchange_rates: list[ExportedRate]
 
 
 def export_household(
@@ -152,12 +169,16 @@ def export_household(
     visible = visible_accounts(uow, actor)
     for account in visible:
         txns = uow.transactions.for_account(household_id, account.id)
+        tags = uow.tags.for_transactions(household_id, [t.id for t in txns])
+        splits = uow.splits.for_transactions(household_id, [t.id for t in txns])
+        peers = uow.links.peers(household_id, [t.id for t in txns])
         accounts.append(
             ExportedAccount(
                 id=account.id,
                 name=account.name,
                 institution=account.institution.value,
                 kind=account.kind.value,
+                type=account.type.value,
                 currency=account.currency.code,
                 opening_balance=account.opening_balance.amount,
                 balance=account_balance(account, txns).amount,
@@ -182,10 +203,22 @@ def export_household(
                 bank_type=t.bank_type,
                 source=t.source,
                 note=t.note,
+                tags=join_tags(tags.get(t.id, ())),
+                transfer_peer_id=peers.get(t.id),
+                parts="|".join(
+                    f"{category_names.get(p.category_id, '')}:{p.amount.amount}"
+                    for p in splits.get(t.id, [])
+                ),
             )
             for t in txns
         )
     transactions.sort(key=lambda t: (t.booked_at, str(t.id)))
+    # Un enlace con un movimiento que no ves no se enseña (ADR-0013).
+    seen = {t.id for t in transactions}
+    transactions = [
+        replace(t, transfer_peer_id=t.transfer_peer_id if t.transfer_peer_id in seen else None)
+        for t in transactions
+    ]
     visible_ids = {a.id for a in visible}
 
     own_scope = str(actor.user_id)
@@ -251,4 +284,8 @@ def export_household(
         ],
         goals=goals,
         member_patterns=patterns,
+        exchange_rates=[
+            ExportedRate(r.currency.code, r.on, f"{r.rate:f}", r.source)
+            for r in uow.rates.all(household_id)
+        ],
     )

@@ -11,6 +11,8 @@ from fastapi.responses import JSONResponse
 
 from openfinance import __version__
 from openfinance.api import health, v1
+from openfinance.api.deps import get_attachment_store
+from openfinance.application.attachments import purge_deleted
 from openfinance.application.errors import (
     ApplicationError,
     AuthenticationError,
@@ -131,6 +133,10 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             purged = purge_expired_imports(SqlUnitOfWork(session), utc_now())
         if purged:
             logger.info("Vistas previas caducadas purgadas al arrancar: %d", purged)
+        with factory() as session:
+            old = purge_deleted(SqlUnitOfWork(session), get_attachment_store(), utc_now())
+        if old:
+            logger.info("Adjuntos borrados hace más de 30 días purgados: %d", old)
     except Exception:  # nunca impide arrancar
         logger.warning("No se han podido purgar las vistas previas al arrancar", exc_info=True)
     yield

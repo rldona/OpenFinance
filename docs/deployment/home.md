@@ -95,7 +95,7 @@ make backup                   # backups/openfinance-AAAAmmdd-HHMMSS.dump.age (pe
 make backup DIR=/mnt/disco    # en otra carpeta
 ```
 
-Sin clave pública, `make backup` se niega a hacer la copia. Solo se puede hacer en claro a sabiendas, con `OPENFINANCE_BACKUP_PLAINTEXT=1`. La copia contiene **todo**: las cuentas personales de ambas personas y los hashes de las contraseñas. Antes de cifrar se comprueba que el volcado se puede leer; el volcado en claro se escribe un instante en la misma carpeta con permisos 600 y se borra enseguida.
+Sin clave pública, `make backup` se niega a hacer la copia. Solo se puede hacer en claro a sabiendas, con `OPENFINANCE_BACKUP_PLAINTEXT=1`. La copia contiene **todo**: las cuentas personales de ambas personas y los hashes de las contraseñas. Los adjuntos (tickets y facturas de los movimientos) viven en un volumen de Docker aparte y van en un segundo fichero de la misma fecha, `openfinance-AAAAmmdd-HHMMSS.attachments.tar.age`, cifrado igual; si no hay adjuntos no se crea. Antes de cifrar se comprueba que el volcado se puede leer; el volcado en claro se escribe un instante en la misma carpeta con permisos 600 y se borra enseguida.
 
 Tras cada copia se borran las más antiguas hasta dejar `OPENFINANCE_BACKUP_KEEP`. Solo se tocan ficheros con el nombre exacto `openfinance-AAAAmmdd-HHMMSS.dump[.age]`.
 
@@ -121,7 +121,7 @@ Probad una restauración al menos una vez (sección siguiente): una copia que nu
 make restore FILE=backups/openfinance-20261101-033000.dump.age OPENFINANCE_BACKUP_IDENTITY=clave.txt
 ```
 
-Si la copia está cifrada hay que dar la clave privada (`OPENFINANCE_BACKUP_IDENTITY`); se descifra a un fichero temporal con permisos 600 que se borra al terminar. Primero comprueba que la copia se puede leer; luego pide escribir «restaurar» y sustituye **todos** los datos actuales. Restaurad con la misma versión de OpenFinance que hizo la copia o una más nueva: después se aplican las migraciones pendientes. Al terminar se cierran todas las sesiones y hay que volver a entrar.
+Se restauran también los adjuntos de la misma fecha, si hay (los actuales se sustituyen). Si la copia está cifrada hay que dar la clave privada (`OPENFINANCE_BACKUP_IDENTITY`); se descifra a un fichero temporal con permisos 600 que se borra al terminar. Primero comprueba que la copia se puede leer; luego pide escribir «restaurar» y sustituye **todos** los datos actuales. Restaurad con la misma versión de OpenFinance que hizo la copia o una más nueva: después se aplican las migraciones pendientes. Al terminar se cierran todas las sesiones y hay que volver a entrar.
 
 > **Restaurad solo copias vuestras** (hechas con `make backup` en vuestra instalación). `pg_restore` se ejecuta con el usuario de PostgreSQL de la instalación, que es superusuario de la base de datos: una copia manipulada podría ejecutar SQL arbitrario con esos permisos.
 

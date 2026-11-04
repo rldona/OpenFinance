@@ -32,7 +32,34 @@ class AccountKind(StrEnum):
     """Hucha o cuenta de ahorro del hogar: la ven todos los miembros."""
 
 
-MAX_NOTE = 500
+class AccountType(StrEnum):
+    """Para qué sirve la cuenta (OF-1005). Es independiente de quién la ve (``AccountKind``).
+
+    Todas son solo de seguimiento: OpenFinance no mueve ni contrata nada.
+    """
+
+    BANK = "bank"
+    """Cuenta corriente o de ahorro de un banco (la de siempre)."""
+    CASH = "cash"
+    """Efectivo."""
+    CARD = "card"
+    """Tarjeta de crédito: el saldo negativo es lo que se debe. Sus compras son gasto."""
+    LOAN = "loan"
+    """Préstamo o hipoteca que ya existe: el saldo negativo es lo pendiente. No es gasto."""
+    INVESTMENT = "investment"
+    """Inversión: su valor se anota a mano o por movimientos. No es gasto."""
+
+    @property
+    def is_liability(self) -> bool:
+        return self in (AccountType.CARD, AccountType.LOAN)
+
+    @property
+    def counts_in_reports(self) -> bool:
+        """Si sus movimientos entran en gasto, presupuestos e informes del mes."""
+        return self not in (AccountType.LOAN, AccountType.INVESTMENT)
+
+
+MAX_NOTE = 2000
 
 
 class TransactionKind(StrEnum):
@@ -60,6 +87,7 @@ class Account:
     currency: Currency
     opening_balance: Money
     owner_id: UserId | None = None
+    type: AccountType = AccountType.BANK
 
     def __post_init__(self) -> None:
         if not self.name.strip():
@@ -73,6 +101,17 @@ class Account:
 
     def visible_to(self, user_id: UserId) -> bool:
         return self.kind is not AccountKind.PERSONAL or self.owner_id == user_id
+
+
+def normalize_note(text: str) -> str:
+    """Nota con saltos de línea: espacios sobrantes fuera, sin líneas vacías seguidas ni al
+    principio o al final (OF-1002)."""
+    lines = [" ".join(line.split()) for line in text.replace("\r\n", "\n").split("\n")]
+    out: list[str] = []
+    for line in lines:
+        if line or (out and out[-1]):
+            out.append(line)
+    return "\n".join(out).strip("\n")
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,6 +140,8 @@ class Transaction:
     """Nota de quien corrige el movimiento (OF-701)."""
     voided: bool = False
     """Anulado (borrado o importación deshecha): no cuenta en nada, pero no se borra (ADR-0017)."""
+    reviewed: bool = False
+    """Revisado contra el banco (OF-1006): deshacer una importación o aplicar reglas no lo toca."""
 
     def __post_init__(self) -> None:
         if self.kind is TransactionKind.CONTRIBUTION and self.member_id is None:
@@ -109,8 +150,8 @@ class Transaction:
             raise LedgerError("Solo las aportaciones indican persona")
         if self.amount.is_zero:
             raise LedgerError("Un movimiento no puede ser de importe cero")
-        if len(self.note) > MAX_NOTE or not self.note.isprintable():
-            raise LedgerError(f"La nota no puede superar {MAX_NOTE} caracteres ni llevar saltos")
+        if len(self.note) > MAX_NOTE or not self.note.replace("\n", "").isprintable():
+            raise LedgerError(f"La nota no puede superar {MAX_NOTE} caracteres")
         if self.category_id is not None and self.kind is not TransactionKind.EXPENSE:
             raise LedgerError("Solo los gastos tienen categoría")
         if not self.merchant:

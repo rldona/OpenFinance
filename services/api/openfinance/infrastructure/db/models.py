@@ -16,6 +16,7 @@ from sqlalchemy import (
     LargeBinary,
     Numeric,
     String,
+    Text,
     UniqueConstraint,
     func,
 )
@@ -58,6 +59,9 @@ class AccountRow(Base):
     __tablename__ = "accounts"
     __table_args__ = (
         CheckConstraint("(kind = 'personal') = (owner_id IS NOT NULL)", name="personal_owner"),
+        CheckConstraint(
+            "type IN ('bank', 'cash', 'card', 'loan', 'investment')", name="type_valid"
+        ),
         UniqueConstraint("id", "household_id", name="uq_accounts_id_household"),
         # El titular de una cuenta personal tiene que ser miembro del mismo hogar.
         ForeignKeyConstraint(
@@ -72,6 +76,7 @@ class AccountRow(Base):
     name: Mapped[str] = mapped_column(String(100))
     institution: Mapped[str] = mapped_column(String(20))
     kind: Mapped[str] = mapped_column(String(20))
+    type: Mapped[str] = mapped_column(String(20), default="bank", server_default="bank")
     currency: Mapped[str] = mapped_column(String(3))
     opening_balance: Mapped[Decimal] = mapped_column(AMOUNT)
     owner_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
@@ -120,8 +125,9 @@ class TransactionRow(Base):
     source: Mapped[str] = mapped_column(String(200), default="manual")
     fingerprint: Mapped[str | None] = mapped_column(String(64))
     import_id: Mapped[UUID | None] = mapped_column(ForeignKey("import_batches.id"), index=True)
-    note: Mapped[str] = mapped_column(String(500), default="", server_default="")
+    note: Mapped[str] = mapped_column(String(2000), default="", server_default="")
     voided: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa_false())
+    reviewed: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa_false())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -177,6 +183,147 @@ class DismissedIdeaRow(Base):
     idea_id: Mapped[str] = mapped_column(String(60), primary_key=True)
     dismissed_by: Mapped[UUID] = mapped_column()
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class TransactionTagRow(Base):
+    """Etiqueta de un movimiento (OF-1002). Hereda la visibilidad del movimiento."""
+
+    __tablename__ = "transaction_tags"
+    __table_args__ = (Index("ix_transaction_tags_household_key", "household_id", "tag_key"),)
+
+    transaction_id: Mapped[UUID] = mapped_column(
+        ForeignKey("transactions.id", ondelete="CASCADE"), primary_key=True
+    )
+    tag_key: Mapped[str] = mapped_column(String(40), primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    tag: Mapped[str] = mapped_column(String(40))
+
+
+class TransactionSplitRow(Base):
+    """Parte de un movimiento dividido (OF-1003)."""
+
+    __tablename__ = "transaction_splits"
+    __table_args__ = (
+        CheckConstraint("amount <> 0", name="amount_not_zero"),
+        ForeignKeyConstraint(
+            ["category_id", "household_id"],
+            ["categories.id", "categories.household_id"],
+            name="fk_transaction_splits_category_household",
+        ),
+    )
+
+    transaction_id: Mapped[UUID] = mapped_column(
+        ForeignKey("transactions.id", ondelete="CASCADE"), primary_key=True
+    )
+    position: Mapped[int] = mapped_column(Integer, primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    amount: Mapped[Decimal] = mapped_column(AMOUNT)
+    currency: Mapped[str] = mapped_column(String(3))
+    category_id: Mapped[UUID] = mapped_column()
+
+
+class TransactionLinkRow(Base):
+    """Un lado de un traspaso enlazado: cada enlace son dos filas, una por lado (OF-1004)."""
+
+    __tablename__ = "transaction_links"
+    __table_args__ = (CheckConstraint("transaction_id <> peer_id", name="not_self"),)
+
+    transaction_id: Mapped[UUID] = mapped_column(
+        ForeignKey("transactions.id", ondelete="CASCADE"), primary_key=True
+    )
+    peer_id: Mapped[UUID] = mapped_column(ForeignKey("transactions.id", ondelete="CASCADE"))
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+
+
+class ReconciliationRow(Base):
+    """Comprobación del saldo de una cuenta contra el del banco en una fecha (OF-1006)."""
+
+    __tablename__ = "reconciliations"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["account_id", "household_id"],
+            ["accounts.id", "accounts.household_id"],
+            name="fk_reconciliations_account_household",
+        ),
+        Index("ix_reconciliations_account", "account_id", "as_of"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    account_id: Mapped[UUID] = mapped_column()
+    as_of: Mapped[date] = mapped_column(Date)
+    bank_balance: Mapped[Decimal] = mapped_column(AMOUNT)
+    computed_balance: Mapped[Decimal] = mapped_column(AMOUNT)
+    currency: Mapped[str] = mapped_column(String(3))
+    created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AttachmentRow(Base):
+    """Metadatos de un adjunto; el archivo vive en disco, con el identificador por nombre."""
+
+    __tablename__ = "attachments"
+    __table_args__ = (Index("ix_attachments_transaction", "transaction_id"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    transaction_id: Mapped[UUID] = mapped_column(ForeignKey("transactions.id", ondelete="CASCADE"))
+    filename: Mapped[str] = mapped_column(String(100))
+    content_type: Mapped[str] = mapped_column(String(40))
+    size: Mapped[int] = mapped_column(Integer)
+    sha256: Mapped[str] = mapped_column(String(64))
+    created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ExchangeRateRow(Base):
+    """Tipo de cambio manual: 1 unidad de ``currency`` = ``rate`` de la moneda del hogar."""
+
+    __tablename__ = "exchange_rates"
+    __table_args__ = (
+        CheckConstraint("rate > 0", name="rate_positive"),
+        CheckConstraint("source IN ('manual', 'extracto')", name="source_valid"),
+    )
+
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"), primary_key=True)
+    currency: Mapped[str] = mapped_column(String(3), primary_key=True)
+    on_date: Mapped[date] = mapped_column(Date, primary_key=True)
+    rate: Mapped[Decimal] = mapped_column(Numeric(24, 8))
+    source: Mapped[str] = mapped_column(String(10), default="manual", server_default="manual")
+    created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class MerchantRow(Base):
+    """Comercio con nombre propio (OF-1001). Los que nadie ha tocado no tienen fila."""
+
+    __tablename__ = "merchants"
+    __table_args__ = (UniqueConstraint("id", "household_id", name="uq_merchants_id_household"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    name: Mapped[str] = mapped_column(String(60))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class MerchantKeyRow(Base):
+    """Variante del banco («MERCADONA») que pertenece a un comercio."""
+
+    __tablename__ = "merchant_keys"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["merchant_id", "household_id"],
+            ["merchants.id", "merchants.household_id"],
+            name="fk_merchant_keys_merchant_household",
+            ondelete="CASCADE",
+        ),
+        Index("ix_merchant_keys_merchant", "merchant_id"),
+    )
+
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"), primary_key=True)
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    merchant_id: Mapped[UUID] = mapped_column()
 
 
 class BudgetRow(Base):
@@ -303,7 +450,11 @@ class ChangeEntryRow(Base):
     __tablename__ = "change_entries"
     __table_args__ = (
         Index("ix_change_entries_entity", "entity", "entity_id"),
-        CheckConstraint("entity IN ('transaction', 'rule', 'import')", name="entity_valid"),
+        CheckConstraint(
+            "entity IN ('transaction', 'rule', 'import', 'merchant', 'tag', 'split', 'link', "
+            "'account', 'attachment', 'reconciliation', 'rate')",
+            name="entity_valid",
+        ),
     )
 
     operation_id: Mapped[UUID] = mapped_column(
@@ -313,6 +464,6 @@ class ChangeEntryRow(Base):
     entity: Mapped[str] = mapped_column(String(20))
     entity_id: Mapped[str] = mapped_column(String(150))
     field: Mapped[str] = mapped_column(String(30))
-    before: Mapped[str] = mapped_column(String(600))
+    before: Mapped[str] = mapped_column(Text)
     """Valor anterior en JSON (``null``, ``true``, ``"texto"``)."""
-    after: Mapped[str] = mapped_column(String(600))
+    after: Mapped[str] = mapped_column(Text)

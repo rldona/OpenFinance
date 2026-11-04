@@ -97,6 +97,25 @@ fi
 
 chmod 600 "$part"
 mv "$part" "$dir/$name"
+
+# Los adjuntos (tickets y facturas, OF-1007) viven en un volumen aparte: van en un segundo
+# fichero con la misma fecha, cifrado igual. Sin adjuntos no se crea.
+files_name="openfinance-$stamp.attachments.tar${suffix#.dump}"
+files_part="$dir/$files_name.part"
+files_plain="$dir/openfinance-$stamp.attachments.plain.part"
+trap 'rm -f "$part" "$plain" "$files_part" "$files_plain"' EXIT
+if docker compose exec -T api sh -c 'test -d /data/attachments && [ -n "$(ls -A /data/attachments)" ]'; then
+  docker compose exec -T api tar -C /data -cf - attachments > "$files_plain"
+  if [ "$plaintext" = "1" ]; then
+    mv "$files_plain" "$files_part"
+  else
+    age "${age_args[@]}" -o "$files_part" "$files_plain"
+    rm -f "$files_plain"
+  fi
+  chmod 600 "$files_part"
+  mv "$files_part" "$dir/$files_name"
+  echo "Adjuntos guardados en $dir/$files_name"
+fi
 trap - EXIT
 
 echo "Copia guardada en $dir/$name"
@@ -123,6 +142,17 @@ if [ "$keep" -gt 0 ]; then
       echo "Copia antigua borrada: $(basename "$old")"
     fi
   done < <(printf '%s\n' "${copies[@]}" | awk -F/ '{print $NF "\t" $0}' | sort -r | cut -f2-)
+
+  # Los adjuntos de una copia que ya no existe tampoco se guardan.
+  for f in "$dir"/openfinance-*.attachments.tar "$dir"/openfinance-*.attachments.tar.age; do
+    [ -f "$f" ] || continue
+    base="$(basename "$f")"
+    stem="${base%%.attachments.tar*}"
+    if [ ! -f "$dir/$stem.dump" ] && [ ! -f "$dir/$stem.dump.age" ]; then
+      rm -f -- "$f"
+      echo "Adjuntos antiguos borrados: $base"
+    fi
+  done
 fi
 
 if [ "$plaintext" = "1" ]; then

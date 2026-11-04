@@ -23,7 +23,8 @@ export function ImportHistory({ accounts }: { accounts: Account[] }) {
     setConfirming(null)
     try {
       const r = await api.undoImport(item.id)
-      notifyUndoable(notify, me, `Importación deshecha: ${r.voided} movimientos anulados`, r.operation_id, refresh)
+      notifyUndoable(notify, me, `Importación deshecha: ${r.voided} movimientos anulados` +
+          (r.kept_reviewed ? ` · ${r.kept_reviewed} revisados se han dejado como estaban` : ''), r.operation_id, refresh)
       refresh()
     } catch (err) {
       notify(err instanceof ApiError ? err.message : 'No se ha podido deshacer la importación')

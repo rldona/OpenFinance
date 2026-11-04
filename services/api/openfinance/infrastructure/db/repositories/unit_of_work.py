@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from openfinance.application.errors import ConflictError
+from openfinance.infrastructure.db.repositories.attachments import SqlAttachmentRepository
 from openfinance.infrastructure.db.repositories.categories import (
     SqlCategoryRepository,
     SqlRuleRepository,
@@ -24,11 +25,19 @@ from openfinance.infrastructure.db.repositories.ledger import (
     SqlAccountRepository,
     SqlTransactionRepository,
 )
+from openfinance.infrastructure.db.repositories.links import SqlLinkRepository
+from openfinance.infrastructure.db.repositories.merchants import SqlMerchantRepository
+from openfinance.infrastructure.db.repositories.rates import SqlRateRepository
+from openfinance.infrastructure.db.repositories.reconciliations import (
+    SqlReconciliationRepository,
+)
 from openfinance.infrastructure.db.repositories.savings import (
     SqlBudgetRepository,
     SqlGoalRepository,
     SqlIdeaDismissalRepository,
 )
+from openfinance.infrastructure.db.repositories.splits import SqlSplitRepository
+from openfinance.infrastructure.db.repositories.tags import SqlTagRepository
 
 
 class SqlUnitOfWork:
@@ -45,6 +54,13 @@ class SqlUnitOfWork:
         self.budgets = SqlBudgetRepository(session)
         self.goals = SqlGoalRepository(session)
         self.dismissed_ideas = SqlIdeaDismissalRepository(session)
+        self.merchants = SqlMerchantRepository(session)
+        self.tags = SqlTagRepository(session)
+        self.splits = SqlSplitRepository(session)
+        self.links = SqlLinkRepository(session)
+        self.reconciliations = SqlReconciliationRepository(session)
+        self.attachments = SqlAttachmentRepository(session)
+        self.rates = SqlRateRepository(session)
         self.member_patterns = SqlMemberPatternRepository(session)
         self.changes = SqlChangeRepository(session)
 

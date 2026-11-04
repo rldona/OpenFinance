@@ -2,28 +2,65 @@ import base64
 from datetime import datetime
 from typing import Annotated
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from openfinance.api.deps import ActorDep, UowDep
+from openfinance.api.deps import ActorDep, SettingsDep, UowDep
 from openfinance.api.v1.schemas import (
+    AccountIn,
     AccountOut,
     BulkCategorizeIn,
     BulkCategorizeOut,
+    LinkIn,
+    LinkOut,
     ManualTransactionIn,
     ManualTransactionOut,
     MoneyOut,
     OperationRefOut,
+    ReconcileIn,
+    ReconciliationOut,
+    ReviewIn,
+    ReviewOut,
+    SplitIn,
+    SplitOut,
+    TagOut,
+    TagsIn,
+    TagsOut,
     TransactionOut,
     TransactionPageOut,
 )
-from openfinance.application import ledger, movements
-from openfinance.application.ports import TransactionQuery
+from openfinance.application import households, ledger, links, movements, reconcile, splits
+from openfinance.application import tags as tags_app
+from openfinance.application.decorate import decorate
+from openfinance.application.ports import TransactionQuery, UnitOfWork
 from openfinance.domain.categories import CategoryId
+from openfinance.domain.ledger import AccountType
 from openfinance.domain.shared.ids import AccountId, TransactionId
+from openfinance.domain.workspaces import Actor
 from openfinance.infrastructure.time import utc_now
 
 router = APIRouter(tags=["ledger"])
+
+
+@router.post("/accounts", response_model=AccountOut, status_code=status.HTTP_201_CREATED)
+def create_account(body: AccountIn, actor: ActorDep, uow: UowDep) -> AccountOut:
+    """Añade una cuenta de efectivo, tarjeta, préstamo o inversión (solo seguimiento)."""
+    if body.type is AccountType.BANK:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "Las cuentas de banco se añaden desde el servidor (openfinance accounts add)",
+        )
+    account = households.create_account(
+        uow,
+        actor,
+        body.name,
+        body.type,
+        shared=body.shared,
+        opening_balance=body.opening_balance.replace(",", "."),
+        currency=body.currency,
+    )
+    return AccountOut.of(account, account.opening_balance)
 
 
 @router.get("/accounts", response_model=list[AccountOut])
@@ -40,6 +77,8 @@ def list_transactions(
     uncategorized: bool = False,
     account_id: UUID | None = None,
     category_id: UUID | None = None,
+    tag: Annotated[str | None, Query(max_length=40, description="Solo con esta etiqueta")] = None,
+    reviewed: Annotated[bool | None, Query(description="Solo revisados o solo sin revisar")] = None,
     shared_only: Annotated[
         bool, Query(description="Solo cuentas del hogar (conjunta y huchas), como los gráficos")
     ] = False,
@@ -57,13 +96,17 @@ def list_transactions(
             uncategorized=uncategorized,
             account_id=AccountId(account_id) if account_id else None,
             category_id=CategoryId(category_id) if category_id else None,
+            tag=tag or None,
+            reviewed=reviewed,
             shared_only=shared_only,
             mine_only=mine_only,
             limit=limit,
         )
     except ValueError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
-    return [TransactionOut.of(t) for t in ledger.list_transactions(uow, actor, query)]
+    found = ledger.list_transactions(uow, actor, query)
+    decor = decorate(uow, actor, found)
+    return [TransactionOut.of(t, decor) for t in found]
 
 
 def _encode_cursor(at: datetime, last_id: UUID) -> str:
@@ -88,6 +131,8 @@ def page_transactions(
     uncategorized: bool = False,
     account_id: UUID | None = None,
     category_id: UUID | None = None,
+    tag: Annotated[str | None, Query(max_length=40, description="Solo con esta etiqueta")] = None,
+    reviewed: Annotated[bool | None, Query(description="Solo revisados o solo sin revisar")] = None,
     cursor: Annotated[
         str | None, Query(max_length=200, description="`next_cursor` anterior")
     ] = None,
@@ -103,17 +148,21 @@ def page_transactions(
             uncategorized=uncategorized,
             account_id=AccountId(account_id) if account_id else None,
             category_id=CategoryId(category_id) if category_id else None,
+            tag=tag or None,
+            reviewed=reviewed,
             limit=limit,
             after=_decode_cursor(cursor) if cursor else None,
         )
     except ValueError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
     page = ledger.page_transactions(uow, actor, query)
+    decor = decorate(uow, actor, page.items)
     return TransactionPageOut(
-        items=[TransactionOut.of(t) for t in page.items],
+        items=[TransactionOut.of(t, decor) for t in page.items],
         next_cursor=_encode_cursor(*page.next_after) if page.next_after else None,
         count=page.count,
         total=MoneyOut.of(page.total),
+        other_currencies=page.other_currencies,
     )
 
 
@@ -150,7 +199,8 @@ def add_manual(body: ManualTransactionIn, actor: ActorDep, uow: UowDep) -> Manua
         utc_now(),
     )
     return ManualTransactionOut(
-        transaction=TransactionOut.of(r.transaction), operation_id=r.operation_id
+        transaction=TransactionOut.of(r.transaction, decorate(uow, actor, [r.transaction])),
+        operation_id=r.operation_id,
     )
 
 
@@ -159,3 +209,127 @@ def delete_manual(transaction_id: UUID, actor: ActorDep, uow: UowDep) -> Operati
     """Borra un movimiento manual: queda anulado y en el registro. Los importados no se borran."""
     op = movements.delete_manual(uow, actor, TransactionId(transaction_id), utc_now())
     return OperationRefOut(operation_id=op)
+
+
+@router.get("/tags", response_model=list[TagOut])
+def list_tags(actor: ActorDep, uow: UowDep) -> list[TagOut]:
+    """Las etiquetas de los movimientos que ves, con cuántos las llevan."""
+    return [TagOut(tag=t, count=n) for t, n in tags_app.list_tags(uow, actor)]
+
+
+@router.put("/transactions/{transaction_id}/tags", response_model=TagsOut)
+def set_tags(transaction_id: UUID, body: TagsIn, actor: ActorDep, uow: UowDep) -> TagsOut:
+    """Sustituye las etiquetas de un movimiento; se puede deshacer."""
+    result = tags_app.set_transaction_tags(
+        uow, actor, TransactionId(transaction_id), body.tags, utc_now()
+    )
+    t = result.transaction
+    return TagsOut(
+        transaction=TransactionOut.of(t, decorate(uow, actor, [t])),
+        operation_id=result.operation_id,
+    )
+
+
+@router.put("/transactions/{transaction_id}/split", response_model=SplitOut)
+def split_transaction(
+    transaction_id: UUID, body: SplitIn, actor: ActorDep, uow: UowDep
+) -> SplitOut:
+    """Divide un gasto en partes con categoría que suman su importe; se puede deshacer."""
+    result = splits.split_transaction(
+        uow,
+        actor,
+        TransactionId(transaction_id),
+        [(p.amount.replace(",", "."), CategoryId(p.category_id)) for p in body.parts],
+        utc_now(),
+    )
+    return SplitOut(
+        transaction=TransactionOut.of(
+            result.transaction, decorate(uow, actor, [result.transaction])
+        ),
+        operation_id=result.operation_id,
+    )
+
+
+@router.delete("/transactions/{transaction_id}/split", response_model=SplitOut)
+def unsplit_transaction(transaction_id: UUID, actor: ActorDep, uow: UowDep) -> SplitOut:
+    """Deshace la división de un gasto; se puede deshacer."""
+    result = splits.unsplit_transaction(uow, actor, TransactionId(transaction_id), utc_now())
+    return SplitOut(
+        transaction=TransactionOut.of(
+            result.transaction, decorate(uow, actor, [result.transaction])
+        ),
+        operation_id=result.operation_id,
+    )
+
+
+@router.get(
+    "/transactions/{transaction_id}/transfer-candidates", response_model=list[TransactionOut]
+)
+def transfer_candidates(transaction_id: UUID, actor: ActorDep, uow: UowDep) -> list[TransactionOut]:
+    """Posibles otros lados de un traspaso: importe contrario, otra cuenta tuya y pocos días."""
+    found = links.candidates(uow, actor, TransactionId(transaction_id))
+    decor = decorate(uow, actor, found)
+    return [TransactionOut.of(t, decor) for t in found]
+
+
+def _link_out(uow: UnitOfWork, actor: Actor, result: links.LinkResult) -> LinkOut:
+    decor = decorate(uow, actor, [result.transaction, result.peer])
+    return LinkOut(
+        transaction=TransactionOut.of(result.transaction, decor),
+        peer=TransactionOut.of(result.peer, decor),
+        operation_id=result.operation_id,
+    )
+
+
+@router.put("/transactions/{transaction_id}/link", response_model=LinkOut)
+def link_transfer(transaction_id: UUID, body: LinkIn, actor: ActorDep, uow: UowDep) -> LinkOut:
+    """Enlaza los dos lados de un traspaso entre cuentas tuyas; se puede deshacer."""
+    result = links.link_transfer(
+        uow, actor, TransactionId(transaction_id), TransactionId(body.peer_id), utc_now()
+    )
+    return _link_out(uow, actor, result)
+
+
+@router.delete("/transactions/{transaction_id}/link", response_model=LinkOut)
+def unlink_transfer(transaction_id: UUID, actor: ActorDep, uow: UowDep) -> LinkOut:
+    """Desenlaza un traspaso (los tipos no se tocan); se puede deshacer."""
+    return _link_out(
+        uow, actor, links.unlink_transfer(uow, actor, TransactionId(transaction_id), utc_now())
+    )
+
+
+@router.post("/transactions/review", response_model=ReviewOut)
+def review_transactions(body: ReviewIn, actor: ActorDep, uow: UowDep) -> ReviewOut:
+    """Marca (o desmarca) movimientos como revisados contra el banco; se puede deshacer."""
+    changed, operation_id = reconcile.set_reviewed(
+        uow, actor, [TransactionId(i) for i in body.ids], body.reviewed, utc_now()
+    )
+    return ReviewOut(changed=changed, operation_id=operation_id)
+
+
+@router.post(
+    "/accounts/{account_id}/reconciliations",
+    response_model=ReconciliationOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def reconcile_account(
+    account_id: UUID, body: ReconcileIn, actor: ActorDep, uow: UowDep, settings: SettingsDep
+) -> ReconciliationOut:
+    """Compara el saldo de la cuenta a una fecha con el que da el banco y guarda la diferencia."""
+    today = utc_now().astimezone(ZoneInfo(settings.timezone)).date()
+    result = reconcile.reconcile(
+        uow,
+        actor,
+        AccountId(account_id),
+        body.as_of,
+        body.bank_balance.replace(",", "."),
+        utc_now(),
+        today,
+    )
+    return ReconciliationOut.of(result)
+
+
+@router.get("/accounts/{account_id}/reconciliations", response_model=list[ReconciliationOut])
+def list_reconciliations(account_id: UUID, actor: ActorDep, uow: UowDep) -> list[ReconciliationOut]:
+    """Las últimas comprobaciones de saldo de la cuenta."""
+    return [ReconciliationOut.of(r) for r in reconcile.recent(uow, actor, AccountId(account_id))]

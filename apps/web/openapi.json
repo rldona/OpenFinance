@@ -1,6 +1,52 @@
 {
   "components": {
     "schemas": {
+      "AccountIn": {
+        "properties": {
+          "currency": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z]{3}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Moneda de la cuenta; por defecto, la del hogar",
+            "title": "Currency"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "opening_balance": {
+            "default": "0",
+            "description": "Saldo de partida. Una deuda (tarjeta o préstamo) va en negativo",
+            "pattern": "^-?\\d{1,9}([.,]\\d{1,2})?$",
+            "title": "Opening Balance",
+            "type": "string"
+          },
+          "shared": {
+            "description": "De todo el hogar (true) o solo tuya (false)",
+            "title": "Shared",
+            "type": "boolean"
+          },
+          "type": {
+            "$ref": "#/components/schemas/AccountType",
+            "description": "Efectivo, tarjeta, préstamo o inversión; las de banco, desde el servidor"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "shared"
+        ],
+        "title": "AccountIn",
+        "type": "object"
+      },
       "AccountKind": {
         "enum": [
           "joint",
@@ -44,6 +90,9 @@
               }
             ],
             "title": "Owner Id"
+          },
+          "type": {
+            "$ref": "#/components/schemas/AccountType"
           }
         },
         "required": [
@@ -51,11 +100,96 @@
           "name",
           "institution",
           "kind",
+          "type",
           "owner_id",
           "opening_balance",
           "balance"
         ],
         "title": "AccountOut",
+        "type": "object"
+      },
+      "AccountType": {
+        "description": "Para qué sirve la cuenta (OF-1005). Es independiente de quién la ve (``AccountKind``).\n\nTodas son solo de seguimiento: OpenFinance no mueve ni contrata nada.",
+        "enum": [
+          "bank",
+          "cash",
+          "card",
+          "loan",
+          "investment"
+        ],
+        "title": "AccountType",
+        "type": "string"
+      },
+      "AttachmentAddedOut": {
+        "properties": {
+          "attachment": {
+            "$ref": "#/components/schemas/AttachmentOut"
+          },
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          }
+        },
+        "required": [
+          "attachment",
+          "operation_id"
+        ],
+        "title": "AttachmentAddedOut",
+        "type": "object"
+      },
+      "AttachmentOut": {
+        "properties": {
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "format": "uuid",
+            "title": "Created By",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "transaction_id": {
+            "format": "uuid",
+            "title": "Transaction Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "transaction_id",
+          "filename",
+          "content_type",
+          "size",
+          "created_by",
+          "created_at"
+        ],
+        "title": "AttachmentOut",
         "type": "object"
       },
       "BalanceMismatchOut": {
@@ -77,6 +211,21 @@
           "reported"
         ],
         "title": "BalanceMismatchOut",
+        "type": "object"
+      },
+      "Body_add_attachment_api_v1_transactions__transaction_id__attachments_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "description": "PDF o imagen PNG, JPEG o WebP (máx. 5 MB)",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_add_attachment_api_v1_transactions__transaction_id__attachments_post",
         "type": "object"
       },
       "Body_create_import_api_v1_imports_post": {
@@ -305,7 +454,7 @@
           "note": {
             "anyOf": [
               {
-                "maxLength": 500,
+                "maxLength": 2000,
                 "type": "string"
               },
               {
@@ -1287,6 +1436,50 @@
         "title": "Institution",
         "type": "string"
       },
+      "LinkIn": {
+        "properties": {
+          "peer_id": {
+            "description": "El otro lado del traspaso",
+            "format": "uuid",
+            "title": "Peer Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "peer_id"
+        ],
+        "title": "LinkIn",
+        "type": "object"
+      },
+      "LinkOut": {
+        "properties": {
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "peer": {
+            "$ref": "#/components/schemas/TransactionOut"
+          },
+          "transaction": {
+            "$ref": "#/components/schemas/TransactionOut"
+          }
+        },
+        "required": [
+          "transaction",
+          "peer",
+          "operation_id"
+        ],
+        "title": "LinkOut",
+        "type": "object"
+      },
       "LoginIn": {
         "properties": {
           "email": {
@@ -1351,7 +1544,7 @@
           },
           "note": {
             "default": "",
-            "maxLength": 500,
+            "maxLength": 2000,
             "title": "Note",
             "type": "string"
           }
@@ -1451,6 +1644,107 @@
         "title": "MemberOut",
         "type": "object"
       },
+      "MerchantChangeOut": {
+        "properties": {
+          "merchant": {
+            "$ref": "#/components/schemas/MerchantGroupOut"
+          },
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "reclassified": {
+            "description": "Gastos sin categoría que han tomado la del destino",
+            "title": "Reclassified",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "merchant",
+          "reclassified",
+          "operation_id"
+        ],
+        "title": "MerchantChangeOut",
+        "type": "object"
+      },
+      "MerchantGroupOut": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Nulo mientras nadie le haya puesto nombre propio",
+            "title": "Id"
+          },
+          "keys": {
+            "description": "Variantes del banco que aparecen en tus cuentas",
+            "items": {
+              "type": "string"
+            },
+            "title": "Keys",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "total": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Suma de sus movimientos; los gastos suman en negativo"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "keys",
+          "count",
+          "total"
+        ],
+        "title": "MerchantGroupOut",
+        "type": "object"
+      },
+      "MerchantMergeIn": {
+        "properties": {
+          "source_key": {
+            "description": "Comercio que se absorbe",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Source Key",
+            "type": "string"
+          },
+          "target_key": {
+            "description": "Comercio que se queda",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Target Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target_key",
+          "source_key"
+        ],
+        "title": "MerchantMergeIn",
+        "type": "object"
+      },
       "MerchantOut": {
         "properties": {
           "amount": {
@@ -1471,6 +1765,29 @@
           "count"
         ],
         "title": "MerchantOut",
+        "type": "object"
+      },
+      "MerchantRenameIn": {
+        "properties": {
+          "key": {
+            "description": "Cualquier variante del comercio",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name"
+        ],
+        "title": "MerchantRenameIn",
         "type": "object"
       },
       "MetaResponse": {
@@ -1502,6 +1819,32 @@
           "contexts"
         ],
         "title": "MetaResponse",
+        "type": "object"
+      },
+      "MissingRateOut": {
+        "properties": {
+          "count": {
+            "description": "Movimientos que no entran en los informes por falta de tipo",
+            "title": "Count",
+            "type": "integer"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "first": {
+            "description": "Fecha del más antiguo: el tipo ha de ser de ese día o antes",
+            "format": "date",
+            "title": "First",
+            "type": "string"
+          }
+        },
+        "required": [
+          "currency",
+          "count",
+          "first"
+        ],
+        "title": "MissingRateOut",
         "type": "object"
       },
       "MoneyOut": {
@@ -2003,6 +2346,167 @@
         "title": "PriceChangeOut",
         "type": "object"
       },
+      "RateIn": {
+        "properties": {
+          "currency": {
+            "description": "Código ISO, p. ej. USD",
+            "pattern": "^[A-Za-z]{3}$",
+            "title": "Currency",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "rate": {
+            "description": "Mayor que cero",
+            "pattern": "^\\d{1,9}([.,]\\d{1,8})?$",
+            "title": "Rate",
+            "type": "string"
+          }
+        },
+        "required": [
+          "currency",
+          "on",
+          "rate"
+        ],
+        "title": "RateIn",
+        "type": "object"
+      },
+      "RateOut": {
+        "properties": {
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "rate": {
+            "description": "Unidades de la moneda del hogar por 1 de esta moneda",
+            "title": "Rate",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "currency",
+          "on",
+          "rate",
+          "source"
+        ],
+        "title": "RateOut",
+        "type": "object"
+      },
+      "RateSetOut": {
+        "properties": {
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "rate": {
+            "$ref": "#/components/schemas/RateOut"
+          }
+        },
+        "required": [
+          "rate",
+          "operation_id"
+        ],
+        "title": "RateSetOut",
+        "type": "object"
+      },
+      "ReconcileIn": {
+        "properties": {
+          "as_of": {
+            "description": "Día del saldo que da el banco",
+            "format": "date",
+            "title": "As Of",
+            "type": "string"
+          },
+          "bank_balance": {
+            "description": "Saldo según el banco",
+            "pattern": "^-?\\d{1,9}([.,]\\d{1,2})?$",
+            "title": "Bank Balance",
+            "type": "string"
+          }
+        },
+        "required": [
+          "as_of",
+          "bank_balance"
+        ],
+        "title": "ReconcileIn",
+        "type": "object"
+      },
+      "ReconciliationOut": {
+        "properties": {
+          "account_id": {
+            "format": "uuid",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "as_of": {
+            "format": "date",
+            "title": "As Of",
+            "type": "string"
+          },
+          "bank_balance": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "computed_balance": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "format": "uuid",
+            "title": "Created By",
+            "type": "string"
+          },
+          "difference": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Positivo: falta en OpenFinance; negativo: sobra"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "matches": {
+            "title": "Matches",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "account_id",
+          "as_of",
+          "bank_balance",
+          "computed_balance",
+          "difference",
+          "matches",
+          "created_by",
+          "created_at"
+        ],
+        "title": "ReconciliationOut",
+        "type": "object"
+      },
       "RecurringOut": {
         "properties": {
           "amount": {
@@ -2086,6 +2590,58 @@
           "kept_by"
         ],
         "title": "RevertOut",
+        "type": "object"
+      },
+      "ReviewIn": {
+        "properties": {
+          "ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Ids",
+            "type": "array"
+          },
+          "reviewed": {
+            "description": "true = revisados; false = quitar la marca",
+            "title": "Reviewed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ids",
+          "reviewed"
+        ],
+        "title": "ReviewIn",
+        "type": "object"
+      },
+      "ReviewOut": {
+        "properties": {
+          "changed": {
+            "description": "Movimientos que han cambiado de estado",
+            "title": "Changed",
+            "type": "integer"
+          },
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          }
+        },
+        "required": [
+          "changed",
+          "operation_id"
+        ],
+        "title": "ReviewOut",
         "type": "object"
       },
       "RevokedOut": {
@@ -2256,6 +2812,150 @@
         "title": "SkippedRowOut",
         "type": "object"
       },
+      "SplitIn": {
+        "properties": {
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/SplitPartIn"
+            },
+            "maxItems": 10,
+            "minItems": 2,
+            "title": "Parts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "parts"
+        ],
+        "title": "SplitIn",
+        "type": "object"
+      },
+      "SplitOut": {
+        "properties": {
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "transaction": {
+            "$ref": "#/components/schemas/TransactionOut"
+          }
+        },
+        "required": [
+          "transaction",
+          "operation_id"
+        ],
+        "title": "SplitOut",
+        "type": "object"
+      },
+      "SplitPartIn": {
+        "properties": {
+          "amount": {
+            "description": "Con el signo del gasto, p. ej. «-60.00»",
+            "pattern": "^-?\\d{1,9}([.,]\\d{1,2})?$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "category_id": {
+            "format": "uuid",
+            "title": "Category Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "category_id"
+        ],
+        "title": "SplitPartIn",
+        "type": "object"
+      },
+      "SplitPartOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "category_id": {
+            "format": "uuid",
+            "title": "Category Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "category_id"
+        ],
+        "title": "SplitPartOut",
+        "type": "object"
+      },
+      "TagOut": {
+        "properties": {
+          "count": {
+            "description": "Movimientos que la llevan, entre los que ves",
+            "title": "Count",
+            "type": "integer"
+          },
+          "tag": {
+            "title": "Tag",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "count"
+        ],
+        "title": "TagOut",
+        "type": "object"
+      },
+      "TagsIn": {
+        "properties": {
+          "tags": {
+            "description": "Sustituye las etiquetas del movimiento",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tags"
+        ],
+        "title": "TagsIn",
+        "type": "object"
+      },
+      "TagsOut": {
+        "properties": {
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "transaction": {
+            "$ref": "#/components/schemas/TransactionOut"
+          }
+        },
+        "required": [
+          "transaction",
+          "operation_id"
+        ],
+        "title": "TagsOut",
+        "type": "object"
+      },
       "TransactionKind": {
         "description": "Qué significa un movimiento para el hogar (ADR-0012).",
         "enum": [
@@ -2277,6 +2977,11 @@
           },
           "amount": {
             "$ref": "#/components/schemas/MoneyOut"
+          },
+          "attachment_count": {
+            "description": "Tickets o facturas adjuntos",
+            "title": "Attachment Count",
+            "type": "integer"
           },
           "booked_at": {
             "format": "date-time",
@@ -2329,9 +3034,43 @@
             "title": "Note",
             "type": "string"
           },
+          "parts": {
+            "description": "Partes con categoría si el gasto está dividido (suman su importe)",
+            "items": {
+              "$ref": "#/components/schemas/SplitPartOut"
+            },
+            "title": "Parts",
+            "type": "array"
+          },
+          "reviewed": {
+            "description": "Revisado contra el banco",
+            "title": "Reviewed",
+            "type": "boolean"
+          },
           "source": {
             "title": "Source",
             "type": "string"
+          },
+          "tags": {
+            "description": "Etiquetas del movimiento",
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "transfer_peer_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "El otro lado del traspaso, si está enlazado y tú también lo ves",
+            "title": "Transfer Peer Id"
           },
           "value_date": {
             "format": "date",
@@ -2351,7 +3090,12 @@
           "merchant",
           "member_id",
           "source",
-          "note"
+          "note",
+          "tags",
+          "parts",
+          "reviewed",
+          "attachment_count",
+          "transfer_peer_id"
         ],
         "title": "TransactionOut",
         "type": "object"
@@ -2382,16 +3126,25 @@
             "description": "Pásalo como `cursor` para pedir la página siguiente; null en la última",
             "title": "Next Cursor"
           },
+          "other_currencies": {
+            "description": "Monedas de movimientos del filtro que no entran en `total`",
+            "items": {
+              "type": "string"
+            },
+            "title": "Other Currencies",
+            "type": "array"
+          },
           "total": {
             "$ref": "#/components/schemas/MoneyOut",
-            "description": "Suma con signo de todos los que cumplen el filtro"
+            "description": "Suma con signo de los que cumplen el filtro y van en la moneda del hogar"
           }
         },
         "required": [
           "items",
           "next_cursor",
           "count",
-          "total"
+          "total",
+          "other_currencies"
         ],
         "title": "TransactionPageOut",
         "type": "object"
@@ -2551,6 +3304,12 @@
       },
       "UndoImportOut": {
         "properties": {
+          "kept_reviewed": {
+            "default": 0,
+            "description": "Movimientos revisados que se han dejado como estaban",
+            "title": "Kept Reviewed",
+            "type": "integer"
+          },
           "operation_id": {
             "anyOf": [
               {
@@ -2732,6 +3491,230 @@
         "summary": "List Accounts",
         "tags": [
           "ledger"
+        ]
+      },
+      "post": {
+        "description": "Añade una cuenta de efectivo, tarjeta, préstamo o inversión (solo seguimiento).",
+        "operationId": "create_account_api_v1_accounts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Account",
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
+    "/api/v1/accounts/{account_id}/reconciliations": {
+      "get": {
+        "description": "Las últimas comprobaciones de saldo de la cuenta.",
+        "operationId": "list_reconciliations_api_v1_accounts__account_id__reconciliations_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Account Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReconciliationOut"
+                  },
+                  "title": "Response List Reconciliations Api V1 Accounts  Account Id  Reconciliations Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Reconciliations",
+        "tags": [
+          "ledger"
+        ]
+      },
+      "post": {
+        "description": "Compara el saldo de la cuenta a una fecha con el que da el banco y guarda la diferencia.",
+        "operationId": "reconcile_account_api_v1_accounts__account_id__reconciliations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Account Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReconcileIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReconciliationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reconcile Account",
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
+    "/api/v1/attachments/{attachment_id}": {
+      "delete": {
+        "description": "Borra el adjunto. El archivo se conserva 30 días por si se deshace.",
+        "operationId": "delete_attachment_api_v1_attachments__attachment_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Attachment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationRefOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Attachment",
+        "tags": [
+          "attachments"
+        ]
+      },
+      "get": {
+        "description": "Descarga el archivo. Siempre como descarga, nunca para abrirlo dentro de la página.",
+        "operationId": "download_attachment_api_v1_attachments__attachment_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Attachment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Attachment",
+        "tags": [
+          "attachments"
         ]
       }
     },
@@ -3157,6 +4140,150 @@
         "summary": "Undo",
         "tags": [
           "changes"
+        ]
+      }
+    },
+    "/api/v1/exchange-rates": {
+      "get": {
+        "description": "Los tipos de cambio del hogar: 1 unidad de la moneda = tanto de la moneda del hogar.",
+        "operationId": "list_rates_api_v1_exchange_rates_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RateOut"
+                  },
+                  "title": "Response List Rates Api V1 Exchange Rates Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Rates",
+        "tags": [
+          "rates"
+        ]
+      },
+      "put": {
+        "description": "Pone o corrige el tipo de cambio de una moneda en una fecha; se puede deshacer.",
+        "operationId": "set_rate_api_v1_exchange_rates_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateSetOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Rate",
+        "tags": [
+          "rates"
+        ]
+      }
+    },
+    "/api/v1/exchange-rates/missing": {
+      "get": {
+        "description": "Monedas con movimientos tuyos que no entran en los informes por falta de tipo.",
+        "operationId": "missing_rates_api_v1_exchange_rates_missing_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MissingRateOut"
+                  },
+                  "title": "Response Missing Rates Api V1 Exchange Rates Missing Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Missing Rates",
+        "tags": [
+          "rates"
+        ]
+      }
+    },
+    "/api/v1/exchange-rates/{currency}/{on}": {
+      "delete": {
+        "operationId": "delete_rate_api_v1_exchange_rates__currency___on__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "currency",
+            "required": true,
+            "schema": {
+              "title": "Currency",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "on",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "On",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationRefOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Rate",
+        "tags": [
+          "rates"
         ]
       }
     },
@@ -3915,6 +5042,113 @@
         ]
       }
     },
+    "/api/v1/merchants": {
+      "get": {
+        "operationId": "list_merchants_api_v1_merchants_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MerchantGroupOut"
+                  },
+                  "title": "Response List Merchants Api V1 Merchants Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Merchants",
+        "tags": [
+          "merchants"
+        ]
+      }
+    },
+    "/api/v1/merchants/merge": {
+      "post": {
+        "operationId": "merge_merchants_api_v1_merchants_merge_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MerchantMergeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantChangeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Merge Merchants",
+        "tags": [
+          "merchants"
+        ]
+      }
+    },
+    "/api/v1/merchants/rename": {
+      "post": {
+        "operationId": "rename_merchant_api_v1_merchants_rename_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MerchantRenameIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantChangeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rename Merchant",
+        "tags": [
+          "merchants"
+        ]
+      }
+    },
     "/api/v1/meta": {
       "get": {
         "operationId": "get_meta_api_v1_meta_get",
@@ -4110,6 +5344,32 @@
         ]
       }
     },
+    "/api/v1/tags": {
+      "get": {
+        "description": "Las etiquetas de los movimientos que ves, con cuántos las llevan.",
+        "operationId": "list_tags_api_v1_tags_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TagOut"
+                  },
+                  "title": "Response List Tags Api V1 Tags Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Tags",
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
     "/api/v1/transactions": {
       "get": {
         "operationId": "list_transactions_api_v1_transactions_get",
@@ -4190,6 +5450,43 @@
                 }
               ],
               "title": "Category Id"
+            }
+          },
+          {
+            "description": "Solo con esta etiqueta",
+            "in": "query",
+            "name": "tag",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Solo con esta etiqueta",
+              "title": "Tag"
+            }
+          },
+          {
+            "description": "Solo revisados o solo sin revisar",
+            "in": "query",
+            "name": "reviewed",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Solo revisados o solo sin revisar",
+              "title": "Reviewed"
             }
           },
           {
@@ -4427,6 +5724,43 @@
             }
           },
           {
+            "description": "Solo con esta etiqueta",
+            "in": "query",
+            "name": "tag",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Solo con esta etiqueta",
+              "title": "Tag"
+            }
+          },
+          {
+            "description": "Solo revisados o solo sin revisar",
+            "in": "query",
+            "name": "reviewed",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Solo revisados o solo sin revisar",
+              "title": "Reviewed"
+            }
+          },
+          {
             "description": "`next_cursor` anterior",
             "in": "query",
             "name": "cursor",
@@ -4481,6 +5815,48 @@
           }
         },
         "summary": "Page Transactions",
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
+    "/api/v1/transactions/review": {
+      "post": {
+        "description": "Marca (o desmarca) movimientos como revisados contra el banco; se puede deshacer.",
+        "operationId": "review_transactions_api_v1_transactions_review_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Transactions",
         "tags": [
           "ledger"
         ]
@@ -4603,6 +5979,105 @@
         ]
       }
     },
+    "/api/v1/transactions/{transaction_id}/attachments": {
+      "get": {
+        "operationId": "list_attachments_api_v1_transactions__transaction_id__attachments_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transaction_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transaction Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AttachmentOut"
+                  },
+                  "title": "Response List Attachments Api V1 Transactions  Transaction Id  Attachments Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Attachments",
+        "tags": [
+          "attachments"
+        ]
+      },
+      "post": {
+        "description": "Adjunta un ticket o una factura al movimiento; se puede deshacer.",
+        "operationId": "add_attachment_api_v1_transactions__transaction_id__attachments_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transaction_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transaction Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_add_attachment_api_v1_transactions__transaction_id__attachments_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentAddedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Attachment",
+        "tags": [
+          "attachments"
+        ]
+      }
+    },
     "/api/v1/transactions/{transaction_id}/history": {
       "get": {
         "description": "Correcciones de un movimiento, de cualquier persona, de la más antigua a la más reciente.",
@@ -4648,6 +6123,300 @@
         "summary": "History",
         "tags": [
           "changes"
+        ]
+      }
+    },
+    "/api/v1/transactions/{transaction_id}/link": {
+      "delete": {
+        "description": "Desenlaza un traspaso (los tipos no se tocan); se puede deshacer.",
+        "operationId": "unlink_transfer_api_v1_transactions__transaction_id__link_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transaction_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transaction Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unlink Transfer",
+        "tags": [
+          "ledger"
+        ]
+      },
+      "put": {
+        "description": "Enlaza los dos lados de un traspaso entre cuentas tuyas; se puede deshacer.",
+        "operationId": "link_transfer_api_v1_transactions__transaction_id__link_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transaction_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transaction Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Link Transfer",
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
+    "/api/v1/transactions/{transaction_id}/split": {
+      "delete": {
+        "description": "Deshace la división de un gasto; se puede deshacer.",
+        "operationId": "unsplit_transaction_api_v1_transactions__transaction_id__split_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transaction_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transaction Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SplitOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unsplit Transaction",
+        "tags": [
+          "ledger"
+        ]
+      },
+      "put": {
+        "description": "Divide un gasto en partes con categoría que suman su importe; se puede deshacer.",
+        "operationId": "split_transaction_api_v1_transactions__transaction_id__split_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transaction_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transaction Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SplitIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SplitOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Split Transaction",
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
+    "/api/v1/transactions/{transaction_id}/tags": {
+      "put": {
+        "description": "Sustituye las etiquetas de un movimiento; se puede deshacer.",
+        "operationId": "set_tags_api_v1_transactions__transaction_id__tags_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transaction_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transaction Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Tags",
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
+    "/api/v1/transactions/{transaction_id}/transfer-candidates": {
+      "get": {
+        "description": "Posibles otros lados de un traspaso: importe contrario, otra cuenta tuya y pocos días.",
+        "operationId": "transfer_candidates_api_v1_transactions__transaction_id__transfer_candidates_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transaction_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transaction Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TransactionOut"
+                  },
+                  "title": "Response Transfer Candidates Api V1 Transactions  Transaction Id  Transfer Candidates Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Transfer Candidates",
+        "tags": [
+          "ledger"
         ]
       }
     },

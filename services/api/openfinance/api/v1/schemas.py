@@ -6,18 +6,22 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
 
+from openfinance.application.decorate import Decor
 from openfinance.application.imports import ImportPreview, ImportResult
 from openfinance.application.savings import BudgetView, GoalView
+from openfinance.domain.attachments import Attachment
 from openfinance.domain.categories import Category, merchant_label
 from openfinance.domain.identity import User
 from openfinance.domain.imports import PatternDirection
 from openfinance.domain.ledger import (
     Account,
     AccountKind,
+    AccountType,
     Institution,
     Transaction,
     TransactionKind,
 )
+from openfinance.domain.reconciliation import Reconciliation
 from openfinance.domain.shared import Money
 from openfinance.domain.workspaces import Household
 
@@ -72,6 +76,7 @@ class AccountOut(BaseModel):
     name: str
     institution: Institution
     kind: AccountKind
+    type: AccountType
     owner_id: UUID | None
     opening_balance: MoneyOut
     balance: MoneyOut
@@ -83,10 +88,16 @@ class AccountOut(BaseModel):
             name=account.name,
             institution=account.institution,
             kind=account.kind,
+            type=account.type,
             owner_id=account.owner_id,
             opening_balance=MoneyOut.of(account.opening_balance),
             balance=MoneyOut.of(balance),
         )
+
+
+class SplitPartOut(BaseModel):
+    amount: MoneyOut
+    category_id: UUID
 
 
 class TransactionOut(BaseModel):
@@ -102,9 +113,20 @@ class TransactionOut(BaseModel):
     member_id: UUID | None
     source: str
     note: str = Field(description="Nota de quien corrigió el movimiento")
+    tags: list[str] = Field(description="Etiquetas del movimiento")
+    parts: list[SplitPartOut] = Field(
+        description="Partes con categoría si el gasto está dividido (suman su importe)"
+    )
+    reviewed: bool = Field(description="Revisado contra el banco")
+    attachment_count: int = Field(description="Tickets o facturas adjuntos")
+    transfer_peer_id: UUID | None = Field(
+        description="El otro lado del traspaso, si está enlazado y tú también lo ves"
+    )
 
     @classmethod
-    def of(cls, t: Transaction) -> TransactionOut:
+    def of(cls, t: Transaction, decor: Decor | None = None) -> TransactionOut:
+        """``decor``: nombre del comercio, etiquetas y partes (OF-1001 a OF-1003)."""
+        d = decor or Decor()
         return cls(
             id=t.id,
             account_id=t.account_id,
@@ -114,10 +136,18 @@ class TransactionOut(BaseModel):
             amount=MoneyOut.of(t.amount),
             kind=t.kind,
             category_id=t.category_id,
-            merchant=merchant_label(t.merchant),
+            merchant=d.names.get(t.merchant) or merchant_label(t.merchant),
             member_id=t.member_id,
             source=t.source,
             note=t.note,
+            tags=list(d.tags.get(t.id, ())),
+            reviewed=t.reviewed,
+            attachment_count=d.attachments.get(t.id, 0),
+            transfer_peer_id=d.peers.get(t.id),
+            parts=[
+                SplitPartOut(amount=MoneyOut.of(p.amount), category_id=p.category_id)
+                for p in d.splits.get(t.id, [])
+            ],
         )
 
 
@@ -127,7 +157,12 @@ class TransactionPageOut(BaseModel):
         description="Pásalo como `cursor` para pedir la página siguiente; null en la última"
     )
     count: int = Field(description="Movimientos que cumplen el filtro en total")
-    total: MoneyOut = Field(description="Suma con signo de todos los que cumplen el filtro")
+    total: MoneyOut = Field(
+        description="Suma con signo de los que cumplen el filtro y van en la moneda del hogar"
+    )
+    other_currencies: list[str] = Field(
+        description="Monedas de movimientos del filtro que no entran en `total`"
+    )
 
 
 class PreviewRowOut(BaseModel):
@@ -245,6 +280,9 @@ class ImportListItemOut(BaseModel):
 class UndoImportOut(BaseModel):
     voided: int = Field(description="Movimientos anulados")
     operation_id: UUID | None
+    kept_reviewed: int = Field(
+        default=0, description="Movimientos revisados que se han dejado como estaban"
+    )
 
 
 class ImportResultOut(BaseModel):
@@ -300,7 +338,7 @@ class CategorizeIn(BaseModel):
     category_id: UUID | None = Field(default=None, description="null = quitar la categoría")
     kind: TransactionKind | None = None
     member_id: UUID | None = Field(default=None, description="Quién aporta, en una aportación")
-    note: str | None = Field(default=None, max_length=500)
+    note: str | None = Field(default=None, max_length=2000)
     learn: bool = Field(
         default=True,
         description="Guardar la regla «comercio → categoría» y aplicarla a los gastos sin ella",
@@ -330,6 +368,7 @@ class CategorizeOut(BaseModel):
 
 
 AMOUNT_PATTERN = r"^\d{1,9}([.,]\d{1,2})?$"
+AMOUNT_PATTERN_SIGNED = r"^-?\d{1,9}([.,]\d{1,2})?$"
 
 
 class BulkCategorizeIn(BaseModel):
@@ -351,7 +390,7 @@ class ManualTransactionIn(BaseModel):
     amount: str = Field(pattern=AMOUNT_PATTERN, description="Positivo; un gasto resta")
     kind: TransactionKind = TransactionKind.EXPENSE
     category_id: UUID | None = None
-    note: str = Field(default="", max_length=500)
+    note: str = Field(default="", max_length=2000)
 
 
 class ManualTransactionOut(BaseModel):
@@ -644,3 +683,177 @@ class SavingsOverviewOut(BaseModel):
     recurring_total: MoneyOut
     ideas: list[IdeaOut]
     goals: list[GoalOut]
+
+
+class MerchantGroupOut(BaseModel):
+    id: UUID | None = Field(description="Nulo mientras nadie le haya puesto nombre propio")
+    name: str
+    keys: list[str] = Field(description="Variantes del banco que aparecen en tus cuentas")
+    count: int
+    total: MoneyOut = Field(description="Suma de sus movimientos; los gastos suman en negativo")
+
+
+class MerchantRenameIn(BaseModel):
+    key: str = Field(min_length=1, max_length=100, description="Cualquier variante del comercio")
+    name: str = Field(min_length=1, max_length=60)
+
+
+class MerchantMergeIn(BaseModel):
+    target_key: str = Field(min_length=1, max_length=100, description="Comercio que se queda")
+    source_key: str = Field(min_length=1, max_length=100, description="Comercio que se absorbe")
+
+
+class MerchantChangeOut(BaseModel):
+    merchant: MerchantGroupOut
+    reclassified: int = Field(description="Gastos sin categoría que han tomado la del destino")
+    operation_id: UUID | None
+
+
+class TagOut(BaseModel):
+    tag: str
+    count: int = Field(description="Movimientos que la llevan, entre los que ves")
+
+
+class TagsIn(BaseModel):
+    tags: list[str] = Field(max_length=10, description="Sustituye las etiquetas del movimiento")
+
+
+class TagsOut(BaseModel):
+    transaction: TransactionOut
+    operation_id: UUID | None
+
+
+class SplitPartIn(BaseModel):
+    amount: str = Field(
+        pattern=AMOUNT_PATTERN_SIGNED, description="Con el signo del gasto, p. ej. «-60.00»"
+    )
+    category_id: UUID
+
+
+class SplitIn(BaseModel):
+    parts: list[SplitPartIn] = Field(min_length=2, max_length=10)
+
+
+class SplitOut(BaseModel):
+    transaction: TransactionOut
+    operation_id: UUID | None
+
+
+class LinkIn(BaseModel):
+    peer_id: UUID = Field(description="El otro lado del traspaso")
+
+
+class LinkOut(BaseModel):
+    transaction: TransactionOut
+    peer: TransactionOut
+    operation_id: UUID | None
+
+
+class AccountIn(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    type: AccountType = Field(
+        description="Efectivo, tarjeta, préstamo o inversión; las de banco, desde el servidor"
+    )
+    shared: bool = Field(description="De todo el hogar (true) o solo tuya (false)")
+    currency: str | None = Field(
+        default=None,
+        pattern=r"^[A-Za-z]{3}$",
+        description="Moneda de la cuenta; por defecto, la del hogar",
+    )
+    opening_balance: str = Field(
+        default="0",
+        pattern=AMOUNT_PATTERN_SIGNED,
+        description="Saldo de partida. Una deuda (tarjeta o préstamo) va en negativo",
+    )
+
+
+class ReviewIn(BaseModel):
+    ids: list[UUID] = Field(min_length=1, max_length=500)
+    reviewed: bool = Field(description="true = revisados; false = quitar la marca")
+
+
+class ReviewOut(BaseModel):
+    changed: int = Field(description="Movimientos que han cambiado de estado")
+    operation_id: UUID | None
+
+
+class ReconcileIn(BaseModel):
+    as_of: date = Field(description="Día del saldo que da el banco")
+    bank_balance: str = Field(pattern=AMOUNT_PATTERN_SIGNED, description="Saldo según el banco")
+
+
+class ReconciliationOut(BaseModel):
+    id: UUID
+    account_id: UUID
+    as_of: date
+    bank_balance: MoneyOut
+    computed_balance: MoneyOut
+    difference: MoneyOut = Field(description="Positivo: falta en OpenFinance; negativo: sobra")
+    matches: bool
+    created_by: UUID
+    created_at: datetime
+
+    @classmethod
+    def of(cls, r: Reconciliation) -> ReconciliationOut:
+        return cls(
+            id=r.id,
+            account_id=r.account_id,
+            as_of=r.as_of,
+            bank_balance=MoneyOut.of(r.bank_balance),
+            computed_balance=MoneyOut.of(r.computed_balance),
+            difference=MoneyOut.of(r.difference),
+            matches=r.matches,
+            created_by=r.created_by,
+            created_at=r.created_at,
+        )
+
+
+class AttachmentOut(BaseModel):
+    id: UUID
+    transaction_id: UUID
+    filename: str
+    content_type: str
+    size: int
+    created_by: UUID
+    created_at: datetime
+
+    @classmethod
+    def of(cls, a: Attachment) -> AttachmentOut:
+        return cls(
+            id=a.id,
+            transaction_id=a.transaction_id,
+            filename=a.filename,
+            content_type=a.content_type,
+            size=a.size,
+            created_by=a.created_by,
+            created_at=a.created_at,
+        )
+
+
+class AttachmentAddedOut(BaseModel):
+    attachment: AttachmentOut
+    operation_id: UUID | None
+
+
+class RateOut(BaseModel):
+    currency: str
+    on: date
+    rate: str = Field(description="Unidades de la moneda del hogar por 1 de esta moneda")
+    source: str
+
+
+class RateIn(BaseModel):
+    currency: str = Field(pattern=r"^[A-Za-z]{3}$", description="Código ISO, p. ej. USD")
+    on: date
+    rate: str = Field(pattern=r"^\d{1,9}([.,]\d{1,8})?$", description="Mayor que cero")
+
+
+class RateSetOut(BaseModel):
+    rate: RateOut
+    operation_id: UUID | None
+
+
+class MissingRateOut(BaseModel):
+    currency: str
+    count: int = Field(description="Movimientos que no entran en los informes por falta de tipo")
+    first: date = Field(description="Fecha del más antiguo: el tipo ha de ser de ese día o antes")

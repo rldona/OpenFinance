@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
 
+from openfinance.application.conversion import report_transactions
 from openfinance.application.errors import NotFoundError
 from openfinance.application.ports import UnitOfWork
 from openfinance.domain.categories import CategoryId
@@ -68,10 +69,18 @@ def scope_of(uow: UnitOfWork, actor: Actor, view: View) -> Scope:
     accounts = uow.accounts.for_household(actor.household_id)
     if view is View.MINE:
         ids = [
-            a.id for a in accounts if a.kind is AccountKind.PERSONAL and a.owner_id == actor.user_id
+            a.id
+            for a in accounts
+            if a.kind is AccountKind.PERSONAL
+            and a.owner_id == actor.user_id
+            and a.type.counts_in_reports
         ]
     else:
-        ids = [a.id for a in accounts if a.kind in (AccountKind.JOINT, AccountKind.SAVINGS)]
+        ids = [
+            a.id
+            for a in accounts
+            if a.kind in (AccountKind.JOINT, AccountKind.SAVINGS) and a.type.counts_in_reports
+        ]
     first = uow.transactions.first_booked_at(actor.household_id, ids)
     return Scope(household.currency, ids, Month.of(first) if first else None)
 
@@ -144,7 +153,7 @@ def month_overview(
 ) -> MonthOverview:
     scope = scope_of(uow, actor, view)
     start = month.shift(-HISTORY_MONTHS)
-    txns = uow.transactions.in_range(actor.household_id, scope.accounts, start.start, month.end)
+    txns = report_transactions(uow, actor.household_id, scope.accounts, start.start, month.end)
     months = by_month(txns)
     cur = scope.currency
     now = months.get(month, [])
@@ -254,8 +263,8 @@ def category_detail(
     first = month.shift(-(HISTORY_MONTHS - 1))
     txns = [
         t
-        for t in uow.transactions.in_range(
-            actor.household_id, scope.accounts, first.start, month.end
+        for t in report_transactions(
+            uow, actor.household_id, scope.accounts, first.start, month.end
         )
         if t.category_id == category_id
     ]
@@ -316,7 +325,8 @@ def trends(
     first = month.shift(-(count - 1))
     last_complete = month if month < current else current.shift(-1)
     months = by_month(
-        uow.transactions.in_range(
+        report_transactions(
+            uow,
             actor.household_id,
             scope.accounts,
             min(first, last_complete.shift(-(count - 1))).start,

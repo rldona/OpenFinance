@@ -14,11 +14,11 @@ from openfinance.domain.identity import (
     normalize_email,
     validate_password,
 )
-from openfinance.domain.ledger import Account, AccountKind, Institution, LedgerError
+from openfinance.domain.ledger import Account, AccountKind, AccountType, Institution, LedgerError
 from openfinance.domain.shared import Currency, Money
 from openfinance.domain.shared.ids import AccountId, UserId, WorkspaceId
 from openfinance.domain.shared.text import normalize_text
-from openfinance.domain.workspaces import Household
+from openfinance.domain.workspaces import Actor, Household
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,6 +35,9 @@ class NewAccount:
     kind: AccountKind
     opening_balance: str = "0"
     owner_email: str | None = None
+    type: AccountType = AccountType.BANK
+    currency: str | None = None
+    """Moneda de la cuenta (OF-1008); por defecto, la del hogar."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,14 +98,16 @@ def _account(spec: NewAccount, household: Household, members: dict[str, UserId])
         if owner is None:
             raise InvalidRequestError(f"El titular de «{spec.name}» no es del hogar")
     try:
+        currency = Currency(spec.currency.strip().upper()) if spec.currency else household.currency
         return Account(
             id=AccountId(uuid4()),
             household_id=household.id,
             name=spec.name.strip(),
             institution=spec.institution,
             kind=spec.kind,
-            currency=household.currency,
-            opening_balance=Money.of(spec.opening_balance, household.currency),
+            type=spec.type,
+            currency=currency,
+            opening_balance=Money.of(spec.opening_balance, currency),
             owner_id=owner,
         )
     except (LedgerError, ValueError, TypeError) as exc:
@@ -134,6 +139,42 @@ def add_account(uow: UnitOfWork, member_email: str, spec: NewAccount) -> Account
         raise ConflictError(f"Ya existe una cuenta llamada «{spec.name.strip()}» en el hogar")
     members = {m.email: m.id for m in uow.households.members(household.id)}
     account = _account(spec, household, members)
+    uow.accounts.add(account)
+    uow.commit()
+    return account
+
+
+def create_account(
+    uow: UnitOfWork,
+    actor: Actor,
+    name: str,
+    account_type: AccountType,
+    *,
+    shared: bool,
+    opening_balance: str,
+    currency: str | None = None,
+) -> Account:
+    """Una cuenta nueva desde la web (OF-1005): de todo el hogar o solo de quien la crea.
+
+    Las de efectivo, tarjeta, préstamo e inversión no tienen banco: no se importan extractos.
+    """
+    household = uow.households.get(actor.household_id)
+    user = uow.users.get(actor.user_id)
+    if household is None or user is None:
+        raise NotFoundError("Hogar no encontrado")
+    wanted = normalize_text(name)
+    if any(normalize_text(a.name) == wanted for a in uow.accounts.for_household(household.id)):
+        raise ConflictError(f"Ya existe una cuenta llamada «{name.strip()}» en el hogar")
+    spec = NewAccount(
+        name,
+        Institution.OTHER,
+        AccountKind.JOINT if shared else AccountKind.PERSONAL,
+        opening_balance,
+        owner_email=None if shared else user.email,
+        type=account_type,
+        currency=currency,
+    )
+    account = _account(spec, household, {user.email: user.id})
     uow.accounts.add(account)
     uow.commit()
     return account

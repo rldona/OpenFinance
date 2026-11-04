@@ -29,6 +29,7 @@ from openfinance.domain.ledger import (
     LedgerError,
     Transaction,
     TransactionKind,
+    normalize_note,
 )
 from openfinance.domain.shared.ids import TransactionId, UserId, WorkspaceId
 from openfinance.domain.workspaces import Actor
@@ -190,6 +191,12 @@ def edit_transaction(
     if tx is None or account is None:
         raise NotFoundError("Movimiento no encontrado")
 
+    if tx.id in uow.splits.for_transactions(actor.household_id, [tx.id]) and (
+        edit.set_category or (edit.kind is not None and edit.kind is not TransactionKind.EXPENSE)
+    ):
+        raise InvalidRequestError(
+            "Este gasto está dividido en partes: cambia las partes o deshaz la división"
+        )
     kind = edit.kind or tx.kind
     member = None
     if kind is TransactionKind.CONTRIBUTION:
@@ -214,7 +221,7 @@ def edit_transaction(
                 raise InvalidRequestError(f"La categoría «{category.name}» está oculta")
         category_id = edit.category_id
 
-    note = tx.note if edit.note is None else " ".join(edit.note.split())
+    note = tx.note if edit.note is None else normalize_note(edit.note)
     try:
         updated = replace(tx, kind=kind, member_id=member, category_id=category_id, note=note)
     except LedgerError as exc:

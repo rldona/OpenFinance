@@ -15,7 +15,11 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY services/api/ ./
 RUN uv sync --frozen --no-dev
 
-RUN useradd --system --uid 10001 openfinance
+RUN useradd --system --uid 10001 openfinance \
+    && mkdir -p /data/attachments \
+    && chown -R openfinance /data
+# Adjuntos de movimientos (OF-1007): un volumen que hereda este dueño al crearse.
+VOLUME /data/attachments
 USER openfinance
 
 EXPOSE 8000

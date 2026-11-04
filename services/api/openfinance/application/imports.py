@@ -350,6 +350,8 @@ def list_imports(uow: UnitOfWork, actor: Actor) -> list[ImportView]:
 class UndoImportResult:
     voided: int
     operation_id: UUID | None
+    kept_reviewed: int = 0
+    """Movimientos revisados que se han dejado como estaban (OF-1006)."""
 
 
 def undo_import(uow: UnitOfWork, actor: Actor, import_id: UUID, now: datetime) -> UndoImportResult:
@@ -378,7 +380,13 @@ def undo_import(uow: UnitOfWork, actor: Actor, import_id: UUID, now: datetime) -
             "deshaz antes las posteriores"
         )
     changes: list[Change] = []
+    kept_reviewed = 0
     for t in uow.transactions.for_import(actor.household_id, batch.id):
+        if t.reviewed:
+            kept_reviewed += (
+                1  # ya comprobado contra el banco: una importación no lo toca (OF-1006)
+            )
+            continue
         uow.transactions.save(replace(t, voided=True))
         changes.append(Change(Entity.TRANSACTION, str(t.id), "voided", False, True))
     uow.imports.set_status(batch.id, ImportStatus.UNDONE)
@@ -395,7 +403,7 @@ def undo_import(uow: UnitOfWork, actor: Actor, import_id: UUID, now: datetime) -
     summary = f"Importación deshecha: {batch.filename}"
     operation = record(uow, actor, "import.undo", summary, changes, now)
     uow.commit()
-    return UndoImportResult(count, operation.id if operation else None)
+    return UndoImportResult(count, operation.id if operation else None, kept_reviewed)
 
 
 def purge_expired_imports(uow: UnitOfWork, now: datetime) -> int:

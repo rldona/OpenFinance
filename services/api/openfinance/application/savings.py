@@ -10,6 +10,7 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 from uuid import uuid4
 
+from openfinance.application.conversion import report_transactions
 from openfinance.application.errors import InvalidRequestError, NotFoundError
 from openfinance.application.insights import shared_scope
 from openfinance.application.ledger import balance_of
@@ -79,8 +80,8 @@ def list_budgets(uow: UnitOfWork, actor: Actor, month: Month, today: date) -> li
     """Presupuestos con lo gastado en el mes (solo gastos de esa categoría y ese mes)."""
     scope = shared_scope(uow, actor)
     cur = scope.currency
-    history = uow.transactions.in_range(
-        actor.household_id, scope.accounts, month.shift(-HISTORY_MONTHS).start, month.end
+    history = report_transactions(
+        uow, actor.household_id, scope.accounts, month.shift(-HISTORY_MONTHS).start, month.end
     )
     txns = [t for t in history if Month.of(t.booked_at) == month]
     spent = spending_by_category(txns, cur)
@@ -300,7 +301,7 @@ def savings_overview(uow: UnitOfWork, actor: Actor, today: date) -> SavingsOverv
     candidates = [current.shift(-i) for i in range(1, HISTORY_MONTHS + 1)]
     months = sorted(m for m in candidates if first_complete is not None and m >= first_complete)
     start = current.shift(-HISTORY_MONTHS)
-    txns = uow.transactions.in_range(actor.household_id, scope.accounts, start.start, current.end)
+    txns = report_transactions(uow, actor.household_id, scope.accounts, start.start, current.end)
     grouped = by_month(txns)
 
     per_month = [spending_by_category(grouped.get(m, []), cur) for m in months]

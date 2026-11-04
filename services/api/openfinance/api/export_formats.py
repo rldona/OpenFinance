@@ -25,6 +25,7 @@ from openfinance.application.export import (
     ExportedGoal,
     ExportedMember,
     ExportedPattern,
+    ExportedRate,
     ExportedRule,
     ExportedTransaction,
     HouseholdExport,
@@ -44,6 +45,7 @@ CSV_FILES: dict[str, type] = {
     "budgets": ExportedBudget,
     "goals": ExportedGoal,
     "member_patterns": ExportedPattern,
+    "exchange_rates": ExportedRate,
 }
 """Un CSV por entidad: el nombre es el campo de ``HouseholdExport`` y las columnas, los
 campos de su tipo (aunque no haya filas)."""

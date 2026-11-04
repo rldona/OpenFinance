@@ -77,4 +77,6 @@ def list_imports(actor: ActorDep, uow: UowDep) -> list[ImportListItemOut]:
 def undo_import(import_id: UUID, actor: ActorDep, uow: UowDep) -> UndoImportOut:
     """Anula los movimientos de la última importación de una cuenta. Nada se borra."""
     r = imports.undo_import(uow, actor, import_id, utc_now())
-    return UndoImportOut(voided=r.voided, operation_id=r.operation_id)
+    return UndoImportOut(
+        voided=r.voided, operation_id=r.operation_id, kept_reviewed=r.kept_reviewed
+    )

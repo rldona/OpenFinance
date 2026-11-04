@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Protocol
 from uuid import UUID
 
+from openfinance.domain.attachments import Attachment
 from openfinance.domain.categories import Category, CategoryId, CategoryRule
 from openfinance.domain.changes import Entity, Operation
 from openfinance.domain.identity import User
@@ -19,8 +20,13 @@ from openfinance.domain.imports import (
 )
 from openfinance.domain.imports.batch import ImportBatch, ImportStatus
 from openfinance.domain.ledger import Account, Institution, Transaction
+from openfinance.domain.merchants import Merchant, MerchantId
+from openfinance.domain.rates import ExchangeRate
+from openfinance.domain.reconciliation import Reconciliation
 from openfinance.domain.savings import Budget, Goal, GoalId
+from openfinance.domain.shared import Currency
 from openfinance.domain.shared.ids import AccountId, TransactionId, UserId, WorkspaceId
+from openfinance.domain.splits import SplitPart
 from openfinance.domain.workspaces import Household
 
 
@@ -32,6 +38,10 @@ class TransactionQuery:
     uncategorized: bool = False
     account_id: AccountId | None = None
     category_id: CategoryId | None = None
+    tag: str | None = None
+    """Solo los movimientos con esta etiqueta (OF-1002)."""
+    reviewed: bool | None = None
+    """Solo los revisados o solo los sin revisar (OF-1006)."""
     shared_only: bool = False
     """Solo cuentas del hogar (conjunta y huchas), como los gráficos."""
     mine_only: bool = False
@@ -85,18 +95,22 @@ class TransactionRepository(Protocol):
     ) -> list[Transaction]: ...
     def totals(
         self, household_id: WorkspaceId, account_ids: list[AccountId], query: TransactionQuery
-    ) -> tuple[int, Decimal]:
-        """Cuántos movimientos cumplen el filtro (sin cursor ni límite) y cuánto suman."""
+    ) -> tuple[int, dict[str, Decimal]]:
+        """Cuántos movimientos cumplen el filtro (sin cursor ni límite) y cuánto suman, por
+        moneda."""
         ...
 
     def for_account(
         self, household_id: WorkspaceId, account_id: AccountId
     ) -> list[Transaction]: ...
     def balances(
-        self, household_id: WorkspaceId, account_ids: list[AccountId]
+        self,
+        household_id: WorkspaceId,
+        account_ids: list[AccountId],
+        until: datetime | None = None,
     ) -> dict[AccountId, Decimal]:
         """Suma de los movimientos activos de cada cuenta (sin el saldo inicial), calculada
-        en la base de datos. Una cuenta sin movimientos no aparece."""
+        en la base de datos, hasta ``until`` si se indica. Sin movimientos = no aparece."""
         ...
 
     def add(self, transaction: Transaction) -> None: ...
@@ -131,6 +145,28 @@ class TransactionRepository(Protocol):
     def set_category(
         self, household_id: WorkspaceId, ids: list[TransactionId], category_id: CategoryId | None
     ) -> None: ...
+    def transfer_candidates(
+        self,
+        household_id: WorkspaceId,
+        account_ids: list[AccountId],
+        transaction: Transaction,
+        days: int,
+    ) -> list[Transaction]:
+        """Movimientos de otras cuentas con el importe contrario y fecha cercana, sin enlazar."""
+        ...
+
+    def merchant_totals(
+        self, household_id: WorkspaceId, account_ids: list[AccountId]
+    ) -> list[tuple[str, int, Decimal]]:
+        """(variante, cuántos movimientos, suma) por variante, solo de esas cuentas (OF-1001)."""
+        ...
+
+    def uncategorized_with_merchant(
+        self, household_id: WorkspaceId, account_ids: list[AccountId], key: str
+    ) -> list[Transaction]:
+        """Gastos sin categoría de exactamente esa variante."""
+        ...
+
     def uncategorized_with_merchant_word(
         self, household_id: WorkspaceId, account_ids: list[AccountId], first_word: str
     ) -> list[Transaction]:
@@ -173,6 +209,121 @@ class RuleRepository(Protocol):
     def upsert(self, rule: CategoryRule, now: datetime) -> None: ...
     def get(self, household_id: WorkspaceId, scope: str, merchant: str) -> CategoryRule | None: ...
     def delete(self, household_id: WorkspaceId, scope: str, merchant: str) -> None: ...
+
+
+class RateRepository(Protocol):
+    def all(self, household_id: WorkspaceId) -> list[ExchangeRate]:
+        """Todos los tipos del hogar, por moneda y fecha."""
+        ...
+
+    def get(
+        self, household_id: WorkspaceId, currency: Currency, on: date
+    ) -> ExchangeRate | None: ...
+    def upsert(self, rate: ExchangeRate, created_by: UserId) -> None: ...
+    def delete(self, household_id: WorkspaceId, currency: Currency, on: date) -> None: ...
+
+
+class AttachmentRepository(Protocol):
+    def add(self, attachment: Attachment) -> None: ...
+    def get(self, household_id: WorkspaceId, attachment_id: UUID) -> Attachment | None:
+        """Incluye los borrados (para poder deshacer)."""
+        ...
+
+    def for_transactions(
+        self, household_id: WorkspaceId, ids: list[TransactionId]
+    ) -> dict[TransactionId, list[Attachment]]:
+        """Los adjuntos no borrados de cada movimiento, del más antiguo al más nuevo."""
+        ...
+
+    def set_deleted(
+        self, household_id: WorkspaceId, attachment_id: UUID, deleted_at: datetime | None
+    ) -> None: ...
+    def deleted_before(self, cutoff: datetime) -> list[Attachment]:
+        """Los borrados antes de esa fecha (de todos los hogares), para purgarlos del disco."""
+        ...
+
+    def erase(self, attachment_id: UUID) -> None:
+        """Borra de verdad la fila de un adjunto ya purgado."""
+        ...
+
+
+class AttachmentStore(Protocol):
+    """Dónde viven los archivos. Se identifican por el id del adjunto, nunca por su nombre."""
+
+    def save(self, attachment_id: UUID, content: bytes) -> None: ...
+    def read(self, attachment_id: UUID) -> bytes | None: ...
+    def delete(self, attachment_id: UUID) -> None: ...
+
+
+class ReconciliationRepository(Protocol):
+    def add(self, reconciliation: Reconciliation) -> None: ...
+    def for_account(
+        self, household_id: WorkspaceId, account_id: AccountId, limit: int
+    ) -> list[Reconciliation]:
+        """Las últimas comprobaciones de la cuenta, de la más reciente a la más antigua."""
+        ...
+
+
+class LinkRepository(Protocol):
+    def peers(
+        self, household_id: WorkspaceId, ids: list[TransactionId]
+    ) -> dict[TransactionId, TransactionId]:
+        """El otro lado del traspaso de cada movimiento enlazado. Sin enlace = ausente."""
+        ...
+
+    def link(self, household_id: WorkspaceId, a: TransactionId, b: TransactionId) -> None: ...
+    def unlink(self, household_id: WorkspaceId, a: TransactionId) -> None:
+        """Quita el enlace de ``a`` y de su otro lado."""
+        ...
+
+
+class SplitRepository(Protocol):
+    def for_transactions(
+        self, household_id: WorkspaceId, ids: list[TransactionId]
+    ) -> dict[TransactionId, list[SplitPart]]:
+        """Las partes de cada movimiento dividido, en orden. Sin dividir = ausente."""
+        ...
+
+    def set(
+        self, household_id: WorkspaceId, transaction_id: TransactionId, parts: list[SplitPart]
+    ) -> None:
+        """Sustituye las partes (lista vacía = deshacer la división)."""
+        ...
+
+
+class TagRepository(Protocol):
+    def for_transactions(
+        self, household_id: WorkspaceId, ids: list[TransactionId]
+    ) -> dict[TransactionId, tuple[str, ...]]:
+        """Las etiquetas de cada movimiento, en orden alfabético. Sin etiquetas = ausente."""
+        ...
+
+    def set(
+        self, household_id: WorkspaceId, transaction_id: TransactionId, tags: tuple[str, ...]
+    ) -> None: ...
+    def counts(
+        self, household_id: WorkspaceId, account_ids: list[AccountId]
+    ) -> list[tuple[str, int]]:
+        """(etiqueta, movimientos activos) solo de esas cuentas."""
+        ...
+
+
+class MerchantRepository(Protocol):
+    def get(self, household_id: WorkspaceId, merchant_id: MerchantId) -> Merchant | None: ...
+    def for_keys(self, household_id: WorkspaceId, keys: list[str]) -> dict[str, Merchant]:
+        """Los comercios con nombre propio de esas variantes, por variante."""
+        ...
+
+    def all(self, household_id: WorkspaceId) -> list[Merchant]: ...
+    def add(self, merchant: Merchant) -> None: ...
+    def set_name(self, household_id: WorkspaceId, merchant_id: MerchantId, name: str) -> None: ...
+    def set_keys(self, household_id: WorkspaceId, merchant_id: MerchantId, keys: list[str]) -> None:
+        """Sustituye las variantes del comercio por estas."""
+        ...
+
+    def delete(self, household_id: WorkspaceId, merchant_id: MerchantId) -> None:
+        """Borra el comercio y libera sus variantes."""
+        ...
 
 
 class BudgetRepository(Protocol):
@@ -307,6 +458,20 @@ class UnitOfWork(Protocol):
     def goals(self) -> GoalRepository: ...
     @property
     def dismissed_ideas(self) -> IdeaDismissalRepository: ...
+    @property
+    def merchants(self) -> MerchantRepository: ...
+    @property
+    def tags(self) -> TagRepository: ...
+    @property
+    def splits(self) -> SplitRepository: ...
+    @property
+    def links(self) -> LinkRepository: ...
+    @property
+    def reconciliations(self) -> ReconciliationRepository: ...
+    @property
+    def attachments(self) -> AttachmentRepository: ...
+    @property
+    def rates(self) -> RateRepository: ...
     @property
     def member_patterns(self) -> MemberPatternRepository: ...
     @property

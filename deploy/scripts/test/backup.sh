@@ -13,11 +13,15 @@ cp "$root/deploy/scripts/backup.sh" "$root/deploy/scripts/restore.sh" "$work/rep
 repo="$work/repo"
 export STUB_LOG="$work/calls.log"
 export STUB_RESTORED="$work/restored.bin"
+export STUB_FILES_RESTORED="$work/files-restored.bin"
 
 cat > "$work/bin/docker" <<'STUB'
 #!/usr/bin/env bash
 echo "docker $*" >> "$STUB_LOG"
 case "$*" in
+  *"test -d /data/attachments"*) [ "${STUB_ATTACHMENTS:-0}" = 1 ] || exit 1 ;;
+  *"tar -C /data -cf -"*) printf 'TAR-DE-ADJUNTOS' ;;
+  *"tar -C /data -xf -"*) cat > "$STUB_FILES_RESTORED" ;;
   *pg_dump*) printf 'PGDMP-contenido-de-prueba' ;;
   *"pg_restore --list"*)
     head -c 5 | grep -q '^PGDMP' || exit 1 ;;
@@ -107,5 +111,38 @@ grep -q 'compose stop api' "$STUB_LOG" && fail "no debe parar la API si no puede
 rm -f "$STUB_RESTORED"
 (cd "$repo" && deploy/scripts/restore.sh "$(ls "$work"/b3/openfinance-*.dump)" --yes > /dev/null 2>&1) || fail "la copia en claro debería restaurar"
 [ -s "$STUB_RESTORED" ] || fail "no se restauró la copia en claro"
+
+# 8. Adjuntos (OF-1007): segundo fichero con la misma fecha, cifrado igual; sin adjuntos no hay.
+STUB_ATTACHMENTS=1 OPENFINANCE_BACKUP_RECIPIENT=age1clave run_backup "$work/b8"
+dump8="$(ls "$work"/b8/openfinance-*.dump.age)"
+files8="$(ls "$work"/b8/openfinance-*.attachments.tar.age)"
+[ "${dump8%.dump.age}" = "${files8%.attachments.tar.age}" ] || fail "los adjuntos no llevan la misma fecha"
+head -n 1 "$files8" | grep -q '^AGE:age1clave$' || fail "los adjuntos no van cifrados"
+grep -q 'TAR-DE-ADJUNTOS' <(head -n 1 "$files8") && fail "los adjuntos están en claro"
+[ "$(stat -c %a "$files8" 2> /dev/null || stat -f %Lp "$files8")" = "600" ] || fail "adjuntos con permisos distintos de 600"
+OPENFINANCE_BACKUP_RECIPIENT=age1clave run_backup "$work/b9"
+ls "$work"/b9/*.attachments.* > /dev/null 2>&1 && fail "sin adjuntos no debería crear el fichero"
+
+# 9. La rotación quita los adjuntos de las copias que borra (y los huérfanos).
+mkdir -p "$work/b10"
+for d in 20200101 20200102; do
+  touch "$work/b10/openfinance-$d-030000.dump.age" "$work/b10/openfinance-$d-030000.attachments.tar.age"
+done
+touch "$work/b10/openfinance-20190101-030000.attachments.tar.age"
+OPENFINANCE_BACKUP_RECIPIENT=age1clave OPENFINANCE_BACKUP_KEEP=2 run_backup "$work/b10"
+[ ! -e "$work/b10/openfinance-20200101-030000.attachments.tar.age" ] || fail "debería borrar los adjuntos de la copia que rota"
+[ -e "$work/b10/openfinance-20200102-030000.attachments.tar.age" ] || fail "no debe borrar los adjuntos de una copia que se queda"
+[ ! -e "$work/b10/openfinance-20190101-030000.attachments.tar.age" ] || fail "debería borrar los adjuntos huérfanos"
+
+# 10. Restaurar trae también los adjuntos de la misma fecha.
+rm -f "$STUB_FILES_RESTORED" "$STUB_RESTORED"
+(cd "$repo" && OPENFINANCE_BACKUP_IDENTITY="$work/id-buena.txt" deploy/scripts/restore.sh "$dump8" --yes > /dev/null 2>&1) \
+  || fail "restaurar con adjuntos debería funcionar"
+[ "$(cat "$STUB_FILES_RESTORED")" = "TAR-DE-ADJUNTOS" ] || fail "no se restauraron los adjuntos"
+rm -f "$STUB_FILES_RESTORED"
+(cd "$repo" && OPENFINANCE_BACKUP_IDENTITY="$work/id-buena.txt" deploy/scripts/restore.sh "$enc" --yes > "$work/restore-out.txt" 2>&1) \
+  || fail "restaurar sin adjuntos debería funcionar"
+[ ! -e "$STUB_FILES_RESTORED" ] || fail "sin fichero de adjuntos no debe tocar los actuales"
+grep -q 'no trae adjuntos' "$work/restore-out.txt" || fail "debería avisar de que la copia no trae adjuntos"
 
 echo "backup.sh y restore.sh: bien"

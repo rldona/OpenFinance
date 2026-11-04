@@ -72,7 +72,13 @@ class TestPaging:
 
     def test_empty_filter(self, as_raul) -> None:
         r = as_raul.get("/api/v1/transactions/page", params={"q": "no existe"}).json()
-        assert r == {"items": [], "next_cursor": None, "count": 0, "total": eur("0.00")}
+        assert r == {
+            "items": [],
+            "next_cursor": None,
+            "count": 0,
+            "total": eur("0.00"),
+            "other_currencies": [],
+        }
 
     def test_invalid_cursor_and_limit(self, as_raul) -> None:
         assert as_raul.get("/api/v1/transactions/page", params={"cursor": "zzz"}).status_code == 422

@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import calendar
-from datetime import datetime
+from dataclasses import replace
+from datetime import datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
@@ -15,6 +16,7 @@ from openfinance.domain.categories import CategoryId
 from openfinance.domain.ledger import (
     Account,
     AccountKind,
+    AccountType,
     Institution,
     Transaction,
     TransactionKind,
@@ -26,14 +28,20 @@ from openfinance.domain.shared.ids import (
     UserId,
     WorkspaceId,
 )
+from openfinance.domain.splits import SplitPart
+from openfinance.domain.tags import tag_key
 from openfinance.infrastructure.db.models import (
     AccountRow,
+    TransactionLinkRow,
     TransactionRow,
+    TransactionSplitRow,
+    TransactionTagRow,
 )
 from openfinance.infrastructure.db.repositories._common import (
     _AMOUNT_QUANTUM,
     _flush,
 )
+from openfinance.infrastructure.db.repositories.splits import SqlSplitRepository
 
 _KIND_ORDER = {AccountKind.JOINT: 0, AccountKind.SAVINGS: 1, AccountKind.PERSONAL: 2}
 
@@ -46,6 +54,7 @@ def _account(row: AccountRow) -> Account:
         name=row.name,
         institution=Institution(row.institution),
         kind=AccountKind(row.kind),
+        type=AccountType(row.type),
         currency=currency,
         opening_balance=Money.of(row.opening_balance, currency),
         owner_id=UserId(row.owner_id) if row.owner_id else None,
@@ -68,6 +77,7 @@ class SqlAccountRepository:
                 name=account.name,
                 institution=account.institution.value,
                 kind=account.kind.value,
+                type=account.type.value,
                 currency=account.currency.code,
                 opening_balance=account.opening_balance.amount,
                 owner_id=account.owner_id,
@@ -95,11 +105,21 @@ def _transaction(row: TransactionRow) -> Transaction:
         import_id=row.import_id,
         note=row.note,
         voided=row.voided,
+        reviewed=row.reviewed,
     )
 
 
 _ACTIVE = TransactionRow.voided.is_(False)
+_NOT_SPLIT = TransactionRow.id.not_in(select(TransactionSplitRow.transaction_id))
+"""Un movimiento dividido tiene su categoría en las partes, no en él (OF-1003)."""
 """Los movimientos anulados no cuentan en ninguna consulta (ADR-0017)."""
+
+
+def _expand(t: Transaction, parts: list[SplitPart] | None) -> list[Transaction]:
+    """Un movimiento dividido se cuenta como una parte por categoría (mismo id y concepto)."""
+    if not parts:
+        return [t]
+    return [replace(t, amount=p.amount, category_id=p.category_id) for p in parts]
 
 
 def _new_row(t: Transaction) -> TransactionRow:
@@ -122,6 +142,7 @@ def _new_row(t: Transaction) -> TransactionRow:
         import_id=t.import_id,
         note=t.note,
         voided=t.voided,
+        reviewed=t.reviewed,
     )
 
 
@@ -147,11 +168,32 @@ class SqlTransactionRepository:
                 TransactionRow.description.icontains(query.text.strip(), autoescape=True)
             )
         if query.category_id is not None:
-            stmt = stmt.where(TransactionRow.category_id == query.category_id)
+            stmt = stmt.where(
+                or_(
+                    TransactionRow.category_id == query.category_id,
+                    TransactionRow.id.in_(
+                        select(TransactionSplitRow.transaction_id).where(
+                            TransactionSplitRow.category_id == query.category_id
+                        )
+                    ),
+                )
+            )
+        if query.reviewed is not None:
+            stmt = stmt.where(TransactionRow.reviewed.is_(query.reviewed))
+        if query.tag:
+            stmt = stmt.where(
+                TransactionRow.id.in_(
+                    select(TransactionTagRow.transaction_id).where(
+                        TransactionTagRow.household_id == household_id,
+                        TransactionTagRow.tag_key == tag_key(query.tag),
+                    )
+                )
+            )
         if query.uncategorized:
             stmt = stmt.where(
                 TransactionRow.kind == TransactionKind.EXPENSE.value,
                 TransactionRow.category_id.is_(None),
+                _NOT_SPLIT,
             )
         return stmt
 
@@ -173,15 +215,15 @@ class SqlTransactionRepository:
 
     def totals(
         self, household_id: WorkspaceId, account_ids: list[AccountId], query: TransactionQuery
-    ) -> tuple[int, Decimal]:
+    ) -> tuple[int, dict[str, Decimal]]:
         filtered = self._filtered(household_id, account_ids, query).subquery()
         count = 0
-        total = Decimal(0)
+        totals: dict[str, Decimal] = {}
         # Se suma en Python: SUM sobre decimales exactos no es fiable en todos los motores.
-        for (amount,) in self._s.execute(select(filtered.c.amount)):
+        for currency, amount in self._s.execute(select(filtered.c.currency, filtered.c.amount)):
             count += 1
-            total += amount
-        return count, total
+            totals[currency] = totals.get(currency, Decimal(0)) + amount
+        return count, totals
 
     def for_account(self, household_id: WorkspaceId, account_id: AccountId) -> list[Transaction]:
         rows = self._s.scalars(
@@ -194,21 +236,23 @@ class SqlTransactionRepository:
         return [_transaction(r) for r in rows]
 
     def balances(
-        self, household_id: WorkspaceId, account_ids: list[AccountId]
+        self,
+        household_id: WorkspaceId,
+        account_ids: list[AccountId],
+        until: datetime | None = None,
     ) -> dict[AccountId, Decimal]:
         """Lo que suman los movimientos activos de cada cuenta, calculado en la base de datos
         (OF-905): sin cargar los movimientos. Una cuenta sin movimientos no aparece."""
         if not account_ids:
             return {}
-        rows = self._s.execute(
-            select(TransactionRow.account_id, func.sum(TransactionRow.amount))
-            .where(
-                TransactionRow.household_id == household_id,
-                TransactionRow.account_id.in_(account_ids),
-                _ACTIVE,
-            )
-            .group_by(TransactionRow.account_id)
+        stmt = select(TransactionRow.account_id, func.sum(TransactionRow.amount)).where(
+            TransactionRow.household_id == household_id,
+            TransactionRow.account_id.in_(account_ids),
+            _ACTIVE,
         )
+        if until is not None:
+            stmt = stmt.where(TransactionRow.booked_at <= until)
+        rows = self._s.execute(stmt.group_by(TransactionRow.account_id))
         # SQLite suma en coma flotante: se redondea a la escala de la columna (4 decimales).
         return {
             AccountId(account_id): Decimal(str(total or 0)).quantize(_AMOUNT_QUANTUM)
@@ -252,6 +296,7 @@ class SqlTransactionRepository:
                 category_id=t.category_id,
                 note=t.note,
                 voided=t.voided,
+                reviewed=t.reviewed,
                 import_id=t.import_id,
             )
         )
@@ -311,6 +356,7 @@ class SqlTransactionRepository:
                     TransactionRow.id.in_(ids[i : i + 500]),
                     TransactionRow.kind == TransactionKind.EXPENSE.value,
                     _ACTIVE,
+                    _NOT_SPLIT,
                 )
                 .values(category_id=category_id)
             )
@@ -323,7 +369,65 @@ class SqlTransactionRepository:
             TransactionRow.kind == TransactionKind.EXPENSE.value,
             TransactionRow.category_id.is_(None),
             _ACTIVE,
+            _NOT_SPLIT,
         )
+
+    def transfer_candidates(
+        self,
+        household_id: WorkspaceId,
+        account_ids: list[AccountId],
+        transaction: Transaction,
+        days: int,
+    ) -> list[Transaction]:
+        others = [a for a in account_ids if a != transaction.account_id]
+        if not others:
+            return []
+        delta = timedelta(days=days)
+        rows = self._s.scalars(
+            select(TransactionRow)
+            .where(
+                TransactionRow.household_id == household_id,
+                TransactionRow.account_id.in_(others),
+                TransactionRow.amount == -transaction.amount.amount,
+                TransactionRow.currency == transaction.amount.currency.code,
+                TransactionRow.booked_at.between(
+                    transaction.booked_at - delta, transaction.booked_at + delta
+                ),
+                TransactionRow.id.not_in(select(TransactionLinkRow.transaction_id)),
+                _ACTIVE,
+            )
+            .order_by(TransactionRow.booked_at)
+        )
+        return [_transaction(r) for r in rows]
+
+    def merchant_totals(
+        self, household_id: WorkspaceId, account_ids: list[AccountId]
+    ) -> list[tuple[str, int, Decimal]]:
+        if not account_ids:
+            return []
+        rows = self._s.execute(
+            select(TransactionRow.merchant, func.count(), func.sum(TransactionRow.amount))
+            .where(
+                TransactionRow.household_id == household_id,
+                TransactionRow.account_id.in_(account_ids),
+                TransactionRow.merchant != "",
+                _ACTIVE,
+            )
+            .group_by(TransactionRow.merchant)
+        )
+        return [(m, int(n), Decimal(str(t or 0)).quantize(_AMOUNT_QUANTUM)) for m, n, t in rows]
+
+    def uncategorized_with_merchant(
+        self, household_id: WorkspaceId, account_ids: list[AccountId], key: str
+    ) -> list[Transaction]:
+        rows = self._s.scalars(
+            select(TransactionRow).where(
+                *self._uncategorized(household_id, account_ids),
+                TransactionRow.reviewed.is_(False),
+                TransactionRow.merchant == key,
+            )
+        )
+        return [_transaction(r) for r in rows]
 
     def uncategorized_with_merchant_word(
         self, household_id: WorkspaceId, account_ids: list[AccountId], first_word: str
@@ -331,6 +435,7 @@ class SqlTransactionRepository:
         rows = self._s.scalars(
             select(TransactionRow).where(
                 *self._uncategorized(household_id, account_ids),
+                TransactionRow.reviewed.is_(False),
                 or_(
                     TransactionRow.merchant == first_word,
                     TransactionRow.merchant.startswith(f"{first_word} ", autoescape=True),
@@ -357,13 +462,14 @@ class SqlTransactionRepository:
             TransactionRow.booked_at.between(start, end),
             _ACTIVE,
         )
+        txns = [_transaction(r) for r in self._s.scalars(stmt.order_by(TransactionRow.booked_at))]
+        # Los informes cuentan las partes de un movimiento dividido, no el total (OF-1003).
+        parts = SqlSplitRepository(self._s).for_transactions(household_id, [t.id for t in txns])
+        if parts:
+            txns = [p for t in txns for p in _expand(t, parts.get(t.id))]
         if only_category:
-            stmt = stmt.where(
-                TransactionRow.category_id.is_(None)
-                if category_id is None
-                else TransactionRow.category_id == category_id
-            )
-        return [_transaction(r) for r in self._s.scalars(stmt.order_by(TransactionRow.booked_at))]
+            txns = [t for t in txns if t.category_id == category_id]
+        return txns
 
     def first_booked_at(
         self, household_id: WorkspaceId, account_ids: list[AccountId]

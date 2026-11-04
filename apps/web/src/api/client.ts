@@ -2,6 +2,17 @@ import type { components, operations } from './schema'
 
 type Schemas = components['schemas']
 export type Me = Schemas['MeOut']
+export type ExchangeRate = Schemas['RateOut']
+export type MissingRate = Schemas['MissingRateOut']
+export type Attachment = Schemas['AttachmentOut']
+export type Reconciliation = Schemas['ReconciliationOut']
+export type AccountType = Schemas['AccountType']
+export type LinkResult = Schemas['LinkOut']
+export type SplitResult = Schemas['SplitOut']
+export type TagCount = Schemas['TagOut']
+export type TagsResult = Schemas['TagsOut']
+export type MerchantGroup = Schemas['MerchantGroupOut']
+export type MerchantChange = Schemas['MerchantChangeOut']
 export type VersionInfo = Schemas['VersionOut']
 export type Account = Schemas['AccountOut']
 export type Transaction = Schemas['TransactionOut']
@@ -107,14 +118,17 @@ export const api = {
   logout: () => request<void>('POST', '/api/v1/auth/logout'),
   /** Versión instalada y, si está activada la consulta, si hay una nueva (OF-907). */
   version: (signal?: AbortSignal) => request<VersionInfo>('GET', '/api/v1/version', { signal }),
+  /** Añade una cuenta de efectivo, tarjeta, préstamo o inversión (OF-1005). */
+  createAccount: (body: { name: string; type: AccountType; shared: boolean; opening_balance: string; currency?: string }) =>
+    request<Account>('POST', '/api/v1/accounts', { json: body }),
   accounts: (signal?: AbortSignal) => request<Account[]>('GET', '/api/v1/accounts', { signal }),
   transactions: (
-    query: { month?: string; q?: string; uncategorized?: boolean; account_id?: string; category_id?: string; shared_only?: boolean; mine_only?: boolean },
+    query: { month?: string; q?: string; uncategorized?: boolean; account_id?: string; category_id?: string; tag?: string; reviewed?: 'true' | 'false'; shared_only?: boolean; mine_only?: boolean },
     signal?: AbortSignal,
   ) => request<Transaction[]>('GET', '/api/v1/transactions', { query, signal }),
   /** Movimientos de 50 en 50 con el total del filtro (OF-803). */
   transactionsPage: (
-    query: { month?: string; q?: string; uncategorized?: boolean; account_id?: string; cursor?: string },
+    query: { month?: string; q?: string; uncategorized?: boolean; account_id?: string; tag?: string; reviewed?: 'true' | 'false'; cursor?: string },
     signal?: AbortSignal,
   ) => request<TransactionPage>('GET', '/api/v1/transactions/page', { query, signal }),
   previewImport: (accountId: string, file: File) => {
@@ -145,7 +159,7 @@ export const api = {
     request<{ operation_id: string | null }>('DELETE', `/api/v1/transactions/${encodeURIComponent(transactionId)}`),
   imports: (signal?: AbortSignal) => request<ImportItem[]>('GET', '/api/v1/imports', { signal }),
   undoImport: (importId: string) =>
-    request<{ voided: number; operation_id: string | null }>('POST', `/api/v1/imports/${encodeURIComponent(importId)}/undo`),
+    request<{ voided: number; operation_id: string | null; kept_reviewed?: number }>('POST', `/api/v1/imports/${encodeURIComponent(importId)}/undo`),
   changePassword: (currentPassword: string, newPassword: string) =>
     request<{ revoked: number }>('POST', '/api/v1/me/password', {
       json: { current_password: currentPassword, new_password: newPassword },
@@ -156,6 +170,58 @@ export const api = {
     request<MemberPattern>('POST', '/api/v1/me/patterns', { json: { pattern, direction } }),
   removePattern: (p: MemberPattern) =>
     request<void>('DELETE', `/api/v1/me/patterns/${p.direction}/${encodeURIComponent(p.pattern)}`),
+  /** Tipos de cambio manuales: 1 unidad de la moneda = tanto de la del hogar (OF-1008). */
+  exchangeRates: (signal?: AbortSignal) => request<ExchangeRate[]>('GET', '/api/v1/exchange-rates', { signal }),
+  setExchangeRate: (currency: string, on: string, rate: string) =>
+    request<{ rate: ExchangeRate; operation_id: string | null }>('PUT', '/api/v1/exchange-rates', { json: { currency, on, rate } }),
+  deleteExchangeRate: (currency: string, on: string) =>
+    request<{ operation_id: string | null }>('DELETE', `/api/v1/exchange-rates/${encodeURIComponent(currency)}/${encodeURIComponent(on)}`),
+  missingRates: (signal?: AbortSignal) => request<MissingRate[]>('GET', '/api/v1/exchange-rates/missing', { signal }),
+  /** Tickets y facturas adjuntos a un movimiento (OF-1007). */
+  attachments: (transactionId: string, signal?: AbortSignal) =>
+    request<Attachment[]>('GET', `/api/v1/transactions/${encodeURIComponent(transactionId)}/attachments`, { signal }),
+  addAttachment: (transactionId: string, file: File) => {
+    const form = new FormData()
+    form.set('file', file)
+    return request<{ attachment: Attachment; operation_id: string | null }>(
+      'POST',
+      `/api/v1/transactions/${encodeURIComponent(transactionId)}/attachments`,
+      { form },
+    )
+  },
+  deleteAttachment: (attachmentId: string) =>
+    request<{ operation_id: string | null }>('DELETE', `/api/v1/attachments/${encodeURIComponent(attachmentId)}`),
+  /** Revisar movimientos y comprobar el saldo contra el banco (OF-1006). */
+  reviewTransactions: (ids: string[], reviewed: boolean) =>
+    request<{ changed: number; operation_id: string | null }>('POST', '/api/v1/transactions/review', { json: { ids, reviewed } }),
+  reconcileAccount: (accountId: string, asOf: string, bankBalance: string) =>
+    request<Reconciliation>('POST', `/api/v1/accounts/${encodeURIComponent(accountId)}/reconciliations`, {
+      json: { as_of: asOf, bank_balance: bankBalance },
+    }),
+  reconciliations: (accountId: string, signal?: AbortSignal) =>
+    request<Reconciliation[]>('GET', `/api/v1/accounts/${encodeURIComponent(accountId)}/reconciliations`, { signal }),
+  /** Traspasos entre cuentas propias: candidatos, enlazar y desenlazar (OF-1004). */
+  transferCandidates: (transactionId: string, signal?: AbortSignal) =>
+    request<Transaction[]>('GET', `/api/v1/transactions/${encodeURIComponent(transactionId)}/transfer-candidates`, { signal }),
+  linkTransfer: (transactionId: string, peerId: string) =>
+    request<LinkResult>('PUT', `/api/v1/transactions/${encodeURIComponent(transactionId)}/link`, { json: { peer_id: peerId } }),
+  unlinkTransfer: (transactionId: string) =>
+    request<LinkResult>('DELETE', `/api/v1/transactions/${encodeURIComponent(transactionId)}/link`),
+  /** Divide un gasto en partes con categoría que suman su importe (OF-1003). */
+  splitTransaction: (transactionId: string, parts: { amount: string; category_id: string }[]) =>
+    request<SplitResult>('PUT', `/api/v1/transactions/${encodeURIComponent(transactionId)}/split`, { json: { parts } }),
+  unsplitTransaction: (transactionId: string) =>
+    request<SplitResult>('DELETE', `/api/v1/transactions/${encodeURIComponent(transactionId)}/split`),
+  /** Etiquetas de los movimientos que ves, con cuántos las llevan (OF-1002). */
+  tags: (signal?: AbortSignal) => request<TagCount[]>('GET', '/api/v1/tags', { signal }),
+  setTags: (transactionId: string, tags: string[]) =>
+    request<TagsResult>('PUT', `/api/v1/transactions/${encodeURIComponent(transactionId)}/tags`, { json: { tags } }),
+  /** Comercios con sus variantes del banco (OF-1001). */
+  merchants: (signal?: AbortSignal) => request<MerchantGroup[]>('GET', '/api/v1/merchants', { signal }),
+  renameMerchant: (key: string, name: string) =>
+    request<MerchantChange>('POST', '/api/v1/merchants/rename', { json: { key, name } }),
+  mergeMerchants: (targetKey: string, sourceKey: string) =>
+    request<MerchantChange>('POST', '/api/v1/merchants/merge', { json: { target_key: targetKey, source_key: sourceKey } }),
   rules: (signal?: AbortSignal) => request<RuleView[]>('GET', '/api/v1/rules', { signal }),
   deleteRule: (scope: RuleView['scope'], key: string) =>
     request<{ operation_id: string | null }>('DELETE', `/api/v1/rules/${scope}/${encodeURIComponent(key)}`),

@@ -12,7 +12,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from openfinance.api.deps import get_hasher, get_login_throttle
+from openfinance.api.deps import get_attachment_store, get_hasher, get_login_throttle
 from openfinance.application.households import (
     BootstrapRequest,
     NewAccount,
@@ -22,6 +22,7 @@ from openfinance.application.households import (
 from openfinance.domain.ledger import AccountKind, Institution, Transaction, TransactionKind
 from openfinance.domain.shared import Money
 from openfinance.domain.shared.ids import TransactionId
+from openfinance.infrastructure.attachments import FileAttachmentStore
 from openfinance.infrastructure.db import Base
 from openfinance.infrastructure.db.repositories import SqlUnitOfWork
 from openfinance.infrastructure.db.session import get_session_factory
@@ -159,8 +160,11 @@ def seed(session_factory) -> Seed:
 
 
 @pytest.fixture
-def app(session_factory):
+def app(session_factory, tmp_path):
     application = create_app()
+    application.dependency_overrides[get_attachment_store] = lambda: FileAttachmentStore(
+        tmp_path / "attachments"
+    )
     application.dependency_overrides[get_session_factory] = lambda: session_factory
     application.dependency_overrides[get_hasher] = FakeHasher
     throttle = LoginThrottle(5, 20, timedelta(minutes=15))

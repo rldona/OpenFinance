@@ -157,6 +157,455 @@ describe('Corregir un movimiento (OF-701)', () => {
   })
 })
 
+describe('Etiquetas y notas largas (OF-1002)', () => {
+  const TAGGED = TRANSACTIONS.map((t) => (t.id === 't4' ? { ...t, tags: ['Cena', 'Amigos'] } : t))
+
+  it('enseña las etiquetas del movimiento y permite filtrar por una', async () => {
+    window.location.hash = '#movimientos'
+    const calls = loggedIn({
+      'GET /api/v1/transactions/page': { body: page(TAGGED) },
+      'GET /api/v1/tags': { body: [{ tag: 'Amigos', count: 1 }, { tag: 'Cena', count: 1 }] },
+    })
+    render(<App />)
+    expect(await screen.findByText('#Cena')).toBeInTheDocument()
+    await userEvent.selectOptions(await screen.findByLabelText('Etiqueta'), 'Cena')
+    await waitFor(() =>
+      expect(calls.some((c) => c.url.pathname === '/api/v1/transactions/page' && c.url.searchParams.get('tag') === 'Cena')).toBe(true),
+    )
+    expect(window.location.hash).toContain('etiqueta=Cena')
+  })
+
+  it('guarda las etiquetas separadas por comas y avisa con «Deshacer»', async () => {
+    window.location.hash = '#movimientos'
+    const calls = loggedIn({
+      'GET /api/v1/transactions/t4/history': { body: [] },
+      'PUT /api/v1/transactions/t4/tags': { body: { transaction: TAGGED[3], operation_id: 'op-t' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Glovo' }))
+    await userEvent.type(await screen.findByLabelText(/Etiquetas \(separadas/), 'cena, #amigos ,')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar etiquetas' }))
+    const put = calls.find((c) => c.method === 'PUT')!
+    expect(JSON.parse(String(put.body))).toEqual({ tags: ['cena', '#amigos'] })
+    expect(await screen.findByText('Etiquetas guardadas')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Deshacer' })).toBeInTheDocument()
+  })
+
+  it('una etiqueta no válida se avisa junto al campo', async () => {
+    window.location.hash = '#movimientos'
+    loggedIn({
+      'GET /api/v1/transactions/t4/history': { body: [] },
+      'PUT /api/v1/transactions/t4/tags': { status: 422, body: { detail: 'Una etiqueta admite como máximo 40 caracteres' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Glovo' }))
+    const input = await screen.findByLabelText(/Etiquetas \(separadas/)
+    await userEvent.type(input, 'larga')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar etiquetas' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('como máximo 40 caracteres')
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('la nota admite varias líneas y la lista enseña solo la primera', async () => {
+    window.location.hash = '#movimientos'
+    const NOTED = TRANSACTIONS.map((t) => (t.id === 't4' ? { ...t, note: 'Primera línea\nSegunda línea' } : t))
+    loggedIn({
+      'GET /api/v1/transactions/page': { body: page(NOTED) },
+      'GET /api/v1/transactions/t4/history': { body: [] },
+    })
+    render(<App />)
+    expect(await screen.findByText(/📝 Primera línea/)).toBeInTheDocument()
+    expect(screen.queryByText(/Segunda línea/)).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'Detalle de Glovo' }))
+    const note = (await screen.findByLabelText('Nota')) as HTMLTextAreaElement
+    expect(note.tagName).toBe('TEXTAREA')
+    expect(note.value).toBe('Primera línea\nSegunda línea')
+    expect(note).toHaveAttribute('maxlength', '2000')
+  })
+})
+
+describe('Dividir un gasto (OF-1003)', () => {
+  const open = async () => {
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Glovo' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Dividir en partes' }))
+  }
+
+  it('avisa de lo que falta por repartir y solo deja guardar cuando suma el total', async () => {
+    window.location.hash = '#movimientos'
+    loggedIn({ 'GET /api/v1/transactions/t4/history': { body: [] } })
+    render(<App />)
+    await open()
+    expect(within(screen.getByRole('form', { name: 'Dividir el gasto' })).getByRole('status')).toHaveTextContent('Falta por repartir 25,40')
+    await userEvent.type(screen.getByLabelText('Importe de la parte 1'), '20')
+    await userEvent.selectOptions(screen.getByLabelText('Categoría de la parte 1'), 'c-rest')
+    await userEvent.type(screen.getByLabelText('Importe de la parte 2'), '3,40')
+    await userEvent.selectOptions(screen.getByLabelText('Categoría de la parte 2'), 'c-super')
+    expect(within(screen.getByRole('form', { name: 'Dividir el gasto' })).getByRole('status')).toHaveTextContent('Falta por repartir 2,00')
+    expect(screen.getByRole('button', { name: 'Guardar la división' })).toBeDisabled()
+    await userEvent.clear(screen.getByLabelText('Importe de la parte 2'))
+    await userEvent.type(screen.getByLabelText('Importe de la parte 2'), '5,40')
+    expect(within(screen.getByRole('form', { name: 'Dividir el gasto' })).getByRole('status')).toHaveTextContent('Todo repartido.')
+    expect(screen.getByRole('button', { name: 'Guardar la división' })).toBeEnabled()
+    await userEvent.clear(screen.getByLabelText('Importe de la parte 2'))
+    await userEvent.type(screen.getByLabelText('Importe de la parte 2'), '9,40')
+    expect(within(screen.getByRole('form', { name: 'Dividir el gasto' })).getByRole('status')).toHaveTextContent('Te pasas 4,00')
+  })
+
+  it('envía las partes con el signo del gasto y permite deshacer', async () => {
+    window.location.hash = '#movimientos'
+    const calls = loggedIn({
+      'GET /api/v1/transactions/t4/history': { body: [] },
+      'PUT /api/v1/transactions/t4/split': { body: { transaction: TRANSACTIONS[3], operation_id: 'op-s' } },
+    })
+    render(<App />)
+    await open()
+    await userEvent.type(screen.getByLabelText('Importe de la parte 1'), '20')
+    await userEvent.selectOptions(screen.getByLabelText('Categoría de la parte 1'), 'c-rest')
+    await userEvent.type(screen.getByLabelText('Importe de la parte 2'), '5,40')
+    await userEvent.selectOptions(screen.getByLabelText('Categoría de la parte 2'), 'c-super')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar la división' }))
+    const put = calls.find((c) => c.method === 'PUT')!
+    expect(JSON.parse(String(put.body))).toEqual({
+      parts: [
+        { amount: '-20', category_id: 'c-rest' },
+        { amount: '-5.40', category_id: 'c-super' },
+      ],
+    })
+    expect(await screen.findByText('Gasto dividido')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Deshacer' })).toBeInTheDocument()
+  })
+
+  it('un gasto ya dividido enseña sus partes y se puede deshacer la división', async () => {
+    window.location.hash = '#movimientos'
+    const SPLIT = TRANSACTIONS.map((t) =>
+      t.id === 't4'
+        ? {
+            ...t,
+            parts: [
+              { amount: { amount: '-20.00', currency: 'EUR' }, category_id: 'c-rest' },
+              { amount: { amount: '-5.40', currency: 'EUR' }, category_id: 'c-super' },
+            ],
+          }
+        : t,
+    )
+    const calls = loggedIn({
+      'GET /api/v1/transactions/page': { body: page(SPLIT) },
+      'GET /api/v1/transactions/t4/history': { body: [] },
+      'DELETE /api/v1/transactions/t4/split': { body: { transaction: TRANSACTIONS[3], operation_id: 'op-u' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Glovo' }))
+    const list = await screen.findByRole('list', { name: 'Partes del gasto' })
+    expect(list).toHaveTextContent('🍽️ Restaurantes · -20,00')
+    expect(list).toHaveTextContent('🛒 Supermercado · -5,40')
+    await userEvent.click(screen.getByRole('button', { name: 'Deshacer la división' }))
+    expect(calls.some((c) => c.method === 'DELETE' && c.url.pathname === '/api/v1/transactions/t4/split')).toBe(true)
+    expect(await screen.findByText('División deshecha')).toBeInTheDocument()
+  })
+
+  it('un ingreso no se puede dividir', async () => {
+    window.location.hash = '#movimientos'
+    loggedIn({ 'GET /api/v1/transactions/t1/history': { body: [] } })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Payment from Raul' }))
+    await screen.findByText('Sin correcciones.')
+    expect(screen.queryByRole('button', { name: 'Dividir en partes' })).toBeNull()
+  })
+})
+
+describe('Traspasos enlazados (OF-1004)', () => {
+  const OTHER = { ...TRANSACTIONS[3], id: 't9', description: 'Entrada de Glovo', account_id: 'a-raul', amount: { amount: '25.40', currency: 'EUR' } }
+
+  it('busca el otro lado, lo enlaza y avisa con «Deshacer»', async () => {
+    window.location.hash = '#movimientos'
+    const calls = loggedIn({
+      'GET /api/v1/transactions/t4/history': { body: [] },
+      'GET /api/v1/transactions/t4/transfer-candidates': { body: [OTHER] },
+      'PUT /api/v1/transactions/t4/link': { body: { transaction: TRANSACTIONS[3], peer: OTHER, operation_id: 'op-l' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Glovo' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Enlazar como traspaso' }))
+    const list = await screen.findByRole('list', { name: 'Posibles otros lados' })
+    expect(list).toHaveTextContent('Entrada de Glovo · Bankinter Raúl · +25,40')
+    await userEvent.click(screen.getByRole('button', { name: 'Enlazar con Entrada de Glovo' }))
+    expect(JSON.parse(String(calls.find((c) => c.method === 'PUT' && c.url.pathname.endsWith('/link'))!.body))).toEqual({ peer_id: 't9' })
+    expect(await screen.findByText('Traspaso enlazado')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Deshacer' })).toBeInTheDocument()
+  })
+
+  it('dice cuando no hay otro lado posible', async () => {
+    window.location.hash = '#movimientos'
+    loggedIn({
+      'GET /api/v1/transactions/t4/history': { body: [] },
+      'GET /api/v1/transactions/t4/transfer-candidates': { body: [] },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Glovo' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Enlazar como traspaso' }))
+    expect(await screen.findByText(/No hay un movimiento de otra cuenta tuya/)).toBeInTheDocument()
+  })
+
+  it('un traspaso enlazado lleva 🔗 y se puede desenlazar', async () => {
+    window.location.hash = '#movimientos'
+    const LINKED = TRANSACTIONS.map((t) => (t.id === 't4' ? { ...t, transfer_peer_id: 't9' } : t))
+    const calls = loggedIn({
+      'GET /api/v1/transactions/page': { body: page(LINKED) },
+      'GET /api/v1/transactions/t4/history': { body: [] },
+      'DELETE /api/v1/transactions/t4/link': { body: { transaction: TRANSACTIONS[3], peer: OTHER, operation_id: 'op-d' } },
+    })
+    render(<App />)
+    expect(await screen.findByLabelText('Traspaso enlazado')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Detalle de Glovo' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Desenlazar' }))
+    expect(calls.some((c) => c.method === 'DELETE' && c.url.pathname === '/api/v1/transactions/t4/link')).toBe(true)
+    expect(await screen.findByText('Traspaso desenlazado')).toBeInTheDocument()
+  })
+})
+
+describe('Tipos de cuenta (OF-1005)', () => {
+  const CARD = { id: 'a-visa', name: 'Visa', institution: 'other', kind: 'personal', type: 'card', owner_id: 'u-raul', opening_balance: { amount: '0.00', currency: 'EUR' }, balance: { amount: '-120.50', currency: 'EUR' } }
+
+  it('lista las cuentas con su tipo y enseña lo que se debe', async () => {
+    window.location.hash = '#ajustes'
+    loggedIn({ 'GET /api/v1/accounts': { body: [...ACCOUNTS, CARD] }, 'GET /api/v1/me/patterns': { body: [] } })
+    render(<App />)
+    const list = await screen.findByRole('list', { name: 'Tus cuentas' })
+    expect(list).toHaveTextContent('Cuenta conjunta · Banco')
+    expect(list).toHaveTextContent('Visa · Tarjeta de crédito · solo tuya · Debes 120,50')
+  })
+
+  it('añade una cuenta de efectivo', async () => {
+    window.location.hash = '#ajustes'
+    const calls = loggedIn({
+      'GET /api/v1/accounts': { body: ACCOUNTS },
+      'GET /api/v1/me/patterns': { body: [] },
+      'POST /api/v1/accounts': { status: 201, body: { ...CARD, type: 'cash', name: 'Cartera' } },
+    })
+    render(<App />)
+    await userEvent.type(await screen.findByLabelText('Nombre'), 'Cartera')
+    await userEvent.clear(screen.getByLabelText('Saldo de partida'))
+    await userEvent.type(screen.getByLabelText('Saldo de partida'), '40,50')
+    await userEvent.click(screen.getByRole('button', { name: 'Añadir cuenta' }))
+    const post = calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/accounts')!
+    expect(JSON.parse(String(post.body))).toEqual({ name: 'Cartera', type: 'cash', shared: true, opening_balance: '40.50' })
+    expect(await screen.findByText('Cuenta «Cartera» añadida')).toBeInTheDocument()
+  })
+
+  it('un saldo mal escrito se avisa junto al campo', async () => {
+    window.location.hash = '#ajustes'
+    loggedIn({ 'GET /api/v1/accounts': { body: ACCOUNTS }, 'GET /api/v1/me/patterns': { body: [] } })
+    render(<App />)
+    await userEvent.type(await screen.findByLabelText('Nombre'), 'X')
+    await userEvent.clear(screen.getByLabelText('Saldo de partida'))
+    await userEvent.type(screen.getByLabelText('Saldo de partida'), 'mucho')
+    await userEvent.click(screen.getByRole('button', { name: 'Añadir cuenta' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Escribe un saldo')
+    expect(screen.getByLabelText('Saldo de partida')).toHaveAttribute('aria-invalid', 'true')
+  })
+})
+
+describe('Revisado y conciliación (OF-1006)', () => {
+  it('marca un movimiento como revisado y avisa con «Deshacer»', async () => {
+    window.location.hash = '#movimientos'
+    const calls = loggedIn({
+      'GET /api/v1/transactions/t4/history': { body: [] },
+      'POST /api/v1/transactions/review': { body: { changed: 1, operation_id: 'op-r' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Glovo' }))
+    await userEvent.click(await screen.findByLabelText('Revisado con el banco'))
+    const post = calls.find((c) => c.url.pathname === '/api/v1/transactions/review')!
+    expect(JSON.parse(String(post.body))).toEqual({ ids: ['t4'], reviewed: true })
+    expect(await screen.findByText('Marcado como revisado')).toBeInTheDocument()
+  })
+
+  it('filtra los movimientos sin revisar', async () => {
+    window.location.hash = '#movimientos'
+    const calls = loggedIn()
+    render(<App />)
+    await userEvent.click(await screen.findByLabelText('Solo sin revisar'))
+    await waitFor(() =>
+      expect(calls.some((c) => c.url.pathname === '/api/v1/transactions/page' && c.url.searchParams.get('reviewed') === 'false')).toBe(true),
+    )
+  })
+
+  const RECON = (matches: boolean, diff: string) => ({
+    id: 'r1',
+    account_id: 'a-joint',
+    as_of: '2026-10-31',
+    bank_balance: { amount: '1300.00', currency: 'EUR' },
+    computed_balance: { amount: '1227.26', currency: 'EUR' },
+    difference: { amount: diff, currency: 'EUR' },
+    matches,
+    created_by: 'u-raul',
+    created_at: '2026-11-02T10:00:00Z',
+  })
+
+  it('comprueba el saldo de una cuenta y dice lo que falta', async () => {
+    window.location.hash = '#movimientos?cuenta=a-joint'
+    const calls = loggedIn({
+      'GET /api/v1/accounts/a-joint/reconciliations': { body: [] },
+      'POST /api/v1/accounts/a-joint/reconciliations': { status: 201, body: RECON(false, '72.74') },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByText(/Comprobar el saldo de «Cuenta conjunta»/))
+    await userEvent.type(screen.getByLabelText('Saldo según el banco'), '1300')
+    await userEvent.click(screen.getByRole('button', { name: 'Comprobar' }))
+    const post = calls.find((c) => c.method === 'POST')!
+    expect(JSON.parse(String(post.body))).toMatchObject({ bank_balance: '1300' })
+    expect(await screen.findByText(/Faltan 72,74/)).toBeInTheDocument()
+  })
+
+  it('un saldo mal escrito se avisa junto al campo', async () => {
+    window.location.hash = '#movimientos?cuenta=a-joint'
+    loggedIn({ 'GET /api/v1/accounts/a-joint/reconciliations': { body: [] } })
+    render(<App />)
+    await userEvent.click(await screen.findByText(/Comprobar el saldo de «Cuenta conjunta»/))
+    await userEvent.type(screen.getByLabelText('Saldo según el banco'), 'mucho')
+    await userEvent.click(screen.getByRole('button', { name: 'Comprobar' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Escribe el saldo del banco')
+  })
+})
+
+describe('Adjuntos (OF-1007)', () => {
+  const ATT = { id: 'att-1', transaction_id: 't4', filename: 'ticket.png', content_type: 'image/png', size: 2048, created_by: 'u-raul', created_at: '2026-11-02T10:00:00Z' }
+
+  it('lista los adjuntos con enlace de descarga y permite borrar con «Deshacer»', async () => {
+    window.location.hash = '#movimientos'
+    const calls = loggedIn({
+      'GET /api/v1/transactions/t4/history': { body: [] },
+      'GET /api/v1/transactions/t4/attachments': { body: [ATT] },
+      'DELETE /api/v1/attachments/att-1': { body: { operation_id: 'op-a' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Glovo' }))
+    const link = await screen.findByRole('link', { name: /ticket.png/ })
+    expect(link).toHaveAttribute('href', '/api/v1/attachments/att-1')
+    expect(link).toHaveAttribute('download', 'ticket.png')
+    await userEvent.click(screen.getByRole('button', { name: 'Borrar el adjunto ticket.png' }))
+    expect(calls.some((c) => c.method === 'DELETE' && c.url.pathname === '/api/v1/attachments/att-1')).toBe(true)
+    expect(await screen.findByText('Adjunto «ticket.png» borrado')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Deshacer' })).toBeInTheDocument()
+  })
+
+  it('sube un archivo y avisa', async () => {
+    window.location.hash = '#movimientos'
+    const calls = loggedIn({
+      'GET /api/v1/transactions/t4/history': { body: [] },
+      'GET /api/v1/transactions/t4/attachments': { body: [] },
+      'POST /api/v1/transactions/t4/attachments': { status: 201, body: { attachment: ATT, operation_id: 'op-u' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Glovo' }))
+    const file = new File([new Uint8Array([137, 80, 78, 71])], 'ticket.png', { type: 'image/png' })
+    await userEvent.upload(await screen.findByLabelText(/Adjuntar ticket o factura/), file)
+    expect(calls.some((c) => c.method === 'POST' && c.url.pathname === '/api/v1/transactions/t4/attachments')).toBe(true)
+    expect(await screen.findByText('Adjuntado «ticket.png»')).toBeInTheDocument()
+  })
+
+  it('un archivo de más de 5 MB se rechaza antes de subirlo', async () => {
+    window.location.hash = '#movimientos'
+    const calls = loggedIn({
+      'GET /api/v1/transactions/t4/history': { body: [] },
+      'GET /api/v1/transactions/t4/attachments': { body: [] },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Glovo' }))
+    const big = new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'enorme.pdf', { type: 'application/pdf' })
+    await userEvent.upload(await screen.findByLabelText(/Adjuntar ticket o factura/), big)
+    expect(await screen.findByRole('alert')).toHaveTextContent('pesa más de 5 MB')
+    expect(calls.some((c) => c.method === 'POST')).toBe(false)
+  })
+
+  it('el servidor puede rechazar el tipo y se avisa', async () => {
+    window.location.hash = '#movimientos'
+    loggedIn({
+      'GET /api/v1/transactions/t4/history': { body: [] },
+      'GET /api/v1/transactions/t4/attachments': { body: [] },
+      'POST /api/v1/transactions/t4/attachments': { status: 422, body: { detail: 'Solo se admiten PDF e imágenes PNG, JPEG o WebP' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Glovo' }))
+    await userEvent.upload(await screen.findByLabelText(/Adjuntar ticket o factura/), new File(['x'], 'a.png', { type: 'image/png' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Solo se admiten PDF')
+  })
+})
+
+describe('Varias monedas (OF-1008)', () => {
+  const USD = { currency: 'USD', on: '2026-10-01', rate: '0.90000000', source: 'manual' }
+
+  it('lista los tipos de cambio y avisa de los movimientos sin tipo', async () => {
+    window.location.hash = '#ajustes'
+    loggedIn({
+      'GET /api/v1/me/patterns': { body: [] },
+      'GET /api/v1/exchange-rates': { body: [USD] },
+      'GET /api/v1/exchange-rates/missing': { body: [{ currency: 'GBP', count: 3, first: '2026-10-05' }] },
+    })
+    render(<App />)
+    const list = await screen.findByRole('list', { name: 'Tipos de cambio' })
+    expect(list).toHaveTextContent('1 USD = 0.9 EUR')
+    expect(await screen.findByText(/3 movimientos en GBP sin tipo de cambio/)).toBeInTheDocument()
+  })
+
+  it('guarda un tipo de cambio y avisa con «Deshacer»', async () => {
+    window.location.hash = '#ajustes'
+    const calls = loggedIn({
+      'GET /api/v1/me/patterns': { body: [] },
+      'GET /api/v1/exchange-rates': { body: [] },
+      'GET /api/v1/exchange-rates/missing': { body: [] },
+      'PUT /api/v1/exchange-rates': { body: { rate: USD, operation_id: 'op-x' } },
+    })
+    render(<App />)
+    await userEvent.type(await screen.findByLabelText('Moneda'), 'usd')
+    await userEvent.type(screen.getByLabelText(/Vale en EUR/), '0,9')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar tipo' }))
+    const put = calls.find((c) => c.method === 'PUT')!
+    expect(JSON.parse(String(put.body))).toMatchObject({ currency: 'USD', rate: '0,9' })
+    expect(await screen.findByText('Tipo de cambio USD guardado')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Deshacer' })).toBeInTheDocument()
+  })
+
+  it('un tipo no válido se avisa junto al campo', async () => {
+    window.location.hash = '#ajustes'
+    loggedIn({
+      'GET /api/v1/me/patterns': { body: [] },
+      'GET /api/v1/exchange-rates': { body: [] },
+      'GET /api/v1/exchange-rates/missing': { body: [] },
+      'PUT /api/v1/exchange-rates': { status: 422, body: { detail: 'EUR ya es la moneda del hogar: no necesita tipo de cambio' } },
+    })
+    render(<App />)
+    await userEvent.type(await screen.findByLabelText('Moneda'), 'EUR')
+    await userEvent.type(screen.getByLabelText(/Vale en EUR/), '1')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar tipo' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('ya es la moneda del hogar')
+    expect(screen.getByLabelText(/Vale en EUR/)).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('una cuenta puede ir en otra moneda', async () => {
+    window.location.hash = '#ajustes'
+    const calls = loggedIn({
+      'GET /api/v1/me/patterns': { body: [] },
+      'GET /api/v1/exchange-rates': { body: [] },
+      'GET /api/v1/exchange-rates/missing': { body: [] },
+      'POST /api/v1/accounts': { status: 201, body: { ...ACCOUNTS[0], name: 'Viajes', type: 'cash' } },
+    })
+    render(<App />)
+    await userEvent.type(await screen.findByLabelText('Nombre'), 'Viajes')
+    await userEvent.type(screen.getByLabelText(/Moneda \(vacío/), 'usd')
+    await userEvent.click(screen.getByRole('button', { name: 'Añadir cuenta' }))
+    const post = calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/accounts')!
+    expect(JSON.parse(String(post.body))).toMatchObject({ name: 'Viajes', currency: 'USD' })
+  })
+
+  it('la suma del filtro dice qué monedas no cuenta', async () => {
+    window.location.hash = '#movimientos'
+    loggedIn({ 'GET /api/v1/transactions/page': { body: { ...page(TRANSACTIONS), other_currencies: ['USD'] } } })
+    render(<App />)
+    expect(await screen.findByText(/sin contar USD/)).toBeInTheDocument()
+  })
+})
+
 describe('Varios a la vez y efectivo (OF-705)', () => {
   it('pone la misma categoría a los seleccionados sin aprender reglas y se puede deshacer', async () => {
     const calls = loggedIn({
@@ -238,6 +687,69 @@ describe('Reglas (OF-702)', () => {
     expect(calls.some((c) => c.method === 'DELETE' && c.url.pathname === '/api/v1/rules/household/MERCADONA')).toBe(true)
     expect(await screen.findByText('Regla borrada: Mercadona')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Deshacer' })).toBeInTheDocument()
+  })
+})
+
+describe('Comercios (OF-1001)', () => {
+  const GROUPS = [
+    { id: null, name: 'Mercadona', keys: ['MERCADONA'], count: 5, total: { amount: '-147.34', currency: 'EUR' } },
+    { id: null, name: 'Mercadona Valencia', keys: ['MERCADONA VALENCIA'], count: 2, total: { amount: '-20.00', currency: 'EUR' } },
+    { id: 'm-1', name: 'Super', keys: ['A', 'B'], count: 3, total: { amount: '-9.00', currency: 'EUR' } },
+  ]
+
+  it('lista los comercios con sus variantes y totales', async () => {
+    window.location.hash = '#comercios'
+    loggedIn({ 'GET /api/v1/merchants': { body: GROUPS } })
+    render(<App />)
+    const row = (await screen.findByRole('cell', { name: 'Mercadona Valencia' })).closest('tr')!
+    expect(row).toHaveTextContent('2')
+    expect(screen.getByText(/2 variantes del banco: A, B/)).toBeInTheDocument()
+  })
+
+  it('renombra un comercio y se puede deshacer', async () => {
+    window.location.hash = '#comercios'
+    const calls = loggedIn({
+      'GET /api/v1/merchants': { body: GROUPS },
+      'POST /api/v1/merchants/rename': {
+        body: { merchant: { ...GROUPS[0], name: 'El Mercadona' }, reclassified: 0, operation_id: 'op-m' },
+      },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Renombrar Mercadona' }))
+    const input = screen.getByLabelText('Nombre')
+    await userEvent.clear(input)
+    await userEvent.type(input, 'El Mercadona')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    const call = calls.find((c) => c.url.pathname === '/api/v1/merchants/rename')!
+    expect(JSON.parse(String(call.body))).toEqual({ key: 'MERCADONA', name: 'El Mercadona' })
+    expect(await screen.findByText('«Mercadona» ahora es «El Mercadona»')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Deshacer' })).toBeInTheDocument()
+  })
+
+  it('un nombre repetido se avisa junto al campo', async () => {
+    window.location.hash = '#comercios'
+    loggedIn({
+      'GET /api/v1/merchants': { body: GROUPS },
+      'POST /api/v1/merchants/rename': { status: 409, body: { detail: 'Ya hay un comercio con ese nombre: fusiónalos si son el mismo' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Renombrar Mercadona' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Ya hay un comercio con ese nombre')
+    expect(screen.getByLabelText('Nombre')).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('fusiona otro comercio en este y cuenta los gastos clasificados', async () => {
+    window.location.hash = '#comercios'
+    const calls = loggedIn({
+      'GET /api/v1/merchants': { body: GROUPS },
+      'POST /api/v1/merchants/merge': { body: { merchant: GROUPS[0], reclassified: 2, operation_id: 'op-f' } },
+    })
+    render(<App />)
+    await userEvent.selectOptions(await screen.findByLabelText('Fusionar otro comercio en Mercadona'), 'MERCADONA VALENCIA')
+    const call = calls.find((c) => c.url.pathname === '/api/v1/merchants/merge')!
+    expect(JSON.parse(String(call.body))).toEqual({ target_key: 'MERCADONA', source_key: 'MERCADONA VALENCIA' })
+    expect(await screen.findByText(/«Mercadona Valencia» fusionado en «Mercadona» · 2 gastos clasificados/)).toBeInTheDocument()
   })
 })
 
@@ -1148,6 +1660,10 @@ describe('Este mes honesto (OF-802)', () => {
 })
 
 describe('Accesibilidad (OF-804)', () => {
+  const MERCHANTS = [
+    { id: null, name: 'Mercadona', keys: ['MERCADONA'], count: 5, total: { amount: '-147.34', currency: 'EUR' } },
+    { id: null, name: 'Mercadona Valencia', keys: ['MERCADONA VALENCIA'], count: 2, total: { amount: '-20.00', currency: 'EUR' } },
+  ]
   const RULES = [{ key: 'MERCADONA', merchant: 'Mercadona', category_id: 'c-super', scope: 'household', matches: 12 }]
   const OP = { id: 'op-a', actor_id: 'u-raul', created_at: '2026-11-01T10:00:00Z', action: 'transaction.edit', changes: [], summary: 'Glovo → Restaurantes', undone: false }
   const mocks = () => ({
@@ -1158,6 +1674,9 @@ describe('Accesibilidad (OF-804)', () => {
     'GET /api/v1/budgets': { body: BUDGETS },
     'GET /api/v1/savings/overview': { body: SAVINGS },
     'GET /api/v1/rules': { body: RULES },
+    'GET /api/v1/merchants': { body: MERCHANTS },
+    'GET /api/v1/exchange-rates': { body: [] },
+    'GET /api/v1/exchange-rates/missing': { body: [] },
     'GET /api/v1/changes': { body: [OP] },
     'GET /api/v1/me/patterns': { body: [] },
   })
@@ -1181,6 +1700,7 @@ describe('Accesibilidad (OF-804)', () => {
     ['categorias', 'Categorías', 'heading'],
     ['presupuestos', 'Presupuestos', 'heading'],
     ['reglas', 'Reglas', 'heading'],
+    ['comercios', 'Comercios', 'heading'],
     ['ajustes', 'Ajustes', 'heading'],
     ['cambios', 'Mis cambios', 'heading'],
   ]
