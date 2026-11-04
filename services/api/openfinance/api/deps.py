@@ -15,6 +15,7 @@ from openfinance.infrastructure.importers import StatementParserRegistry
 from openfinance.infrastructure.security import Argon2PasswordHasher
 from openfinance.infrastructure.throttle import LoginThrottle
 from openfinance.infrastructure.time import utc_now
+from openfinance.infrastructure.updates import GithubLatestRelease
 
 
 def get_uow(
@@ -57,8 +58,16 @@ ActorDep = Annotated[Actor, Depends(get_actor)]
 
 
 @lru_cache
+def get_release_source() -> GithubLatestRelease | None:
+    """La consulta de versión nueva, o ``None`` si está apagada (por defecto, OF-907)."""
+    settings = get_settings()
+    return GithubLatestRelease(settings.update_repo) if settings.update_check else None
+
+
+@lru_cache
 def get_parsers() -> StatementParserRegistry:
     return StatementParserRegistry()
 
 
+ReleaseSourceDep = Annotated[GithubLatestRelease | None, Depends(get_release_source)]
 ParsersDep = Annotated[StatementParserRegistry, Depends(get_parsers)]

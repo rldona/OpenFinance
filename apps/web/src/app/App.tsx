@@ -9,6 +9,7 @@ import { ChangesPage } from '../features/changes/ChangesPage'
 import { RulesPage } from '../features/categories/RulesPage'
 import { ExportMenu } from '../features/export/ExportMenu'
 import { ImportPage } from '../features/import/ImportPage'
+import { UpdateNotice } from '../features/updates/UpdateNotice'
 import { MonthPage } from '../features/insights/MonthPage'
 import { SpendingPage } from '../features/insights/SpendingPage'
 import { TrendsPage } from '../features/insights/TrendsPage'
@@ -168,6 +169,7 @@ function Shell({ route, onLogout }: { route: RouteId; onLogout: () => void }) {
         ))}
       </nav>
       <main id="contenido" tabIndex={-1} ref={main}>
+        <UpdateNotice />
         {/* Por pestaña: si una falla, las demás siguen funcionando. */}
         <ErrorBoundary key={route}>
           <Page route={route} />

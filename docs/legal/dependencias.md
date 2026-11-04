@@ -19,7 +19,7 @@ Puntos a vigilar, ninguno bloqueante:
 | **Apache-2.0** (python-multipart, opentelemetry-api, uvloop en doble licencia…) | Compatible con GPLv3/AGPLv3 en un sentido: código Apache-2.0 puede formar parte de una obra AGPL-3.0. | Conservar sus avisos `NOTICE` si se redistribuyen (los conserva la propia instalación de paquetes). |
 | **PSF-2.0** (typing_extensions, defusedxml) | La FSF la considera compatible con la GPL. | — |
 | **MPL-2.0** (solo en desarrollo: lightningcss, axe-core, certifi y pathspec) | MPL-2.0 §3.3 permite combinarla con GPL/AGPL salvo que el fichero diga «Incompatible With Secondary Licenses», y no lo dice. Además no acaban en lo que se distribuye. | Si alguna pasara a producción, revisar que no lleve esa marca. |
-| **Imágenes Docker** (sistema base con componentes GPL) | El proyecto no publica imágenes: cada instalación las construye o descarga de Docker Hub. Junto a los paquetes del sistema (BusyBox, glibc…) son una «agregación» (AGPL-3.0 §5), no una obra derivada. | Si se publican imágenes en un registro, hay que ofrecer también el código fuente de los componentes GPL de la imagen base. |
+| **Imágenes Docker** (sistema base con componentes GPL) | Desde OF-907 el proyecto publica sus imágenes (`openfinance-api` y `openfinance-web`) en ghcr.io, firmadas; también se pueden construir en local. Junto a los paquetes del sistema (BusyBox, glibc…) son una «agregación» (AGPL-3.0 §5), no una obra derivada. | Al publicar imágenes hay que ofrecer también el código fuente de los componentes GPL de la imagen base: las imágenes base van fijadas por digest (`FROM imagen@sha256:…`), así que ese digest identifica exactamente qué paquetes lleva y su fuente está en los repositorios de Alpine y Debian. Las imágenes llevan las etiquetas OCI `licenses` y `source`, y lista de materiales (SBOM) adjunta. |
 
 La lista permitida de `licenses.sh --check` solo contiene estas licencias. Una dependencia nueva con otra licencia hace fallar CI y obliga a revisarla y a actualizar este documento.
 
@@ -107,7 +107,7 @@ Herramientas que se usan para comprobar y construir, pero que no forman parte de
 | Imagen | Uso | Licencia del software principal | Sistema base |
 | --- | --- | --- | --- |
 | `postgres:16-alpine` | base de datos (`compose.yaml`, CI) | PostgreSQL License (permisiva, tipo BSD/MIT) | Alpine |
-| `nginx:1.27-alpine` | sirve la web y hace de proxy (`web.Dockerfile`) | BSD-2-Clause | Alpine |
+| `nginx:1.30-alpine` | sirve la web y hace de proxy (`web.Dockerfile`) | BSD-2-Clause | Alpine |
 | `python:3.12-slim` | API (`api.Dockerfile`) | PSF-2.0 | Debian |
 | `ghcr.io/astral-sh/uv:0.8` | solo se copia el binario `uv` en la imagen de la API | MIT o Apache-2.0 | — |
 | `node:24-alpine` | solo la etapa de build de la web; no está en la imagen final | MIT (con componentes de terceros bajo licencias permisivas) | Alpine |

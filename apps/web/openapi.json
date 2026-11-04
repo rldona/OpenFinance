@@ -2640,6 +2640,56 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "VersionOut": {
+        "properties": {
+          "current": {
+            "title": "Current",
+            "type": "string"
+          },
+          "enabled": {
+            "description": "Si la consulta de versión nueva está activada",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "latest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Última release publicada, si se ha podido saber",
+            "title": "Latest"
+          },
+          "update_available": {
+            "title": "Update Available",
+            "type": "boolean"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Página de esa release en GitHub",
+            "title": "Url"
+          }
+        },
+        "required": [
+          "current",
+          "enabled",
+          "latest",
+          "url",
+          "update_available"
+        ],
+        "title": "VersionOut",
+        "type": "object"
+      },
       "View": {
         "enum": [
           "household",
@@ -2687,6 +2737,7 @@
     },
     "/api/v1/auth/login": {
       "post": {
+        "description": "Primero se cuenta el intento (atómico), luego se busca a la persona, se verifica la\ncontraseña en los hilos de Argon2 y se abre la sesión. Los accesos a la base de datos van\nal grupo de hilos común; Argon2, no (OF-906).",
         "operationId": "login_api_v1_auth_login_post",
         "requestBody": {
           "content": {
@@ -4600,8 +4651,31 @@
         ]
       }
     },
+    "/api/v1/version": {
+      "get": {
+        "description": "Versión instalada y, si `OPENFINANCE_UPDATE_CHECK` está activada, si hay una nueva.\nSolo avisa: la actualización la hace quien administra la instalación.",
+        "operationId": "get_version_api_v1_version_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Version",
+        "tags": [
+          "meta"
+        ]
+      }
+    },
     "/health": {
       "get": {
+        "description": "Está vivo: responde sin tocar la base de datos.",
         "operationId": "health_health_get",
         "responses": {
           "200": {
@@ -4616,6 +4690,28 @@
           }
         },
         "summary": "Health",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/ready": {
+      "get": {
+        "description": "Está listo: la base de datos contesta. El detalle de un fallo va al log.",
+        "operationId": "ready_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ready",
         "tags": [
           "system"
         ]

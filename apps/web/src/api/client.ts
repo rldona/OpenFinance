@@ -2,6 +2,7 @@ import type { components, operations } from './schema'
 
 type Schemas = components['schemas']
 export type Me = Schemas['MeOut']
+export type VersionInfo = Schemas['VersionOut']
 export type Account = Schemas['AccountOut']
 export type Transaction = Schemas['TransactionOut']
 export type TransactionPage = Schemas['TransactionPageOut']
@@ -104,6 +105,8 @@ export const api = {
   login: (email: string, password: string) =>
     request<Me>('POST', '/api/v1/auth/login', { json: { email, password } }),
   logout: () => request<void>('POST', '/api/v1/auth/logout'),
+  /** Versión instalada y, si está activada la consulta, si hay una nueva (OF-907). */
+  version: (signal?: AbortSignal) => request<VersionInfo>('GET', '/api/v1/version', { signal }),
   accounts: (signal?: AbortSignal) => request<Account[]>('GET', '/api/v1/accounts', { signal }),
   transactions: (
     query: { month?: string; q?: string; uncategorized?: boolean; account_id?: string; category_id?: string; shared_only?: boolean; mine_only?: boolean },

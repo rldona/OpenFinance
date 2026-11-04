@@ -1,9 +1,12 @@
+import logging
 from functools import lru_cache
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_LEVELS = (logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL)
 
 
 class Settings(BaseSettings):
@@ -25,9 +28,14 @@ class Settings(BaseSettings):
     login_max_failures_per_email: int = Field(default=5, ge=1)
     login_max_failures_per_ip: int = Field(default=20, ge=1)
     login_window_minutes: int = Field(default=15, ge=1)
+    update_check: bool = False
+    """Avisar de versiones nuevas consultando GitHub (OF-907). Apagado por defecto."""
+    update_repo: str = "rldona/OpenFinance"
 
     @model_validator(mode="after")
     def _check(self) -> "Settings":
+        if logging.getLevelName(self.log_level.upper()) not in _LEVELS:
+            raise ValueError(f"OPENFINANCE_LOG_LEVEL no válido: {self.log_level}")
         try:
             ZoneInfo(self.timezone)
         except (ZoneInfoNotFoundError, ValueError) as exc:

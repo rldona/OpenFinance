@@ -1,0 +1,7 @@
+# Cada excepción lleva su motivo. Revisar al subir de versión la imagen base.
+
+# DS-0002 (web.Dockerfile sin USER): la imagen oficial de nginx arranca el proceso principal
+# como root solo para abrir el puerto 80 y los procesos que atienden peticiones corren como
+# el usuario «nginx». En Compose, además, va con sistema de ficheros de solo lectura, sin
+# capacidades salvo las cuatro que necesita y con no-new-privileges (OF-903).
+DS-0002

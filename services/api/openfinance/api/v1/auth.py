@@ -2,6 +2,7 @@ import logging
 from datetime import timedelta
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi.concurrency import run_in_threadpool
 
 from openfinance.api.deps import ActorDep, HasherDep, SettingsDep, ThrottleDep, UowDep
 from openfinance.api.v1.schemas import HouseholdOut, LoginIn, MemberOut, MeOut, UserOut
@@ -25,7 +26,7 @@ def _warn_secure_cookie_over_http(request: Request, secure: bool) -> None:
 
 
 @router.post("/auth/login", response_model=MeOut)
-def login(
+async def login(
     body: LoginIn,
     request: Request,
     response: Response,
@@ -34,28 +35,30 @@ def login(
     settings: SettingsDep,
     throttle: ThrottleDep,
 ) -> MeOut:
+    """Primero se cuenta el intento (atómico), luego se busca a la persona, se verifica la
+    contraseña en los hilos de Argon2 y se abre la sesión. Los accesos a la base de datos van
+    al grupo de hilos común; Argon2, no (OF-906)."""
     now = utc_now()
     ip = request.client.host if request.client else "unknown"
-    if throttle.is_blocked(body.email, ip, now):
+    if not throttle.try_acquire(body.email, ip, now):
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
             "Demasiados intentos. Espera unos minutos.",
             headers={"Retry-After": str(settings.login_window_minutes * 60)},
         )
-    try:
-        session = identity.login(
-            uow,
-            hasher,
-            body.email,
-            body.password,
-            now,
-            timedelta(days=settings.session_ttl_days),
-            previous_token=request.cookies.get(settings.session_cookie_name, ""),
-        )
-    except AuthenticationError:
-        throttle.record_failure(body.email, ip, now)
-        raise
-    throttle.reset(body.email)
+    user = await run_in_threadpool(identity.find_login_user, uow, body.email)
+    if not await hasher.averify(user.password_hash if user else None, body.password):
+        raise AuthenticationError
+    assert user is not None  # averify(None, ...) siempre devuelve False
+    session = await run_in_threadpool(
+        identity.open_session,
+        uow,
+        user,
+        now,
+        timedelta(days=settings.session_ttl_days),
+        request.cookies.get(settings.session_cookie_name, ""),
+    )
+    throttle.release_success(body.email, ip, now)
     _warn_secure_cookie_over_http(request, settings.cookie_secure)
     response.set_cookie(
         settings.session_cookie_name,
@@ -66,7 +69,7 @@ def login(
         samesite="lax",
         path="/",
     )
-    return _me(identity.me(uow, session.actor))
+    return _me(await run_in_threadpool(identity.me, uow, session.actor))
 
 
 @router.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT)

@@ -1,5 +1,5 @@
 import { type FormEvent, useRef, useState } from 'react'
-import { ApiError, api, type MemberPattern } from '../../api/client'
+import { ApiError, api, type MemberPattern, type VersionInfo } from '../../api/client'
 import { useHousehold } from '../../app/household-context'
 import { FieldError } from '../../components/FieldError'
 import { invalid } from '../../lib/invalid'
@@ -129,6 +129,33 @@ function Appearance() {
   )
 }
 
+/** Versión instalada y, si está activada la consulta, si hay una nueva (OF-907). */
+function Version() {
+  const version = useLoad<VersionInfo>('version', (s) => api.version(s))
+  const info = version.data
+  return (
+    <div className="card stack">
+      <h2>Versión</h2>
+      {version.error && <p className="small muted">No se ha podido comprobar la versión.</p>}
+      {!info && !version.error && <Loading />}
+      {info && (
+        <>
+          <p>
+            OpenFinance <strong>{info.current}</strong>
+            {info.update_available && info.latest && <> · hay una nueva: {info.latest}</>}
+          </p>
+          {!info.enabled && (
+            <p className="small muted">
+              No se busca si hay versiones nuevas. Para que avise, quien administra la instalación puede poner{' '}
+              <code>OPENFINANCE_UPDATE_CHECK=true</code> en <code>.env</code>: así el servidor consulta GitHub una vez al día.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
 function Sessions() {
   const { notify } = useHousehold()
   async function revoke() {
@@ -238,6 +265,7 @@ export function SettingsPage() {
           <RechargeCards />
           <Appearance />
           <Sessions />
+          <Version />
           <div className="card stack">
             <h2>Más ajustes</h2>
             <ul className="plain links">

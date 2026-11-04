@@ -1151,6 +1151,7 @@ describe('Accesibilidad (OF-804)', () => {
   const RULES = [{ key: 'MERCADONA', merchant: 'Mercadona', category_id: 'c-super', scope: 'household', matches: 12 }]
   const OP = { id: 'op-a', actor_id: 'u-raul', created_at: '2026-11-01T10:00:00Z', action: 'transaction.edit', changes: [], summary: 'Glovo → Restaurantes', undone: false }
   const mocks = () => ({
+    'GET /api/v1/version': { body: { current: '0.2.0', enabled: false, latest: null, url: null, update_available: false } },
     'GET /api/v1/insights/month': { body: OVERVIEW },
     'GET /api/v1/insights/category': { body: DETAIL },
     'GET /api/v1/insights/trends': { body: TRENDS },
@@ -1238,6 +1239,15 @@ describe('Accesibilidad (OF-804)', () => {
     expect(amount).toHaveAttribute('aria-invalid', 'true')
     expect(amount).toHaveFocus()
     expect(screen.getByRole('alert')).toHaveTextContent('Escribe un importe mayor que cero')
+  })
+
+  it('Ajustes dice qué versión hay y cómo activar el aviso de versiones nuevas', async () => {
+    window.location.hash = '#ajustes'
+    loggedIn(mocks())
+    render(<App />)
+    expect(await screen.findByRole('heading', { name: 'Versión' })).toBeInTheDocument()
+    expect(await screen.findByText('0.2.0')).toBeInTheDocument()
+    expect(screen.getByText('OPENFINANCE_UPDATE_CHECK=true')).toBeInTheDocument()
   })
 
   it('una contraseña actual incorrecta se señala en su campo, sin cerrar la sesión', async () => {
