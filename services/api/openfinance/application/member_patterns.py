@@ -17,7 +17,8 @@ from openfinance.domain.imports import (
     PatternError,
     normalize_member_pattern,
 )
-from openfinance.domain.shared.ids import WorkspaceId
+from openfinance.domain.shared.ids import UserId, WorkspaceId
+from openfinance.domain.workspaces import Actor
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,3 +83,44 @@ def remove_member_pattern(
     if not owned or not uow.member_patterns.delete(household, direction, pattern):
         raise NotFoundError("Esa persona no tiene ese patrón")
     uow.commit()
+
+
+# Desde la web (OF-704): cada persona gestiona solo los suyos, sin pasar por el email.
+
+
+def own_patterns(uow: UnitOfWork, actor: Actor) -> list[MemberPattern]:
+    return [
+        p
+        for p in uow.member_patterns.for_household(actor.household_id)
+        if p.user_id == actor.user_id
+    ]
+
+
+def add_own_pattern(
+    uow: UnitOfWork, actor: Actor, raw: str, direction: PatternDirection, now: datetime
+) -> MemberPattern:
+    pattern = MemberPattern(actor.household_id, actor.user_id, _normalize(raw), direction)
+    uow.member_patterns.add(pattern, now)
+    uow.commit()
+    return pattern
+
+
+def remove_own_pattern(
+    uow: UnitOfWork, actor: Actor, raw: str, direction: PatternDirection
+) -> None:
+    pattern = _normalize(raw)
+    owned = any(p.pattern == pattern and p.direction is direction for p in own_patterns(uow, actor))
+    if not owned or not uow.member_patterns.delete(actor.household_id, direction, pattern):
+        raise NotFoundError("No tienes ese patrón")
+    uow.commit()
+
+
+def members_without_recharge(uow: UnitOfWork, household_id: WorkspaceId) -> list[UserId]:
+    """Personas del hogar sin patrón de entrada: sus recargas a la conjunta entrarían como
+    ingreso («Recarga de *NNNN» no lleva su nombre)."""
+    with_pattern = {
+        p.user_id
+        for p in uow.member_patterns.for_household(household_id)
+        if p.direction is PatternDirection.INFLOW
+    }
+    return [m.id for m in uow.households.members(household_id) if m.id not in with_pattern]

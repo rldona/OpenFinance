@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react'
 import type { Category, InsightsView, Me } from '../api/client'
+import type { Notify } from '../components/useToast'
 
 export type HouseholdState = {
   me: Me
@@ -10,7 +11,7 @@ export type HouseholdState = {
   uncategorized: number
   reloadCategories: () => void
   refreshUncategorized: () => void
-  notify: (message: string) => void
+  notify: Notify
   /** Mes elegido (AAAA-MM), compartido entre pantallas. */
   month: string
   setMonth: (month: string) => void

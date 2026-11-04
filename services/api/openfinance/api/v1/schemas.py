@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
@@ -9,6 +10,7 @@ from openfinance.application.imports import ImportPreview, ImportResult
 from openfinance.application.savings import BudgetView, GoalView
 from openfinance.domain.categories import Category, merchant_label
 from openfinance.domain.identity import User
+from openfinance.domain.imports import PatternDirection
 from openfinance.domain.ledger import (
     Account,
     AccountKind,
@@ -99,6 +101,7 @@ class TransactionOut(BaseModel):
     merchant: str = Field(description="Comercio normalizado y legible, p. ej. «Mercadona»")
     member_id: UUID | None
     source: str
+    note: str = Field(description="Nota de quien corrigió el movimiento")
 
     @classmethod
     def of(cls, t: Transaction) -> TransactionOut:
@@ -114,6 +117,7 @@ class TransactionOut(BaseModel):
             merchant=merchant_label(t.merchant),
             member_id=t.member_id,
             source=t.source,
+            note=t.note,
         )
 
 
@@ -152,6 +156,10 @@ class ImportPreviewOut(BaseModel):
     balance_mismatches: list[BalanceMismatchOut]
     bank_balance: MoneyOut | None
     balance_after_import: MoneyOut
+    members_without_recharge: list[UUID] = Field(
+        description="Quién no tiene guardada su tarjeta de recarga: sus recargas entrarían como "
+        "ingreso. La web pide confirmación antes de importar."
+    )
 
     @classmethod
     def of(cls, p: ImportPreview) -> ImportPreviewOut:
@@ -189,7 +197,45 @@ class ImportPreviewOut(BaseModel):
             ],
             bank_balance=MoneyOut.of(p.bank_balance) if p.bank_balance else None,
             balance_after_import=MoneyOut.of(p.balance_after_import),
+            members_without_recharge=list(p.members_without_recharge),
         )
+
+
+class PasswordChangeIn(BaseModel):
+    current_password: str = Field(max_length=200)
+    new_password: str = Field(max_length=200)
+
+
+class RevokedOut(BaseModel):
+    revoked: int = Field(description="Sesiones cerradas en otros navegadores")
+
+
+class PatternOut(BaseModel):
+    pattern: str
+    direction: PatternDirection
+
+
+class PatternIn(BaseModel):
+    pattern: str = Field(min_length=3, max_length=60, examples=["*1234"])
+    direction: PatternDirection = PatternDirection.INFLOW
+
+
+class ImportListItemOut(BaseModel):
+    id: UUID
+    account_id: UUID
+    filename: str
+    created_by: UUID
+    committed_at: datetime | None
+    status: Literal["committed", "undone"]
+    created: int
+    duplicates: int
+    skipped: int
+    can_undo: bool = Field(description="Solo la última importación confirmada de cada cuenta")
+
+
+class UndoImportOut(BaseModel):
+    voided: int = Field(description="Movimientos anulados")
+    operation_id: UUID | None
 
 
 class ImportResultOut(BaseModel):
@@ -240,7 +286,12 @@ class CategoryPatch(BaseModel):
 
 
 class CategorizeIn(BaseModel):
-    category_id: UUID | None
+    """Corrección de un movimiento: solo cambia lo que se envía (OF-701)."""
+
+    category_id: UUID | None = Field(default=None, description="null = quitar la categoría")
+    kind: TransactionKind | None = None
+    member_id: UUID | None = Field(default=None, description="Quién aporta, en una aportación")
+    note: str | None = Field(default=None, max_length=500)
     learn: bool = Field(
         default=True,
         description="Guardar la regla «comercio → categoría» y aplicarla a los gastos sin ella",
@@ -252,10 +303,79 @@ class RuleOut(BaseModel):
     category_id: UUID
 
 
+class RuleViewOut(BaseModel):
+    key: str = Field(description="Comercio normalizado, para borrar la regla")
+    merchant: str = Field(description="Comercio legible")
+    category_id: UUID
+    scope: Literal["household", "personal"] = Field(
+        description="personal = aprendida en tu cuenta personal; solo la ves tú"
+    )
+    matches: int = Field(description="Movimientos con esa categoría que coinciden con la regla")
+
+
 class CategorizeOut(BaseModel):
     transaction: TransactionOut
     rule: RuleOut | None
     also_categorized: int
+    operation_id: UUID | None = Field(description="Para deshacer la corrección (ADR-0017)")
+
+
+AMOUNT_PATTERN = r"^\d{1,9}([.,]\d{1,2})?$"
+
+
+class BulkCategorizeIn(BaseModel):
+    ids: list[UUID] = Field(min_length=1, max_length=500)
+    category_id: UUID | None
+
+
+class BulkCategorizeOut(BaseModel):
+    updated: int
+    operation_id: UUID | None
+
+
+class ManualTransactionIn(BaseModel):
+    """Un movimiento que no viene de ningún extracto, p. ej. un pago en efectivo (OF-705)."""
+
+    account_id: UUID
+    booked_on: date
+    description: str = Field(min_length=1, max_length=200)
+    amount: str = Field(pattern=AMOUNT_PATTERN, description="Positivo; un gasto resta")
+    kind: TransactionKind = TransactionKind.EXPENSE
+    category_id: UUID | None = None
+    note: str = Field(default="", max_length=500)
+
+
+class ManualTransactionOut(BaseModel):
+    transaction: TransactionOut
+    operation_id: UUID | None
+
+
+class OperationRefOut(BaseModel):
+    operation_id: UUID | None
+
+
+class ChangeOut(BaseModel):
+    entity: str
+    field: str
+    before: str | bool | None
+    after: str | bool | None
+
+
+class OperationOut(BaseModel):
+    id: UUID
+    actor_id: UUID
+    created_at: datetime
+    action: str
+    summary: str
+    undone: bool
+    changes: list[ChangeOut] = Field(description="En el historial de un movimiento, solo los suyos")
+
+
+class RevertOut(BaseModel):
+    operation: OperationOut
+    applied: int
+    kept: int = Field(description="Cambios respetados porque alguien los hizo después")
+    kept_by: list[UUID]
 
 
 class CountOut(BaseModel):
@@ -360,9 +480,6 @@ class TrendsOut(BaseModel):
     saving_rate: int | None
     best: MonthSavedOut | None
     worst: MonthSavedOut | None
-
-
-AMOUNT_PATTERN = r"^\d{1,9}([.,]\d{1,2})?$"
 
 
 class BudgetIn(BaseModel):

@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from uuid import UUID, uuid4
 
 from openfinance.application.categories import rules_for_account
+from openfinance.application.changes import record
 from openfinance.application.errors import ConflictError, InvalidRequestError, NotFoundError
 from openfinance.application.ledger import visible_accounts
+from openfinance.application.member_patterns import members_without_recharge
 from openfinance.application.ports import StatementParsers, UnitOfWork
 from openfinance.domain.categories import CategoryId, best_rule, merchant_key
+from openfinance.domain.changes import Change, Entity
 from openfinance.domain.identity import User
 from openfinance.domain.imports import (
     BalanceMismatch,
@@ -37,7 +40,7 @@ from openfinance.domain.ledger import (
     account_balance,
 )
 from openfinance.domain.shared import Money
-from openfinance.domain.shared.ids import TransactionId, UserId
+from openfinance.domain.shared.ids import AccountId, TransactionId, UserId
 from openfinance.domain.shared.text import normalize_text
 from openfinance.domain.workspaces import Actor
 
@@ -71,6 +74,9 @@ class ImportPreview:
     """Saldo que informa el banco tras la última fila del extracto."""
     balance_after_import: Money
     """Saldo que tendrá la cuenta en OpenFinance si se confirma."""
+    members_without_recharge: list[UserId] = field(default_factory=list)
+    """En la conjunta de Revolut: quién no tiene guardada su tarjeta de recarga (OF-704).
+    Sus «Recarga de *NNNN» entrarían como ingreso y no como su aportación."""
 
     @property
     def new_count(self) -> int:
@@ -206,6 +212,9 @@ def _build_preview(
         result.balance_mismatches,
         result.closing_balance,
         after,
+        members_without_recharge(uow, actor.household_id)
+        if account.kind is not AccountKind.PERSONAL and account.institution is Institution.REVOLUT
+        else [],
     )
 
 
@@ -267,11 +276,21 @@ def commit_import(
     # previa salvo que entre medias cambien los miembros del hogar o sus patrones.
     result = _parse(uow, parsers, actor, account, content)
     rows = _preview_rows(uow, actor, account, result)
+    # Lo de una importación deshecha vuelve con su identificador y sus correcciones en lugar
+    # de duplicarse (ADR-0017): deshacer y volver a importar da el mismo resultado.
+    voided = uow.transactions.voided_with_fingerprints(
+        actor.household_id, account.id, [r.row.fingerprint for r in rows if not r.duplicate]
+    )
     created = 0
     for r in rows:
         if r.duplicate:
             continue
         row = r.row
+        previous = voided.get(row.fingerprint)
+        if previous is not None:
+            uow.transactions.save(replace(previous, voided=False, import_id=batch.id))
+            created += 1
+            continue
         kind = row.suggested_kind
         member = r.member_id
         if kind is TransactionKind.CONTRIBUTION and member is None:
@@ -305,6 +324,77 @@ def commit_import(
     uow.imports.save_committed(done)
     uow.commit()
     return ImportResult(done, done.created_count, done.duplicate_count, done.skipped_count)
+
+
+@dataclass(frozen=True, slots=True)
+class ImportView:
+    batch: ImportBatch
+    can_undo: bool
+    """Solo la última importación confirmada de cada cuenta se puede deshacer."""
+
+
+def list_imports(uow: UnitOfWork, actor: Actor) -> list[ImportView]:
+    """Importaciones confirmadas o deshechas de las cuentas que ve quien pregunta."""
+    batches = uow.imports.committed(
+        actor.household_id, [a.id for a in visible_accounts(uow, actor)]
+    )
+    latest: dict[AccountId, UUID] = {}
+    for b in batches:
+        if b.status is ImportStatus.COMMITTED:
+            latest.setdefault(b.account_id, b.id)
+    return [ImportView(b, latest.get(b.account_id) == b.id) for b in batches]
+
+
+@dataclass(frozen=True, slots=True)
+class UndoImportResult:
+    voided: int
+    operation_id: UUID | None
+
+
+def undo_import(uow: UnitOfWork, actor: Actor, import_id: UUID, now: datetime) -> UndoImportResult:
+    """Anula los movimientos de la última importación de una cuenta (ADR-0017).
+
+    No se borra nada: quedan anulados y en el registro, con sus correcciones, y deshacer esta
+    operación los recupera. Volver a importar el mismo archivo también los recupera.
+    """
+    batch = uow.imports.get(actor.household_id, import_id)
+    account_ids = {a.id for a in visible_accounts(uow, actor)}
+    if batch is None or batch.account_id not in account_ids:
+        raise NotFoundError("Importación no encontrada")
+    if batch.status is not ImportStatus.COMMITTED:
+        raise ConflictError("Esta importación no está confirmada o ya está deshecha")
+    newest = next(
+        (
+            b
+            for b in uow.imports.committed(actor.household_id, [batch.account_id])
+            if b.status is ImportStatus.COMMITTED
+        ),
+        None,
+    )
+    if newest is None or newest.id != batch.id:
+        raise InvalidRequestError(
+            "Solo se puede deshacer la última importación de esta cuenta: "
+            "deshaz antes las posteriores"
+        )
+    changes: list[Change] = []
+    for t in uow.transactions.for_import(actor.household_id, batch.id):
+        uow.transactions.save(replace(t, voided=True))
+        changes.append(Change(Entity.TRANSACTION, str(t.id), "voided", False, True))
+    uow.imports.set_status(batch.id, ImportStatus.UNDONE)
+    changes.append(
+        Change(
+            Entity.IMPORT,
+            str(batch.id),
+            "status",
+            ImportStatus.COMMITTED.value,
+            ImportStatus.UNDONE.value,
+        )
+    )
+    count = len(changes) - 1
+    summary = f"Importación deshecha: {batch.filename}"
+    operation = record(uow, actor, "import.undo", summary, changes, now)
+    uow.commit()
+    return UndoImportResult(count, operation.id if operation else None)
 
 
 def purge_expired_imports(uow: UnitOfWork, now: datetime) -> int:

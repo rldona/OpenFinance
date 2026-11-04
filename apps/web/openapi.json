@@ -194,7 +194,7 @@
         "title": "BudgetsOut",
         "type": "object"
       },
-      "CategorizeIn": {
+      "BulkCategorizeIn": {
         "properties": {
           "category_id": {
             "anyOf": [
@@ -208,16 +208,108 @@
             ],
             "title": "Category Id"
           },
+          "ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ids",
+          "category_id"
+        ],
+        "title": "BulkCategorizeIn",
+        "type": "object"
+      },
+      "BulkCategorizeOut": {
+        "properties": {
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "updated": {
+            "title": "Updated",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "updated",
+          "operation_id"
+        ],
+        "title": "BulkCategorizeOut",
+        "type": "object"
+      },
+      "CategorizeIn": {
+        "description": "Corrección de un movimiento: solo cambia lo que se envía (OF-701).",
+        "properties": {
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null = quitar la categoría",
+            "title": "Category Id"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TransactionKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "learn": {
             "default": true,
             "description": "Guardar la regla «comercio → categoría» y aplicarla a los gastos sin ella",
             "title": "Learn",
             "type": "boolean"
+          },
+          "member_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Quién aporta, en una aportación",
+            "title": "Member Id"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
           }
         },
-        "required": [
-          "category_id"
-        ],
         "title": "CategorizeIn",
         "type": "object"
       },
@@ -226,6 +318,19 @@
           "also_categorized": {
             "title": "Also Categorized",
             "type": "integer"
+          },
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Para deshacer la corrección (ADR-0017)",
+            "title": "Operation Id"
           },
           "rule": {
             "anyOf": [
@@ -244,7 +349,8 @@
         "required": [
           "transaction",
           "rule",
-          "also_categorized"
+          "also_categorized",
+          "operation_id"
         ],
         "title": "CategorizeOut",
         "type": "object"
@@ -517,6 +623,54 @@
           }
         },
         "title": "CategoryPatch",
+        "type": "object"
+      },
+      "ChangeOut": {
+        "properties": {
+          "after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "entity": {
+            "title": "Entity",
+            "type": "string"
+          },
+          "field": {
+            "title": "Field",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entity",
+          "field",
+          "before",
+          "after"
+        ],
+        "title": "ChangeOut",
         "type": "object"
       },
       "CountOut": {
@@ -916,6 +1070,80 @@
         "title": "IdeaOut",
         "type": "object"
       },
+      "ImportListItemOut": {
+        "properties": {
+          "account_id": {
+            "format": "uuid",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "can_undo": {
+            "description": "Solo la última importación confirmada de cada cuenta",
+            "title": "Can Undo",
+            "type": "boolean"
+          },
+          "committed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Committed At"
+          },
+          "created": {
+            "title": "Created",
+            "type": "integer"
+          },
+          "created_by": {
+            "format": "uuid",
+            "title": "Created By",
+            "type": "string"
+          },
+          "duplicates": {
+            "title": "Duplicates",
+            "type": "integer"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "skipped": {
+            "title": "Skipped",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "committed",
+              "undone"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "account_id",
+          "filename",
+          "created_by",
+          "committed_at",
+          "status",
+          "created",
+          "duplicates",
+          "skipped",
+          "can_undo"
+        ],
+        "title": "ImportListItemOut",
+        "type": "object"
+      },
       "ImportPreviewOut": {
         "properties": {
           "account_id": {
@@ -956,6 +1184,15 @@
             "title": "Id",
             "type": "string"
           },
+          "members_without_recharge": {
+            "description": "Quién no tiene guardada su tarjeta de recarga: sus recargas entrarían como ingreso. La web pide confirmación antes de importar.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Members Without Recharge",
+            "type": "array"
+          },
           "new_count": {
             "title": "New Count",
             "type": "integer"
@@ -990,7 +1227,8 @@
           "skipped",
           "balance_mismatches",
           "bank_balance",
-          "balance_after_import"
+          "balance_after_import",
+          "members_without_recharge"
         ],
         "title": "ImportPreviewOut",
         "type": "object"
@@ -1057,6 +1295,88 @@
           "password"
         ],
         "title": "LoginIn",
+        "type": "object"
+      },
+      "ManualTransactionIn": {
+        "description": "Un movimiento que no viene de ningún extracto, p. ej. un pago en efectivo (OF-705).",
+        "properties": {
+          "account_id": {
+            "format": "uuid",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "amount": {
+            "description": "Positivo; un gasto resta",
+            "pattern": "^\\d{1,9}([.,]\\d{1,2})?$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "booked_on": {
+            "format": "date",
+            "title": "Booked On",
+            "type": "string"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "description": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/TransactionKind",
+            "default": "expense"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id",
+          "booked_on",
+          "description",
+          "amount"
+        ],
+        "title": "ManualTransactionIn",
+        "type": "object"
+      },
+      "ManualTransactionOut": {
+        "properties": {
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "transaction": {
+            "$ref": "#/components/schemas/TransactionOut"
+          }
+        },
+        "required": [
+          "transaction",
+          "operation_id"
+        ],
+        "title": "ManualTransactionOut",
         "type": "object"
       },
       "MeOut": {
@@ -1386,6 +1706,144 @@
         "title": "MonthSavedOut",
         "type": "object"
       },
+      "OperationOut": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "actor_id": {
+            "format": "uuid",
+            "title": "Actor Id",
+            "type": "string"
+          },
+          "changes": {
+            "description": "En el historial de un movimiento, solo los suyos",
+            "items": {
+              "$ref": "#/components/schemas/ChangeOut"
+            },
+            "title": "Changes",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "undone": {
+            "title": "Undone",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "actor_id",
+          "created_at",
+          "action",
+          "summary",
+          "undone",
+          "changes"
+        ],
+        "title": "OperationOut",
+        "type": "object"
+      },
+      "OperationRefOut": {
+        "properties": {
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          }
+        },
+        "required": [
+          "operation_id"
+        ],
+        "title": "OperationRefOut",
+        "type": "object"
+      },
+      "PasswordChangeIn": {
+        "properties": {
+          "current_password": {
+            "maxLength": 200,
+            "title": "Current Password",
+            "type": "string"
+          },
+          "new_password": {
+            "maxLength": 200,
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "PasswordChangeIn",
+        "type": "object"
+      },
+      "PatternDirection": {
+        "enum": [
+          "inflow",
+          "outflow"
+        ],
+        "title": "PatternDirection",
+        "type": "string"
+      },
+      "PatternIn": {
+        "properties": {
+          "direction": {
+            "$ref": "#/components/schemas/PatternDirection",
+            "default": "inflow"
+          },
+          "pattern": {
+            "examples": [
+              "*1234"
+            ],
+            "maxLength": 60,
+            "minLength": 3,
+            "title": "Pattern",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pattern"
+        ],
+        "title": "PatternIn",
+        "type": "object"
+      },
+      "PatternOut": {
+        "properties": {
+          "direction": {
+            "$ref": "#/components/schemas/PatternDirection"
+          },
+          "pattern": {
+            "title": "Pattern",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pattern",
+          "direction"
+        ],
+        "title": "PatternOut",
+        "type": "object"
+      },
       "PreviewRowOut": {
         "properties": {
           "amount": {
@@ -1524,6 +1982,52 @@
         "title": "RecurringOut",
         "type": "object"
       },
+      "RevertOut": {
+        "properties": {
+          "applied": {
+            "title": "Applied",
+            "type": "integer"
+          },
+          "kept": {
+            "description": "Cambios respetados porque alguien los hizo después",
+            "title": "Kept",
+            "type": "integer"
+          },
+          "kept_by": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Kept By",
+            "type": "array"
+          },
+          "operation": {
+            "$ref": "#/components/schemas/OperationOut"
+          }
+        },
+        "required": [
+          "operation",
+          "applied",
+          "kept",
+          "kept_by"
+        ],
+        "title": "RevertOut",
+        "type": "object"
+      },
+      "RevokedOut": {
+        "properties": {
+          "revoked": {
+            "description": "Sesiones cerradas en otros navegadores",
+            "title": "Revoked",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revoked"
+        ],
+        "title": "RevokedOut",
+        "type": "object"
+      },
       "RuleOut": {
         "properties": {
           "category_id": {
@@ -1541,6 +2045,48 @@
           "category_id"
         ],
         "title": "RuleOut",
+        "type": "object"
+      },
+      "RuleViewOut": {
+        "properties": {
+          "category_id": {
+            "format": "uuid",
+            "title": "Category Id",
+            "type": "string"
+          },
+          "key": {
+            "description": "Comercio normalizado, para borrar la regla",
+            "title": "Key",
+            "type": "string"
+          },
+          "matches": {
+            "description": "Movimientos con esa categoría que coinciden con la regla",
+            "title": "Matches",
+            "type": "integer"
+          },
+          "merchant": {
+            "description": "Comercio legible",
+            "title": "Merchant",
+            "type": "string"
+          },
+          "scope": {
+            "description": "personal = aprendida en tu cuenta personal; solo la ves tú",
+            "enum": [
+              "household",
+              "personal"
+            ],
+            "title": "Scope",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "merchant",
+          "category_id",
+          "scope",
+          "matches"
+        ],
+        "title": "RuleViewOut",
         "type": "object"
       },
       "SavingsOverviewOut": {
@@ -1704,6 +2250,11 @@
             "title": "Merchant",
             "type": "string"
           },
+          "note": {
+            "description": "Nota de quien corrigió el movimiento",
+            "title": "Note",
+            "type": "string"
+          },
           "source": {
             "title": "Source",
             "type": "string"
@@ -1725,7 +2276,8 @@
           "category_id",
           "merchant",
           "member_id",
-          "source"
+          "source",
+          "note"
         ],
         "title": "TransactionOut",
         "type": "object"
@@ -1881,6 +2433,33 @@
           "worst"
         ],
         "title": "TrendsOut",
+        "type": "object"
+      },
+      "UndoImportOut": {
+        "properties": {
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "voided": {
+            "description": "Movimientos anulados",
+            "title": "Voided",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "voided",
+          "operation_id"
+        ],
+        "title": "UndoImportOut",
         "type": "object"
       },
       "UserOut": {
@@ -2303,6 +2882,119 @@
         ]
       }
     },
+    "/api/v1/changes": {
+      "get": {
+        "description": "Tus últimas operaciones (nunca las de otra persona), de la más reciente a la más antigua.",
+        "operationId": "recent_api_v1_changes_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OperationOut"
+                  },
+                  "title": "Response Recent Api V1 Changes Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Recent",
+        "tags": [
+          "changes"
+        ]
+      }
+    },
+    "/api/v1/changes/{operation_id}/redo": {
+      "post": {
+        "operationId": "redo_api_v1_changes__operation_id__redo_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Operation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevertOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Redo",
+        "tags": [
+          "changes"
+        ]
+      }
+    },
+    "/api/v1/changes/{operation_id}/undo": {
+      "post": {
+        "description": "Deshace una operación tuya. Lo que alguien cambió después no se toca.",
+        "operationId": "undo_api_v1_changes__operation_id__undo_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Operation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevertOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Undo",
+        "tags": [
+          "changes"
+        ]
+      }
+    },
     "/api/v1/export": {
       "get": {
         "description": "Descarga los datos del hogar: JSON o ZIP con un CSV por entidad (OF-501).\n\nIncluye lo que ve quien la pide; la cuenta personal de la otra persona no sale.",
@@ -2500,6 +3192,30 @@
       }
     },
     "/api/v1/imports": {
+      "get": {
+        "description": "Importaciones confirmadas o deshechas de tus cuentas, de la más reciente a la más antigua.",
+        "operationId": "list_imports_api_v1_imports_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ImportListItemOut"
+                  },
+                  "title": "Response List Imports Api V1 Imports Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Imports",
+        "tags": [
+          "imports"
+        ]
+      },
       "post": {
         "description": "Lee el extracto y devuelve la vista previa. No guarda movimientos.",
         "operationId": "create_import_api_v1_imports_post",
@@ -2580,6 +3296,50 @@
           }
         },
         "summary": "Commit Import",
+        "tags": [
+          "imports"
+        ]
+      }
+    },
+    "/api/v1/imports/{import_id}/undo": {
+      "post": {
+        "description": "Anula los movimientos de la última importación de una cuenta. Nada se borra.",
+        "operationId": "undo_import_api_v1_imports__import_id__undo_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "import_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Import Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UndoImportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Undo Import",
         "tags": [
           "imports"
         ]
@@ -2818,6 +3578,178 @@
         ]
       }
     },
+    "/api/v1/me/password": {
+      "post": {
+        "description": "Cambia tu contraseña (pide la actual) y cierra tus sesiones en otros navegadores.",
+        "operationId": "change_password_api_v1_me_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChangeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change Password",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/me/patterns": {
+      "get": {
+        "description": "Tus patrones: p. ej. «*1234», el final de la tarjeta con la que recargas la conjunta.",
+        "operationId": "own_patterns_api_v1_me_patterns_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PatternOut"
+                  },
+                  "title": "Response Own Patterns Api V1 Me Patterns Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Own Patterns",
+        "tags": [
+          "settings"
+        ]
+      },
+      "post": {
+        "operationId": "add_pattern_api_v1_me_patterns_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatternIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatternOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Pattern",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/me/patterns/{direction}/{pattern}": {
+      "delete": {
+        "operationId": "remove_pattern_api_v1_me_patterns__direction___pattern__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "direction",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PatternDirection"
+            }
+          },
+          {
+            "in": "path",
+            "name": "pattern",
+            "required": true,
+            "schema": {
+              "title": "Pattern",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Pattern",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/me/sessions/revoke-others": {
+      "post": {
+        "description": "Cierra tus sesiones en otros navegadores y dispositivos; esta sigue abierta.",
+        "operationId": "revoke_other_sessions_api_v1_me_sessions_revoke_others_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Revoke Other Sessions",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
     "/api/v1/meta": {
       "get": {
         "operationId": "get_meta_api_v1_meta_get",
@@ -2836,6 +3768,88 @@
         "summary": "Get Meta",
         "tags": [
           "meta"
+        ]
+      }
+    },
+    "/api/v1/rules": {
+      "get": {
+        "description": "Reglas «comercio → categoría» del hogar y tus personales (nunca las de la pareja).",
+        "operationId": "list_rules_api_v1_rules_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RuleViewOut"
+                  },
+                  "title": "Response List Rules Api V1 Rules Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Rules",
+        "tags": [
+          "categories"
+        ]
+      }
+    },
+    "/api/v1/rules/{scope}/{merchant}": {
+      "delete": {
+        "description": "Borra una regla. Los movimientos ya clasificados no cambian; se puede deshacer.",
+        "operationId": "delete_rule_api_v1_rules__scope___merchant__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scope",
+            "required": true,
+            "schema": {
+              "enum": [
+                "household",
+                "personal"
+              ],
+              "title": "Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "merchant",
+            "required": true,
+            "schema": {
+              "title": "Merchant",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationRefOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Rule",
+        "tags": [
+          "categories"
         ]
       }
     },
@@ -3010,6 +4024,88 @@
         "tags": [
           "ledger"
         ]
+      },
+      "post": {
+        "description": "Añade a mano un gasto o un ingreso (p. ej. en efectivo). Se puede deshacer y borrar.",
+        "operationId": "add_manual_api_v1_transactions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualTransactionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualTransactionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Manual",
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
+    "/api/v1/transactions/categorize": {
+      "post": {
+        "description": "Pone la misma categoría a varios gastos, sin aprender reglas, en una sola operación.",
+        "operationId": "categorize_many_api_v1_transactions_categorize_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkCategorizeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkCategorizeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Categorize Many",
+        "tags": [
+          "ledger"
+        ]
       }
     },
     "/api/v1/transactions/uncategorized-count": {
@@ -3034,8 +4130,50 @@
       }
     },
     "/api/v1/transactions/{transaction_id}": {
+      "delete": {
+        "description": "Borra un movimiento manual: queda anulado y en el registro. Los importados no se borran.",
+        "operationId": "delete_manual_api_v1_transactions__transaction_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transaction_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transaction Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationRefOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Manual",
+        "tags": [
+          "ledger"
+        ]
+      },
       "patch": {
-        "description": "Pone o quita la categoría de un gasto y, por defecto, aprende la regla.",
+        "description": "Corrige un movimiento: categoría (y, por defecto, aprende la regla), tipo, persona o nota.\n\nSolo cambia lo que se envía. Todo queda en el registro de cambios y se puede deshacer.",
         "operationId": "categorize_api_v1_transactions__transaction_id__patch",
         "parameters": [
           {
@@ -3084,6 +4222,54 @@
         "summary": "Categorize",
         "tags": [
           "categories"
+        ]
+      }
+    },
+    "/api/v1/transactions/{transaction_id}/history": {
+      "get": {
+        "description": "Correcciones de un movimiento, de cualquier persona, de la más antigua a la más reciente.",
+        "operationId": "history_api_v1_transactions__transaction_id__history_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transaction_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transaction Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OperationOut"
+                  },
+                  "title": "Response History Api V1 Transactions  Transaction Id  History Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "History",
+        "tags": [
+          "changes"
         ]
       }
     },

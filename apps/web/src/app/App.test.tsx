@@ -22,6 +22,7 @@ const loggedIn = (extra: Parameters<typeof mockApi>[0] = {}) =>
     'GET /api/v1/transactions': { body: TRANSACTIONS },
     'GET /api/v1/categories': { body: CATEGORIES },
     'GET /api/v1/transactions/uncategorized-count': { body: { count: 1 } },
+    'GET /api/v1/imports': { body: [] },
     ...extra,
   })
 
@@ -104,6 +105,257 @@ describe('Movimientos', () => {
   })
 })
 
+describe('Corregir un movimiento (OF-701)', () => {
+  const HISTORY = [
+    {
+      id: 'op-1',
+      actor_id: 'u-elena',
+      created_at: '2026-11-03T10:00:00Z',
+      action: 'transaction.edit',
+      summary: 'Glovo: Ingreso → Gasto',
+      undone: false,
+      changes: [],
+    },
+  ]
+
+  it('cambia el tipo a aportación de la pareja, enseña el historial y se puede deshacer', async () => {
+    const calls = loggedIn({
+      'GET /api/v1/transactions/t4/history': { body: HISTORY },
+      'PATCH /api/v1/transactions/t4': {
+        body: { transaction: TRANSACTIONS[3], rule: null, also_categorized: 0, operation_id: 'op-2' },
+      },
+      'POST /api/v1/changes/op-2/undo': {
+        body: { operation: { ...HISTORY[0], id: 'op-2', undone: true }, applied: 2, kept: 1, kept_by: ['u-elena'] },
+      },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Glovo' }))
+    expect(await screen.findByText(/Glovo: Ingreso → Gasto/)).toHaveTextContent('Elena')
+    await userEvent.selectOptions(screen.getByLabelText('Tipo'), 'contribution')
+    await userEvent.selectOptions(screen.getByLabelText('De'), 'u-elena')
+    await userEvent.type(screen.getByLabelText('Nota'), 'Su parte')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    const edit = calls.find((c) => c.method === 'PATCH')!
+    expect(JSON.parse(String(edit.body))).toEqual({ kind: 'contribution', member_id: 'u-elena', note: 'Su parte' })
+    expect(await screen.findByText('Movimiento corregido')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Deshacer' }))
+    expect(await screen.findByText('Deshecho. 1 cambio se ha respetado (lo cambió después Elena)')).toBeInTheDocument()
+    expect(calls.some((c) => c.method === 'POST' && c.url.pathname === '/api/v1/changes/op-2/undo')).toBe(true)
+  })
+
+  it('el importe y el concepto no se pueden editar', async () => {
+    loggedIn({ 'GET /api/v1/transactions/t4/history': { body: [] } })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Glovo' }))
+    expect(await screen.findByText('Sin correcciones.')).toBeInTheDocument()
+    expect(screen.getByText(/no se cambian/)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Importe/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled()
+  })
+})
+
+describe('Varios a la vez y efectivo (OF-705)', () => {
+  it('pone la misma categoría a los seleccionados sin aprender reglas y se puede deshacer', async () => {
+    const calls = loggedIn({
+      'POST /api/v1/transactions/categorize': { body: { updated: 2, operation_id: 'op-9' } },
+      'POST /api/v1/changes/op-9/undo': {
+        body: { operation: { id: 'op-9', actor_id: 'u-raul', created_at: '2026-11-01T10:00:00Z', action: 'x', summary: 'x', undone: true, changes: [] }, applied: 2, kept: 0, kept_by: [] },
+      },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByLabelText(/Solo sin categoría/))
+    await userEvent.click(await screen.findByLabelText('Seleccionar Glovo'))
+    await userEvent.click(screen.getByLabelText('Seleccionar Amazon'))
+    expect(screen.getByText('2 seleccionados')).toBeInTheDocument()
+    await userEvent.selectOptions(screen.getByLabelText('Categoría para los seleccionados'), 'c-rest')
+    await userEvent.click(screen.getByRole('button', { name: 'Poner categoría' }))
+    const bulk = calls.find((c) => c.url.pathname === '/api/v1/transactions/categorize')!
+    expect(JSON.parse(String(bulk.body))).toEqual({ ids: ['t4', 't5'], category_id: 'c-rest' })
+    expect(await screen.findByText('2 gastos → Restaurantes')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Deshacer' }))
+    expect(await screen.findByText('Deshecho')).toBeInTheDocument()
+  })
+
+  it('añade un gasto en efectivo y avisa si la cuenta es del banco', async () => {
+    const calls = loggedIn({
+      'POST /api/v1/transactions': {
+        status: 201,
+        body: { transaction: { ...TRANSACTIONS[3], id: 't9', description: 'Churrería', source: 'manual' }, operation_id: 'op-1' },
+      },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: '+ Añadir a mano' }))
+    const form = screen.getByRole('form', { name: 'Añadir a mano' })
+    expect(within(form).getByText(/su saldo dejará de cuadrar/)).toBeInTheDocument()
+    await userEvent.type(within(form).getByLabelText('Concepto'), 'Churrería')
+    await userEvent.type(within(form).getByLabelText('Importe'), '7,50')
+    await userEvent.click(within(form).getByRole('button', { name: 'Añadir' }))
+    const post = calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/transactions')!
+    expect(JSON.parse(String(post.body))).toMatchObject({ description: 'Churrería', amount: '7.50', kind: 'expense', account_id: 'a-joint' })
+    expect(await screen.findByText('Añadido: Churrería')).toBeInTheDocument()
+  })
+
+  it('solo los movimientos añadidos a mano se pueden borrar', async () => {
+    const manual = { ...TRANSACTIONS[3], source: 'manual' }
+    const calls = loggedIn({
+      'GET /api/v1/transactions': { body: [TRANSACTIONS[2], manual] },
+      'GET /api/v1/transactions/t3/history': { body: [] },
+      'GET /api/v1/transactions/t4/history': { body: [] },
+      'DELETE /api/v1/transactions/t4': { body: { operation_id: 'op-3' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Detalle de Mercadona' }))
+    expect(await screen.findByText('Sin correcciones.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Borrar' })).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'Detalle de Glovo' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Borrar' }))
+    expect(calls.some((c) => c.method === 'DELETE' && c.url.pathname === '/api/v1/transactions/t4')).toBe(true)
+    expect(await screen.findByText('Borrado: Glovo')).toBeInTheDocument()
+  })
+})
+
+describe('Reglas (OF-702)', () => {
+  it('lista las reglas con sus movimientos y borra una con «Deshacer»', async () => {
+    window.location.hash = '#reglas'
+    const calls = loggedIn({
+      'GET /api/v1/rules': {
+        body: [
+          { key: 'MERCADONA', merchant: 'Mercadona', category_id: 'c-super', scope: 'household', matches: 12 },
+          { key: 'PELUQUERIA', merchant: 'Peluqueria', category_id: 'c-rest', scope: 'personal', matches: 1 },
+        ],
+      },
+      'DELETE /api/v1/rules/household/MERCADONA': { body: { operation_id: 'op-r' } },
+    })
+    render(<App />)
+    const row = (await screen.findByText('Mercadona')).closest('tr')!
+    expect(row).toHaveTextContent('🛒 Supermercado')
+    expect(row).toHaveTextContent('12')
+    expect(screen.getByText('Personal · solo la ves tú')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Borrar la regla de Mercadona' }))
+    expect(calls.some((c) => c.method === 'DELETE' && c.url.pathname === '/api/v1/rules/household/MERCADONA')).toBe(true)
+    expect(await screen.findByText('Regla borrada: Mercadona')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Deshacer' })).toBeInTheDocument()
+  })
+})
+
+describe('Historial de importaciones (OF-703)', () => {
+  const ITEM = {
+    id: 'imp-9',
+    account_id: 'a-joint',
+    filename: 'octubre.xlsx',
+    created_by: 'u-elena',
+    committed_at: '2026-11-01T09:00:00Z',
+    status: 'committed',
+    created: 42,
+    duplicates: 3,
+    skipped: 1,
+    can_undo: true,
+  }
+
+  it('lista quién importó qué y deshace la última tras confirmar en la pantalla', async () => {
+    window.location.hash = '#importar'
+    const calls = loggedIn({
+      'GET /api/v1/imports': { body: [ITEM, { ...ITEM, id: 'imp-8', filename: 'septiembre.xlsx', can_undo: false }] },
+      'POST /api/v1/imports/imp-9/undo': { body: { voided: 42, operation_id: 'op-i' } },
+    })
+    render(<App />)
+    const list = await screen.findByRole('list', { name: 'Importaciones' })
+    expect(within(list).getByText('octubre.xlsx').closest('li')).toHaveTextContent('Elena · 42 nuevos · 3 ya estaban · 1 descartados')
+    expect(within(list).getAllByRole('button', { name: 'Deshacer' })).toHaveLength(1)
+    await userEvent.click(within(list).getByRole('button', { name: 'Deshacer' }))
+    expect(within(list).getByText(/Se anularán sus 42 movimientos/)).toBeInTheDocument()
+    expect(calls.some((c) => c.url.pathname.endsWith('/undo'))).toBe(false)
+    await userEvent.click(within(list).getByRole('button', { name: 'Sí, deshacer' }))
+    expect(await screen.findByText('Importación deshecha: 42 movimientos anulados')).toBeInTheDocument()
+    expect(calls.some((c) => c.method === 'POST' && c.url.pathname === '/api/v1/imports/imp-9/undo')).toBe(true)
+  })
+})
+
+describe('Ajustes (OF-704)', () => {
+  it('cambia la contraseña pidiendo la actual', async () => {
+    window.location.hash = '#ajustes'
+    const calls = loggedIn({ 'GET /api/v1/me/patterns': { body: [] }, 'POST /api/v1/me/password': { body: { revoked: 2 } } })
+    render(<App />)
+    const form = await screen.findByRole('form', { name: 'Cambiar la contraseña' })
+    await userEvent.type(within(form).getByLabelText('Contraseña actual'), 'clave-actual-larga')
+    await userEvent.type(within(form).getByLabelText(/Nueva contraseña/), 'clave-nueva-larga')
+    await userEvent.type(within(form).getByLabelText('Repite la nueva'), 'clave-nueva-larg')
+    expect(within(form).getByText('No coinciden.')).toBeInTheDocument()
+    expect(within(form).getByRole('button', { name: 'Cambiar la contraseña' })).toBeDisabled()
+    await userEvent.type(within(form).getByLabelText('Repite la nueva'), 'a')
+    await userEvent.click(within(form).getByRole('button', { name: 'Cambiar la contraseña' }))
+    const post = calls.find((c) => c.url.pathname === '/api/v1/me/password')!
+    expect(JSON.parse(String(post.body))).toEqual({ current_password: 'clave-actual-larga', new_password: 'clave-nueva-larga' })
+    expect(await screen.findByText('Contraseña cambiada · 2 sesiones cerradas en otros dispositivos')).toBeInTheDocument()
+  })
+
+  it('guarda la tarjeta de recarga propia', async () => {
+    window.location.hash = '#ajustes'
+    let saved: { pattern: string; direction: string }[] = []
+    const calls = loggedIn({
+      'GET /api/v1/me/patterns': () => ({ body: saved }),
+      'POST /api/v1/me/patterns': () => {
+        saved = [{ pattern: '*1234', direction: 'inflow' }]
+        return { status: 201, body: saved[0] }
+      },
+    })
+    render(<App />)
+    expect(await screen.findByText('Aún no has guardado ninguna.')).toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText('Últimos dígitos'), '1234')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    const post = calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/me/patterns')!
+    expect(JSON.parse(String(post.body))).toEqual({ pattern: '*1234', direction: 'inflow' })
+    const list = await screen.findByRole('list', { name: 'Tus tarjetas de recarga' })
+    expect(await within(list).findByText('*1234')).toBeInTheDocument()
+  })
+
+  it('importar en la conjunta pide confirmación si alguien no tiene tarjeta de recarga', async () => {
+    window.location.hash = '#importar'
+    loggedIn({ 'POST /api/v1/imports': { status: 201, body: { ...PREVIEW, members_without_recharge: ['u-elena'] } } })
+    render(<App />)
+    await waitFor(() => expect(screen.getByLabelText('Cuenta')).toHaveValue('a-joint'))
+    await userEvent.upload(screen.getByLabelText('Extracto'), new File(['x'], 'r.csv', { type: 'text/csv' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Ver vista previa' }))
+    expect(await screen.findByText(/Elena no tiene guardada la tarjeta/)).toBeInTheDocument()
+    const confirm = screen.getByRole('button', { name: /Importar 2 movimientos/ })
+    expect(confirm).toBeDisabled()
+    await userEvent.click(screen.getByLabelText(/Importar igualmente/))
+    expect(confirm).toBeEnabled()
+  })
+})
+
+describe('Mis cambios (OF-706)', () => {
+  const OP = { id: 'op-a', actor_id: 'u-raul', created_at: '2026-11-01T10:00:00Z', action: 'transaction.edit', changes: [] }
+
+  it('deshace y rehace las operaciones propias', async () => {
+    window.location.hash = '#cambios'
+    let undone = false
+    const calls = loggedIn({
+      'GET /api/v1/changes': () => ({ body: [{ ...OP, summary: 'Glovo: Sin categoría → Restaurantes', undone }] }),
+      'POST /api/v1/changes/op-a/undo': () => {
+        undone = true
+        return { body: { operation: { ...OP, summary: 'x', undone: true }, applied: 1, kept: 0, kept_by: [] } }
+      },
+      'POST /api/v1/changes/op-a/redo': () => {
+        undone = false
+        return { body: { operation: { ...OP, summary: 'x', undone: false }, applied: 1, kept: 0, kept_by: [] } }
+      },
+    })
+    render(<App />)
+    const list = await screen.findByRole('list', { name: 'Mis cambios' })
+    expect(within(list).getByText('Glovo: Sin categoría → Restaurantes')).toBeInTheDocument()
+    await userEvent.click(within(list).getByRole('button', { name: 'Deshacer' }))
+    expect(await screen.findByText('Deshecho')).toBeInTheDocument()
+    await userEvent.click(await within(list).findByRole('button', { name: 'Rehacer' }))
+    expect(await screen.findByText('Rehecho')).toBeInTheDocument()
+    expect(calls.filter((c) => c.method === 'POST').map((c) => c.url.pathname)).toEqual([
+      '/api/v1/changes/op-a/undo',
+      '/api/v1/changes/op-a/redo',
+    ])
+  })
+})
+
 describe('Búsqueda', () => {
   it.each(['#1', '%', '"comillas"', "l'oreal"])('busca «%s» sin romper la pantalla', async (text) => {
     const calls = loggedIn()
@@ -157,7 +409,7 @@ describe('Importar', () => {
     expect(screen.getByText('Ya importado')).toBeInTheDocument()
     expect(screen.getByText(/Filas que no se importan \(1\)/)).toBeInTheDocument()
 
-    const upload = calls.find((c) => c.url.pathname === '/api/v1/imports')!
+    const upload = calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/imports')!
     expect(upload.headers.get('X-Requested-With')).toBe('OpenFinance')
     const form = upload.body as FormData
     expect(form.get('account_id')).toBe('a-joint')

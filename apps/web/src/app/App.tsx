@@ -5,6 +5,8 @@ import { Toast } from '../components/Toast'
 import { useToast } from '../components/useToast'
 import { LoginPage } from '../features/auth/LoginPage'
 import { CategoriesPage } from '../features/categories/CategoriesPage'
+import { ChangesPage } from '../features/changes/ChangesPage'
+import { RulesPage } from '../features/categories/RulesPage'
 import { ExportMenu } from '../features/export/ExportMenu'
 import { ImportPage } from '../features/import/ImportPage'
 import { MonthPage } from '../features/insights/MonthPage'
@@ -12,6 +14,7 @@ import { SpendingPage } from '../features/insights/SpendingPage'
 import { TrendsPage } from '../features/insights/TrendsPage'
 import { BudgetsPage } from '../features/savings/BudgetsPage'
 import { SavingsPage } from '../features/savings/SavingsPage'
+import { SettingsPage } from '../features/settings/SettingsPage'
 import { TransactionsPage } from '../features/transactions/TransactionsPage'
 import { HouseholdProvider } from './household'
 import { useHousehold } from './household-context'
@@ -39,13 +42,19 @@ function Page({ route }: { route: RouteId }) {
       return <SavingsPage />
     case 'presupuestos':
       return <BudgetsPage />
+    case 'reglas':
+      return <RulesPage />
+    case 'ajustes':
+      return <SettingsPage />
+    case 'cambios':
+      return <ChangesPage />
   }
 }
 
 export function App() {
   const [session, setSession] = useState<Session>({ kind: 'loading' })
   const route = useRoute()
-  const [toast, notify] = useToast()
+  const [toast, notify, dismissToast] = useToast()
 
   useEffect(() => {
     setUnauthorizedHandler(() => setSession({ kind: 'anonymous' }))
@@ -76,7 +85,7 @@ export function App() {
   return (
     <HouseholdProvider me={session.me} notify={notify}>
       <Shell route={route} onLogout={() => setSession({ kind: 'anonymous' })} />
-      <Toast message={toast} />
+      <Toast notice={toast} onDismiss={dismissToast} />
     </HouseholdProvider>
   )
 }
@@ -133,6 +142,9 @@ function Shell({ route, onLogout }: { route: RouteId; onLogout: () => void }) {
           ))}
         </div>
         <ExportMenu />
+        <a className={`btn small ${route === 'ajustes' ? 'active' : ''}`} href="#ajustes" aria-label="Ajustes" title="Ajustes">
+          ⚙️
+        </a>
         <button className="btn small" type="button" onClick={() => void logout()}>
           Salir
         </button>

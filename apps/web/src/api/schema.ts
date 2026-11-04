@@ -131,6 +131,63 @@ export interface paths {
         patch: operations["update_category_api_v1_categories__category_id__patch"];
         trace?: never;
     };
+    "/api/v1/changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recent
+         * @description Tus últimas operaciones (nunca las de otra persona), de la más reciente a la más antigua.
+         */
+        get: operations["recent_api_v1_changes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/changes/{operation_id}/redo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Redo */
+        post: operations["redo_api_v1_changes__operation_id__redo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/changes/{operation_id}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Undo
+         * @description Deshace una operación tuya. Lo que alguien cambió después no se toca.
+         */
+        post: operations["undo_api_v1_changes__operation_id__undo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/export": {
         parameters: {
             query?: never;
@@ -196,7 +253,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Imports
+         * @description Importaciones confirmadas o deshechas de tus cuentas, de la más reciente a la más antigua.
+         */
+        get: operations["list_imports_api_v1_imports_get"];
         put?: never;
         /**
          * Create Import
@@ -223,6 +284,26 @@ export interface paths {
          * @description Guarda los movimientos nuevos. Repetir la llamada no vuelve a guardarlos.
          */
         post: operations["commit_import_api_v1_imports__import_id__commit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports/{import_id}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Undo Import
+         * @description Anula los movimientos de la última importación de una cuenta. Nada se borra.
+         */
+        post: operations["undo_import_api_v1_imports__import_id__undo_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -306,6 +387,84 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change Password
+         * @description Cambia tu contraseña (pide la actual) y cierra tus sesiones en otros navegadores.
+         */
+        post: operations["change_password_api_v1_me_password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/patterns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Own Patterns
+         * @description Tus patrones: p. ej. «*1234», el final de la tarjeta con la que recargas la conjunta.
+         */
+        get: operations["own_patterns_api_v1_me_patterns_get"];
+        put?: never;
+        /** Add Pattern */
+        post: operations["add_pattern_api_v1_me_patterns_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/patterns/{direction}/{pattern}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove Pattern */
+        delete: operations["remove_pattern_api_v1_me_patterns__direction___pattern__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/sessions/revoke-others": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke Other Sessions
+         * @description Cierra tus sesiones en otros navegadores y dispositivos; esta sigue abierta.
+         */
+        post: operations["revoke_other_sessions_api_v1_me_sessions_revoke_others_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/meta": {
         parameters: {
             query?: never;
@@ -318,6 +477,46 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Rules
+         * @description Reglas «comercio → categoría» del hogar y tus personales (nunca las de la pareja).
+         */
+        get: operations["list_rules_api_v1_rules_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rules/{scope}/{merchant}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Rule
+         * @description Borra una regla. Los movimientos ya clasificados no cambian; se puede deshacer.
+         */
+        delete: operations["delete_rule_api_v1_rules__scope___merchant__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -353,7 +552,31 @@ export interface paths {
         /** List Transactions */
         get: operations["list_transactions_api_v1_transactions_get"];
         put?: never;
-        post?: never;
+        /**
+         * Add Manual
+         * @description Añade a mano un gasto o un ingreso (p. ej. en efectivo). Se puede deshacer y borrar.
+         */
+        post: operations["add_manual_api_v1_transactions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/transactions/categorize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Categorize Many
+         * @description Pone la misma categoría a varios gastos, sin aprender reglas, en una sola operación.
+         */
+        post: operations["categorize_many_api_v1_transactions_categorize_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -387,14 +610,40 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Manual
+         * @description Borra un movimiento manual: queda anulado y en el registro. Los importados no se borran.
+         */
+        delete: operations["delete_manual_api_v1_transactions__transaction_id__delete"];
         options?: never;
         head?: never;
         /**
          * Categorize
-         * @description Pone o quita la categoría de un gasto y, por defecto, aprende la regla.
+         * @description Corrige un movimiento: categoría (y, por defecto, aprende la regla), tipo, persona o nota.
+         *
+         *     Solo cambia lo que se envía. Todo queda en el registro de cambios y se puede deshacer.
          */
         patch: operations["categorize_api_v1_transactions__transaction_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/transactions/{transaction_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * History
+         * @description Correcciones de un movimiento, de cualquier persona, de la más antigua a la más reciente.
+         */
+        get: operations["history_api_v1_transactions__transaction_id__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/health": {
@@ -494,21 +743,54 @@ export interface components {
             total_amount: components["schemas"]["MoneyOut"] | null;
             total_spent: components["schemas"]["MoneyOut"] | null;
         };
-        /** CategorizeIn */
-        CategorizeIn: {
+        /** BulkCategorizeIn */
+        BulkCategorizeIn: {
             /** Category Id */
             category_id: string | null;
+            /** Ids */
+            ids: string[];
+        };
+        /** BulkCategorizeOut */
+        BulkCategorizeOut: {
+            /** Operation Id */
+            operation_id: string | null;
+            /** Updated */
+            updated: number;
+        };
+        /**
+         * CategorizeIn
+         * @description Corrección de un movimiento: solo cambia lo que se envía (OF-701).
+         */
+        CategorizeIn: {
+            /**
+             * Category Id
+             * @description null = quitar la categoría
+             */
+            category_id?: string | null;
+            kind?: components["schemas"]["TransactionKind"] | null;
             /**
              * Learn
              * @description Guardar la regla «comercio → categoría» y aplicarla a los gastos sin ella
              * @default true
              */
             learn: boolean;
+            /**
+             * Member Id
+             * @description Quién aporta, en una aportación
+             */
+            member_id?: string | null;
+            /** Note */
+            note?: string | null;
         };
         /** CategorizeOut */
         CategorizeOut: {
             /** Also Categorized */
             also_categorized: number;
+            /**
+             * Operation Id
+             * @description Para deshacer la corrección (ADR-0017)
+             */
+            operation_id: string | null;
             rule: components["schemas"]["RuleOut"] | null;
             transaction: components["schemas"]["TransactionOut"];
         };
@@ -591,6 +873,17 @@ export interface components {
             icon?: string | null;
             /** Name */
             name?: string | null;
+        };
+        /** ChangeOut */
+        ChangeOut: {
+            /** After */
+            after: string | boolean | null;
+            /** Before */
+            before: string | boolean | null;
+            /** Entity */
+            entity: string;
+            /** Field */
+            field: string;
         };
         /** CountOut */
         CountOut: {
@@ -718,6 +1011,44 @@ export interface components {
             title: string;
             yearly_saving: components["schemas"]["MoneyOut"];
         };
+        /** ImportListItemOut */
+        ImportListItemOut: {
+            /**
+             * Account Id
+             * Format: uuid
+             */
+            account_id: string;
+            /**
+             * Can Undo
+             * @description Solo la última importación confirmada de cada cuenta
+             */
+            can_undo: boolean;
+            /** Committed At */
+            committed_at: string | null;
+            /** Created */
+            created: number;
+            /**
+             * Created By
+             * Format: uuid
+             */
+            created_by: string;
+            /** Duplicates */
+            duplicates: number;
+            /** Filename */
+            filename: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Skipped */
+            skipped: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "committed" | "undone";
+        };
         /** ImportPreviewOut */
         ImportPreviewOut: {
             /**
@@ -738,6 +1069,11 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * Members Without Recharge
+             * @description Quién no tiene guardada su tarjeta de recarga: sus recargas entrarían como ingreso. La web pide confirmación antes de importar.
+             */
+            members_without_recharge: string[];
             /** New Count */
             new_count: number;
             /** Rows */
@@ -777,6 +1113,44 @@ export interface components {
             email: string;
             /** Password */
             password: string;
+        };
+        /**
+         * ManualTransactionIn
+         * @description Un movimiento que no viene de ningún extracto, p. ej. un pago en efectivo (OF-705).
+         */
+        ManualTransactionIn: {
+            /**
+             * Account Id
+             * Format: uuid
+             */
+            account_id: string;
+            /**
+             * Amount
+             * @description Positivo; un gasto resta
+             */
+            amount: string;
+            /**
+             * Booked On
+             * Format: date
+             */
+            booked_on: string;
+            /** Category Id */
+            category_id?: string | null;
+            /** Description */
+            description: string;
+            /** @default expense */
+            kind: components["schemas"]["TransactionKind"];
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+        };
+        /** ManualTransactionOut */
+        ManualTransactionOut: {
+            /** Operation Id */
+            operation_id: string | null;
+            transaction: components["schemas"]["TransactionOut"];
         };
         /** MeOut */
         MeOut: {
@@ -900,6 +1274,68 @@ export interface components {
             month: string;
             saved: components["schemas"]["MoneyOut"];
         };
+        /** OperationOut */
+        OperationOut: {
+            /** Action */
+            action: string;
+            /**
+             * Actor Id
+             * Format: uuid
+             */
+            actor_id: string;
+            /**
+             * Changes
+             * @description En el historial de un movimiento, solo los suyos
+             */
+            changes: components["schemas"]["ChangeOut"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Summary */
+            summary: string;
+            /** Undone */
+            undone: boolean;
+        };
+        /** OperationRefOut */
+        OperationRefOut: {
+            /** Operation Id */
+            operation_id: string | null;
+        };
+        /** PasswordChangeIn */
+        PasswordChangeIn: {
+            /** Current Password */
+            current_password: string;
+            /** New Password */
+            new_password: string;
+        };
+        /**
+         * PatternDirection
+         * @enum {string}
+         */
+        PatternDirection: "inflow" | "outflow";
+        /** PatternIn */
+        PatternIn: {
+            /** @default inflow */
+            direction: components["schemas"]["PatternDirection"];
+            /**
+             * Pattern
+             * @example *1234
+             */
+            pattern: string;
+        };
+        /** PatternOut */
+        PatternOut: {
+            direction: components["schemas"]["PatternDirection"];
+            /** Pattern */
+            pattern: string;
+        };
         /** PreviewRowOut */
         PreviewRowOut: {
             amount: components["schemas"]["MoneyOut"];
@@ -948,6 +1384,27 @@ export interface components {
             /** Months */
             months: number;
         };
+        /** RevertOut */
+        RevertOut: {
+            /** Applied */
+            applied: number;
+            /**
+             * Kept
+             * @description Cambios respetados porque alguien los hizo después
+             */
+            kept: number;
+            /** Kept By */
+            kept_by: string[];
+            operation: components["schemas"]["OperationOut"];
+        };
+        /** RevokedOut */
+        RevokedOut: {
+            /**
+             * Revoked
+             * @description Sesiones cerradas en otros navegadores
+             */
+            revoked: number;
+        };
         /** RuleOut */
         RuleOut: {
             /**
@@ -957,6 +1414,35 @@ export interface components {
             category_id: string;
             /** Merchant */
             merchant: string;
+        };
+        /** RuleViewOut */
+        RuleViewOut: {
+            /**
+             * Category Id
+             * Format: uuid
+             */
+            category_id: string;
+            /**
+             * Key
+             * @description Comercio normalizado, para borrar la regla
+             */
+            key: string;
+            /**
+             * Matches
+             * @description Movimientos con esa categoría que coinciden con la regla
+             */
+            matches: number;
+            /**
+             * Merchant
+             * @description Comercio legible
+             */
+            merchant: string;
+            /**
+             * Scope
+             * @description personal = aprendida en tu cuenta personal; solo la ves tú
+             * @enum {string}
+             */
+            scope: "household" | "personal";
         };
         /** SavingsOverviewOut */
         SavingsOverviewOut: {
@@ -1026,6 +1512,11 @@ export interface components {
              * @description Comercio normalizado y legible, p. ej. «Mercadona»
              */
             merchant: string;
+            /**
+             * Note
+             * @description Nota de quien corrigió el movimiento
+             */
+            note: string;
             /** Source */
             source: string;
             /**
@@ -1070,6 +1561,16 @@ export interface components {
             total_saved: components["schemas"]["MoneyOut"];
             total_spent: components["schemas"]["MoneyOut"];
             worst: components["schemas"]["MonthSavedOut"] | null;
+        };
+        /** UndoImportOut */
+        UndoImportOut: {
+            /** Operation Id */
+            operation_id: string | null;
+            /**
+             * Voided
+             * @description Movimientos anulados
+             */
+            voided: number;
         };
         /** UserOut */
         UserOut: {
@@ -1364,6 +1865,88 @@ export interface operations {
             };
         };
     };
+    recent_api_v1_changes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationOut"][];
+                };
+            };
+        };
+    };
+    redo_api_v1_changes__operation_id__redo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevertOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    undo_api_v1_changes__operation_id__undo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevertOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     export_api_v1_export_get: {
         parameters: {
             query?: {
@@ -1513,6 +2096,26 @@ export interface operations {
             };
         };
     };
+    list_imports_api_v1_imports_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportListItemOut"][];
+                };
+            };
+        };
+    };
     create_import_api_v1_imports_post: {
         parameters: {
             query?: never;
@@ -1564,6 +2167,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportResultOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    undo_import_api_v1_imports__import_id__undo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UndoImportOut"];
                 };
             };
             /** @description Validation Error */
@@ -1700,6 +2334,142 @@ export interface operations {
             };
         };
     };
+    change_password_api_v1_me_password_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordChangeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevokedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    own_patterns_api_v1_me_patterns_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PatternOut"][];
+                };
+            };
+        };
+    };
+    add_pattern_api_v1_me_patterns_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatternIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PatternOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_pattern_api_v1_me_patterns__direction___pattern__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                direction: components["schemas"]["PatternDirection"];
+                pattern: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_other_sessions_api_v1_me_sessions_revoke_others_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevokedOut"];
+                };
+            };
+        };
+    };
     get_meta_api_v1_meta_get: {
         parameters: {
             query?: never;
@@ -1716,6 +2486,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MetaResponse"];
+                };
+            };
+        };
+    };
+    list_rules_api_v1_rules_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleViewOut"][];
+                };
+            };
+        };
+    };
+    delete_rule_api_v1_rules__scope___merchant__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scope: "household" | "personal";
+                merchant: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationRefOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -1780,6 +2602,72 @@ export interface operations {
             };
         };
     };
+    add_manual_api_v1_transactions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManualTransactionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManualTransactionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    categorize_many_api_v1_transactions_categorize_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkCategorizeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkCategorizeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     uncategorized_count_api_v1_transactions_uncategorized_count_get: {
         parameters: {
             query?: never;
@@ -1796,6 +2684,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CountOut"];
+                };
+            };
+        };
+    };
+    delete_manual_api_v1_transactions__transaction_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transaction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationRefOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -1822,6 +2741,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CategorizeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    history_api_v1_transactions__transaction_id__history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transaction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationOut"][];
                 };
             };
             /** @description Validation Error */

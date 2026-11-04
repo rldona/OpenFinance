@@ -557,6 +557,18 @@ tr.dim {
 .toast.show {
   opacity: 1;
   transform: none;
+  pointer-events: auto;
+}
+
+.toast-action {
+  margin-left: 12px;
+  background: none;
+  border: 0;
+  color: #93c5fd;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 2px;
 }
 
 table.stale {
@@ -1161,5 +1173,98 @@ ul.plain {
   .toolbar.end .field:not(.icon-field) {
     flex: 1;
     min-width: 0;
+  }
+}
+
+.linkish {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.linkish:hover,
+.linkish[aria-expanded='true'] {
+  text-decoration: underline;
+}
+
+.detail-row > td {
+  background: var(--surface-2, rgba(0, 0, 0, 0.03));
+}
+.tx-detail .toolbar.wrap {
+  flex-wrap: wrap;
+}
+.tx-detail .grow {
+  flex: 1 1 220px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.tx-detail .grow .field {
+  flex: 1;
+}
+.history li {
+  padding: 4px 0;
+  font-size: 0.9em;
+}
+.history li.undone {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
+.toolbar.bulk {
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  background: var(--surface-2, rgba(37, 99, 235, 0.06));
+  flex-wrap: wrap;
+}
+.btn.danger {
+  color: var(--neg);
+}
+.card.manual {
+  margin-bottom: 16px;
+}
+
+.imports li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.imports li.undone {
+  opacity: 0.6;
+}
+
+.settings-form {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+.settings-form label {
+  display: grid;
+  gap: 6px;
+}
+.settings-form h2,
+.settings-form p {
+  margin: 0;
+}
+.links li {
+  padding: 3px 0;
+}
+
+/* En un móvil estrecho las iniciales del hogar no caben junto a Exportar, Ajustes y Salir:
+   son decorativas (el nombre del hogar sigue a la vista). */
+@media (max-width: 480px) {
+  .top .people {
+    display: none;
+  }
+  .top {
+    gap: 10px;
   }
 }

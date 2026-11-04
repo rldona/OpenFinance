@@ -17,6 +17,8 @@ MAX_FILENAME = 150
 class ImportStatus(StrEnum):
     PREVIEW = "preview"
     COMMITTED = "committed"
+    UNDONE = "undone"
+    """Deshecha: sus movimientos están anulados (OF-703, ADR-0017)."""
 
 
 @dataclass(frozen=True, slots=True)

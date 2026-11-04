@@ -4,11 +4,20 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, status
 
 from openfinance.api.deps import ActorDep, UowDep
-from openfinance.api.v1.schemas import AccountOut, TransactionOut
-from openfinance.application import ledger
+from openfinance.api.v1.schemas import (
+    AccountOut,
+    BulkCategorizeIn,
+    BulkCategorizeOut,
+    ManualTransactionIn,
+    ManualTransactionOut,
+    OperationRefOut,
+    TransactionOut,
+)
+from openfinance.application import ledger, movements
 from openfinance.application.ports import TransactionQuery
 from openfinance.domain.categories import CategoryId
-from openfinance.domain.shared.ids import AccountId
+from openfinance.domain.shared.ids import AccountId, TransactionId
+from openfinance.infrastructure.time import utc_now
 
 router = APIRouter(tags=["ledger"])
 
@@ -51,3 +60,47 @@ def list_transactions(
     except ValueError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
     return [TransactionOut.of(t) for t in ledger.list_transactions(uow, actor, query)]
+
+
+@router.post("/transactions/categorize", response_model=BulkCategorizeOut)
+def categorize_many(body: BulkCategorizeIn, actor: ActorDep, uow: UowDep) -> BulkCategorizeOut:
+    """Pone la misma categoría a varios gastos, sin aprender reglas, en una sola operación."""
+    r = movements.categorize_many(
+        uow,
+        actor,
+        [TransactionId(i) for i in body.ids],
+        CategoryId(body.category_id) if body.category_id else None,
+        utc_now(),
+    )
+    return BulkCategorizeOut(updated=r.updated, operation_id=r.operation_id)
+
+
+@router.post(
+    "/transactions", response_model=ManualTransactionOut, status_code=status.HTTP_201_CREATED
+)
+def add_manual(body: ManualTransactionIn, actor: ActorDep, uow: UowDep) -> ManualTransactionOut:
+    """Añade a mano un gasto o un ingreso (p. ej. en efectivo). Se puede deshacer y borrar."""
+    r = movements.add_manual(
+        uow,
+        actor,
+        movements.NewManual(
+            account_id=AccountId(body.account_id),
+            booked_on=body.booked_on,
+            description=body.description,
+            amount=body.amount,
+            kind=body.kind,
+            category_id=CategoryId(body.category_id) if body.category_id else None,
+            note=body.note,
+        ),
+        utc_now(),
+    )
+    return ManualTransactionOut(
+        transaction=TransactionOut.of(r.transaction), operation_id=r.operation_id
+    )
+
+
+@router.delete("/transactions/{transaction_id}", response_model=OperationRefOut)
+def delete_manual(transaction_id: UUID, actor: ActorDep, uow: UowDep) -> OperationRefOut:
+    """Borra un movimiento manual: queda anulado y en el registro. Los importados no se borran."""
+    op = movements.delete_manual(uow, actor, TransactionId(transaction_id), utc_now())
+    return OperationRefOut(operation_id=op)

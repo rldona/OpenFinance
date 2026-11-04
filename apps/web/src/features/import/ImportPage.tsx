@@ -9,6 +9,7 @@ import {
 import { useHousehold } from '../../app/household-context'
 import { centsToAmount, formatDate, formatMoney, toCents } from '../../lib/format'
 import { kindLabel } from '../transactions/labels'
+import { ImportHistory } from './ImportHistory'
 
 const FORMATS: Record<string, { accept: string; label: string }> = {
   revolut: { accept: '.csv,.xlsx', label: 'CSV o Excel' },
@@ -42,6 +43,7 @@ export function ImportPage() {
   const [step, setStep] = useState<Step>({ kind: 'upload' })
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [acceptMissing, setAcceptMissing] = useState(false)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -74,7 +76,13 @@ export function ImportPage() {
   function preview(e: FormEvent) {
     e.preventDefault()
     if (!file || !accountId) return
-    void run(() => api.previewImport(accountId, file), (p) => setStep({ kind: 'review', preview: p }))
+    void run(
+      () => api.previewImport(accountId, file),
+      (p) => {
+        setAcceptMissing(false)
+        setStep({ kind: 'review', preview: p })
+      },
+    )
   }
 
   function restart() {
@@ -117,6 +125,14 @@ export function ImportPage() {
   if (step.kind === 'review') {
     const p = step.preview
     const account = accounts.find((a) => a.id === p.account_id)
+    const missing = p.members_without_recharge
+    const others = missing.filter((id) => id !== me.user.id).map((id) => me.members.find((m) => m.id === id)?.display_name ?? 'Alguien')
+    const iMiss = missing.includes(me.user.id)
+    const who = iMiss
+      ? others.length
+        ? `Ni tú ni ${others.join(' ni ')} tenéis`
+        : 'No tienes'
+      : `${others.join(' y ')} no ${others.length === 1 ? 'tiene' : 'tienen'}`
     const diff = p.bank_balance ? toCents(p.balance_after_import.amount) - toCents(p.bank_balance.amount) : 0n
     return (
       <section>
@@ -151,6 +167,19 @@ export function ImportPage() {
               faltar un extracto anterior o el saldo inicial no ser correcto.
             </div>
           ))}
+        {missing.length > 0 && (
+          <div className="notice warn" role="alert">
+            <p>
+              <strong>{who} guardada la tarjeta con la que se recarga la conjunta.</strong>{' '}
+              Sus «Recarga de *NNNN» entrarán como ingreso y no como su aportación. Guardadla en <a href="#ajustes">Ajustes</a>{' '}
+              antes de importar, o corregidlas después una a una.
+            </p>
+            <label className="small">
+              <input type="checkbox" checked={acceptMissing} onChange={(e) => setAcceptMissing(e.target.checked)} /> Importar
+              igualmente
+            </label>
+          </div>
+        )}
         {p.balance_mismatches.length > 0 && (
           <div className="notice warn">
             El propio extracto no cuadra en {p.balance_mismatches.length} punto(s) (líneas{' '}
@@ -209,7 +238,7 @@ export function ImportPage() {
             <button
               className="btn primary"
               type="button"
-              disabled={busy || p.new_count === 0}
+              disabled={busy || p.new_count === 0 || (missing.length > 0 && !acceptMissing)}
               onClick={() =>
                 void run(
                   () => api.commitImport(p.id),
@@ -272,6 +301,7 @@ export function ImportPage() {
           </button>
         </div>
       </form>
+      <ImportHistory accounts={accounts} />
     </section>
   )
 }

@@ -22,3 +22,4 @@ Formato: contexto → decisión → consecuencias. Un ADR aceptado no se edita; 
 | [0014](0014-graficos-svg-propios.md) | Gráficos SVG propios en React | Accepted |
 | [0015](0015-patrones-por-persona-y-xlsx.md) | Patrones de aportación por persona y extractos en Excel | Accepted |
 | [0016](0016-exposicion-y-copias.md) | Exposición en casa, copias de seguridad y exportación | Accepted |
+| [0017](0017-registro-de-cambios.md) | Registro de cambios con deshacer y rehacer | Accepted |

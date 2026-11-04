@@ -73,6 +73,7 @@ class ExportedTransaction:
     member: str | None
     bank_type: str
     source: str
+    note: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -180,6 +181,7 @@ def export_household(
                 member=names.get(t.member_id) if t.member_id else None,
                 bank_type=t.bank_type,
                 source=t.source,
+                note=t.note,
             )
             for t in txns
         )

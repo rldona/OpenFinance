@@ -8,6 +8,7 @@ from typing import Protocol
 from uuid import UUID
 
 from openfinance.domain.categories import Category, CategoryId, CategoryRule
+from openfinance.domain.changes import Entity, Operation
 from openfinance.domain.identity import User
 from openfinance.domain.imports import (
     ClassificationRules,
@@ -15,7 +16,7 @@ from openfinance.domain.imports import (
     ParseResult,
     PatternDirection,
 )
-from openfinance.domain.imports.batch import ImportBatch
+from openfinance.domain.imports.batch import ImportBatch, ImportStatus
 from openfinance.domain.ledger import Account, Institution, Transaction
 from openfinance.domain.savings import Budget, Goal, GoalId
 from openfinance.domain.shared.ids import AccountId, TransactionId, UserId, WorkspaceId
@@ -84,8 +85,29 @@ class TransactionRepository(Protocol):
     ) -> list[Transaction]: ...
     def add(self, transaction: Transaction) -> None: ...
     def get(
-        self, household_id: WorkspaceId, transaction_id: TransactionId
-    ) -> Transaction | None: ...
+        self,
+        household_id: WorkspaceId,
+        transaction_id: TransactionId,
+        *,
+        include_voided: bool = False,
+    ) -> Transaction | None:
+        """Los anulados solo se devuelven con ``include_voided`` (para deshacer)."""
+        ...
+
+    def save(self, transaction: Transaction) -> None:
+        """Guarda los campos corregibles: tipo, persona, categoría, nota, anulación."""
+        ...
+
+    def for_import(self, household_id: WorkspaceId, import_id: UUID) -> list[Transaction]: ...
+    def accounts_of(
+        self, household_id: WorkspaceId, ids: list[TransactionId]
+    ) -> dict[TransactionId, AccountId]:
+        """La cuenta de cada movimiento, también de los anulados."""
+        ...
+
+    def voided_with_fingerprints(
+        self, household_id: WorkspaceId, account_id: AccountId, fingerprints: list[str]
+    ) -> dict[str, Transaction]: ...
     def set_category(
         self, household_id: WorkspaceId, ids: list[TransactionId], category_id: CategoryId | None
     ) -> None: ...
@@ -129,6 +151,7 @@ class CategoryRepository(Protocol):
 class RuleRepository(Protocol):
     def for_household(self, household_id: WorkspaceId) -> list[CategoryRule]: ...
     def upsert(self, rule: CategoryRule, now: datetime) -> None: ...
+    def get(self, household_id: WorkspaceId, scope: str, merchant: str) -> CategoryRule | None: ...
     def delete(self, household_id: WorkspaceId, scope: str, merchant: str) -> None: ...
 
 
@@ -150,6 +173,13 @@ class ImportBatchRepository(Protocol):
     def add(self, batch: ImportBatch, content: bytes) -> None: ...
     def get(self, household_id: WorkspaceId, batch_id: UUID) -> ImportBatch | None: ...
     def content(self, batch_id: UUID) -> bytes | None: ...
+    def set_status(self, batch_id: UUID, status: ImportStatus) -> None: ...
+    def committed(
+        self, household_id: WorkspaceId, account_ids: list[AccountId]
+    ) -> list[ImportBatch]:
+        """Confirmadas y deshechas, de la más reciente a la más antigua."""
+        ...
+
     def claim(self, batch_id: UUID) -> bool:
         """Pasa el lote de vista previa a confirmado si nadie lo ha hecho antes."""
         ...
@@ -189,10 +219,30 @@ class SessionRepository(Protocol):
     def get(self, token_hash: str) -> StoredSession | None: ...
     def delete(self, token_hash: str) -> None: ...
     def delete_expired(self, now: datetime) -> int: ...
-    def delete_for_user(self, user_id: UserId) -> int: ...
+    def delete_for_user(self, user_id: UserId, *, keep: str | None = None) -> int:
+        """Cierra las sesiones de esa persona salvo la de hash ``keep``."""
+        ...
+
     def delete_all(self) -> int:
         """Cierra todas las sesiones de la instalación (p. ej. tras restaurar una copia)."""
         ...
+
+
+class ChangeRepository(Protocol):
+    def add(self, operation: Operation) -> None: ...
+    def get(self, household_id: WorkspaceId, operation_id: UUID) -> Operation | None: ...
+    def for_actor(
+        self, household_id: WorkspaceId, actor_id: UserId, limit: int
+    ) -> list[Operation]: ...
+    def touching(
+        self, household_id: WorkspaceId, entity: Entity, entity_ids: list[str]
+    ) -> list[Operation]:
+        """Operaciones que cambian alguna de esas entidades, de la más antigua a la más reciente."""
+        ...
+
+    def mark_undone(
+        self, operation_id: UUID, undone_at: datetime | None, undone_by: UserId | None
+    ) -> None: ...
 
 
 class PasswordHasher(Protocol):
@@ -226,6 +276,8 @@ class UnitOfWork(Protocol):
     def goals(self) -> GoalRepository: ...
     @property
     def member_patterns(self) -> MemberPatternRepository: ...
+    @property
+    def changes(self) -> ChangeRepository: ...
 
     def commit(self) -> None:
         """Confirma la transacción. Un conflicto de integridad se traduce en ConflictError."""

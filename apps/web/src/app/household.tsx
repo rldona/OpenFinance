@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { api, type Category, type InsightsView, type Me } from '../api/client'
+import type { Notify } from '../components/useToast'
 import { currentMonth } from '../lib/format'
 import { HouseholdContext } from './household-context'
 
@@ -9,7 +10,7 @@ export function HouseholdProvider({
   children,
 }: {
   me: Me
-  notify: (message: string) => void
+  notify: Notify
   children: ReactNode
 }) {
   const [categories, setCategories] = useState<Category[]>([])

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import calendar
+import json
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -11,6 +12,7 @@ from sqlalchemy.orm import Session
 from openfinance.application.errors import ConflictError
 from openfinance.application.ports import StoredSession, TransactionQuery
 from openfinance.domain.categories import Category, CategoryId, CategoryRule
+from openfinance.domain.changes import Change, Entity, Operation
 from openfinance.domain.identity import User
 from openfinance.domain.imports import MemberPattern, PatternDirection
 from openfinance.domain.imports.batch import PREVIEW_TTL, ImportBatch, ImportStatus
@@ -36,6 +38,8 @@ from openfinance.infrastructure.db.models import (
     BudgetRow,
     CategoryRow,
     CategoryRuleRow,
+    ChangeEntryRow,
+    ChangeOperationRow,
     GoalRow,
     HouseholdRow,
     ImportBatchRow,
@@ -191,7 +195,13 @@ def _transaction(row: TransactionRow) -> Transaction:
         source=row.source,
         fingerprint=row.fingerprint,
         import_id=row.import_id,
+        note=row.note,
+        voided=row.voided,
     )
+
+
+_ACTIVE = TransactionRow.voided.is_(False)
+"""Los movimientos anulados no cuentan en ninguna consulta (ADR-0017)."""
 
 
 class SqlTransactionRepository:
@@ -204,6 +214,7 @@ class SqlTransactionRepository:
         stmt = select(TransactionRow).where(
             TransactionRow.household_id == household_id,
             TransactionRow.account_id.in_(account_ids),
+            _ACTIVE,
         )
         if query.year is not None and query.month is not None:
             last_day = calendar.monthrange(query.year, query.month)[1]
@@ -229,6 +240,7 @@ class SqlTransactionRepository:
             select(TransactionRow).where(
                 TransactionRow.household_id == household_id,
                 TransactionRow.account_id == account_id,
+                _ACTIVE,
             )
         )
         return [_transaction(r) for r in rows]
@@ -253,17 +265,86 @@ class SqlTransactionRepository:
                 source=t.source,
                 fingerprint=t.fingerprint,
                 import_id=t.import_id,
+                note=t.note,
+                voided=t.voided,
             )
         )
         _flush(self._s)
 
-    def get(self, household_id: WorkspaceId, transaction_id: TransactionId) -> Transaction | None:
-        row = self._s.scalar(
-            select(TransactionRow).where(
-                TransactionRow.id == transaction_id, TransactionRow.household_id == household_id
+    def get(
+        self,
+        household_id: WorkspaceId,
+        transaction_id: TransactionId,
+        *,
+        include_voided: bool = False,
+    ) -> Transaction | None:
+        stmt = select(TransactionRow).where(
+            TransactionRow.id == transaction_id, TransactionRow.household_id == household_id
+        )
+        if not include_voided:
+            stmt = stmt.where(_ACTIVE)
+        row = self._s.scalar(stmt)
+        return _transaction(row) if row else None
+
+    def save(self, transaction: Transaction) -> None:
+        """Guarda los campos corregibles (ADR-0017); el resto del movimiento no cambia."""
+        t = transaction
+        self._s.execute(
+            update(TransactionRow)
+            .where(TransactionRow.id == t.id, TransactionRow.household_id == t.household_id)
+            .values(
+                kind=t.kind.value,
+                member_id=t.member_id,
+                category_id=t.category_id,
+                note=t.note,
+                voided=t.voided,
+                import_id=t.import_id,
             )
         )
-        return _transaction(row) if row else None
+        _flush(self._s)
+
+    def for_import(self, household_id: WorkspaceId, import_id: UUID) -> list[Transaction]:
+        rows = self._s.scalars(
+            select(TransactionRow)
+            .where(
+                TransactionRow.household_id == household_id,
+                TransactionRow.import_id == import_id,
+                _ACTIVE,
+            )
+            .order_by(TransactionRow.booked_at)
+        )
+        return [_transaction(r) for r in rows]
+
+    def accounts_of(
+        self, household_id: WorkspaceId, ids: list[TransactionId]
+    ) -> dict[TransactionId, AccountId]:
+        out: dict[TransactionId, AccountId] = {}
+        for i in range(0, len(ids), 500):
+            rows = self._s.execute(
+                select(TransactionRow.id, TransactionRow.account_id).where(
+                    TransactionRow.household_id == household_id,
+                    TransactionRow.id.in_(ids[i : i + 500]),
+                )
+            )
+            out.update({TransactionId(r.id): AccountId(r.account_id) for r in rows})
+        return out
+
+    def voided_with_fingerprints(
+        self, household_id: WorkspaceId, account_id: AccountId, fingerprints: list[str]
+    ) -> dict[str, Transaction]:
+        """Movimientos anulados con esas huellas: se reactivan al volver a importar."""
+        found: dict[str, Transaction] = {}
+        for i in range(0, len(fingerprints), 500):
+            rows = self._s.scalars(
+                select(TransactionRow).where(
+                    TransactionRow.household_id == household_id,
+                    TransactionRow.account_id == account_id,
+                    TransactionRow.fingerprint.in_(fingerprints[i : i + 500]),
+                    TransactionRow.voided.is_(True),
+                )
+            )
+            found.update({r.fingerprint: _transaction(r) for r in rows if r.fingerprint})
+        return found
 
     def set_category(
         self, household_id: WorkspaceId, ids: list[TransactionId], category_id: CategoryId | None
@@ -275,6 +356,7 @@ class SqlTransactionRepository:
                     TransactionRow.household_id == household_id,
                     TransactionRow.id.in_(ids[i : i + 500]),
                     TransactionRow.kind == TransactionKind.EXPENSE.value,
+                    _ACTIVE,
                 )
                 .values(category_id=category_id)
             )
@@ -286,6 +368,7 @@ class SqlTransactionRepository:
             TransactionRow.account_id.in_(account_ids),
             TransactionRow.kind == TransactionKind.EXPENSE.value,
             TransactionRow.category_id.is_(None),
+            _ACTIVE,
         )
 
     def uncategorized_with_merchant_word(
@@ -318,6 +401,7 @@ class SqlTransactionRepository:
             TransactionRow.household_id == household_id,
             TransactionRow.account_id.in_(account_ids),
             TransactionRow.booked_at.between(start, end),
+            _ACTIVE,
         )
         if only_category:
             stmt = stmt.where(
@@ -336,6 +420,7 @@ class SqlTransactionRepository:
             select(func.min(TransactionRow.booked_at)).where(
                 TransactionRow.household_id == household_id,
                 TransactionRow.account_id.in_(account_ids),
+                _ACTIVE,
             )
         )
 
@@ -362,6 +447,7 @@ class SqlTransactionRepository:
                         TransactionRow.household_id == household_id,
                         TransactionRow.account_id == account_id,
                         TransactionRow.fingerprint.in_(chunk),
+                        _ACTIVE,
                     )
                 )
                 if f is not None
@@ -402,8 +488,11 @@ class SqlSessionRepository:
         result = self._s.execute(delete(SessionRow).where(SessionRow.expires_at <= now))
         return int(getattr(result, "rowcount", 0) or 0)
 
-    def delete_for_user(self, user_id: UserId) -> int:
-        result = self._s.execute(delete(SessionRow).where(SessionRow.user_id == user_id))
+    def delete_for_user(self, user_id: UserId, *, keep: str | None = None) -> int:
+        stmt = delete(SessionRow).where(SessionRow.user_id == user_id)
+        if keep is not None:
+            stmt = stmt.where(SessionRow.token_hash != keep)
+        result = self._s.execute(stmt)
         return int(getattr(result, "rowcount", 0) or 0)
 
     def delete_all(self) -> int:
@@ -503,6 +592,14 @@ class SqlRuleRepository:
             row.category_id = rule.category_id
             row.updated_at = now
         _flush(self._s)
+
+    def get(self, household_id: WorkspaceId, scope: str, merchant: str) -> CategoryRule | None:
+        row = self._s.get(CategoryRuleRow, (household_id, scope, merchant))
+        if row is None:
+            return None
+        return CategoryRule(
+            WorkspaceId(row.household_id), row.merchant, CategoryId(row.category_id), row.scope
+        )
 
     def delete(self, household_id: WorkspaceId, scope: str, merchant: str) -> None:
         self._s.execute(
@@ -662,6 +759,28 @@ class SqlImportBatchRepository:
     def content(self, batch_id: UUID) -> bytes | None:
         return self._s.scalar(select(ImportBatchRow.content).where(ImportBatchRow.id == batch_id))
 
+    def set_status(self, batch_id: UUID, status: ImportStatus) -> None:
+        self._s.execute(
+            update(ImportBatchRow).where(ImportBatchRow.id == batch_id).values(status=status.value)
+        )
+
+    def committed(
+        self, household_id: WorkspaceId, account_ids: list[AccountId]
+    ) -> list[ImportBatch]:
+        """Confirmadas y deshechas de esas cuentas, de la más reciente a la más antigua."""
+        if not account_ids:
+            return []
+        rows = self._s.scalars(
+            select(ImportBatchRow)
+            .where(
+                ImportBatchRow.household_id == household_id,
+                ImportBatchRow.account_id.in_(account_ids),
+                ImportBatchRow.status != ImportStatus.PREVIEW.value,
+            )
+            .order_by(ImportBatchRow.committed_at.desc(), ImportBatchRow.created_at.desc())
+        )
+        return [_batch(r) for r in rows]
+
     def claim(self, batch_id: UUID) -> bool:
         result = self._s.execute(
             update(ImportBatchRow)
@@ -744,6 +863,130 @@ class SqlMemberPatternRepository:
         return bool(getattr(result, "rowcount", 0))
 
 
+def _operation(row: ChangeOperationRow, entries: list[ChangeEntryRow]) -> Operation:
+    return Operation(
+        id=row.id,
+        household_id=WorkspaceId(row.household_id),
+        actor_id=UserId(row.actor_id),
+        created_at=_as_utc(row.created_at),
+        action=row.action,
+        summary=row.summary,
+        changes=tuple(
+            Change(
+                Entity(e.entity), e.entity_id, e.field, json.loads(e.before), json.loads(e.after)
+            )
+            for e in sorted(entries, key=lambda e: e.position)
+        ),
+        undone_at=_as_utc(row.undone_at) if row.undone_at else None,
+        undone_by=UserId(row.undone_by) if row.undone_by else None,
+    )
+
+
+class SqlChangeRepository:
+    def __init__(self, session: Session) -> None:
+        self._s = session
+
+    def add(self, operation: Operation) -> None:
+        o = operation
+        self._s.add(
+            ChangeOperationRow(
+                id=o.id,
+                household_id=o.household_id,
+                actor_id=o.actor_id,
+                created_at=o.created_at,
+                action=o.action,
+                summary=o.summary,
+            )
+        )
+        self._s.flush()
+        self._s.add_all(
+            ChangeEntryRow(
+                operation_id=o.id,
+                position=i,
+                entity=c.entity.value,
+                entity_id=c.entity_id,
+                field=c.field,
+                before=json.dumps(c.before),
+                after=json.dumps(c.after),
+            )
+            for i, c in enumerate(o.changes)
+        )
+        _flush(self._s)
+
+    def _entries(self, ids: list[UUID]) -> dict[UUID, list[ChangeEntryRow]]:
+        out: dict[UUID, list[ChangeEntryRow]] = {i: [] for i in ids}
+        for i in range(0, len(ids), 500):
+            for e in self._s.scalars(
+                select(ChangeEntryRow).where(ChangeEntryRow.operation_id.in_(ids[i : i + 500]))
+            ):
+                out[e.operation_id].append(e)
+        return out
+
+    def get(self, household_id: WorkspaceId, operation_id: UUID) -> Operation | None:
+        row = self._s.scalar(
+            select(ChangeOperationRow).where(
+                ChangeOperationRow.id == operation_id,
+                ChangeOperationRow.household_id == household_id,
+            )
+        )
+        return _operation(row, self._entries([row.id])[row.id]) if row else None
+
+    def for_actor(self, household_id: WorkspaceId, actor_id: UserId, limit: int) -> list[Operation]:
+        rows = list(
+            self._s.scalars(
+                select(ChangeOperationRow)
+                .where(
+                    ChangeOperationRow.household_id == household_id,
+                    ChangeOperationRow.actor_id == actor_id,
+                )
+                .order_by(ChangeOperationRow.created_at.desc())
+                .limit(limit)
+            )
+        )
+        entries = self._entries([r.id for r in rows])
+        return [_operation(r, entries[r.id]) for r in rows]
+
+    def touching(
+        self, household_id: WorkspaceId, entity: Entity, entity_ids: list[str]
+    ) -> list[Operation]:
+        """Operaciones que cambian alguna de esas entidades, de la más antigua a la más reciente."""
+        if not entity_ids:
+            return []
+        op_ids: set[UUID] = set()
+        for i in range(0, len(entity_ids), 500):
+            op_ids.update(
+                self._s.scalars(
+                    select(ChangeEntryRow.operation_id)
+                    .join(ChangeOperationRow, ChangeOperationRow.id == ChangeEntryRow.operation_id)
+                    .where(
+                        ChangeOperationRow.household_id == household_id,
+                        ChangeEntryRow.entity == entity.value,
+                        ChangeEntryRow.entity_id.in_(entity_ids[i : i + 500]),
+                    )
+                )
+            )
+        if not op_ids:
+            return []
+        rows = list(
+            self._s.scalars(
+                select(ChangeOperationRow)
+                .where(ChangeOperationRow.id.in_(op_ids))
+                .order_by(ChangeOperationRow.created_at)
+            )
+        )
+        entries = self._entries([r.id for r in rows])
+        return [_operation(r, entries[r.id]) for r in rows]
+
+    def mark_undone(
+        self, operation_id: UUID, undone_at: datetime | None, undone_by: UserId | None
+    ) -> None:
+        self._s.execute(
+            update(ChangeOperationRow)
+            .where(ChangeOperationRow.id == operation_id)
+            .values(undone_at=undone_at, undone_by=undone_by)
+        )
+
+
 class SqlUnitOfWork:
     def __init__(self, session: Session) -> None:
         self.session = session
@@ -758,6 +1001,7 @@ class SqlUnitOfWork:
         self.budgets = SqlBudgetRepository(session)
         self.goals = SqlGoalRepository(session)
         self.member_patterns = SqlMemberPatternRepository(session)
+        self.changes = SqlChangeRepository(session)
 
     def commit(self) -> None:
         try:
