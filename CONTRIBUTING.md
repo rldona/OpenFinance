@@ -1,28 +1,28 @@
-# Cómo contribuir
+# How to contribute
 
-Gracias por querer mejorar OpenFinance. Antes de nada, lee [AGENTS.md](AGENTS.md): reúne las reglas de arquitectura, dominio, seguridad y estilo del repositorio, y vale igual para personas que para agentes.
+Thanks for wanting to improve OpenFinance. First, read [AGENTS.md](AGENTS.md): it gathers the repository's architecture, domain, security and style rules, and applies equally to people and agents.
 
-## Licencia
+## License
 
-OpenFinance se distribuye bajo [AGPL-3.0-or-later](LICENSE) ([ADR-0008](docs/adr/0008-licencia-agpl.md)). Al contribuir, aceptas que tu contribución se publique bajo esa misma licencia. No hay CLA ni cesión de derechos, y los ficheros no llevan cabeceras de licencia.
+OpenFinance is distributed under [AGPL-3.0-or-later](LICENSE) ([ADR-0008](docs/adr/0008-licencia-agpl.md)). By contributing, you agree that your contribution is published under that same license. There is no CLA or assignment of rights, and files carry no license headers.
 
-## Firma tus commits (DCO)
+## Sign your commits (DCO)
 
-Cada commit debe llevar una línea `Signed-off-by` con tu nombre y tu email reales:
+Every commit must carry a `Signed-off-by` line with your real name and email:
 
 ```
-Signed-off-by: Nombre Apellido <tu@email.example>
+Signed-off-by: First Last <you@email.example>
 ```
 
-Git la añade por ti con `-s`:
+Git adds it for you with `-s`:
 
 ```bash
 git commit -s -m "feat: …"
 ```
 
-Si olvidaste firmar el último commit: `git commit --amend -s --no-edit`. Para varios commits de tu rama: `git rebase --signoff main`.
+If you forgot to sign the last commit: `git commit --amend -s --no-edit`. For several commits on your branch: `git rebase --signoff main`.
 
-Con esa línea certificas el Developer Certificate of Origin 1.1, cuyo texto original (<https://developercertificate.org/>) se reproduce sin cambios:
+With that line you certify the Developer Certificate of Origin 1.1, whose original text (<https://developercertificate.org/>) is reproduced unchanged:
 
 ```
 Developer Certificate of Origin
@@ -61,10 +61,10 @@ By making a contribution to this project, I certify that:
     this project or the open source license(s) involved.
 ```
 
-## Antes de abrir un pull request
+## Before opening a pull request
 
-- Referencia el ticket (`OF-xxx`) de [docs/product/roadmap.md](docs/product/roadmap.md) y actualiza su estado.
-- Commits con [Conventional Commits](https://www.conventionalcommits.org/) y firmados (`-s`).
-- `make check` en verde. Si cambias la API, ejecuta `make openapi`.
-- Si añades una dependencia, `make licenses CHECK=1` debe seguir en verde. Si su licencia no está en la lista permitida, explica por qué es compatible y actualiza [docs/legal/dependencias.md](docs/legal/dependencias.md).
-- No incluyas datos reales: ni extractos bancarios ni secretos.
+- Reference the ticket (`OF-xxx`) from [docs/product/roadmap.md](docs/product/roadmap.md) and update its status.
+- Commits follow [Conventional Commits](https://www.conventionalcommits.org/) and are signed (`-s`).
+- `make check` passes. If you change the API, run `make openapi`.
+- If you add a dependency, `make licenses CHECK=1` must keep passing. If its license is not on the allowed list, explain why it is compatible and update [docs/legal/dependencias.md](docs/legal/dependencias.md).
+- Do not include real data: no bank statements and no secrets.

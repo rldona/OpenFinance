@@ -1,42 +1,41 @@
-# ADR-0021: Pagos programados, previsión de saldo y «hoy podéis gastar»
+# ADR-0021: Scheduled payments, balance forecast and "Hoy podéis gastar" ("Today you can spend")
 
-- Estado: Accepted
-- Fecha: 2026-11-02
+- Status: Accepted
+- Date: 2026-11-02
 
-## Contexto
+## Context
 
-Hoy solo se mira hacia atrás: los cargos recurrentes se **detectan** a partir de lo cobrado (OF-403) y «Este mes» estima el cierre con lo que ya ha pasado (OF-802). Un hogar necesita lo contrario: declarar «el alquiler son 900 € el día 1», «el seguro anual de 380 € vence el 14 de marzo» o «la nómina de Elena llega el 28», y saber qué saldo habrá dentro de 30 días y cuánto se puede gastar hoy sin quedarse corto.
+Today the app only looks backwards: recurring charges are **detected** from what has already been charged (OF-403), and "Este mes" ("This month") estimates the month-end close from what has already happened (OF-802). A household needs the opposite: to declare "rent is €900 on the 1st", "the €380 annual insurance falls due on 14 March" or "Elena's salary arrives on the 28th", and to know what the balance will be in 30 days and how much can be spent today without running short.
 
-## Decisión
+## Decision
 
-### Pagos programados
+### Scheduled payments
 
-- Un **pago programado** es del hogar y tiene: nombre, importe (positivo si es un ingreso, negativo si es un pago), cuenta, categoría y comercio opcionales, **frecuencia** (`semanal`, `cada N meses`, `anual`, `una vez`), **próxima fecha**, fecha de fin opcional y un interruptor de activo.
-- Una **ocurrencia** es una fecha esperada de un pago. **No es un movimiento**: nada se escribe en el libro por sí solo. Lo cobrado de verdad sigue entrando por la importación o a mano, y la previsión nunca cambia un saldo real.
-- **Emparejado**: una ocurrencia se da por cumplida si hay un movimiento de la misma cuenta, del mismo signo y moneda, cuyo importe difiere como mucho un 5 % (o el pago es de importe variable) y que cae a ±7 días de la fecha esperada. Cada movimiento cumple como mucho una fecha, y entre varios candidatos gana el más cercano en fecha y, a igualdad, en importe. **El emparejado no se guarda: se calcula en cada consulta** a partir del libro, así que corregir, anular o deshacer un movimiento corrige el estado del pago sin nada que sincronizar.
-- Si pasa la fecha y no llega nada, la ocurrencia queda **atrasada**: se avisa y no se suma a la previsión.
-- Los meses cortos se resuelven con el último día del mes (un pago del día 31 cae el 28/29 en febrero). Todo el calendario es función pura de la fecha; no hay tareas programadas ni reloj en el servidor.
-- Los cargos recurrentes **detectados** pueden convertirse en un pago programado con un clic (se rellena con comercio, importe y día habituales). Mientras no se convierta, siguen valiendo para la previsión como hasta ahora; si existe el pago programado del mismo comercio, el detectado no se cuenta dos veces.
+- A **scheduled payment** belongs to the household and has: name, amount (positive for income, negative for a payment), account, optional category and merchant, **frequency** (`semanal` (weekly), `cada N meses` (every N months), `anual` (yearly), `una vez` (once)), **next date**, optional end date and an active switch.
+- An **occurrence** is an expected date of a payment. **It is not a transaction**: nothing is written to the ledger on its own. What is actually charged still enters through import or manually, and the forecast never changes a real balance.
+- **Matching**: an occurrence is considered fulfilled if there is a transaction on the same account, with the same sign and currency, whose amount differs by at most 5% (or the payment has a variable amount) and which falls within ±7 days of the expected date. Each transaction fulfills at most one date, and among several candidates the closest in date wins and, on a tie, the closest in amount. **Matching is not stored: it is computed on every query** from the ledger, so correcting, voiding or undoing a transaction fixes the payment's status with nothing to synchronize.
+- If the date passes and nothing arrives, the occurrence becomes **overdue**: it is flagged and not added to the forecast.
+- Short months are resolved with the last day of the month (a payment on the 31st falls on the 28th/29th in February). The whole calendar is a pure function of the date; there are no scheduled jobs or clock on the server.
+- **Detected** recurring charges can be turned into a scheduled payment with one click (pre-filled with the usual merchant, amount and day). Until converted, they still count toward the forecast as before; if a scheduled payment for the same merchant exists, the detected one is not counted twice.
 
-### Previsión de saldo
+### Balance forecast
 
-- `previsión(cuenta, hasta)` = saldo actual + suma de las ocurrencias pendientes y no atrasadas hasta esa fecha, día a día. Es una función pura en el dominio; la capa de aplicación solo reúne saldos y pagos visibles.
-- Solo cuentan las cuentas que ve quien consulta (ADR-0013). El total del hogar suma las cuentas visibles; una cuenta personal ajena no entra ni en el total ni en los avisos.
-- Se avisa del **día del primer saldo negativo** y del **saldo mínimo** del periodo. Varias monedas (ADR-0019): se calcula por moneda; si falta una tasa, esa moneda no se mezcla en el total y se dice.
-- Las cuentas de tipo `card` y `loan` no entran en la previsión de efectivo (como no entran en gasto).
+- `forecast(account, until)` = current balance + the sum of pending, non-overdue occurrences up to that date, day by day. It is a pure function in the domain; the application layer only gathers visible balances and payments.
+- Only the accounts visible to the person querying count (ADR-0013). The household total sums the visible accounts; another person's personal account enters neither the total nor the alerts. With several currencies (ADR-0019): it is computed per currency; if a rate is missing, that currency is not mixed into the total and this is stated.
+- Accounts of type `card` and `loan` do not enter the cash forecast (just as they do not enter spending).
 
-### «Hoy podéis gastar»
+### "Hoy podéis gastar" ("Today you can spend")
 
-- Es un cálculo honesto, no una promesa: `(saldo de cuentas corrientes y efectivo − pagos pendientes hasta la próxima entrada de dinero esperada, o hasta fin de mes si no hay ninguna) ÷ días restantes`, con piso en cero.
-- Si hay presupuestos con sobres (ADR-0022), se muestra además lo que queda en cada sobre. Si no hay datos suficientes (sin saldo o sin pagos programados), la tarjeta lo dice en lugar de inventar una cifra.
+- It is an honest calculation, not a promise: `(balance of checking and cash accounts − pending payments until the next expected money inflow, or until month end if there is none) ÷ remaining days`, floored at zero.
+- If there are envelope budgets (ADR-0022), what remains in each envelope is also shown. If there is not enough data (no balance or no scheduled payments), the card says so instead of inventing a figure.
 
-### Plantillas
+### Templates
 
-- Una **plantilla** es un movimiento manual guardado (nombre, importe, tipo, cuenta, categoría, comercio, etiquetas) para crearlo con un clic. Es del hogar o personal. Crear desde una plantilla usa el flujo normal de OF-701, con registro de cambios y deshacer.
+- A **template** is a saved manual transaction (name, amount, type, account, category, merchant, tags) so it can be created with one click. It is either household-wide or personal. Creating from a template uses the normal OF-701 flow, with change log and undo.
 
-## Consecuencias
+## Consequences
 
-- El calendario de ocurrencias es una función pura y se prueba con propiedades: ninguna ocurrencia cae fuera del rango pedido, el orden es estable, y generar dos veces da lo mismo.
-- No se crean movimientos automáticos: se evita el peor fallo posible (un gasto fantasma que descuadra el saldo).
-- Se añaden las tablas `scheduled_payments` (las ocurrencias y su emparejado se calculan, no se guardan) y `transaction_templates`.
-- Tests de privacidad negativos: un pago de una cuenta personal ajena no aparece en listados, previsión ni «hoy podéis gastar».
+- The occurrence calendar is a pure function and is tested with properties: no occurrence falls outside the requested range, the order is stable, and generating twice gives the same result.
+- No automatic transactions are created: this avoids the worst possible failure (a phantom expense that throws the balance off).
+- The tables `scheduled_payments` (occurrences and their matching are computed, not stored) and `transaction_templates` are added.
+- Negative privacy tests: a payment from another person's personal account does not appear in listings, the forecast or "Hoy podéis gastar".

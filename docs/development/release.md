@@ -1,45 +1,45 @@
-# Preparar una release
+# Prepare a release
 
-Checklist para publicar una versión de OpenFinance. La primera es **v0.1.0** (OF-504). Su etiqueta se crea cuando se cumplan dos condiciones: un mes de uso real con vuestros datos y OF-108 terminado (ya lo está).
+Checklist for publishing an OpenFinance version. The first is **v0.1.0** (OF-504). Its tag is created once two conditions are met: one month of real use with your data and OF-108 finished (it already is).
 
-Nunca se despliega un *preview* de Vercel: todo pasa por GitHub y el flujo normal de merge.
+A Vercel *preview* is never deployed: everything goes through GitHub and the normal merge flow.
 
-## 1. Condiciones previas
+## 1. Prerequisites
 
-- [ ] Todos los tickets de la versión cerrados en [roadmap.md](../product/roadmap.md). Para v0.1.0, también **OF-108** (vista «mi gasto»).
-- [ ] Para v0.1.0: **al menos un mes de uso real** con vuestros datos, sin incidencias abiertas que afecten a los importes o a la privacidad.
-- [ ] Rama `main` al día y sin cambios locales (`git status` limpio).
+- [ ] All the version's tickets closed in [roadmap.md](../product/roadmap.md). For v0.1.0, also **OF-108** ("mi gasto" (my spending) view).
+- [ ] For v0.1.0: **at least one month of real use** with your data, with no open issues affecting amounts or privacy.
+- [ ] Branch `main` up to date and with no local changes (clean `git status`).
 
-## 2. Licencias
+## 2. Licenses
 
-- [ ] `make licenses CHECK=1` en verde.
-- [ ] Si han cambiado las dependencias desde la última auditoría, regenerar las tablas con `make licenses` y actualizar [docs/legal/dependencias.md](../legal/dependencias.md) (fecha incluida).
-- [ ] [`LICENSE`](../../LICENSE) sin cambios: es el texto literal de la AGPL-3.0 ([ADR-0008](../adr/0008-licencia-agpl.md)).
+- [ ] `make licenses CHECK=1` passes.
+- [ ] If dependencies have changed since the last audit, regenerate the tables with `make licenses` and update [docs/legal/dependencias.md](../legal/dependencias.md) (including the date).
+- [ ] [`LICENSE`](../../LICENSE) unchanged: it is the literal AGPL-3.0 text ([ADR-0008](../adr/0008-licencia-agpl.md)).
 
-## 3. Versión
+## 3. Version
 
-Sustituir la versión de desarrollo (`0.1.0.dev0` en Python, `0.1.0-dev` en npm) por la de la release, en todos los sitios:
+Replace the development version (`0.1.0.dev0` in Python, `0.1.0-dev` in npm) with the release version, everywhere:
 
-- [ ] `services/api/pyproject.toml` → `version = "0.1.0"`, y después `cd services/api && uv lock` para que `uv.lock` recoja la versión.
-- [ ] `apps/web/package.json` → `"version": "0.1.0"`, y después `cd apps/web && npm install --package-lock-only` para actualizar `package-lock.json` (dos entradas).
-- [ ] `make openapi`: el `info.version` de `apps/web/openapi.json` sale de la versión del paquete, y CI falla si no está al día.
-- [ ] Comprobar que no queda ninguna versión de desarrollo: `git grep -nE '0\.1\.0[.-]dev' -- ':!docs/development/release.md'` no devuelve nada.
+- [ ] `services/api/pyproject.toml` → `version = "0.1.0"`, and then `cd services/api && uv lock` so `uv.lock` picks up the version.
+- [ ] `apps/web/package.json` → `"version": "0.1.0"`, and then `cd apps/web && npm install --package-lock-only` to update `package-lock.json` (two entries).
+- [ ] `make openapi`: the `info.version` in `apps/web/openapi.json` comes from the package version, and CI fails if it is not up to date.
+- [ ] Check that no development version remains: `git grep -nE '0\.1\.0[.-]dev' -- ':!docs/development/release.md'` returns nothing.
 
 ## 4. CHANGELOG
 
-- [ ] En [CHANGELOG.md](../../CHANGELOG.md), renombrar `## [Unreleased]` a `## [0.1.0] - AAAA-MM-DD` con la fecha de la etiqueta, quitar «Pendiente antes de 0.1.0» y abrir un `## [Unreleased]` vacío encima.
-- [ ] Revisar que cada punto se entiende sin conocer el código.
+- [ ] In [CHANGELOG.md](../../CHANGELOG.md), rename `## [Unreleased]` to `## [0.1.0] - YYYY-MM-DD` with the tag date, remove "Pendiente antes de 0.1.0" (Pending before 0.1.0) and open an empty `## [Unreleased]` above it.
+- [ ] Check that each item is understandable without knowing the code.
 
-## 5. Comprobaciones
+## 5. Checks
 
-- [ ] `make check` en verde en local (lint, tipos, tests y build).
-- [ ] Pull request con los cambios de los pasos 2 a 4, commits firmados (`git commit -s`, ver [CONTRIBUTING.md](../../CONTRIBUTING.md)) y **CI verde**: `backend`, `frontend`, `licenses` y `compose-e2e` en sus dos modos (`direct` y `https`).
-- [ ] Merge a `main` y CI verde también en `main`.
-- [ ] Instalación limpia siguiendo [Instalar en casa](../deployment/home.md) desde `main`. Restaurar una copia real (`make restore`) y comprobar que los saldos coinciden con los del banco.
+- [ ] `make check` passes locally (lint, types, tests and build).
+- [ ] Pull request with the changes from steps 2 to 4, signed commits (`git commit -s`, see [CONTRIBUTING.md](../../CONTRIBUTING.md)) and **green CI**: `backend`, `frontend`, `licenses` and `compose-e2e` in both modes (`direct` and `https`).
+- [ ] Merge to `main` and green CI on `main` too.
+- [ ] Clean installation following [Install at home](../deployment/home.md) from `main`. Restore a real backup (`make restore`) and check that the balances match the bank's.
 
-## 6. Etiqueta y release en GitHub
+## 6. Tag and GitHub release
 
-Solo cuando todo lo anterior esté marcado:
+Only when everything above is checked:
 
 ```bash
 git switch main && git pull --ff-only
@@ -50,12 +50,12 @@ gh release create v0.1.0 --verify-tag --title "OpenFinance v0.1.0" --notes-file 
 rm release-notes.md
 ```
 
-- [ ] Etiqueta **anotada** `v0.1.0` sobre el commit de `main` con CI verde.
-- [ ] Release en GitHub con las notas de la sección 0.1.0 del CHANGELOG.
-- [ ] El workflow `Release` (`.github/workflows/release.yml`) se lanza solo con la etiqueta y publica las imágenes `openfinance-api` y `openfinance-web` en ghcr.io (amd64 y arm64), firmadas con cosign. Comprobar que acaba en verde y que `cosign verify` (ver [Instalar en casa](../deployment/home.md), «Imágenes publicadas») acepta las dos. Las imágenes base van fijadas por digest: ver la nota sobre imágenes de [dependencias.md](../legal/dependencias.md).
+- [ ] **Annotated** tag `v0.1.0` on the `main` commit with green CI.
+- [ ] GitHub release with the notes from the 0.1.0 section of the CHANGELOG.
+- [ ] The `Release` workflow (`.github/workflows/release.yml`) runs on its own when the tag is pushed and publishes the `openfinance-api` and `openfinance-web` images to ghcr.io (amd64 and arm64), signed with cosign. Check that it finishes green and that `cosign verify` (see [Install at home](../deployment/home.md), "Imágenes publicadas" (Published images)) accepts both. Base images are pinned by digest: see the note about images in [dependencias.md](../legal/dependencias.md).
 
-## 7. Después
+## 7. Afterwards
 
-- [ ] Volver a versión de desarrollo (`0.2.0.dev0` / `0.2.0-dev`), con `uv lock`, `npm install --package-lock-only` y `make openapi`.
-- [ ] Marcar OF-504 como hecho en [roadmap.md](../product/roadmap.md) y actualizar el estado del README.
-- [ ] Actualizar la instalación de casa a la etiqueta siguiendo «8. Actualizar» en [Instalar en casa](../deployment/home.md).
+- [ ] Go back to a development version (`0.2.0.dev0` / `0.2.0-dev`), with `uv lock`, `npm install --package-lock-only` and `make openapi`.
+- [ ] Mark OF-504 as done in [roadmap.md](../product/roadmap.md) and update the status in the README.
+- [ ] Update the home installation to the tag following "8. Actualizar" (8. Upgrade) in [Install at home](../deployment/home.md).

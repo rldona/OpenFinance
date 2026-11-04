@@ -1,112 +1,112 @@
-# Bancos del hogar
+# Household banks
 
-| Cuenta | Banco | En v0.1 | Cómo entra |
+| Account | Bank | In v0.1 | How it comes in |
 | --- | --- | --- | --- |
-| Cuenta conjunta (gastos de casa) | **Revolut** | ✅ Sí | Extracto en Excel (.xlsx) o CSV |
-| Huchas de la cuenta conjunta | **Revolut** | Como traspaso a ahorro | Se detectan en el mismo extracto |
-| Cuentas personales de cada uno | **Bankinter** | ✅ Sí, privadas para su titular ([ADR-0013](../adr/0013-cuentas-personales-privadas.md)) | Movimientos en Excel (.xlsx) |
+| Joint account (household expenses) | **Revolut** | ✅ Yes | Excel (.xlsx) or CSV statement |
+| Pockets of the joint account | **Revolut** | As a transfer to savings | Detected in the same statement |
+| Each person's personal accounts | **Bankinter** | ✅ Yes, private to their owner ([ADR-0013](../adr/0013-cuentas-personales-privadas.md)) | Transactions in Excel (.xlsx) |
 
-Decisiones: [ADR-0015](../adr/0015-patrones-por-persona-y-xlsx.md). Los extractos reales se validaron con `openfinance statement-check` (solo recuentos); ninguno se ha copiado al repositorio.
+Decisions: [ADR-0015](../adr/0015-patrones-por-persona-y-xlsx.md). The real statements were validated with `openfinance statement-check` (counts only); none has been copied into the repository.
 
-## Revolut · cuenta conjunta
+## Revolut · joint account
 
-**Cómo descargarlo:** app de Revolut → cuenta → *Extracto* → formato *Excel* → periodo.
+**How to download it:** Revolut app → account → *Statement* → *Excel* format → period.
 
-Hay dos formatos y se detectan solos:
+There are two formats and they are detected automatically:
 
-- **Excel (.xlsx)**, el que da la app en español. Validado con un extracto real.
-- **CSV**, con cabeceras en inglés (formato público, el de la configuración de importación de Firefly III para Revolut).
+- **Excel (.xlsx)**, the one the app gives in Spanish. Validated with a real statement.
+- **CSV**, with English headers (public format, the one from Firefly III's import configuration for Revolut).
 
-> ⚠️ Usad siempre el mismo formato para la misma cuenta. Los conceptos cambian entre el CSV en inglés y el Excel en español («Payment from…» frente a «Transferencia de…») y la huella depende del concepto: mezclar formatos podría duplicar movimientos.
+> ⚠️ Always use the same format for the same account. Descriptions differ between the English CSV and the Spanish Excel ("Payment from…" versus "Transferencia de…") and the fingerprint depends on the description: mixing formats could duplicate transactions.
 
-| Excel (español) | CSV (inglés) | Uso en OpenFinance |
+| Excel (Spanish) | CSV (English) | Use in OpenFinance |
 | --- | --- | --- |
-| `Tipo` | `Type` | Procedencia. Vistos: «Pago con tarjeta», «Transferir», «Recargas». `CARD_REFUND`/`REFUND`, o un pago con tarjeta con importe positivo, son devoluciones: gasto con importe positivo |
-| `Producto` | `Product` | Solo se importa `Actual` / `Current`. Las filas de huchas (`Savings`) se omiten porque el traspaso ya aparece en la cuenta |
-| `Fecha de inicio` | `Started Date` | Fecha y hora del movimiento. En Excel es una fecha de Excel con fracciones de segundo: se redondea al segundo |
-| `Fecha de finalización` | `Completed Date` | Fecha valor. Vacía en los pendientes |
-| `Descripción` | `Description` | Concepto: comercio, «Transferencia de …», «Recarga de \*NNNN», «To pocket …» |
-| `Importe` | `Amount` | Importe con signo. En Excel es un número con 2 decimales como máximo; se convierte a `Decimal` sin operar con `float` |
-| `Comisión` | `Fee` | Comisión aparte: el efecto en la cuenta es `Importe − Comisión` |
-| `Divisa` | `Currency` | Moneda del movimiento |
-| `State` | `State` | Solo `COMPLETADO` / `COMPLETED`. Los pendientes se importarán cuando se completen; revertidos, rechazados y fallidos se descartan |
-| `Saldo` | `Balance` | Saldo tras el movimiento: se usa para comprobar que no faltan filas. Vacío en los pendientes |
+| `Tipo` | `Type` | Origin. Seen: "Pago con tarjeta" (card payment), "Transferir" (transfer), "Recargas" (top-ups). `CARD_REFUND`/`REFUND`, or a card payment with a positive amount, are refunds: an expense with a positive amount |
+| `Producto` | `Product` | Only `Actual` / `Current` is imported. Pocket rows (`Savings`) are skipped because the transfer already appears in the account |
+| `Fecha de inicio` | `Started Date` | Date and time of the transaction. In Excel it is an Excel date with fractions of a second: rounded to the second |
+| `Fecha de finalización` | `Completed Date` | Value date. Empty for pending ones |
+| `Descripción` | `Description` | Description: merchant, "Transferencia de …", "Recarga de \*NNNN", "To pocket …" |
+| `Importe` | `Amount` | Signed amount. In Excel it is a number with at most 2 decimals; it is converted to `Decimal` without operating on `float` |
+| `Comisión` | `Fee` | Separate fee: the effect on the account is `Importe − Comisión` |
+| `Divisa` | `Currency` | Currency of the transaction |
+| `State` | `State` | Only `COMPLETADO` / `COMPLETED`. Pending ones will be imported once completed; reverted, rejected and failed ones are discarded |
+| `Saldo` | `Balance` | Balance after the transaction: used to check that no rows are missing. Empty for pending ones |
 
-Notas del Excel real:
+Notes on the real Excel:
 
-- Algunas cabeceras llegan con la codificación rota (`DescripciÃ³n`, `ComisiÃ³n`); en el Excel se reparan (cabeceras y conceptos). Se aceptan también bien escritas. El CSV se lee tal cual, sin reparar, para no cambiar sus huellas.
-- Las filas pendientes son más cortas: no traen fecha de finalización ni saldo.
-- El archivo va ordenado por **fecha de finalización**, y en ese orden cuadra el saldo. No se reordena por fecha de inicio.
-- Algunos conceptos traen `?` en lugar de caracteres que Revolut no ha sabido exportar. No se pueden recuperar y se guardan tal cual.
+- Some headers arrive with broken encoding (`DescripciÃ³n`, `ComisiÃ³n`); in the Excel they are repaired (headers and descriptions). Correctly spelled ones are also accepted. The CSV is read as-is, without repair, so as not to change its fingerprints.
+- Pending rows are shorter: they have no completion date or balance.
+- The file is sorted by **completion date**, and the balance adds up in that order. It is not reordered by start date.
+- Some descriptions contain `?` in place of characters that Revolut could not export. They cannot be recovered and are stored as-is.
 
-**Duplicados:** Revolut no da un identificador por movimiento. La huella combina cuenta, fecha y hora al segundo, importe, concepto normalizado y orden de aparición de filas idénticas en el archivo. El mismo extracto en CSV y en Excel con los mismos conceptos da las mismas huellas.
+**Duplicates:** Revolut does not give an identifier per transaction. The fingerprint combines account, date and time to the second, amount, normalized description, and order of appearance of identical rows in the file. The same statement in CSV and in Excel with the same descriptions gives the same fingerprints.
 
-**Clasificación automática:**
+**Automatic classification:**
 
-- Entradas con el nombre de una persona (nombre completo o primer nombre, sin tildes; p. ej. «Transferencia de RAUL …») → **aportación** de esa persona.
-- Entradas que coinciden con un patrón de entrada guardado para una persona (p. ej. «Recarga de \*1234», con los últimos dígitos de su tarjeta) → **aportación** de esa persona. Ver «Patrones por persona».
-- «To pocket …» → **traspaso a ahorro**; «From pocket …» → traspaso desde la hucha (positivo, no es ingreso).
-- Nombres y patrones se buscan por palabra completa: «ANA» no reconoce «MARIANA».
-- Otras entradas (Bizum recibidos, intereses) → **ingreso**.
-- El resto → **gasto**, pendiente de categoría.
+- Inflows with a person's name (full name or first name, without accents; e.g. "Transferencia de RAUL …") → that person's **contribution**.
+- Inflows matching an inflow pattern saved for a person (e.g. "Recarga de \*1234", with the last digits of their card) → that person's **contribution**. See "Patterns per person".
+- "To pocket …" → **transfer to savings**; "From pocket …" → transfer from the pocket (positive, not income).
+- Names and patterns are matched by whole word: "ANA" does not match "MARIANA".
+- Other inflows (received Bizum payments, interest) → **income**.
+- Everything else → **expense**, pending a category.
 
-### Por confirmar
+### To be confirmed
 
-- [x] Cabeceras exactas: en español en el Excel (ver tabla), en inglés en el CSV.
-- [x] Valor de `Producto` en la cuenta conjunta: `Actual`.
-- [x] Texto de las aportaciones: «Transferencia de NOMBRE APELLIDOS» y «Recarga de \*NNNN».
-- [ ] Si la hora está en hora local o en UTC: decide en qué día cae un pago de madrugada.
-- [ ] Signo de `Comisión` y si `Saldo` ya la descuenta: en la muestra todas las comisiones son 0.
-- [ ] Texto exacto de los movimientos a huchas en el Excel en español (hoy se reconocen «To pocket» y «From pocket»).
-- [ ] Texto de las recargas de la conjunta hacia las cuentas personales, para reconocerlas como traspaso interno (OF-602).
+- [x] Exact headers: in Spanish in the Excel (see table), in English in the CSV.
+- [x] Value of `Producto` in the joint account: `Actual`.
+- [x] Text of contributions: "Transferencia de NAME SURNAMES" and "Recarga de \*NNNN".
+- [ ] Whether the time is local time or UTC: it decides which day an early-morning payment falls on.
+- [ ] Sign of `Comisión` and whether `Saldo` already deducts it: in the sample all fees are 0.
+- [ ] Exact text of the transfers to pockets in the Spanish Excel (today "To pocket" and "From pocket" are recognized).
+- [ ] Text of the top-ups from the joint account to the personal accounts, to recognize them as an internal transfer (OF-602).
 
-## Bankinter · cuentas personales
+## Bankinter · personal accounts
 
-Cada persona tiene la suya; **solo la ve su titular** (ADR-0013).
+Each person has their own; **only its owner sees it** (ADR-0013).
 
-**Cómo descargarlo:** web de Bankinter → cuenta → *Movimientos* → descargar en Excel (.xlsx). Los `.xls` antiguos no se admiten: hay que exportar en `.xlsx`.
+**How to download it:** Bankinter website → account → *Movimientos* (Transactions) → download as Excel (.xlsx). Old `.xls` files are not supported: export as `.xlsx`.
 
-Estructura de la hoja `Movimientos` (validada con un extracto real):
+Structure of the `Movimientos` sheet (validated with a real statement):
 
-1. Primera fila: «MOVIMIENTOS DE LA CUENTA …» con el número de cuenta. **No se lee** y nunca aparece en mensajes ni en filas descartadas.
-2. «MOVIMIENTOS PENDIENTES …» y, debajo, su propia cabecera `Fecha, Descripción, Importe, Divisa` con los pendientes. Se descartan con el motivo «pendiente: se importará cuando se contabilice».
-3. «MOVIMIENTOS» y los filtros aplicados en la web (`Concepto`, `Fecha`, `Tipo de movimiento`, `Importe`). Se ignoran.
-4. La cabecera real y los movimientos:
+1. First row: "MOVIMIENTOS DE LA CUENTA …" (account transactions) with the account number. It is **not read** and never appears in messages or discarded rows.
+2. "MOVIMIENTOS PENDIENTES …" (pending transactions) and, below it, its own header `Fecha, Descripción, Importe, Divisa` with the pending ones. They are discarded with the reason "pendiente: se importará cuando se contabilice" (pending: will be imported once posted).
+3. "MOVIMIENTOS" and the filters applied on the website (`Concepto`, `Fecha`, `Tipo de movimiento`, `Importe`). They are ignored.
+4. The real header and the transactions:
 
-| Columna | Uso en OpenFinance |
+| Column | Use in OpenFinance |
 | --- | --- |
-| `Fecha contable` | Fecha del movimiento, texto `dd/mm/aaaa`. Bankinter no da hora: se guarda a las 00:00 |
-| `Fecha valor` | Fecha valor, `dd/mm/aaaa` |
-| `Descripción` | Concepto |
-| `Importe` | Importe con signo (número entero o decimal) |
-| `Saldo` | Saldo tras el movimiento |
-| `Divisa` | Moneda |
+| `Fecha contable` | Date of the transaction, text `dd/mm/aaaa`. Bankinter gives no time: it is stored at 00:00 |
+| `Fecha valor` | Value date, `dd/mm/aaaa` |
+| `Descripción` | Description |
+| `Importe` | Signed amount (integer or decimal number) |
+| `Saldo` | Balance after the transaction |
+| `Divisa` | Currency |
 
-- Los movimientos van **del más reciente al más antiguo**; se invierten y en ese orden cuadra el saldo.
-- **Duplicados:** como no hay hora, la huella añade el saldo tras el movimiento. Así dos movimientos iguales el mismo día no se fusionan y un extracto que solapa con otro solo añade lo nuevo.
+- Transactions come **from newest to oldest**; they are reversed and the balance adds up in that order.
+- **Duplicates:** since there is no time, the fingerprint adds the balance after the transaction. This way two identical transactions on the same day are not merged, and a statement overlapping another only adds what is new.
 
-**Clasificación automática:**
+**Automatic classification:**
 
-- Salidas «Revolut\*\*NNNN\*» (la recarga de la conjunta) → **aportación** del titular: una salida que no es gasto ni cuenta en los totales del hogar. Esta regla es solo de Bankinter.
-- Salidas que coinciden con un patrón de salida guardado para el titular → **aportación** del titular.
-- Transferencias y Bizum: entrada → **ingreso**; salida → **gasto**. En la cuenta personal no se usan los nombres: un Bizum de la pareja es un ingreso.
+- Outflows "Revolut\*\*NNNN\*" (the top-up of the joint account) → **contribution** by the account holder: an outflow that is neither an expense nor counted in the household totals. This rule is Bankinter-only.
+- Outflows matching an outflow pattern saved for the holder → **contribution** by the holder.
+- Transfers and Bizum: inflow → **income**; outflow → **expense**. In the personal account names are not used: a Bizum from the partner is income.
 
-## Patrones por persona
+## Patterns per person
 
-Las aportaciones que no llevan el nombre se reconocen con patrones guardados por persona (ADR-0015). Se gestionan desde el servidor; escribe el patrón **entre comillas simples** para que la shell no toque `*` ni los espacios:
+Contributions that do not carry the name are recognized with patterns saved per person (ADR-0015). They are managed from the server; write the pattern **in single quotes** so the shell does not touch `*` or spaces:
 
 ```bash
 cd services/api
-uv run openfinance member-patterns add raul@example.org '*1234'              # entrada en la conjunta
-uv run openfinance member-patterns add raul@example.org 'TRASPASO CASA' --outflow  # salida de su Bankinter
+uv run openfinance member-patterns add raul@example.org '*1234'              # inflow in the joint account
+uv run openfinance member-patterns add raul@example.org 'TRASPASO CASA' --outflow  # outflow from their Bankinter
 uv run openfinance member-patterns list raul@example.org
 uv run openfinance member-patterns remove raul@example.org '*1234'
 ```
 
-- Un patrón necesita al menos 3 letras o cifras (`*1234` sí, `***` no) y como mucho 60 caracteres.
-- `REVOLUT**` como patrón de salida ya viene incluido en las cuentas personales de Bankinter. En una cuenta personal de otra entidad hay que guardarlo si significa lo mismo.
+- A pattern needs at least 3 letters or digits (`*1234` yes, `***` no) and at most 60 characters.
+- `REVOLUT**` as an outflow pattern is already included in Bankinter personal accounts. In a personal account at another institution you have to save it if it means the same.
 
-## Comprobar un extracto sin guardarlo
+## Check a statement without saving it
 
 ```bash
 cd services/api
@@ -114,18 +114,18 @@ uv run openfinance statement-check --bank revolut   ruta/al/extracto.xlsx
 uv run openfinance statement-check --bank bankinter ruta/a/movimientos.xlsx
 ```
 
-Solo muestra recuentos (filas, importables, descartadas por motivo, descuadres de saldo, tipos propuestos y aportaciones con o sin persona). No muestra conceptos, importes, números de cuenta ni el nombre del archivo, y no necesita base de datos.
+It only shows counts (rows, importable, discarded by reason, balance mismatches, proposed types, and contributions with or without a person). It does not show descriptions, amounts, account numbers or the file name, and it needs no database.
 
 
-## Otros bancos (formatos estándar y CSV con perfil)
+## Other banks (standard formats and CSV with profile)
 
-Las cuentas sin banco propio (efectivo, tarjeta, préstamo, inversión y las de un banco que no está arriba) importan por la misma vista previa. El formato se reconoce por el **contenido**, no por el nombre del archivo:
+Accounts without their own bank (cash, card, loan, investment, and those from a bank not listed above) import through the same preview. The format is recognized by its **content**, not by the file name:
 
-| Formato | Qué hay que saber |
+| Format | What to know |
 | --- | --- |
-| **OFX** (versiones 1 y 2) | Trae moneda e identificador de cada movimiento; si trae el saldo del banco, se comprueba. Un archivo con varias cuentas se rechaza. |
-| **QIF** | No trae moneda (se usa la de la cuenta) ni identificador. Las fechas son ambiguas: si todas valen día/mes y mes/día, se rechaza el archivo en vez de adivinar; pide un OFX. |
-| **CAMT.053** | El XML de ISO 20022 que dan muchos bancos europeos. Se lee con `defusedxml` (sin entidades externas). Una entrada con varios movimientos se importa como varias filas. Lo pendiente se descarta. |
-| **CSV de cualquier banco** | Hace falta un **perfil**: en *Importar → Crear un perfil de CSV* se elige un extracto de ejemplo y se indica la columna de la fecha, el concepto y el importe (o debe y haber), el formato de fecha y el separador decimal. Se prueba antes de guardar y se reutiliza. |
+| **OFX** (versions 1 and 2) | Carries currency and an identifier for each transaction; if it carries the bank balance, it is checked. A file with several accounts is rejected. |
+| **QIF** | Carries no currency (the account's is used) and no identifier. Dates are ambiguous: if all of them are valid as day/month and month/day, the file is rejected instead of guessing; ask for an OFX. |
+| **CAMT.053** | The ISO 20022 XML that many European banks provide. It is read with `defusedxml` (no external entities). An entry with several transactions is imported as several rows. Pending items are discarded. |
+| **CSV from any bank** | A **profile** is needed: in *Importar → Crear un perfil de CSV* (Import → Create a CSV profile) you choose a sample statement and indicate the date column, the description and the amount (or debit and credit), the date format and the decimal separator. It is tested before saving and reused. |
 
-Los extractos reales nunca van al repositorio: las pruebas usan archivos sintéticos (`services/api/tests/fixtures/synthetic*`).
+Real statements never go into the repository: tests use synthetic files (`services/api/tests/fixtures/synthetic*`).

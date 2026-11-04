@@ -7,6 +7,7 @@ import { ErrorState, Loading } from '../../components/LoadState'
 import { formatMoney } from '../../lib/format'
 import { ExchangeRates } from './ExchangeRates'
 import { BankSettings } from './BankSettings'
+import { MembersSettings } from './MembersSettings'
 import { NotificationSettings } from './NotificationSettings'
 import { type Theme, getTheme, setTheme } from '../../lib/theme'
 import { useLoad } from '../../lib/useLoad'
@@ -374,6 +375,7 @@ export function SettingsPage() {
           <RechargeCards />
           <Appearance />
           <Accounts />
+          <MembersSettings />
           <BankSettings />
           <NotificationSettings />
           <ExchangeRates />
@@ -390,6 +392,9 @@ export function SettingsPage() {
               </li>
               <li>
                 <a href="#pagos">Pagos programados</a> · alquiler, seguros, nóminas: lo que sabéis que va a llegar
+              </li>
+              <li>
+                <a href="#reparto">Reparto de gastos</a> · lo que paga uno por todos, quién debe a quién
               </li>
               <li>
                 <a href="#reglas">Reglas</a>

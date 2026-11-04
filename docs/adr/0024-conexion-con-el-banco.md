@@ -1,52 +1,53 @@
-# ADR-0024: Conexión con el banco mediante un agregador PSD2
+# ADR-0024: Bank connection through a PSD2 aggregator
 
-- Estado: Accepted
-- Fecha: 2026-11-03
+- Status: Accepted
+- Date: 2026-11-03
 
-## Contexto
+## Context
 
-Hasta ahora los movimientos entran por extractos (CSV, OFX, CAMT…) o a mano. Revolut y Bankinter, los bancos del hogar, publican su información por PSD2, pero un banco solo la entrega a un proveedor autorizado (AISP). Un proyecto self-hosted no puede ser AISP, así que necesita un **agregador** que lo sea. La instalación es propia: cada hogar crea su cuenta en el agregador y las claves no salen de su servidor.
+Until now, transactions enter through statements (CSV, OFX, CAMT…) or by hand. Revolut and Bankinter, the household's banks, publish their information through PSD2, but a bank only hands it to an authorized provider (AISP). A self-hosted project cannot be an AISP, so it needs an **aggregator** that is one. The installation is self-hosted: each household creates its own account with the aggregator and the keys never leave its server.
 
-## Decisión
+## Decision
 
-### Agregador: Enable Banking
+### Aggregator: Enable Banking
 
-- Se usa [Enable Banking](https://enablebanking.com) con **la cuenta del propio hogar**. Su modo de producción restringido permite enlazar las cuentas de quien registra la aplicación, sin contrato comercial. OpenFinance no pasa por ningún servidor nuestro.
-- La API se firma con un JWT RS256 (`kid` = identificador de la aplicación, `iss` = `enablebanking.com`, `aud` = `api.enablebanking.com`, caduca en una hora) con la clave privada que descarga quien registra la aplicación. Se configura con `OPENFINANCE_BANK_APP_ID`, `OPENFINANCE_BANK_PRIVATE_KEY` (el PEM) y `OPENFINANCE_BANK_REDIRECT_URL`. **Sin esas variables la conexión está apagada** y Ajustes lo dice; el resto de la app no cambia.
-- El agregador va detrás de un puerto (`BankAggregator`). Otro proveedor (GoCardless, Tink…) sería un adaptador más. Los tests usan un agregador simulado: no se prueba contra bancos reales en CI.
-- Sin dependencia nueva: el cliente usa `urllib` de la biblioteca estándar y `cryptography` (ya presente por `pywebpush`, que pasa a declararse como dependencia directa).
+- [Enable Banking](https://enablebanking.com) is used with **the household's own account**. Its restricted production mode allows linking the accounts of whoever registers the application, with no commercial contract. OpenFinance does not go through any server of ours.
+- The API is signed with an RS256 JWT (`kid` = application identifier, `iss` = `enablebanking.com`, `aud` = `api.enablebanking.com`, expires in one hour) using the private key downloaded by whoever registers the application. It is configured with `OPENFINANCE_BANK_APP_ID`, `OPENFINANCE_BANK_PRIVATE_KEY` (the PEM) and `OPENFINANCE_BANK_REDIRECT_URL`. **Without those variables the connection is off** and "Ajustes" ("Settings") says so; the rest of the app does not change.
+- The aggregator sits behind a port (`BankAggregator`). Another provider (GoCardless, Tink…) would be one more adapter. Tests use a simulated aggregator: there is no testing against real banks in CI.
+- No new dependency: the client uses `urllib` from the standard library and `cryptography` (already present through `pywebpush`, which is now declared as a direct dependency).
 
-### Consentimiento (OF-1401)
+### Consent (OF-1401)
 
-- Una **conexión** la crea una persona para un banco y es **suya**: solo ella la ve, la enlaza, la sincroniza o la revoca. Otra persona del hogar, o de otro hogar, recibe 404.
-- Flujo: `POST /bank/connections` (banco y país) devuelve la URL del banco y guarda un `state` aleatorio de un solo uso; el banco redirige a `OPENFINANCE_BANK_REDIRECT_URL` con `code` y `state`; la web llama a `POST /bank/connections/complete`, que exige que el `state` pertenezca a una conexión pendiente **de la persona con sesión**. La finalización es un POST (con `X-Requested-With`), no un GET con efectos, para que un enlace ajeno no pueda completar nada.
-- Al completar, el agregador devuelve las cuentas autorizadas. Cada una queda **sin enlazar** hasta que la persona la asigna a una cuenta de OpenFinance que ella vea (ADR-0013) y de la misma moneda; una cuenta personal ajena no se puede elegir. Una cuenta del banco enlaza con una sola cuenta de OpenFinance y al revés.
-- El identificador de sesión del agregador no se devuelve nunca por la API ni se escribe en logs. Lo que se muestra del banco es el nombre y los últimos cuatro dígitos del IBAN.
-- **Revocar** pide al agregador cerrar la sesión (si falla, igualmente se marca revocada y se avisa) y detiene la sincronización. Los movimientos ya traídos no se tocan.
+- A **connection** is created by one person for one bank and is **theirs**: only they see it, link it, sync it or revoke it. Another person in the household, or in another household, gets 404.
+- Flow: `POST /bank/connections` (bank and country) returns the bank's URL and stores a random single-use `state`; the bank redirects to `OPENFINANCE_BANK_REDIRECT_URL` with `code` and `state`; the web app calls `POST /bank/connections/complete`, which requires the `state` to belong to a pending connection **of the signed-in person**. Completion is a POST (with `X-Requested-With`), not a GET with side effects, so a foreign link cannot complete anything.
+- On completion, the aggregator returns the authorized accounts. Each one stays **unlinked** until the person assigns it to an OpenFinance account they can see (ADR-0013) and of the same currency; another person's personal account cannot be chosen. A bank account links to a single OpenFinance account and vice versa.
+- The aggregator's session identifier is never returned by the API nor written to logs. What is shown about the bank is the name and the last four digits of the IBAN.
+- **Revoking** asks the aggregator to close the session (if that fails, it is marked revoked anyway and a warning is shown) and stops synchronization. Transactions already fetched are not touched.
 
-### Sincronización (OF-1402)
+### Synchronization (OF-1402)
 
-- Reutiliza **la misma tubería que la importación**: cada movimiento del banco se convierte en una fila normalizada con su huella y pasa por las mismas reglas de categorías, comercios y aportaciones. La huella es `bank:<identificador del banco>` cuando el banco lo da, y la huella habitual por fecha, importe y concepto cuando no, así que sincronizar dos veces no duplica.
-- Cada sincronización crea un **lote de importación** (`banco:<nombre>`), de modo que se ve en el historial y se puede deshacer como cualquier otra importación.
-- Solo entran movimientos **contabilizados** (`BOOK`); los pendientes no cuentan hasta que el banco los fije, para que un cargo retenido que luego cambia de importe no genere un duplicado.
-- Ventana: la primera vez, 90 días; después, desde 7 días antes de la última sincronización correcta (los bancos corrigen fechas con retraso, y las huellas evitan repetir).
-- **Nada corre dentro del servidor**: `openfinance bank sync` lo lanza cron, como las copias y los avisos. Hay también un botón «Sincronizar ahora» por conexión. Una sincronización fallida guarda el motivo y no toca nada de esa cuenta, y no hay reintentos agresivos: PSD2 admite unas 4 consultas diarias por cuenta sin presencia de la persona, así que `bank sync` no consulta una conexión que se sincronizó hace menos de 6 horas, y «Sincronizar ahora» (con la persona delante) espera 5 minutos entre pulsaciones.
-- La sincronización actúa **con la persona titular de la conexión** y solo escribe en las cuentas enlazadas, que esa persona ve.
+- It reuses **the same pipeline as import**: each bank transaction becomes a normalized row with its fingerprint and goes through the same rules for categories, merchants and contributions. The fingerprint is `bank:<bank identifier>` when the bank provides one, and the usual fingerprint by date, amount and description when it does not, so syncing twice does not duplicate.
+- Each synchronization creates an **import batch** (`banco:<name>`), so it shows in the history and can be undone like any other import.
+- Only **booked** transactions (`BOOK`) come in; pending ones do not count until the bank settles them, so that a held charge that later changes amount does not create a duplicate.
+- Window: the first time, 90 days; afterwards, from 7 days before the last successful synchronization (banks correct dates late, and the fingerprints avoid repeats).
+- **Nothing runs inside the server**: `openfinance bank sync` is launched by cron, like backups and alerts. There is also a "Sincronizar ahora" ("Sync now") button per connection. A failed synchronization stores the reason and touches nothing in that account, and there are no aggressive retries: PSD2 allows about 4 queries per day per account without the person present, so `bank sync` does not query a connection that was synchronized less than 6 hours ago, and "Sincronizar ahora" (with the person present) waits 5 minutes between presses.
+- Synchronization acts **as the person who owns the connection** and only writes to the linked accounts, which that person can see.
 
-### Caducidad del consentimiento (OF-1403)
+### Consent expiry (OF-1403)
 
-- PSD2 limita el consentimiento (hasta 180 días). Se guarda `valid_until`; pasada esa fecha la conexión pasa a **caducada** y deja de sincronizar.
-- Un aviso nuevo (`consent`, ADR-0023) salta 14 días antes de caducar y otro, más grave, cuando ya caducó (durante un mes; si ya hay otra conexión activa con el mismo banco se da por renovado). Son solo de la persona titular y se pueden descartar y elegir como notificación. Renovar es crear una conexión nueva y enlazarla a las mismas cuentas: la huella de cada movimiento es la referencia del banco, **sin** el identificador de la conexión ni el de la cuenta en el agregador (cambian al renovar), así que el historial no se duplica.
+- PSD2 limits consent (up to 180 days). `valid_until` is stored; after that date the connection becomes **expired** and stops synchronizing.
+- A new alert (`consent`, ADR-0023) fires 14 days before expiry and another, more serious one, once it has expired (for one month; if another active connection with the same bank already exists it is considered renewed). They are only for the owning person and can be dismissed and chosen as a notification. Renewing is creating a new connection and linking it to the same accounts: each transaction's fingerprint is the bank's reference, **without** the connection identifier or the account identifier in the aggregator (they change on renewal), so the history is not duplicated.
 
-### Conciliación automática (OF-1404)
+### Automatic reconciliation (OF-1404)
 
-- Al sincronizar, una fila del banco que no es duplicada por huella busca un movimiento **ya anotado** (a mano o importado de un extracto) en la misma cuenta con el **mismo importe** y fecha a **≤ 3 días**, que no venga ya del banco ni esté conciliado. Si hay **exactamente uno**, queda conciliado: no se crea otro. Con varios candidatos no se adivina: se crea el movimiento nuevo y el hogar decide. Cada movimiento ya anotado se concilia con una sola fila.
-- La conciliación guarda la huella del banco **aparte** (`transactions.bank_ref`) y no toca la huella propia del movimiento ni su lote. Así reimportar el mismo extracto después de conciliar sigue sin duplicar (regla del hogar) y deshacer una sincronización no anula lo que alguien anotó. El texto, la categoría y la nota de lo anotado no se reescriben.
-- Tras sincronizar se compara el saldo que informa el banco (el contable al cierre, si lo da) con el calculado en OpenFinance a esa fecha y se guarda la diferencia en el enlace; se ve en Ajustes. Es informativo: no se corrige nada solo ni se crea una conciliación de saldo (OF-1006) sin que alguien la haga.
+- When synchronizing, a bank row that is not a duplicate by fingerprint looks for a transaction **already recorded** (by hand or imported from a statement) in the same account with the **same amount** and a date within **≤ 3 days**, that does not already come from the bank nor is reconciled. If there is **exactly one**, it is reconciled: no other is created. With several candidates it does not guess: the new transaction is created and the household decides. Each already-recorded transaction is reconciled with only one row.
+- Reconciliation stores the bank fingerprint **separately** (`transactions.bank_ref`) and does not touch the transaction's own fingerprint or its batch. This way re-importing the same statement after reconciling still does not duplicate (household rule) and undoing a synchronization does not void what someone recorded. The text, category and note of what was recorded are not rewritten.
+- After synchronizing, the balance reported by the bank (the booked closing one, if provided) is compared with the one computed in OpenFinance at that date and the difference is stored on the link; it is shown in "Ajustes". It is informational: nothing is corrected on its own and no balance reconciliation (OF-1006) is created unless someone does it.
 
-## Consecuencias
+## Consequences
 
-- Se añaden `bank_connections` y `bank_links`, y `transactions.bank_ref`. Los movimientos traídos entran en el registro de cambios por su lote de importación, como los de un extracto.
-- Los datos bancarios pasan por el agregador elegido por el hogar. La documentación de despliegue explica cómo crear la aplicación, qué se comparte y cómo revocar.
-- **No probado contra un banco real**: el adaptador sigue la documentación pública del agregador y se prueba con respuestas simuladas. La primera conexión real puede pedir ajustes (campos opcionales, límites de cada banco).
-- Los pagos y las transferencias iniciadas desde OpenFinance quedan fuera: solo lectura de cuentas.
+- `bank_connections` and `bank_links` are added, along with `transactions.bank_ref`. Fetched transactions enter the change log through their import batch, like those from a statement.
+- Bank data goes through the aggregator chosen by the household. The deployment documentation explains how to create the application, what is shared and how to revoke.
+- **Tested with Revolut (`ES`) on 3 November 2026**: JWT signing, bank list, authorization, return from the bank, accounts and a real synchronization (132 transactions over 90 days, sum equal to the bank balance). **Bankinter has not** been tested yet. The adapter continues to be tested in CI with simulated responses.
+- The aggregator **only accepts `https` return addresses**; for local testing `https://localhost/` works with Compose's `https` mode. An account's opening balance is the one prior to the first synchronized transaction (see the deployment guide).
+- Payments and transfers initiated from OpenFinance are out of scope: read-only access to accounts.

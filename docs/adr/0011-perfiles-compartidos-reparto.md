@@ -1,74 +1,74 @@
-# ADR-0011: Perfiles compartidos y reparto de gastos
+# ADR-0011: Shared profiles and expense splitting
 
-- Estado: Proposed
-- Fecha: 2026-10-31
+- Status: Proposed
+- Date: 2026-10-31
 
-## Contexto
+## Context
 
-Además del perfil de cada persona, se necesitan perfiles comunes, como «Casa», en los que varias personas comparten gastos (wifi, luz, agua, compras…). Se debe cubrir tanto el caso 1 a 1 (una pareja) como el N a N (un piso compartido). Un perfil común puede tener una cuenta conjunta y también gastos que paga una persona de su bolsillo. Algunas personas del grupo pueden no tener usuario en OpenFinance.
+Besides each person's profile, shared profiles are needed, such as "Casa" (Home), in which several people share expenses (wifi, electricity, water, groceries…). Both the 1-to-1 case (a couple) and the N-to-N case (a shared flat) must be covered. A shared profile can have a joint account and also expenses that one person pays out of pocket. Some people in the group may not have a user in OpenFinance.
 
-## Decisión
+## Decision
 
-### Perfil común = workspace compartido
+### Shared profile = shared workspace
 
-Se reutiliza `Workspace` (ADR-0002) con `kind = personal | shared`. Un workspace compartido puede usar una plantilla (Casa, Pareja, Viaje, Grupo) que aporta icono y categorías por defecto, sin cambiar el modelo. El reparto de gastos es un módulo oficial (`official.sharing`, ADR-0006) y un nuevo contexto de dominio, `sharing`.
+`Workspace` (ADR-0002) is reused with `kind = personal | shared`. A shared workspace can use a template (Casa, Pareja, Viaje, Grupo; that is, Home, Couple, Trip, Group) that provides an icon and default categories, without changing the model. Expense splitting is an official module (`official.sharing`, ADR-0006) and a new domain context, `sharing`.
 
-### Entidades
+### Entities
 
-| Entidad | Responsabilidad |
+| Entity | Responsibility |
 | --- | --- |
-| `Participant` | Persona que comparte gastos en el workspace. Puede tener `user_id` o no. |
-| `SharedExpense` | Gasto con importe, fecha, categoría, **quién pagó** y **cómo se reparte**. |
-| `ExpenseSplit` | Parte de cada participante en un gasto. Se guarda el importe resultante, no solo la regla. |
-| `Contribution` | Aportación de un participante a la cuenta común. |
-| `Settlement` | Liquidación de una deuda entre dos participantes. |
+| `Participant` | Person who shares expenses in the workspace. May or may not have a `user_id`. |
+| `SharedExpense` | Expense with amount, date, category, **who paid** and **how it is split**. |
+| `ExpenseSplit` | Each participant's share of an expense. The resulting amount is stored, not just the rule. |
+| `Contribution` | A participant's contribution to the joint account. |
+| `Settlement` | Settlement of a debt between two participants. |
 
-- **Participantes sin usuario:** se crean por nombre y no tienen acceso a nada. Un owner o editor registra los movimientos en su nombre. Más adelante se pueden vincular a un usuario mediante una invitación sin perder el histórico.
-- **Miembros y participantes:** cada miembro con usuario tiene un `Participant`. El rol (`owner`/`editor`/`viewer`) controla lo que puede hacer; el participante, en qué se reparte.
+- **Participants without a user:** they are created by name and have no access to anything. An owner or editor records the transactions on their behalf. Later they can be linked to a user through an invitation without losing the history.
+- **Members and participants:** each member with a user has a `Participant`. The role (`owner`/`editor`/`viewer`) controls what they can do; the participant, what is split among them.
 
-### Quién paga
+### Who pays
 
-Un gasto lo paga una de estas dos fuentes:
+An expense is paid by one of these two sources:
 
-1. **La cuenta común**: es un `Account` del workspace compartido y se nutre de `Contribution`s.
-2. **Uno o varios participantes de su bolsillo.** La suma de lo pagado tiene que ser igual al importe del gasto.
+1. **The joint account**: it is an `Account` of the shared workspace and is funded by `Contribution`s.
+2. **One or several participants out of pocket.** The sum of what was paid must equal the expense amount.
 
-### Cómo se reparte
+### How it is split
 
-Métodos: `equal` (partes iguales), `percentage`, `exact` (importes) y `shares` (pesos, por ejemplo 2:1:1). Puede participar un subconjunto del grupo (1 a 1 dentro de un grupo de N).
+Methods: `equal` (equal shares), `percentage`, `exact` (amounts) and `shares` (weights, for example 2:1:1). A subset of the group can take part (1 to 1 within a group of N).
 
-- Los cálculos se hacen en unidades menores enteras (céntimos). Si sobran céntimos, se asignan con el método del **mayor resto**, con desempate determinista por el orden de los participantes. La suma de las partes es siempre **exactamente** el importe del gasto. Si no cuadra, el Core rechaza el gasto.
-- Se guardan el método y el resultado. Cambiar el método recalcula y deja traza en auditoría.
+- Calculations are done in integer minor units (cents). If cents are left over, they are assigned with the **largest remainder** method, with deterministic tie-breaking by participant order. The sum of the parts is always **exactly** the expense amount. If it does not add up, the Core rejects the expense.
+- The method and the result are stored. Changing the method recalculates and leaves a trace in the audit.
 
-### Dos saldos separados
+### Two separate balances
 
-Para que el dinero de la cuenta común no se mezcle con las deudas entre personas:
+So that the joint account's money does not get mixed with the debts between people:
 
-- **Participación en el fondo** de cada persona = aportado − su parte de los gastos pagados con la cuenta común. La suma de todas las participaciones es exactamente el saldo de la cuenta común.
-- **Saldo entre personas** = pagado de su bolsillo − su parte de esos gastos + liquidaciones enviadas − liquidaciones recibidas. La suma de todos los saldos es exactamente 0.
+- **Each person's stake in the fund** = contributed − their share of the expenses paid with the joint account. The sum of all stakes is exactly the joint account's balance.
+- **Balance between people** = paid out of pocket − their share of those expenses + settlements sent − settlements received. The sum of all balances is exactly 0.
 
-Las sugerencias de «quién paga a quién» se calculan solo sobre el saldo entre personas: el dinero se queda en la cuenta común salvo que el grupo decida repartirlo. El algoritmo emparejará deudores y acreedores con el mínimo de transferencias.
+The "who pays whom" suggestions are calculated only on the balance between people: the money stays in the joint account unless the group decides to distribute it. The algorithm will match debtors and creditors with the minimum number of transfers.
 
-### Liquidaciones con doble confirmación
+### Settlements with double confirmation
 
-Quien paga registra el `Settlement` y queda `pending_confirmation` hasta que el receptor lo confirma, o un owner o editor si el receptor no tiene usuario. Solo entonces modifica los saldos.
+The payer records the `Settlement` and it stays `pending_confirmation` until the receiver confirms it, or an owner or editor if the receiver has no user. Only then does it change the balances.
 
-### Relación con el perfil personal
+### Relationship with the personal profile
 
-Si Ana paga la luz de Casa (90 €, un tercio le corresponde a ella) desde su cuenta personal:
+If Ana pays Casa's electricity bill (€90, a third of which is hers) from her personal account:
 
-- En su workspace personal, el movimiento de −90 € se enlaza al `SharedExpense` como **«Gasto compartido · Casa»**. Su **gasto real son 30 €**; los 60 € restantes son un importe pendiente de cobro al grupo, no un gasto.
-- Una aportación a la cuenta común es un movimiento hacia el perfil compartido, igual que una transferencia: **no cuenta como gasto**. El gasto aparece cuando la cuenta común paga algo, por la parte que le corresponde a cada persona.
-- Los demás miembros de Casa ven «pagado por Ana», pero **nunca** la cuenta personal ni el movimiento de origen (ADR-0002).
+- In her personal workspace, the −€90 transaction is linked to the `SharedExpense` as **"Gasto compartido · Casa" (Shared expense · Home)**. Her **real expense is €30**; the remaining €60 is an amount pending collection from the group, not an expense.
+- A contribution to the joint account is a movement towards the shared profile, like a transfer: **it does not count as an expense**. The expense appears when the joint account pays something, for the share that corresponds to each person.
+- The other members of Casa see "paid by Ana", but **never** the personal account or the originating transaction (ADR-0002).
 
 ### Manager
 
-El Manager puede sugerir un reparto o la categoría de un gasto importado de la cuenta común. También puede preparar liquidaciones. Todo pasa por propuesta y aprobación (ADR-0005).
+The Manager can suggest a split or the category of an expense imported from the joint account. It can also prepare settlements. Everything goes through proposal and approval (ADR-0005).
 
-## Consecuencias
+## Consequences
 
-- Nuevo contexto `sharing` y módulo oficial `official.sharing`.
-- Se necesitan enlaces entre workspaces (movimiento personal ↔ gasto compartido) que solo puede ver el dueño del movimiento de origen. Requieren tests negativos de aislamiento.
-- Un participante solo se puede eliminar cuando sus dos saldos están a 0.
-- Multimoneda: cada workspace tiene una moneda base. Un gasto en otra moneda guarda el tipo de cambio aplicado de forma explícita. En v0.1 solo se admite la moneda base.
-- Pruebas obligatorias: las partes siempre suman el importe del gasto, la suma de los saldos entre personas es 0, la suma de las participaciones es igual al saldo de la cuenta común, y repetir el registro de una liquidación es idempotente.
+- New `sharing` context and official module `official.sharing`.
+- Links between workspaces (personal transaction ↔ shared expense) are needed, visible only to the owner of the originating transaction. They require negative isolation tests.
+- A participant can only be removed when both of their balances are 0.
+- Multi-currency: each workspace has a base currency. An expense in another currency stores the applied exchange rate explicitly. In v0.1 only the base currency is supported.
+- Mandatory tests: the parts always add up to the expense amount, the sum of the balances between people is 0, the sum of the stakes equals the joint account's balance, and repeating the recording of a settlement is idempotent.

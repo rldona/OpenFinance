@@ -18,6 +18,17 @@ export type WeeklySummary = Schemas['WeeklySummaryOut']
 export type Notifications = Schemas['NotificationsOut']
 export type AlertKind = Alert['kind']
 export type Bank = Schemas['BankOut']
+export type Member = Schemas['MemberDetailOut']
+export type Invitation = Schemas['InvitationOut']
+export type Role = Member['role']
+export type Participant = Schemas['ParticipantOut']
+export type Expense = Schemas['ExpenseOut']
+export type ExpenseInput = Schemas['ExpenseIn']
+export type Balances = Schemas['BalancesOut']
+export type Settlement = Schemas['SettlementOut']
+export type SplitPart = Schemas['AmountOfOut']
+export type TripEvent = Schemas['EventOut']
+export type EventSummary = Schemas['EventSummaryOut']
 export type NetWorth = Schemas['NetWorthOut']
 export type CashFlow = Schemas['CashFlowOut']
 export type ReportDefinition = Schemas['ReportDefinitionIn']
@@ -226,6 +237,44 @@ export const api = {
   netWorth: (signal?: AbortSignal) => request<NetWorth>('GET', '/api/v1/net-worth', { signal }),
   /** Flujo de caja mensual del dinero líquido (ADR-0025, OF-1502). */
   cashFlow: (signal?: AbortSignal) => request<CashFlow>('GET', '/api/v1/cash-flow', { signal }),
+  /** Personas del hogar, roles e invitaciones (ADR-0026, OF-1601). */
+  members: (signal?: AbortSignal) => request<Member[]>('GET', '/api/v1/household/members', { signal }),
+  setMemberRole: (userId: string, role: Role) =>
+    request<void>('PUT', `/api/v1/household/members/${encodeURIComponent(userId)}/role`, { json: { role } }),
+  removeMember: (userId: string) =>
+    request<void>('DELETE', `/api/v1/household/members/${encodeURIComponent(userId)}`),
+  invitations: (signal?: AbortSignal) => request<Invitation[]>('GET', '/api/v1/household/invitations', { signal }),
+  createInvitation: (role: Role) =>
+    request<{ invitation: Invitation; token: string }>('POST', '/api/v1/household/invitations', { json: { role } }),
+  revokeInvitation: (id: string) => request<void>('DELETE', `/api/v1/household/invitations/${encodeURIComponent(id)}`),
+  acceptInvitation: (token: string, displayName: string, email: string, password: string) =>
+    request<Me>('POST', '/api/v1/auth/invitations/accept', {
+      json: { token, display_name: displayName, email, password },
+    }),
+  /** Reparto de gastos entre las personas del hogar y sus invitados (ADR-0026, OF-1602). */
+  participants: (signal?: AbortSignal) => request<Participant[]>('GET', '/api/v1/sharing/participants', { signal }),
+  addGuest: (name: string) => request<Participant>('POST', '/api/v1/sharing/guests', { json: { name } }),
+  expenses: (signal?: AbortSignal) => request<Expense[]>('GET', '/api/v1/sharing/expenses', { signal }),
+  createExpense: (body: ExpenseInput) => request<Expense>('POST', '/api/v1/sharing/expenses', { json: body }),
+  voidExpense: (id: string) => request<void>('DELETE', `/api/v1/sharing/expenses/${encodeURIComponent(id)}`),
+  previewSplit: (amount: string, method: ExpenseInput['method'], shares: ExpenseInput['shares']) =>
+    request<SplitPart[]>('POST', '/api/v1/sharing/split-preview', { json: { amount, method, shares } }),
+  balances: (signal?: AbortSignal) => request<Balances>('GET', '/api/v1/sharing/balances', { signal }),
+  settlements: (signal?: AbortSignal) => request<Settlement[]>('GET', '/api/v1/sharing/settlements', { signal }),
+  createSettlement: (body: { from_id: string; to_id: string; amount: string; on: string; reference?: string | null }) =>
+    request<Settlement>('POST', '/api/v1/sharing/settlements', { json: body }),
+  confirmSettlement: (id: string) =>
+    request<Settlement>('POST', `/api/v1/sharing/settlements/${encodeURIComponent(id)}/confirm`),
+  cancelSettlement: (id: string) =>
+    request<Settlement>('POST', `/api/v1/sharing/settlements/${encodeURIComponent(id)}/cancel`),
+  /** Viajes y eventos que agrupan gastos compartidos (ADR-0026, OF-1603). */
+  events: (signal?: AbortSignal) => request<TripEvent[]>('GET', '/api/v1/sharing/events', { signal }),
+  createEvent: (name: string, icon?: string) =>
+    request<TripEvent>('POST', '/api/v1/sharing/events', { json: { name, ...(icon ? { icon } : {}) } }),
+  closeEvent: (id: string) => request<TripEvent>('POST', `/api/v1/sharing/events/${encodeURIComponent(id)}/close`),
+  reopenEvent: (id: string) => request<TripEvent>('POST', `/api/v1/sharing/events/${encodeURIComponent(id)}/reopen`),
+  eventSummary: (id: string, signal?: AbortSignal) =>
+    request<EventSummary>('GET', `/api/v1/sharing/events/${encodeURIComponent(id)}`, { signal }),
   /** Informes a medida y su guardado (ADR-0025, OF-1503). */
   runReport: (definition: ReportDefinition) => request<Report>('POST', '/api/v1/reports/run', { json: definition }),
   savedReports: (signal?: AbortSignal) => request<SavedReport[]>('GET', '/api/v1/reports', { signal }),

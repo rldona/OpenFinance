@@ -1,33 +1,33 @@
-# Licencias de las dependencias
+# Dependency licenses
 
-Auditoría de OF-504 para la release v0.1 ([ADR-0008](../adr/0008-licencia-agpl.md)). OpenFinance se distribuye bajo **AGPL-3.0-or-later**; aquí se comprueba que todo lo que se distribuye junto a él tiene una licencia compatible.
+OF-504 audit for the v0.1 release ([ADR-0008](../adr/0008-licencia-agpl.md)). OpenFinance is distributed under **AGPL-3.0-or-later**; this document checks that everything distributed alongside it has a compatible license.
 
-- Fecha: 2026-11-01, sobre `services/api/uv.lock` y `apps/web/package-lock.json` de ese día.
-- Cómo repetirla: `make licenses` (tablas) y `make licenses CHECK=1` (falla si una dependencia de producción tiene una licencia fuera de la lista permitida). El script es [`deploy/scripts/licenses.sh`](../../deploy/scripts/licenses.sh) y usa [`pip-licenses`](https://pypi.org/project/pip-licenses/) 5.5.5 y [`license-checker-rseidelsohn`](https://www.npmjs.com/package/license-checker-rseidelsohn) 5.0.1.
-- CI: el job `licenses` ejecuta `deploy/scripts/licenses.sh --check` en cada push y pull request.
-- Las licencias se leen de los metadatos de cada paquete (`--from=mixed` en Python: la expresión SPDX si existe y, si no, los clasificadores). Esto **no** es asesoramiento jurídico: es una revisión de buena fe para un proyecto self-hosted.
+- Date: 2026-11-01, based on that day's `services/api/uv.lock` and `apps/web/package-lock.json`.
+- How to repeat it: `make licenses` (tables) and `make licenses CHECK=1` (fails if a production dependency has a license outside the allowed list). The script is [`deploy/scripts/licenses.sh`](../../deploy/scripts/licenses.sh) and uses [`pip-licenses`](https://pypi.org/project/pip-licenses/) 5.5.5 and [`license-checker-rseidelsohn`](https://www.npmjs.com/package/license-checker-rseidelsohn) 5.0.1.
+- CI: the `licenses` job runs `deploy/scripts/licenses.sh --check` on every push and pull request.
+- Licenses are read from each package's metadata (`--from=mixed` in Python: the SPDX expression if present, otherwise the classifiers). This is **not** legal advice: it is a good-faith review for a self-hosted project.
 
-## Conclusión
+## Conclusion
 
-**No hay ninguna licencia incompatible con AGPL-3.0.** Todas las dependencias de producción son permisivas (MIT, BSD, Apache-2.0, ISC, PSF-2.0, Unlicense, MIT-0) o copyleft débil compatible con la familia GPLv3 (psycopg, LGPL-3.0-only; pywebpush, py-vapid y certifi, MPL-2.0). Las de desarrollo no se distribuyen y tampoco plantean problemas. Ninguna dependencia es GPL-2.0-only, SSPL, BUSL, Commons Clause, CC-BY-NC ni propietaria.
+**No license is incompatible with AGPL-3.0.** All production dependencies are permissive (MIT, BSD, Apache-2.0, ISC, PSF-2.0, Unlicense, MIT-0) or weak copyleft compatible with the GPLv3 family (psycopg, LGPL-3.0-only; pywebpush, py-vapid and certifi, MPL-2.0). Development ones are not distributed and raise no issues either. No dependency is GPL-2.0-only, SSPL, BUSL, Commons Clause, CC-BY-NC or proprietary.
 
-Puntos a vigilar, ninguno bloqueante:
+Points to watch, none blocking:
 
-| Punto | Por qué es compatible | Qué vigilar |
+| Point | Why it is compatible | What to watch |
 | --- | --- | --- |
-| **psycopg / psycopg-binary** (LGPL-3.0-only) | La LGPL-3.0 es la GPL-3.0 con permisos adicionales, así que se puede combinar con código AGPL-3.0 (AGPL-3.0 §13 permite combinar con GPL-3.0). Se usa sin modificar y como biblioteca. | Si algún día se modifica psycopg, esos cambios se publican bajo LGPL. La wheel `psycopg-binary` incluye `libpq` (PostgreSQL License) y sus bibliotecas C (entre ellas OpenSSL 3, Apache-2.0). |
-| **Apache-2.0** (python-multipart, opentelemetry-api, uvloop en doble licencia…) | Compatible con GPLv3/AGPLv3 en un sentido: código Apache-2.0 puede formar parte de una obra AGPL-3.0. | Conservar sus avisos `NOTICE` si se redistribuyen (los conserva la propia instalación de paquetes). |
-| **PSF-2.0** (typing_extensions, defusedxml) | La FSF la considera compatible con la GPL. | — |
-| **MPL-2.0** (producción: pywebpush, py-vapid y certifi; desarrollo: lightningcss, axe-core y pathspec) | MPL-2.0 §3.3 permite combinarla con GPL/AGPL salvo que el fichero diga «Incompatible With Secondary Licenses», y no lo dice. Es copyleft por fichero: se usan sin modificar, como bibliotecas. | Si se modifica alguno de esos paquetes, los cambios en sus ficheros se publican bajo MPL-2.0. |
-| **Imágenes Docker** (sistema base con componentes GPL) | Desde OF-907 el proyecto publica sus imágenes (`openfinance-api` y `openfinance-web`) en ghcr.io, firmadas; también se pueden construir en local. Junto a los paquetes del sistema (BusyBox, glibc…) son una «agregación» (AGPL-3.0 §5), no una obra derivada. | Al publicar imágenes hay que ofrecer también el código fuente de los componentes GPL de la imagen base: las imágenes base van fijadas por digest (`FROM imagen@sha256:…`), así que ese digest identifica exactamente qué paquetes lleva y su fuente está en los repositorios de Alpine y Debian. Las imágenes llevan las etiquetas OCI `licenses` y `source`, y lista de materiales (SBOM) adjunta. |
+| **psycopg / psycopg-binary** (LGPL-3.0-only) | LGPL-3.0 is GPL-3.0 with additional permissions, so it can be combined with AGPL-3.0 code (AGPL-3.0 §13 allows combining with GPL-3.0). It is used unmodified and as a library. | If psycopg is ever modified, those changes are published under LGPL. The `psycopg-binary` wheel includes `libpq` (PostgreSQL License) and its C libraries (among them OpenSSL 3, Apache-2.0). |
+| **Apache-2.0** (python-multipart, opentelemetry-api, uvloop under dual license…) | Compatible with GPLv3/AGPLv3 in one direction: Apache-2.0 code can be part of an AGPL-3.0 work. | Keep their `NOTICE` notices if redistributed (the package installation itself keeps them). |
+| **PSF-2.0** (typing_extensions, defusedxml) | The FSF considers it compatible with the GPL. | — |
+| **MPL-2.0** (production: pywebpush, py-vapid and certifi; development: lightningcss, axe-core and pathspec) | MPL-2.0 §3.3 allows combining it with GPL/AGPL unless the file says "Incompatible With Secondary Licenses", and it does not. It is file-level copyleft: they are used unmodified, as libraries. | If any of those packages is modified, the changes to their files are published under MPL-2.0. |
+| **Docker images** (base system with GPL components) | Since OF-907 the project publishes its images (`openfinance-api` and `openfinance-web`) on ghcr.io, signed; they can also be built locally. Together with the system packages (BusyBox, glibc…) they are an "aggregate" (AGPL-3.0 §5), not a derivative work. | When publishing images, the source code of the GPL components in the base image must also be offered: base images are pinned by digest (`FROM image@sha256:…`), so that digest identifies exactly which packages it contains and their source is in the Alpine and Debian repositories. The images carry the OCI labels `licenses` and `source`, and an attached bill of materials (SBOM). |
 
-La lista permitida de `licenses.sh --check` solo contiene estas licencias. Una dependencia nueva con otra licencia hace fallar CI y obliga a revisarla y a actualizar este documento.
+The allowed list of `licenses.sh --check` contains only these licenses. A new dependency with any other license makes CI fail and requires reviewing it and updating this document.
 
-## Python · producción (`services/api`)
+## Python · production (`services/api`)
 
-Dependencias de runtime de `uv.lock` (`uv export --no-dev`): las que acaban en la imagen de la API. No incluye el grupo `dev`.
+Runtime dependencies from `uv.lock` (`uv export --no-dev`): those that end up in the API image. It does not include the `dev` group.
 
-| Paquete | Versión | Licencia | Notas |
+| Package | Version | License | Notes |
 | --- | --- | --- | --- |
 | aiohappyeyeballs | 2.7.1 | PSF-2.0 | |
 | aiohttp | 3.14.5 | Apache-2.0 AND MIT | |
@@ -39,7 +39,7 @@ Dependencias de runtime de `uv.lock` (`uv export --no-dev`): las que acaban en l
 | argon2-cffi | 25.1.0 | MIT | |
 | argon2-cffi-bindings | 26.1.0 | MIT | |
 | attrs | 26.1.0 | MIT | |
-| certifi | 2026.10.23 | MPL-2.0 | ver «Puntos a vigilar» |
+| certifi | 2026.10.23 | MPL-2.0 | see "Points to watch" |
 | cffi | 2.1.1 | MIT-0 | |
 | charset-normalizer | 3.5.2 | MIT | |
 | click | 8.5.0 | BSD-3-Clause | |
@@ -58,51 +58,51 @@ Dependencias de runtime de `uv.lock` (`uv export --no-dev`): las que acaban en l
 | MarkupSafe | 3.0.4 | BSD-3-Clause | |
 | multidict | 7.2.1 | Apache-2.0 | |
 | openpyxl | 3.1.5 | MIT | |
-| opentelemetry-api | 1.45.2 | Apache-2.0 | dependencia de fastapi |
+| opentelemetry-api | 1.45.2 | Apache-2.0 | dependency of fastapi |
 | propcache | 0.5.4 | Apache-2.0 | |
-| psycopg | 3.3.6 | **LGPL-3.0-only** | ver «Puntos a vigilar» |
-| psycopg-binary | 3.3.6 | **LGPL-3.0-only** | incluye libpq y sus bibliotecas C |
-| py-vapid | 1.9.6 | MPL-2.0 | ver «Puntos a vigilar» |
+| psycopg | 3.3.6 | **LGPL-3.0-only** | see "Points to watch" |
+| psycopg-binary | 3.3.6 | **LGPL-3.0-only** | includes libpq and its C libraries |
+| py-vapid | 1.9.6 | MPL-2.0 | see "Points to watch" |
 | pycparser | 3.12 | BSD-3-Clause | |
 | pydantic | 2.14.2 | MIT | |
 | pydantic_core | 2.50.2 | MIT | |
 | pydantic-settings | 2.16.2 | MIT | |
 | python-dotenv | 1.2.4 | BSD-3-Clause | |
 | python-multipart | 0.0.33 | Apache-2.0 | |
-| pywebpush | 2.5.0 | MPL-2.0 | ver «Puntos a vigilar» |
+| pywebpush | 2.5.0 | MPL-2.0 | see "Points to watch" |
 | PyYAML | 6.0.3 | MIT | |
 | requests | 2.34.2 | Apache-2.0 | |
 | SQLAlchemy | 2.1.6 | MIT | |
 | starlette | 1.10.0 | BSD-3-Clause | |
 | typing_extensions | 4.16.0 | PSF-2.0 | |
 | typing-inspection | 0.4.4 | MIT | |
-| tzdata | 2026.6 | Apache-2.0 | solo en Windows; no entra en la imagen |
+| tzdata | 2026.6 | Apache-2.0 | Windows only; not in the image |
 | urllib3 | 2.8.0 | MIT | |
 | uvicorn | 0.54.0 | BSD-3-Clause | |
-| uvloop | 0.23.0 | MIT o Apache-2.0 | doble licencia, a elegir |
+| uvloop | 0.23.0 | MIT or Apache-2.0 | dual license, your choice |
 | watchfiles | 1.3.0 | MIT | |
 | websockets | 17.4 | BSD-3-Clause | |
 | yarl | 1.25.1 | Apache-2.0 | |
 
-## npm · producción (`apps/web`)
+## npm · production (`apps/web`)
 
-Lo único que acaba en el JavaScript que se sirve al navegador (`npm ls --omit=dev`):
+The only things that end up in the JavaScript served to the browser (`npm ls --omit=dev`):
 
-| Paquete | Versión | Licencia |
+| Package | Version | License |
 | --- | --- | --- |
 | react | 19.3.1 | MIT |
 | react-dom | 19.3.1 | MIT |
 | scheduler | 0.28.0 | MIT |
 
-La web no incluye fuentes, iconos ni imágenes de terceros: usa las fuentes del sistema y el favicon es propio.
+The web app includes no third-party fonts, icons or images: it uses system fonts and the favicon is our own.
 
-## Desarrollo y build (no se distribuyen)
+## Development and build (not distributed)
 
-Herramientas que se usan para comprobar y construir, pero que no forman parte de lo que se instala en casa.
+Tools used to check and build, but not part of what is installed at home.
 
-**npm (`devDependencies` y sus dependencias, 108 paquetes en macOS arm64).** El número exacto depende de la plataforma, porque algunos binarios son opcionales por sistema.
+**npm (`devDependencies` and their dependencies, 108 packages on macOS arm64).** The exact number depends on the platform, because some binaries are optional per system.
 
-| Licencia | Paquetes | Ejemplos |
+| License | Packages | Examples |
 | --- | --- | --- |
 | MIT | 87 | vite, vitest, @vitejs/plugin-react, jsdom, oxlint, @testing-library/* |
 | Apache-2.0 | 9 | typescript, @playwright/test, playwright, aria-query |
@@ -114,19 +114,19 @@ Herramientas que se usan para comprobar y construir, pero que no forman parte de
 | BlueOak-1.0.0 | 1 | lru-cache |
 | CC0-1.0 | 1 | mdn-data |
 
-`npm run gen:api` descarga además `openapi-typescript` (MIT). Los navegadores que instala Playwright solo se usan en CI.
+`npm run gen:api` also downloads `openapi-typescript` (MIT). The browsers Playwright installs are only used in CI.
 
-**Python (grupo `dev`).** pytest, pytest-cov, mypy, ruff, httpx y sus dependencias: MIT, BSD, Apache-2.0 y MPL-2.0 (pathspec); import-linter y grimp, BSD; `types-openpyxl`, Apache-2.0.
+**Python (`dev` group).** pytest, pytest-cov, mypy, ruff, httpx and their dependencies: MIT, BSD, Apache-2.0 and MPL-2.0 (pathspec); import-linter and grimp, BSD; `types-openpyxl`, Apache-2.0.
 
-## Imágenes Docker
+## Docker images
 
-| Imagen | Uso | Licencia del software principal | Sistema base |
+| Image | Use | License of the main software | Base system |
 | --- | --- | --- | --- |
-| `postgres:16-alpine` | base de datos (`compose.yaml`, CI) | PostgreSQL License (permisiva, tipo BSD/MIT) | Alpine |
-| `nginx:1.30-alpine` | sirve la web y hace de proxy (`web.Dockerfile`) | BSD-2-Clause | Alpine |
+| `postgres:16-alpine` | database (`compose.yaml`, CI) | PostgreSQL License (permissive, BSD/MIT-like) | Alpine |
+| `nginx:1.30-alpine` | serves the web app and acts as proxy (`web.Dockerfile`) | BSD-2-Clause | Alpine |
 | `python:3.12-slim` | API (`api.Dockerfile`) | PSF-2.0 | Debian |
-| `ghcr.io/astral-sh/uv:0.8` | solo se copia el binario `uv` en la imagen de la API | MIT o Apache-2.0 | — |
-| `node:24-alpine` | solo la etapa de build de la web; no está en la imagen final | MIT (con componentes de terceros bajo licencias permisivas) | Alpine |
-| `caddy:2.10-alpine` | HTTPS opcional (`compose.https.yaml`) | Apache-2.0 | Alpine |
+| `ghcr.io/astral-sh/uv:0.8` | only the `uv` binary is copied into the API image | MIT or Apache-2.0 | — |
+| `node:24-alpine` | only the web build stage; not in the final image | MIT (with third-party components under permissive licenses) | Alpine |
+| `caddy:2.10-alpine` | optional HTTPS (`compose.https.yaml`) | Apache-2.0 | Alpine |
 
-Las imágenes Alpine y Debian contienen paquetes del sistema con sus propias licencias (BusyBox y Bash son GPL; musl es MIT; glibc es LGPL…). Van como programas separados dentro del contenedor, sin enlazarse con OpenFinance.
+The Alpine and Debian images contain system packages with their own licenses (BusyBox and Bash are GPL; musl is MIT; glibc is LGPL…). They run as separate programs inside the container, not linked with OpenFinance.

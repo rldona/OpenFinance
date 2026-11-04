@@ -27,8 +27,10 @@ from openfinance.application.export import (
     ExportedBudgetAllocation,
     ExportedBudgetV2,
     ExportedCategory,
+    ExportedEvent,
     ExportedGoal,
     ExportedGoalContribution,
+    ExportedGuest,
     ExportedMember,
     ExportedMerchant,
     ExportedPattern,
@@ -36,6 +38,8 @@ from openfinance.application.export import (
     ExportedRule,
     ExportedSavedReport,
     ExportedScheduledPayment,
+    ExportedSettlement,
+    ExportedSharedExpense,
     ExportedTemplate,
     ExportedTransaction,
     HouseholdExport,
@@ -72,6 +76,10 @@ CSV_FILES_V2: dict[str, type] = {
     "saved_reports": ExportedSavedReport,
     "bank_connections": ExportedBankConnection,
     "bank_links": ExportedBankLink,
+    "guests": ExportedGuest,
+    "events": ExportedEvent,
+    "shared_expenses": ExportedSharedExpense,
+    "settlements": ExportedSettlement,
 }
 """La v2 (ADR-0025) cambia ``budgets`` (añade modo e inicio) y suma estas entidades."""
 

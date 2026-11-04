@@ -25,6 +25,7 @@ from openfinance.infrastructure.db.repositories.imports import (
     SqlImportBatchRepository,
     SqlMemberPatternRepository,
 )
+from openfinance.infrastructure.db.repositories.invitations import SqlInvitationRepository
 from openfinance.infrastructure.db.repositories.ledger import (
     SqlAccountRepository,
     SqlTransactionRepository,
@@ -43,6 +44,7 @@ from openfinance.infrastructure.db.repositories.savings import (
     SqlIdeaDismissalRepository,
 )
 from openfinance.infrastructure.db.repositories.schedule import SqlScheduleRepository
+from openfinance.infrastructure.db.repositories.sharing import SqlSharingRepository
 from openfinance.infrastructure.db.repositories.splits import SqlSplitRepository
 from openfinance.infrastructure.db.repositories.tags import SqlTagRepository
 from openfinance.infrastructure.db.repositories.templates import SqlTemplateRepository
@@ -77,6 +79,8 @@ class SqlUnitOfWork:
         self.notifications = SqlNotificationRepository(session)
         self.bank = SqlBankRepository(session)
         self.reports = SqlSavedReportRepository(session)
+        self.invitations = SqlInvitationRepository(session)
+        self.sharing = SqlSharingRepository(session)
         self.member_patterns = SqlMemberPatternRepository(session)
         self.changes = SqlChangeRepository(session)
 

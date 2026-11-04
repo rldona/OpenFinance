@@ -26,6 +26,7 @@ export const ME = {
     { id: 'u-elena', display_name: 'Elena' },
     { id: 'u-raul', display_name: 'Raúl' },
   ],
+  role: 'owner',
 }
 
 const eur = (amount: string) => ({ amount, currency: 'EUR' })

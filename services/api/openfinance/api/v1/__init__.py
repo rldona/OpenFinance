@@ -11,6 +11,7 @@ from openfinance.api.v1 import (
     changes,
     csv_profiles,
     export,
+    household,
     imports,
     insights,
     ledger,
@@ -23,6 +24,7 @@ from openfinance.api.v1 import (
     savings,
     schedule,
     settings,
+    sharing,
     summary,
     templates,
 )
@@ -50,5 +52,7 @@ router.include_router(networth.router)
 router.include_router(notifications.router)
 router.include_router(summary.router)
 router.include_router(export.router)
+router.include_router(household.router)
 router.include_router(changes.router)
 router.include_router(settings.router)
+router.include_router(sharing.router)

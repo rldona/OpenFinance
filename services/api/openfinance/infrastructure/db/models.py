@@ -50,10 +50,29 @@ class HouseholdRow(Base):
 
 class MembershipRow(Base):
     __tablename__ = "memberships"
+    __table_args__ = (CheckConstraint("role IN ('owner', 'editor', 'viewer')", name="role_valid"),)
 
     household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"), primary_key=True)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), primary_key=True, index=True)
+    role: Mapped[str] = mapped_column(String(10), default="owner", server_default="owner")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class InvitationRow(Base):
+    """Invitación para unirse al hogar (ADR-0026). Solo se guarda el hash del enlace."""
+
+    __tablename__ = "invitations"
+    __table_args__ = (Index("ix_invitations_household", "household_id"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    role: Mapped[str] = mapped_column(String(10))
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa_false())
 
 
 class AccountRow(Base):
@@ -488,6 +507,98 @@ class SavedReportRow(Base):
     definition: Mapped[str] = mapped_column(Text)
     shared: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa_false())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class GuestRow(Base):
+    """Persona del grupo sin usuario, para repartir gastos (ADR-0026, OF-1602)."""
+
+    __tablename__ = "guests"
+    __table_args__ = (Index("ix_guests_household", "household_id"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    name: Mapped[str] = mapped_column(String(60))
+    archived: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa_false())
+
+
+class EventRow(Base):
+    """Un viaje o evento que agrupa gastos compartidos (ADR-0026, OF-1603)."""
+
+    __tablename__ = "events"
+    __table_args__ = (Index("ix_events_household", "household_id"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    name: Mapped[str] = mapped_column(String(80))
+    icon: Mapped[str] = mapped_column(String(8))
+    starts_on: Mapped[date | None] = mapped_column(Date)
+    ends_on: Mapped[date | None] = mapped_column(Date)
+    closed: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa_false())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class SharedExpenseRow(Base):
+    __tablename__ = "shared_expenses"
+    __table_args__ = (Index("ix_shared_expenses_household_on", "household_id", "on_date"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    on_date: Mapped[date] = mapped_column(Date)
+    description: Mapped[str] = mapped_column(String(200))
+    amount: Mapped[Decimal] = mapped_column(AMOUNT)
+    currency: Mapped[str] = mapped_column(String(3))
+    method: Mapped[str] = mapped_column(String(12))
+    category_id: Mapped[UUID | None] = mapped_column(ForeignKey("categories.id"))
+    event_id: Mapped[UUID | None] = mapped_column(ForeignKey("events.id"))
+    created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    voided: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa_false())
+
+
+class SharedExpensePayerRow(Base):
+    """Quién pagó un gasto compartido. El participante es una persona del hogar o un invitado."""
+
+    __tablename__ = "shared_expense_payers"
+
+    expense_id: Mapped[UUID] = mapped_column(
+        ForeignKey("shared_expenses.id", ondelete="CASCADE"), primary_key=True
+    )
+    participant_id: Mapped[UUID] = mapped_column(primary_key=True)
+    amount: Mapped[Decimal] = mapped_column(AMOUNT)
+
+
+class SharedExpensePartRow(Base):
+    """Lo que le toca a cada participante: el resultado del reparto, no solo su regla."""
+
+    __tablename__ = "shared_expense_parts"
+
+    expense_id: Mapped[UUID] = mapped_column(
+        ForeignKey("shared_expenses.id", ondelete="CASCADE"), primary_key=True
+    )
+    participant_id: Mapped[UUID] = mapped_column(primary_key=True)
+    amount: Mapped[Decimal] = mapped_column(AMOUNT)
+
+
+class SettlementRow(Base):
+    __tablename__ = "settlements"
+    __table_args__ = (
+        UniqueConstraint("household_id", "reference", name="uq_settlements_household_reference"),
+        Index("ix_settlements_household", "household_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    from_id: Mapped[UUID] = mapped_column()
+    to_id: Mapped[UUID] = mapped_column()
+    amount: Mapped[Decimal] = mapped_column(AMOUNT)
+    currency: Mapped[str] = mapped_column(String(3))
+    on_date: Mapped[date] = mapped_column(Date)
+    status: Mapped[str] = mapped_column(String(12))
+    reference: Mapped[str | None] = mapped_column(String(64))
+    created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    confirmed_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class MerchantRow(Base):

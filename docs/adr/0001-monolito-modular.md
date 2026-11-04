@@ -1,18 +1,18 @@
-# ADR-0001: Monolito modular como arquitectura inicial
+# ADR-0001: Modular monolith as the initial architecture
 
-- Estado: Accepted
-- Fecha: 2026-10-31
+- Status: Accepted
+- Date: 2026-10-31
 
-## Contexto
+## Context
 
-OpenFinance tiene varios contextos de dominio (identity, workspaces, ledger, categorization, budgeting, imports, manager, approvals, modules, audit) y un equipo pequeño. Microservicios multiplicarían el coste operativo y complicarían las transacciones financieras, que necesitan consistencia fuerte.
+OpenFinance has several domain contexts (identity, workspaces, ledger, categorization, budgeting, imports, manager, approvals, modules, audit) and a small team. Microservices would multiply operational cost and complicate financial transactions, which need strong consistency.
 
-## Decisión
+## Decision
 
-Una única aplicación desplegable en Python (`services/api`) con contextos separados por paquetes y capas (`domain`, `application`, `infrastructure`, `api`). Las dependencias entre capas se hacen cumplir en CI con `import-linter`. El worker del Manager será un proceso aparte que reutiliza el mismo código de aplicación.
+A single deployable Python application (`services/api`) with contexts separated by packages and layers (`domain`, `application`, `infrastructure`, `api`). Dependencies between layers are enforced in CI with `import-linter`. The Manager worker will be a separate process that reuses the same application code.
 
-## Consecuencias
+## Consequences
 
-- Menor coste de desarrollo, pruebas y operación; transacciones locales a la base de datos.
-- Exige disciplina: un contexto solo usa otro a través de su interfaz de aplicación, nunca de sus tablas.
-- Un contexto se podrá extraer a un servicio cuando exista una necesidad operativa medida.
+- Lower development, testing and operating cost; transactions local to the database.
+- Requires discipline: a context only uses another through its application interface, never through its tables.
+- A context can be extracted into a service when a measured operational need exists.

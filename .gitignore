@@ -36,3 +36,7 @@ backups/
 test-results/
 playwright-report/
 blob-report/
+
+# Claves privadas (p. ej. la de Enable Banking): nunca al repositorio
+*.pem
+*.key

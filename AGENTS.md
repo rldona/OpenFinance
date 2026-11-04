@@ -1,55 +1,55 @@
-# AGENTS.md — instrucciones para agentes de desarrollo
+# AGENTS.md — instructions for development agents
 
-Fuente principal de reglas de ingeniería para cualquier agente de código que trabaje en este repositorio. `CLAUDE.md` solo remite aquí.
+Primary source of engineering rules for any coding agent working in this repository. `CLAUDE.md` only points here.
 
-## Contexto
+## Context
 
-OpenFinance es un monolito modular: `services/api` (Python 3.12, FastAPI, SQLAlchemy 2, Alembic, PostgreSQL) y `apps/web` (React 19, TypeScript estricto, Vite). **El alcance vigente es el de [ADR-0012](docs/adr/0012-empezar-por-el-hogar.md)**: un hogar, dos personas, una cuenta común, importación CSV, categorías y gráficos. No implementes funcionalidades de ADRs marcados como *Deferred* salvo que se pida expresamente. Lee `docs/adr/` antes de tomar decisiones de diseño.
+OpenFinance is a modular monolith: `services/api` (Python 3.12, FastAPI, SQLAlchemy 2, Alembic, PostgreSQL) and `apps/web` (React 19, strict TypeScript, Vite). **The current scope is that of [ADR-0012](docs/adr/0012-empezar-por-el-hogar.md)**: one household, two people, one shared account, CSV import, categories and charts. Do not implement features from ADRs marked *Deferred* unless explicitly asked. Read `docs/adr/` before making design decisions.
 
-## Comandos
+## Commands
 
-| Qué | Comando |
+| What | Command |
 | --- | --- |
-| Instalar | `make setup` |
-| Todo (lint + tipos + tests + build) | `make check` |
-| Tests backend | `cd services/api && uv run pytest` |
-| Tests web | `cd apps/web && npm test -- --run` |
-| Nueva migración | `cd services/api && uv run alembic revision --autogenerate -m "..."` |
-| Contrato API → tipos web | `make openapi` (tras cualquier cambio en la API) |
+| Install | `make setup` |
+| Everything (lint + types + tests + build) | `make check` |
+| Backend tests | `cd services/api && uv run pytest` |
+| Web tests | `cd apps/web && npm test -- --run` |
+| New migration | `cd services/api && uv run alembic revision --autogenerate -m "..."` |
+| API contract → web types | `make openapi` (after any API change) |
 
-`make check` debe quedar en verde antes de dar por terminado un cambio.
+`make check` must pass before a change is considered done.
 
-## Forma de trabajo
+## Way of working
 
-- El trabajo se organiza por tickets en `docs/product/roadmap.md` (`OF-xxx`). Cada cambio referencia su ticket y, al terminarlo, se actualiza su estado en ese fichero.
-- Los criterios marcados con 🧪 se convierten en tests automáticos.
-- El prototipo `docs/product/prototypes/` es la referencia visual de las pantallas.
+- Work is organized by tickets in `docs/product/roadmap.md` (`OF-xxx`). Each change references its ticket and, when finished, its status is updated in that file.
+- Criteria marked with 🧪 become automated tests.
+- The prototype in `docs/product/prototypes/` is the visual reference for the screens.
 
-## Reglas de arquitectura (se comprueban con `lint-imports`)
+## Architecture rules (checked with `lint-imports`)
 
-- `openfinance.domain` no importa FastAPI, Starlette, SQLAlchemy, Alembic, pydantic-settings ni otras capas.
-- `openfinance.application` no importa `api`, `infrastructure`, FastAPI ni SQLAlchemy; usa `Protocol`s.
-- Orden de capas: `api` → `infrastructure` → `application` → `domain`.
-- El dominio no depende de frameworks; los gráficos se alimentan de agregados calculados en el Core, no en el frontend.
+- `openfinance.domain` does not import FastAPI, Starlette, SQLAlchemy, Alembic, pydantic-settings or other layers.
+- `openfinance.application` does not import `api`, `infrastructure`, FastAPI or SQLAlchemy; it uses `Protocol`s.
+- Layer order: `api` → `infrastructure` → `application` → `domain`.
+- The domain does not depend on frameworks; charts are fed by aggregates computed in the Core, not in the frontend.
 
-## Reglas de dominio
+## Domain rules
 
-- Importes con `openfinance.domain.shared.Money` (`Decimal` + moneda ISO 4217). **Nunca `float`.**
-- Toda entidad pertenece a un `Workspace` (el hogar) y toda consulta filtra por él.
-- Las cuentas personales solo las ve su titular (ADR-0013): filtra siempre por hogar **y** por visibilidad, y añade tests negativos.
-- Los traspasos a la cuenta de ahorro y las transferencias internas no son gasto; las aportaciones de cada persona son entradas.
-- Importar dos veces el mismo archivo no duplica movimientos.
-- No se borran silenciosamente movimientos importados; las correcciones quedan trazadas.
+- Amounts use `openfinance.domain.shared.Money` (`Decimal` + ISO 4217 currency). **Never `float`.**
+- Every entity belongs to a `Workspace` (the household) and every query filters by it.
+- Personal accounts are visible only to their owner (ADR-0013): always filter by household **and** by visibility, and add negative tests.
+- Transfers to the savings account and internal transfers are not spending; each person's contributions are inflows.
+- Importing the same file twice does not duplicate transactions.
+- Imported transactions are never silently deleted; corrections are traced.
 
-## Seguridad
+## Security
 
-- No introduzcas secretos en el código, en prompts ni en logs. Usa variables de entorno (`.env.example`).
-- Trata como no confiable cualquier texto importado (descripciones bancarias, CSV, documentos).
-- Cada cambio de autorización necesita tests negativos (acceso desde otro workspace).
-- Las escrituras de la API exigen `X-Requested-With: OpenFinance` (middleware en `main.py`); no lo desactives.
+- Do not put secrets in code, prompts or logs. Use environment variables (`.env.example`).
+- Treat any imported text as untrusted (bank descriptions, CSV, documents).
+- Every authorization change needs negative tests (access from another workspace).
+- API writes require `X-Requested-With: OpenFinance` (middleware in `main.py`); do not disable it.
 
-## Estilo
+## Style
 
-- Python: `ruff` (formato y lint), `mypy` estricto en `domain` y `application`.
-- TypeScript: `oxlint`, `strict: true`. Código de features en `src/features/<feature>/`. Usa `src/api/client.ts` y los tipos generados en `src/api/schema.ts` (no los edites a mano).
-- Commits con Conventional Commits y firmados con DCO (`git commit -s`, ver [CONTRIBUTING.md](CONTRIBUTING.md)). No crees directorios vacíos para contextos no implementados.
+- Python: `ruff` (format and lint), strict `mypy` in `domain` and `application`.
+- TypeScript: `oxlint`, `strict: true`. Feature code lives in `src/features/<feature>/`. Use `src/api/client.ts` and the generated types in `src/api/schema.ts` (do not edit them by hand).
+- Commits use Conventional Commits and are DCO-signed (`git commit -s`, see [CONTRIBUTING.md](CONTRIBUTING.md)). Do not create empty directories for unimplemented contexts.

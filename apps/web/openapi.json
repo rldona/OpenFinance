@@ -447,6 +447,24 @@
         "title": "AllowanceOut",
         "type": "object"
       },
+      "AmountOfOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "participant_id": {
+            "format": "uuid",
+            "title": "Participant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "participant_id",
+          "amount"
+        ],
+        "title": "AmountOfOut",
+        "type": "object"
+      },
       "AttachmentAddedOut": {
         "properties": {
           "attachment": {
@@ -681,6 +699,61 @@
           "reported"
         ],
         "title": "BalanceMismatchOut",
+        "type": "object"
+      },
+      "BalanceOut": {
+        "properties": {
+          "net": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Positivo: le deben. Negativo: debe"
+          },
+          "paid": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "participant": {
+            "$ref": "#/components/schemas/ParticipantOut"
+          },
+          "settled": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Liquidaciones confirmadas: enviado menos recibido"
+          },
+          "share": {
+            "$ref": "#/components/schemas/MoneyOut"
+          }
+        },
+        "required": [
+          "participant",
+          "paid",
+          "share",
+          "settled",
+          "net"
+        ],
+        "title": "BalanceOut",
+        "type": "object"
+      },
+      "BalancesOut": {
+        "properties": {
+          "balances": {
+            "items": {
+              "$ref": "#/components/schemas/BalanceOut"
+            },
+            "title": "Balances",
+            "type": "array"
+          },
+          "suggestions": {
+            "description": "Quién paga a quién, con el mínimo de pagos",
+            "items": {
+              "$ref": "#/components/schemas/TransferOut"
+            },
+            "title": "Suggestions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "balances",
+          "suggestions"
+        ],
+        "title": "BalancesOut",
         "type": "object"
       },
       "BankCompleteIn": {
@@ -2405,6 +2478,372 @@
         "title": "EnvelopeLeftOut",
         "type": "object"
       },
+      "EventCategoryOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "category_id",
+          "name",
+          "amount"
+        ],
+        "title": "EventCategoryOut",
+        "type": "object"
+      },
+      "EventIn": {
+        "properties": {
+          "ends_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends On"
+          },
+          "icon": {
+            "default": "🧳",
+            "maxLength": 8,
+            "minLength": 1,
+            "title": "Icon",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "starts_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts On"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "EventIn",
+        "type": "object"
+      },
+      "EventOut": {
+        "properties": {
+          "closed": {
+            "title": "Closed",
+            "type": "boolean"
+          },
+          "ends_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends On"
+          },
+          "icon": {
+            "title": "Icon",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "starts_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts On"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "icon",
+          "starts_on",
+          "ends_on",
+          "closed"
+        ],
+        "title": "EventOut",
+        "type": "object"
+      },
+      "EventSummaryOut": {
+        "properties": {
+          "balances": {
+            "description": "Solo con los gastos del evento; suman cero",
+            "items": {
+              "$ref": "#/components/schemas/BalanceOut"
+            },
+            "title": "Balances",
+            "type": "array"
+          },
+          "by_category": {
+            "items": {
+              "$ref": "#/components/schemas/EventCategoryOut"
+            },
+            "title": "By Category",
+            "type": "array"
+          },
+          "count": {
+            "description": "Gastos activos del evento",
+            "title": "Count",
+            "type": "integer"
+          },
+          "event": {
+            "$ref": "#/components/schemas/EventOut"
+          },
+          "expenses": {
+            "items": {
+              "$ref": "#/components/schemas/ExpenseOut"
+            },
+            "title": "Expenses",
+            "type": "array"
+          },
+          "suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/TransferOut"
+            },
+            "title": "Suggestions",
+            "type": "array"
+          },
+          "total": {
+            "$ref": "#/components/schemas/MoneyOut"
+          }
+        },
+        "required": [
+          "event",
+          "total",
+          "count",
+          "balances",
+          "by_category",
+          "suggestions",
+          "expenses"
+        ],
+        "title": "EventSummaryOut",
+        "type": "object"
+      },
+      "ExpenseIn": {
+        "properties": {
+          "amount": {
+            "examples": [
+              "90.00"
+            ],
+            "maxLength": 20,
+            "title": "Amount",
+            "type": "string"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "description": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "event_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Viaje o evento al que pertenece",
+            "title": "Event Id"
+          },
+          "method": {
+            "enum": [
+              "equal",
+              "percentage",
+              "exact",
+              "shares"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "payers": {
+            "items": {
+              "$ref": "#/components/schemas/PayerIn"
+            },
+            "maxItems": 30,
+            "minItems": 1,
+            "title": "Payers",
+            "type": "array"
+          },
+          "shares": {
+            "description": "Entre quién se reparte; el orden desempata",
+            "items": {
+              "$ref": "#/components/schemas/ShareIn"
+            },
+            "maxItems": 30,
+            "minItems": 1,
+            "title": "Shares",
+            "type": "array"
+          }
+        },
+        "required": [
+          "on",
+          "description",
+          "amount",
+          "payers",
+          "method",
+          "shares"
+        ],
+        "title": "ExpenseIn",
+        "type": "object"
+      },
+      "ExpenseOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "created_by": {
+            "format": "uuid",
+            "title": "Created By",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "event_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Id"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "method": {
+            "enum": [
+              "equal",
+              "percentage",
+              "exact",
+              "shares"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/AmountOfOut"
+            },
+            "title": "Parts",
+            "type": "array"
+          },
+          "payers": {
+            "items": {
+              "$ref": "#/components/schemas/AmountOfOut"
+            },
+            "title": "Payers",
+            "type": "array"
+          },
+          "voided": {
+            "title": "Voided",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "on",
+          "description",
+          "amount",
+          "method",
+          "payers",
+          "parts",
+          "category_id",
+          "event_id",
+          "created_by",
+          "voided"
+        ],
+        "title": "ExpenseOut",
+        "type": "object"
+      },
       "ForecastOut": {
         "properties": {
           "account_id": {
@@ -2842,6 +3281,21 @@
         "title": "GoalPatch",
         "type": "object"
       },
+      "GuestIn": {
+        "properties": {
+          "name": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "GuestIn",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -3166,6 +3620,111 @@
         "title": "Institution",
         "type": "string"
       },
+      "InvitationAcceptIn": {
+        "properties": {
+          "display_name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          },
+          "token": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "display_name",
+          "email",
+          "password"
+        ],
+        "title": "InvitationAcceptIn",
+        "type": "object"
+      },
+      "InvitationCreatedOut": {
+        "properties": {
+          "invitation": {
+            "$ref": "#/components/schemas/InvitationOut"
+          },
+          "token": {
+            "description": "El enlace de la invitación. Solo se muestra esta vez",
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "invitation",
+          "token"
+        ],
+        "title": "InvitationCreatedOut",
+        "type": "object"
+      },
+      "InvitationIn": {
+        "properties": {
+          "role": {
+            "default": "editor",
+            "enum": [
+              "owner",
+              "editor",
+              "viewer"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "title": "InvitationIn",
+        "type": "object"
+      },
+      "InvitationOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "owner",
+              "editor",
+              "viewer"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "created_at",
+          "expires_at"
+        ],
+        "title": "InvitationOut",
+        "type": "object"
+      },
       "LinkIn": {
         "properties": {
           "peer_id": {
@@ -3325,6 +3884,16 @@
             "title": "Members",
             "type": "array"
           },
+          "role": {
+            "description": "Tu rol en el hogar",
+            "enum": [
+              "owner",
+              "editor",
+              "viewer"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
           "user": {
             "$ref": "#/components/schemas/UserOut"
           }
@@ -3332,7 +3901,8 @@
         "required": [
           "user",
           "household",
-          "members"
+          "members",
+          "role"
         ],
         "title": "MeOut",
         "type": "object"
@@ -3353,6 +3923,40 @@
           "amount"
         ],
         "title": "MemberAmountOut",
+        "type": "object"
+      },
+      "MemberDetailOut": {
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_me": {
+            "title": "Is Me",
+            "type": "boolean"
+          },
+          "role": {
+            "enum": [
+              "owner",
+              "editor",
+              "viewer"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "display_name",
+          "role",
+          "is_me"
+        ],
+        "title": "MemberDetailOut",
         "type": "object"
       },
       "MemberOut": {
@@ -4116,6 +4720,37 @@
         "title": "OperationRefOut",
         "type": "object"
       },
+      "ParticipantOut": {
+        "properties": {
+          "active": {
+            "description": "Las personas que se fueron y los invitados archivados no",
+            "title": "Active",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_guest": {
+            "description": "Persona del grupo sin usuario",
+            "title": "Is Guest",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "is_guest",
+          "active"
+        ],
+        "title": "ParticipantOut",
+        "type": "object"
+      },
       "PasswordChangeIn": {
         "properties": {
           "current_password": {
@@ -4181,6 +4816,29 @@
           "direction"
         ],
         "title": "PatternOut",
+        "type": "object"
+      },
+      "PayerIn": {
+        "properties": {
+          "amount": {
+            "examples": [
+              "90.00"
+            ],
+            "maxLength": 20,
+            "title": "Amount",
+            "type": "string"
+          },
+          "participant_id": {
+            "format": "uuid",
+            "title": "Participant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "participant_id",
+          "amount"
+        ],
+        "title": "PayerIn",
         "type": "object"
       },
       "PendingChargeOut": {
@@ -5022,6 +5680,24 @@
         "title": "RevokedOut",
         "type": "object"
       },
+      "RoleIn": {
+        "properties": {
+          "role": {
+            "enum": [
+              "owner",
+              "editor",
+              "viewer"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "title": "RoleIn",
+        "type": "object"
+      },
       "RuleApplyOut": {
         "properties": {
           "changed": {
@@ -5484,6 +6160,156 @@
         "title": "ScheduledPaymentOut",
         "type": "object"
       },
+      "SettlementIn": {
+        "properties": {
+          "amount": {
+            "maxLength": 20,
+            "title": "Amount",
+            "type": "string"
+          },
+          "from_id": {
+            "format": "uuid",
+            "title": "From Id",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Repetirla no duplica la liquidación",
+            "title": "Reference"
+          },
+          "to_id": {
+            "format": "uuid",
+            "title": "To Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "from_id",
+          "to_id",
+          "amount",
+          "on"
+        ],
+        "title": "SettlementIn",
+        "type": "object"
+      },
+      "SettlementOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "confirmed_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed By"
+          },
+          "created_by": {
+            "format": "uuid",
+            "title": "Created By",
+            "type": "string"
+          },
+          "from_id": {
+            "format": "uuid",
+            "title": "From Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "confirmed",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "to_id": {
+            "format": "uuid",
+            "title": "To Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "from_id",
+          "to_id",
+          "amount",
+          "on",
+          "status",
+          "reference",
+          "created_by",
+          "confirmed_by"
+        ],
+        "title": "SettlementOut",
+        "type": "object"
+      },
+      "ShareIn": {
+        "properties": {
+          "participant_id": {
+            "format": "uuid",
+            "title": "Participant Id",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Porcentaje, importe o peso según el método; vacío con «equal»",
+            "title": "Value"
+          }
+        },
+        "required": [
+          "participant_id"
+        ],
+        "title": "ShareIn",
+        "type": "object"
+      },
       "ShareOut": {
         "properties": {
           "amount": {
@@ -5615,6 +6441,41 @@
           "category_id"
         ],
         "title": "SplitPartOut",
+        "type": "object"
+      },
+      "SplitPreviewIn": {
+        "properties": {
+          "amount": {
+            "maxLength": 20,
+            "title": "Amount",
+            "type": "string"
+          },
+          "method": {
+            "enum": [
+              "equal",
+              "percentage",
+              "exact",
+              "shares"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "shares": {
+            "items": {
+              "$ref": "#/components/schemas/ShareIn"
+            },
+            "maxItems": 30,
+            "minItems": 1,
+            "title": "Shares",
+            "type": "array"
+          }
+        },
+        "required": [
+          "amount",
+          "method",
+          "shares"
+        ],
+        "title": "SplitPreviewIn",
         "type": "object"
       },
       "Status": {
@@ -6063,6 +6924,30 @@
           "other_currencies"
         ],
         "title": "TransactionPageOut",
+        "type": "object"
+      },
+      "TransferOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "from_id": {
+            "format": "uuid",
+            "title": "From Id",
+            "type": "string"
+          },
+          "to_id": {
+            "format": "uuid",
+            "title": "To Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "from_id",
+          "to_id",
+          "amount"
+        ],
+        "title": "TransferOut",
         "type": "object"
       },
       "TrendCategoryOut": {
@@ -6880,6 +7765,48 @@
         "summary": "Download Attachment",
         "tags": [
           "attachments"
+        ]
+      }
+    },
+    "/api/v1/auth/invitations/accept": {
+      "post": {
+        "description": "Une a una persona nueva al hogar con una invitación vigente (ADR-0026).\n\nNo hay registro público: sin un enlace válido no se crea nada. Cada intento cuenta contra\nel límite por IP, como el inicio de sesión, y todo fallo da el mismo mensaje.",
+        "operationId": "accept_invitation_api_v1_auth_invitations_accept_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitationAcceptIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Accept Invitation",
+        "tags": [
+          "auth"
         ]
       }
     },
@@ -8884,6 +9811,213 @@
         ]
       }
     },
+    "/api/v1/household/invitations": {
+      "get": {
+        "operationId": "list_invitations_api_v1_household_invitations_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InvitationOut"
+                  },
+                  "title": "Response List Invitations Api V1 Household Invitations Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Invitations",
+        "tags": [
+          "household"
+        ]
+      },
+      "post": {
+        "operationId": "create_invitation_api_v1_household_invitations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitationIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationCreatedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Invitation",
+        "tags": [
+          "household"
+        ]
+      }
+    },
+    "/api/v1/household/invitations/{invitation_id}": {
+      "delete": {
+        "operationId": "revoke_invitation_api_v1_household_invitations__invitation_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invitation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Invitation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Invitation",
+        "tags": [
+          "household"
+        ]
+      }
+    },
+    "/api/v1/household/members": {
+      "get": {
+        "operationId": "list_members_api_v1_household_members_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MemberDetailOut"
+                  },
+                  "title": "Response List Members Api V1 Household Members Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Members",
+        "tags": [
+          "household"
+        ]
+      }
+    },
+    "/api/v1/household/members/{user_id}": {
+      "delete": {
+        "operationId": "remove_member_api_v1_household_members__user_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Member",
+        "tags": [
+          "household"
+        ]
+      }
+    },
+    "/api/v1/household/members/{user_id}/role": {
+      "put": {
+        "operationId": "set_role_api_v1_household_members__user_id__role_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Role",
+        "tags": [
+          "household"
+        ]
+      }
+    },
     "/api/v1/imports": {
       "get": {
         "description": "Importaciones confirmadas o deshechas de tus cuentas, de la más reciente a la más antigua.",
@@ -10344,6 +11478,753 @@
         "summary": "Update Payment",
         "tags": [
           "schedule"
+        ]
+      }
+    },
+    "/api/v1/sharing/balances": {
+      "get": {
+        "operationId": "get_balances_api_v1_sharing_balances_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BalancesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Balances",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
+    "/api/v1/sharing/events": {
+      "get": {
+        "operationId": "list_events_api_v1_sharing_events_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EventOut"
+                  },
+                  "title": "Response List Events Api V1 Sharing Events Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Events",
+        "tags": [
+          "sharing"
+        ]
+      },
+      "post": {
+        "operationId": "create_event_api_v1_sharing_events_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Event",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
+    "/api/v1/sharing/events/{event_id}": {
+      "delete": {
+        "operationId": "delete_event_api_v1_sharing_events__event_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Event",
+        "tags": [
+          "sharing"
+        ]
+      },
+      "get": {
+        "operationId": "get_event_api_v1_sharing_events__event_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventSummaryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Event",
+        "tags": [
+          "sharing"
+        ]
+      },
+      "put": {
+        "operationId": "update_event_api_v1_sharing_events__event_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Event",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
+    "/api/v1/sharing/events/{event_id}/close": {
+      "post": {
+        "operationId": "close_event_api_v1_sharing_events__event_id__close_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Close Event",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
+    "/api/v1/sharing/events/{event_id}/reopen": {
+      "post": {
+        "operationId": "reopen_event_api_v1_sharing_events__event_id__reopen_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reopen Event",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
+    "/api/v1/sharing/expenses": {
+      "get": {
+        "operationId": "list_expenses_api_v1_sharing_expenses_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExpenseOut"
+                  },
+                  "title": "Response List Expenses Api V1 Sharing Expenses Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Expenses",
+        "tags": [
+          "sharing"
+        ]
+      },
+      "post": {
+        "operationId": "create_expense_api_v1_sharing_expenses_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExpenseIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpenseOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Expense",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
+    "/api/v1/sharing/expenses/{expense_id}": {
+      "delete": {
+        "operationId": "void_expense_api_v1_sharing_expenses__expense_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "expense_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Expense Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Void Expense",
+        "tags": [
+          "sharing"
+        ]
+      },
+      "put": {
+        "operationId": "update_expense_api_v1_sharing_expenses__expense_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "expense_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Expense Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExpenseIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpenseOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Expense",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
+    "/api/v1/sharing/guests": {
+      "post": {
+        "operationId": "add_guest_api_v1_sharing_guests_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuestIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParticipantOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Guest",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
+    "/api/v1/sharing/guests/{guest_id}/archive": {
+      "post": {
+        "operationId": "archive_guest_api_v1_sharing_guests__guest_id__archive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "guest_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Guest Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Archive Guest",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
+    "/api/v1/sharing/participants": {
+      "get": {
+        "operationId": "list_participants_api_v1_sharing_participants_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ParticipantOut"
+                  },
+                  "title": "Response List Participants Api V1 Sharing Participants Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Participants",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
+    "/api/v1/sharing/settlements": {
+      "get": {
+        "operationId": "list_settlements_api_v1_sharing_settlements_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SettlementOut"
+                  },
+                  "title": "Response List Settlements Api V1 Sharing Settlements Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Settlements",
+        "tags": [
+          "sharing"
+        ]
+      },
+      "post": {
+        "operationId": "create_settlement_api_v1_sharing_settlements_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettlementIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Settlement",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
+    "/api/v1/sharing/settlements/{settlement_id}/cancel": {
+      "post": {
+        "operationId": "cancel_settlement_api_v1_sharing_settlements__settlement_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "settlement_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Settlement Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Settlement",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
+    "/api/v1/sharing/settlements/{settlement_id}/confirm": {
+      "post": {
+        "operationId": "confirm_settlement_api_v1_sharing_settlements__settlement_id__confirm_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "settlement_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Settlement Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm Settlement",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
+    "/api/v1/sharing/split-preview": {
+      "post": {
+        "operationId": "preview_api_v1_sharing_split_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SplitPreviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AmountOfOut"
+                  },
+                  "title": "Response Preview Api V1 Sharing Split Preview Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview",
+        "tags": [
+          "sharing"
         ]
       }
     },

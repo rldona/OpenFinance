@@ -1,22 +1,22 @@
-# ADR-0002: Workspace como frontera de aislamiento
+# ADR-0002: Workspace as the isolation boundary
 
-- Estado: Accepted
-- Fecha: 2026-10-31
+- Status: Accepted
+- Date: 2026-10-31
 
-## Contexto
+## Context
 
-OpenFinance es multiusuario desde el inicio: una persona puede tener finanzas propias y compartir otras con su familia. La fuga de datos entre usuarios es el riesgo prioritario del producto.
+OpenFinance is multi-user from the start: a person can have their own finances and share others with their family. Data leakage between users is the product's top risk.
 
-## Decisión
+## Decision
 
-- `User` es la identidad global; `Workspace` es el contexto financiero y la frontera de acceso; `Membership` une ambos con un rol (`owner`, `editor`, `viewer`).
-- Toda entidad financiera tiene `workspace_id` no nulo.
-- La autorización se decide en el servidor combinando membresía, rol, recurso y acción. El rol es el punto de partida, no la única regla: `AccountAccess` permite restringir cuentas concretas.
-- Una cuenta compartida debe serlo de forma explícita.
-- Las mismas comprobaciones aplican a la API, a las tareas asíncronas, a las exportaciones y a las herramientas del Manager.
+- `User` is the global identity; `Workspace` is the financial context and the access boundary; `Membership` links both with a role (`owner`, `editor`, `viewer`).
+- Every financial entity has a non-null `workspace_id`.
+- Authorization is decided on the server by combining membership, role, resource and action. The role is the starting point, not the only rule: `AccountAccess` allows restricting specific accounts.
+- A shared account must be shared explicitly.
+- The same checks apply to the API, asynchronous tasks, exports and Manager tools.
 
-## Consecuencias
+## Consequences
 
-- Todos los casos de uso reciben un contexto de autorización (actor + workspace).
-- Los repositorios filtran siempre por workspace; se añaden tests negativos que manipulan identificadores entre workspaces.
-- Se valorará Row-Level Security de PostgreSQL como defensa en profundidad, no como sustituto.
+- All use cases receive an authorization context (actor + workspace).
+- Repositories always filter by workspace; negative tests are added that tamper with identifiers across workspaces.
+- PostgreSQL Row-Level Security will be considered as defense in depth, not as a replacement.

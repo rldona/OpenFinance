@@ -1,42 +1,42 @@
-# ADR-0020: Motor de reglas con condiciones y importación universal
+# ADR-0020: Rules engine with conditions and universal import
 
-- Estado: Accepted
-- Fecha: 2026-11-02
+- Status: Accepted
+- Date: 2026-11-02
 
-## Contexto
+## Context
 
-Hoy hay una sola clase de regla: «comercio → categoría», que se aprende al corregir (OF-202, OF-702). Sirve para lo común, pero no para «los pagos de más de 500 € desde la conjunta son *Casa*», «lo que contenga *AMAZON PRIME* lleva la etiqueta *suscripción*» o «las comisiones del banco son *Banco* y no cuentan para revisar». Y solo se importan dos formatos de dos bancos (Revolut y Bankinter), cuando otros hogares tendrán otro banco.
+Today there is a single kind of rule: "merchant → category", which is learned when correcting (OF-202, OF-702). It works for the common case, but not for "payments over €500 from the joint account are *Casa* (Home)", "anything containing *AMAZON PRIME* gets the tag *suscripción* (subscription)" or "bank fees are *Banco* (Bank) and don't count for review". And only two formats from two banks (Revolut and Bankinter) are imported, while other households will have a different bank.
 
-Esta fase hace las reglas más potentes sin perder lo que ya funciona, y abre la importación a formatos estándar y a cualquier CSV.
+This phase makes rules more powerful without losing what already works, and opens import to standard formats and to any CSV.
 
-## Decisión
+## Decision
 
-### Reglas con condiciones, acciones y fases
+### Rules with conditions, actions and phases
 
-- Una **regla** tiene un nombre, un ámbito (del hogar o personal, como hoy), **condiciones** (todas a la vez), **acciones** y una **fase**.
-- **Condiciones**: el concepto *contiene*, *empieza por* o *es igual a* un texto (sin distinguir mayúsculas ni tildes); el comercio es uno concreto; el importe está *entre* dos valores (en valor absoluto); es un gasto o un ingreso (signo); la cuenta es una de estas; el tipo del banco es este. **No hay expresiones regulares**: una regla escrita por una persona no puede colgar el servidor (ReDoS), y lo anterior cubre lo que se pide en la práctica.
-- **Acciones**: poner la categoría, poner el tipo (gasto, ingreso, traspaso…), añadir etiquetas, poner o añadir nota, asignar el comercio. Una acción nunca toca el importe, la fecha ni el concepto.
-- **Fases**: `antes`, `normal` y `después`. Dentro de cada fase, por orden de prioridad (un número que se puede reordenar). Cada acción se aplica **solo si el campo todavía no lo ha fijado una regla anterior o una persona** («la primera que fija, gana»): una categoría elegida a mano nunca se pisa, como hasta ahora.
-- Las reglas aprendidas «comercio → categoría» **siguen existiendo tal cual** y se evalúan en la fase `normal` con la prioridad más baja: lo que una regla explícita no decide, lo decide lo aprendido. No hay migración de datos de las reglas actuales.
-- Un movimiento **revisado** (OF-1006) o **dividido** (OF-1003) no lo cambia ninguna regla.
+- A **rule** has a name, a scope (household or personal, as today), **conditions** (all at once), **actions** and a **phase**.
+- **Conditions**: the description *contains*, *starts with* or *equals* a text (case- and accent-insensitive); the merchant is a specific one; the amount is *between* two values (in absolute value); it is an expense or an income (sign); the account is one of these; the bank type is this one. **There are no regular expressions**: a rule written by a person cannot hang the server (ReDoS), and the above covers what is asked for in practice.
+- **Actions**: set the category, set the type (expense, income, transfer…), add tags, set or append a note, assign the merchant. An action never touches the amount, date or description.
+- **Phases**: `antes` (before), `normal` and `después` (after). Within each phase, in priority order (a number that can be reordered). Each action is applied **only if the field has not yet been set by an earlier rule or by a person** ("the first to set wins"): a category chosen by hand is never overwritten, as until now.
+- The learned "merchant → category" rules **continue to exist as they are** and are evaluated in the `normal` phase with the lowest priority: what an explicit rule does not decide, the learned one decides. There is no data migration of the current rules.
+- A **reviewed** (OF-1006) or **split** (OF-1003) transaction is not changed by any rule.
 
-### Vista previa y aplicar a lo existente
+### Preview and apply to existing
 
-- Toda regla se puede **probar** antes de guardarla: la vista previa dice qué movimientos existentes (entre los que ve quien la crea) cambiarían, con el antes y el después, sin escribir nada.
-- **Aplicar a lo existente** es una acción explícita, separada de guardar la regla, y deja una operación en el registro de cambios (ADR-0017) que se deshace de una vez. Las reglas nuevas se aplican solas a las importaciones futuras.
-- Privacidad (ADR-0013): una regla del hogar solo ve y cambia los movimientos de las cuentas visibles para quien la aplica; una regla personal, solo los de las cuentas personales de su titular. Un recuento nunca incluye lo que no se ve.
+- Every rule can be **tested** before saving it: the preview says which existing transactions (among those visible to the creator) would change, with before and after, without writing anything.
+- **Apply to existing** is an explicit action, separate from saving the rule, and leaves an operation in the change log (ADR-0017) that is undone in one go. New rules apply automatically to future imports.
+- Privacy (ADR-0013): a household rule sees and changes only the transactions of accounts visible to whoever applies it; a personal rule, only those of its owner's personal accounts. A count never includes what is not visible.
 
-### Importación universal
+### Universal import
 
-- **Formatos**: OFX y QIF (los que exportan casi todos los bancos), CAMT.053 (XML de ISO 20022, el estándar europeo) y **CSV de cualquier banco** con un **perfil**.
-- Todos entran por la misma tubería de hoy: lector → filas normalizadas (`ImportedRow`) → vista previa → confirmar. Mismo `fingerprint` estable para no duplicar, mismas comprobaciones de saldo cuando el formato trae saldos, mismos límites de tamaño (5 MB) y los mismos extractos reales sin entrar nunca en el repositorio.
-- XML solo con `defusedxml` (sin entidades externas ni expansión). Los importes nunca pasan por `float`.
-- Un **perfil de CSV** guarda cómo leer el archivo de un banco: separador, codificación, formato de fecha y de número, columnas de fecha, concepto e importe (o debe/haber), signo y cuántas filas de cabecera saltar. Se crea desde una vista previa de las primeras filas y se reutiliza; es del hogar y se puede borrar. No ejecuta nada: es solo datos.
-- Un formato nuevo no sustituye a los lectores de Revolut y Bankinter: esos siguen detectándose por su cabecera.
+- **Formats**: OFX and QIF (the ones almost all banks export), CAMT.053 (ISO 20022 XML, the European standard) and **CSV from any bank** with a **profile**.
+- All of them go through the same pipeline as today: reader → normalized rows (`ImportedRow`) → preview → confirm. Same stable `fingerprint` to avoid duplicates, same balance checks when the format carries balances, same size limits (5 MB), and real statements still never enter the repository.
+- XML only with `defusedxml` (no external entities or expansion). Amounts never go through `float`.
+- A **CSV profile** stores how to read a bank's file: separator, encoding, date and number format, date, description and amount columns (or debit/credit), sign, and how many header rows to skip. It is created from a preview of the first rows and reused; it belongs to the household and can be deleted. It executes nothing: it is just data.
+- A new format does not replace the Revolut and Bankinter readers: those continue to be detected by their header.
 
-## Consecuencias
+## Consequences
 
-- Hace falta un orden de evaluación estable y testeable: el motor es una función pura (movimiento + reglas → cambios) en el dominio, con el acceso a datos fuera.
-- Los tests incluyen propiedades: aplicar las mismas reglas dos veces no cambia nada la segunda vez (idempotencia) y nunca se cambia un campo fijado a mano.
-- OFX, QIF y CAMT se prueban con archivos sintéticos; los extractos reales siguen fuera del repositorio.
-- Las reglas con condiciones sobre la cuenta o el importe necesitan que la vista previa sea rápida: se evalúa en memoria sobre los movimientos visibles, sin una consulta por regla.
+- A stable, testable evaluation order is needed: the engine is a pure function (transaction + rules → changes) in the domain, with data access outside.
+- The tests include properties: applying the same rules twice changes nothing the second time (idempotence) and a field set by hand is never changed.
+- OFX, QIF and CAMT are tested with synthetic files; real statements remain outside the repository.
+- Rules with conditions on the account or the amount need the preview to be fast: it is evaluated in memory over the visible transactions, without one query per rule.

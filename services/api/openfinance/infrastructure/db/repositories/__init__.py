@@ -19,6 +19,7 @@ from openfinance.infrastructure.db.repositories.imports import (
     SqlImportBatchRepository,
     SqlMemberPatternRepository,
 )
+from openfinance.infrastructure.db.repositories.invitations import SqlInvitationRepository
 from openfinance.infrastructure.db.repositories.ledger import (
     SqlAccountRepository,
     SqlTransactionRepository,
@@ -37,6 +38,7 @@ from openfinance.infrastructure.db.repositories.savings import (
     SqlIdeaDismissalRepository,
 )
 from openfinance.infrastructure.db.repositories.schedule import SqlScheduleRepository
+from openfinance.infrastructure.db.repositories.sharing import SqlSharingRepository
 from openfinance.infrastructure.db.repositories.splits import SqlSplitRepository
 from openfinance.infrastructure.db.repositories.tags import SqlTagRepository
 from openfinance.infrastructure.db.repositories.templates import SqlTemplateRepository
@@ -56,6 +58,7 @@ __all__ = [
     "SqlHouseholdRepository",
     "SqlIdeaDismissalRepository",
     "SqlImportBatchRepository",
+    "SqlInvitationRepository",
     "SqlLinkRepository",
     "SqlMemberPatternRepository",
     "SqlMerchantRepository",
@@ -66,6 +69,7 @@ __all__ = [
     "SqlSavedReportRepository",
     "SqlScheduleRepository",
     "SqlSessionRepository",
+    "SqlSharingRepository",
     "SqlSplitRepository",
     "SqlTagRepository",
     "SqlTemplateRepository",

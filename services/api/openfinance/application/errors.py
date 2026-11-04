@@ -11,6 +11,10 @@ class NotFoundError(ApplicationError):
     pass
 
 
+class ForbiddenError(ApplicationError):
+    """La persona está identificada pero su rol no permite esta acción (ADR-0026)."""
+
+
 class ConflictError(ApplicationError):
     pass
 

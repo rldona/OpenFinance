@@ -18,6 +18,7 @@ from openfinance.application.errors import (
     ApplicationError,
     AuthenticationError,
     ConflictError,
+    ForbiddenError,
     InvalidRequestError,
     NotFoundError,
 )
@@ -42,6 +43,7 @@ _SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
 _STATUS = {
     AuthenticationError: status.HTTP_401_UNAUTHORIZED,
+    ForbiddenError: status.HTTP_403_FORBIDDEN,
     NotFoundError: status.HTTP_404_NOT_FOUND,
     ConflictError: status.HTTP_409_CONFLICT,
     InvalidRequestError: status.HTTP_422_UNPROCESSABLE_CONTENT,

@@ -252,6 +252,52 @@ class ExportedBankLink:
 
 
 @dataclass(frozen=True, slots=True)
+class ExportedGuest:
+    id: UUID
+    name: str
+    archived: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ExportedEvent:
+    id: UUID
+    name: str
+    icon: str
+    starts_on: date | None
+    ends_on: date | None
+    closed: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ExportedSharedExpense:
+    id: UUID
+    on: date
+    description: str
+    amount: Decimal
+    currency: str
+    method: str
+    category_id: UUID | None
+    event_id: UUID | None
+    payers: str
+    """``participante:importe`` separados por «|»."""
+    parts: str
+    """Lo que le toca a cada participante, con el mismo formato."""
+    voided: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ExportedSettlement:
+    id: UUID
+    from_id: UUID
+    to_id: UUID
+    amount: Decimal
+    currency: str
+    on: date
+    status: str
+    reference: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class HouseholdExport:
     meta: ExportMeta
     members: list[ExportedMember]
@@ -273,6 +319,10 @@ class HouseholdExport:
     saved_reports: list[ExportedSavedReport] = field(default_factory=list)
     bank_connections: list[ExportedBankConnection] = field(default_factory=list)
     bank_links: list[ExportedBankLink] = field(default_factory=list)
+    guests: list[ExportedGuest] = field(default_factory=list)
+    events: list[ExportedEvent] = field(default_factory=list)
+    shared_expenses: list[ExportedSharedExpense] = field(default_factory=list)
+    settlements: list[ExportedSettlement] = field(default_factory=list)
 
 
 def export_household(
@@ -535,7 +585,46 @@ def _v2_extras(
         for r in uow.reports.visible_to(household_id, actor.user_id)
     ]
     connections = [c.current(now) for c in uow.bank.for_owner(household_id, actor.user_id)]
+    # El reparto es del hogar y no cuelga de cuentas personales: lo ven todas las personas.
+    guests = [ExportedGuest(g.id, g.name, g.archived) for g in uow.sharing.guests(household_id)]
+    events = [
+        ExportedEvent(e.id, e.name, e.icon, e.starts_on, e.ends_on, e.closed)
+        for e in uow.sharing.events(household_id)
+    ]
+    shared = [
+        ExportedSharedExpense(
+            e.id,
+            e.on,
+            e.description,
+            e.amount.amount,
+            e.amount.currency.code,
+            e.method.value,
+            e.category_id,
+            e.event_id,
+            "|".join(f"{p}:{m.amount}" for p, m in e.payers),
+            "|".join(f"{p}:{m.amount}" for p, m in e.parts),
+            e.voided,
+        )
+        for e in uow.sharing.expenses(household_id)
+    ]
+    settlements = [
+        ExportedSettlement(
+            s.id,
+            s.from_id,
+            s.to_id,
+            s.amount.amount,
+            s.amount.currency.code,
+            s.on,
+            s.status.value,
+            s.reference,
+        )
+        for s in uow.sharing.settlements(household_id)
+    ]
     return {
+        "guests": guests,
+        "events": events,
+        "shared_expenses": shared,
+        "settlements": settlements,
         "budget_allocations": allocations,
         "goal_contributions": contributions,
         "scheduled_payments": payments,

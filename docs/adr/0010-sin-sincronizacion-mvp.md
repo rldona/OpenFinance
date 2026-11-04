@@ -1,18 +1,18 @@
-# ADR-0010: Sin sincronización bidireccional en el MVP
+# ADR-0010: No bidirectional sync in the MVP
 
-- Estado: Proposed
-- Fecha: 2026-10-31
+- Status: Proposed
+- Date: 2026-10-31
 
-## Contexto
+## Context
 
-Sincronizar réplicas entre dispositivos exige resolver conflictos, identidades de dispositivo, cifrado, revocación y recuperación. Es un proyecto en sí mismo.
+Syncing replicas across devices requires solving conflicts, device identities, encryption, revocation and recovery. It is a project in itself.
 
-## Decisión propuesta
+## Proposed decision
 
-En v0.1 cada instalación tiene una única fuente de verdad. El acceso desde otros dispositivos se hace por la web autenticada del servidor.
+In v0.1 each installation has a single source of truth. Access from other devices is through the server's authenticated web app.
 
-## Consecuencias
+## Consequences
 
-- No se resuelven conflictos entre réplicas en el MVP.
-- Se conservan desde ya identificadores estables (UUID) y procedencia de los datos para facilitar una sincronización futura.
-- La exportación completa de datos cubre la portabilidad mientras tanto.
+- Conflicts between replicas are not resolved in the MVP.
+- Stable identifiers (UUID) and data provenance are kept from the start to ease a future sync.
+- Full data export covers portability in the meantime.

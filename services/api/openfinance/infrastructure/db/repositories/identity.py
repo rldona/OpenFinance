@@ -14,7 +14,7 @@ from openfinance.domain.shared.ids import (
     UserId,
     WorkspaceId,
 )
-from openfinance.domain.workspaces import Household
+from openfinance.domain.workspaces import Household, Role
 from openfinance.infrastructure.db.models import (
     HouseholdRow,
     MembershipRow,
@@ -73,8 +73,42 @@ class SqlHouseholdRepository:
         )
         self._s.flush()
 
-    def add_member(self, household_id: WorkspaceId, user_id: UserId) -> None:
-        self._s.add(MembershipRow(household_id=household_id, user_id=user_id))
+    def add_member(
+        self, household_id: WorkspaceId, user_id: UserId, role: Role = Role.OWNER
+    ) -> None:
+        self._s.add(MembershipRow(household_id=household_id, user_id=user_id, role=role.value))
+        self._s.flush()
+
+    def roles(self, household_id: WorkspaceId) -> dict[UserId, Role]:
+        rows = self._s.execute(
+            select(MembershipRow.user_id, MembershipRow.role).where(
+                MembershipRow.household_id == household_id
+            )
+        )
+        return {UserId(u): Role(r) for u, r in rows}
+
+    def role_of(self, household_id: WorkspaceId, user_id: UserId) -> Role | None:
+        role = self._s.scalar(
+            select(MembershipRow.role).where(
+                MembershipRow.household_id == household_id, MembershipRow.user_id == user_id
+            )
+        )
+        return Role(role) if role else None
+
+    def set_role(self, household_id: WorkspaceId, user_id: UserId, role: Role) -> None:
+        self._s.execute(
+            update(MembershipRow)
+            .where(MembershipRow.household_id == household_id, MembershipRow.user_id == user_id)
+            .values(role=role.value)
+        )
+        self._s.flush()
+
+    def remove_member(self, household_id: WorkspaceId, user_id: UserId) -> None:
+        self._s.execute(
+            delete(MembershipRow).where(
+                MembershipRow.household_id == household_id, MembershipRow.user_id == user_id
+            )
+        )
         self._s.flush()
 
     def households_of(self, user_id: UserId) -> list[WorkspaceId]:

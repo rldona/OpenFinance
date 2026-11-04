@@ -2,9 +2,12 @@ FROM python:3.12-slim@sha256:aa943ce411423c7582288f18707ff66eddcbaeb510502d747a7
 
 COPY --from=ghcr.io/astral-sh/uv:0.8@sha256:1d31be550ff927957472b2a491dc3de1ea9b5c2d319a9cea5b6a48021e2990a6 /uv /usr/local/bin/uv
 
+# PYTHONUTF8: sin él, el contenedor lee el teclado como ASCII y un nombre con tilde («Raúl»)
+# escrito en `openfinance bootstrap` llega roto a la base de datos.
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     PYTHONUNBUFFERED=1 \
+    PYTHONUTF8=1 \
     PATH="/app/.venv/bin:$PATH"
 
 WORKDIR /app
