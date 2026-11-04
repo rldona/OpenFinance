@@ -5,6 +5,7 @@ from openfinance.api.v1 import (
     attachments,
     auth,
     automation,
+    bank,
     categories,
     changes,
     csv_profiles,
@@ -39,6 +40,7 @@ router.include_router(savings.router)
 router.include_router(schedule.router)
 router.include_router(templates.router)
 router.include_router(alerts.router)
+router.include_router(bank.router)
 router.include_router(notifications.router)
 router.include_router(summary.router)
 router.include_router(export.router)

@@ -9,6 +9,7 @@ const WHERE: Record<Alert['kind'], { href: string; label: string }> = {
   duplicate: { href: '#movimientos', label: 'Ver movimientos' },
   price_rise: { href: '#ahorrar', label: 'Ver cuotas' },
   fee: { href: '#movimientos', label: 'Ver movimientos' },
+  consent: { href: '#ajustes', label: 'Ir a Ajustes' },
 }
 
 /** Avisos deterministas (ADR-0023, OF-1301): lo que conviene mirar hoy, y se puede descartar. */

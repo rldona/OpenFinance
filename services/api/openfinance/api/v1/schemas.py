@@ -15,6 +15,7 @@ from openfinance.domain.alerts import Alert
 from openfinance.domain.allowance import Horizon as AllowanceHorizon
 from openfinance.domain.attachments import Attachment
 from openfinance.domain.automation import AutomationRule, Phase
+from openfinance.domain.bank import BankConnection
 from openfinance.domain.categories import Category, merchant_label
 from openfinance.domain.csv_profile import CsvProfile
 from openfinance.domain.forecast import BalancePoint, Forecast
@@ -409,7 +410,9 @@ class ManualTransactionOut(BaseModel):
 
 
 class AlertOut(BaseModel):
-    kind: Literal["late_payment", "low_balance", "budget_over", "duplicate", "price_rise", "fee"]
+    kind: Literal[
+        "late_payment", "low_balance", "budget_over", "duplicate", "price_rise", "fee", "consent"
+    ]
     key: str = Field(description="Estable entre consultas; sirve para descartarlo")
     severity: Literal["info", "warning", "critical"]
     title: str
@@ -1331,7 +1334,15 @@ class AllowanceOut(BaseModel):
 
 class NotificationPrefsIn(BaseModel):
     kinds: list[
-        Literal["late_payment", "low_balance", "budget_over", "duplicate", "price_rise", "fee"]
+        Literal[
+            "late_payment",
+            "low_balance",
+            "budget_over",
+            "duplicate",
+            "price_rise",
+            "fee",
+            "consent",
+        ]
     ] = Field(max_length=6)
     weekly: bool
 
@@ -1341,7 +1352,15 @@ class NotificationsOut(BaseModel):
     public_key: str | None = Field(description="Clave pública VAPID para suscribirse")
     devices: int
     kinds: list[
-        Literal["late_payment", "low_balance", "budget_over", "duplicate", "price_rise", "fee"]
+        Literal[
+            "late_payment",
+            "low_balance",
+            "budget_over",
+            "duplicate",
+            "price_rise",
+            "fee",
+            "consent",
+        ]
     ]
     weekly: bool
 
@@ -1380,3 +1399,104 @@ class WeeklySummaryOut(BaseModel):
     top: list[WeekCategoryOut]
     upcoming: list[UpcomingPaymentOut]
     open_alerts: int
+
+
+class BankLinkOut(BaseModel):
+    remote_uid: str
+    iban_tail: str = Field(description="Últimos cuatro caracteres del IBAN")
+    name: str
+    currency: str
+    account_id: UUID | None = Field(description="Cuenta del hogar a la que alimenta, si se eligió")
+    bank_balance: MoneyOut | None = Field(description="Último saldo que informó el banco")
+    bank_balance_at: datetime | None
+    balance_difference: MoneyOut | None = Field(
+        description="Saldo del banco menos el calculado en OpenFinance al sincronizar"
+    )
+
+
+class BankConnectionOut(BaseModel):
+    id: UUID
+    aspsp: str
+    country: str
+    status: Literal["pending", "active", "expired", "revoked"]
+    valid_until: datetime | None
+    expires_soon: bool
+    last_sync_at: datetime | None
+    last_error: str
+    links: list[BankLinkOut]
+
+    @classmethod
+    def of(cls, c: BankConnection, now: datetime) -> BankConnectionOut:
+        return cls(
+            id=c.id,
+            aspsp=c.aspsp,
+            country=c.country,
+            status=c.status.value,
+            valid_until=c.valid_until,
+            expires_soon=c.expires_soon(now),
+            last_sync_at=c.last_sync_at,
+            last_error=c.last_error,
+            links=[
+                BankLinkOut(
+                    remote_uid=link.remote_uid,
+                    iban_tail=link.iban_tail,
+                    name=link.name,
+                    currency=link.currency,
+                    account_id=link.account_id,
+                    bank_balance=MoneyOut.of(link.bank_balance) if link.bank_balance else None,
+                    bank_balance_at=link.bank_balance_at,
+                    balance_difference=(
+                        MoneyOut.of(link.balance_difference) if link.balance_difference else None
+                    ),
+                )
+                for link in c.links
+            ],
+        )
+
+
+class BankOut(BaseModel):
+    configured: bool = Field(
+        description="Hay aplicación del agregador y el servidor puede conectar"
+    )
+    connections: list[BankConnectionOut]
+
+
+class BankStartIn(BaseModel):
+    aspsp: str = Field(min_length=1, max_length=100, description="Nombre del banco en el agregador")
+    country: str = Field(min_length=2, max_length=2, examples=["ES"])
+
+
+class BankStartOut(BaseModel):
+    connection_id: UUID
+    url: str = Field(description="Dirección del banco donde la persona autoriza")
+
+
+class BankCompleteIn(BaseModel):
+    state: str = Field(min_length=1, max_length=64)
+    code: str = Field(min_length=1, max_length=500)
+
+
+class BankLinkIn(BaseModel):
+    remote_uid: str = Field(min_length=1, max_length=200)
+    account_id: UUID | None = Field(description="Cuenta del hogar; null desenlaza")
+
+
+class BankRevokeOut(BaseModel):
+    connection: BankConnectionOut
+    closed_at_bank: bool
+
+
+class BankSyncLinkOut(BaseModel):
+    name: str
+    created: int
+    duplicates: int
+    reconciled: int = Field(description="Conciliados con un movimiento ya anotado")
+    skipped: int
+    error: str
+
+
+class BankSyncOut(BaseModel):
+    connection: BankConnectionOut
+    created: int = Field(description="Movimientos nuevos guardados en todas las cuentas")
+    links: list[BankSyncLinkOut]
+    skipped_reason: str = Field(description="Por qué no se intentó, si no se hizo")

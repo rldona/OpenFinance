@@ -11,6 +11,8 @@ usa tras restaurar una copia).
 ``openfinance alerts notify`` envía los avisos nuevos por Web Push (se programa con cron) y
 ``openfinance alerts keys`` genera las claves VAPID.
 
+``openfinance bank sync`` trae los movimientos nuevos de los bancos conectados (cron).
+
 ``openfinance users set-password`` cambia la contraseña de alguien (y cierra sus sesiones) y
 ``openfinance accounts add`` añade una hucha o una cuenta al hogar ya creado.
 """
@@ -217,6 +219,40 @@ def _alerts(args: argparse.Namespace) -> int:
     return 1 if report.failed else 0
 
 
+def _bank(_: argparse.Namespace) -> int:
+    from openfinance.application.bank import sync_all
+    from openfinance.infrastructure.config import get_settings
+    from openfinance.infrastructure.enablebanking import EnableBankingAggregator
+
+    aggregator = EnableBankingAggregator(get_settings())
+    if not aggregator.enabled:
+        print(
+            "La conexión con el banco está apagada: faltan OPENFINANCE_BANK_APP_ID, "
+            "OPENFINANCE_BANK_PRIVATE_KEY u OPENFINANCE_BANK_REDIRECT_URL.",
+            file=sys.stderr,
+        )
+        return 1
+    with get_session_factory()() as session:
+        reports = sync_all(SqlUnitOfWork(session), aggregator, utc_now())
+    failed = 0
+    for report in reports:
+        bank = report.connection.aspsp
+        if report.skipped_reason:
+            print(f"{bank}: omitida ({report.skipped_reason})")
+        for line in report.links:
+            if line.error:
+                failed += 1
+                print(f"{bank} · {line.name}: error ({line.error})")
+            else:
+                print(
+                    f"{bank} · {line.name}: {line.created} nuevos, "
+                    f"{line.reconciled} conciliados, {line.duplicates} ya estaban, "
+                    f"{line.skipped} descartados"
+                )
+    print(f"{len(reports)} conexiones revisadas · {failed} cuentas con error")
+    return 1 if failed else 0
+
+
 def _sessions(_: argparse.Namespace) -> int:
     from openfinance.application.identity import revoke_all_sessions
 
@@ -403,6 +439,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     alert_actions.add_parser("keys", help="Generar las claves VAPID de Web Push")
     alerts.set_defaults(func=_alerts)
+
+    bank = sub.add_parser("bank", help="Conexión con el banco")
+    bank_actions = bank.add_subparsers(dest="action", required=True)
+    bank_actions.add_parser(
+        "sync",
+        help="Traer los movimientos nuevos de los bancos conectados (para cron)",
+    )
+    bank.set_defaults(func=_bank)
 
     sessions = sub.add_parser("sessions", help="Sesiones abiertas")
     session_actions = sessions.add_subparsers(dest="action", required=True)

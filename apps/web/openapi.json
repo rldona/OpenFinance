@@ -210,7 +210,8 @@
               "budget_over",
               "duplicate",
               "price_rise",
-              "fee"
+              "fee",
+              "consent"
             ],
             "title": "Kind",
             "type": "string"
@@ -632,6 +633,372 @@
           "reported"
         ],
         "title": "BalanceMismatchOut",
+        "type": "object"
+      },
+      "BankCompleteIn": {
+        "properties": {
+          "code": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "state": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "code"
+        ],
+        "title": "BankCompleteIn",
+        "type": "object"
+      },
+      "BankConnectionOut": {
+        "properties": {
+          "aspsp": {
+            "title": "Aspsp",
+            "type": "string"
+          },
+          "country": {
+            "title": "Country",
+            "type": "string"
+          },
+          "expires_soon": {
+            "title": "Expires Soon",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_error": {
+            "title": "Last Error",
+            "type": "string"
+          },
+          "last_sync_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sync At"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/BankLinkOut"
+            },
+            "title": "Links",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "active",
+              "expired",
+              "revoked"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "valid_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Until"
+          }
+        },
+        "required": [
+          "id",
+          "aspsp",
+          "country",
+          "status",
+          "valid_until",
+          "expires_soon",
+          "last_sync_at",
+          "last_error",
+          "links"
+        ],
+        "title": "BankConnectionOut",
+        "type": "object"
+      },
+      "BankLinkIn": {
+        "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cuenta del hogar; null desenlaza",
+            "title": "Account Id"
+          },
+          "remote_uid": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Remote Uid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "remote_uid",
+          "account_id"
+        ],
+        "title": "BankLinkIn",
+        "type": "object"
+      },
+      "BankLinkOut": {
+        "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cuenta del hogar a la que alimenta, si se eligió",
+            "title": "Account Id"
+          },
+          "balance_difference": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Saldo del banco menos el calculado en OpenFinance al sincronizar"
+          },
+          "bank_balance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Último saldo que informó el banco"
+          },
+          "bank_balance_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bank Balance At"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "iban_tail": {
+            "description": "Últimos cuatro caracteres del IBAN",
+            "title": "Iban Tail",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "remote_uid": {
+            "title": "Remote Uid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "remote_uid",
+          "iban_tail",
+          "name",
+          "currency",
+          "account_id",
+          "bank_balance",
+          "bank_balance_at",
+          "balance_difference"
+        ],
+        "title": "BankLinkOut",
+        "type": "object"
+      },
+      "BankOut": {
+        "properties": {
+          "configured": {
+            "description": "Hay aplicación del agregador y el servidor puede conectar",
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "connections": {
+            "items": {
+              "$ref": "#/components/schemas/BankConnectionOut"
+            },
+            "title": "Connections",
+            "type": "array"
+          }
+        },
+        "required": [
+          "configured",
+          "connections"
+        ],
+        "title": "BankOut",
+        "type": "object"
+      },
+      "BankRevokeOut": {
+        "properties": {
+          "closed_at_bank": {
+            "title": "Closed At Bank",
+            "type": "boolean"
+          },
+          "connection": {
+            "$ref": "#/components/schemas/BankConnectionOut"
+          }
+        },
+        "required": [
+          "connection",
+          "closed_at_bank"
+        ],
+        "title": "BankRevokeOut",
+        "type": "object"
+      },
+      "BankStartIn": {
+        "properties": {
+          "aspsp": {
+            "description": "Nombre del banco en el agregador",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Aspsp",
+            "type": "string"
+          },
+          "country": {
+            "examples": [
+              "ES"
+            ],
+            "maxLength": 2,
+            "minLength": 2,
+            "title": "Country",
+            "type": "string"
+          }
+        },
+        "required": [
+          "aspsp",
+          "country"
+        ],
+        "title": "BankStartIn",
+        "type": "object"
+      },
+      "BankStartOut": {
+        "properties": {
+          "connection_id": {
+            "format": "uuid",
+            "title": "Connection Id",
+            "type": "string"
+          },
+          "url": {
+            "description": "Dirección del banco donde la persona autoriza",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "connection_id",
+          "url"
+        ],
+        "title": "BankStartOut",
+        "type": "object"
+      },
+      "BankSyncLinkOut": {
+        "properties": {
+          "created": {
+            "title": "Created",
+            "type": "integer"
+          },
+          "duplicates": {
+            "title": "Duplicates",
+            "type": "integer"
+          },
+          "error": {
+            "title": "Error",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "reconciled": {
+            "description": "Conciliados con un movimiento ya anotado",
+            "title": "Reconciled",
+            "type": "integer"
+          },
+          "skipped": {
+            "title": "Skipped",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "created",
+          "duplicates",
+          "reconciled",
+          "skipped",
+          "error"
+        ],
+        "title": "BankSyncLinkOut",
+        "type": "object"
+      },
+      "BankSyncOut": {
+        "properties": {
+          "connection": {
+            "$ref": "#/components/schemas/BankConnectionOut"
+          },
+          "created": {
+            "description": "Movimientos nuevos guardados en todas las cuentas",
+            "title": "Created",
+            "type": "integer"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/BankSyncLinkOut"
+            },
+            "title": "Links",
+            "type": "array"
+          },
+          "skipped_reason": {
+            "description": "Por qué no se intentó, si no se hizo",
+            "title": "Skipped Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "connection",
+          "created",
+          "links",
+          "skipped_reason"
+        ],
+        "title": "BankSyncOut",
         "type": "object"
       },
       "Body_add_attachment_api_v1_transactions__transaction_id__attachments_post": {
@@ -3373,7 +3740,8 @@
                 "budget_over",
                 "duplicate",
                 "price_rise",
-                "fee"
+                "fee",
+                "consent"
               ],
               "type": "string"
             },
@@ -3412,7 +3780,8 @@
                 "budget_over",
                 "duplicate",
                 "price_rise",
-                "fee"
+                "fee",
+                "consent"
               ],
               "type": "string"
             },
@@ -6285,6 +6654,299 @@
         "summary": "Preview Saved",
         "tags": [
           "automation"
+        ]
+      }
+    },
+    "/api/v1/bank": {
+      "get": {
+        "operationId": "get_bank_api_v1_bank_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Bank",
+        "tags": [
+          "bank"
+        ]
+      }
+    },
+    "/api/v1/bank/banks": {
+      "get": {
+        "operationId": "list_banks_api_v1_bank_banks_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "country",
+            "required": true,
+            "schema": {
+              "examples": [
+                "ES"
+              ],
+              "maxLength": 2,
+              "minLength": 2,
+              "title": "Country",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response List Banks Api V1 Bank Banks Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Banks",
+        "tags": [
+          "bank"
+        ]
+      }
+    },
+    "/api/v1/bank/connections": {
+      "post": {
+        "operationId": "start_connection_api_v1_bank_connections_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BankStartIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankStartOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Connection",
+        "tags": [
+          "bank"
+        ]
+      }
+    },
+    "/api/v1/bank/connections/complete": {
+      "post": {
+        "operationId": "complete_connection_api_v1_bank_connections_complete_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BankCompleteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankConnectionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Complete Connection",
+        "tags": [
+          "bank"
+        ]
+      }
+    },
+    "/api/v1/bank/connections/{connection_id}/link": {
+      "put": {
+        "operationId": "link_account_api_v1_bank_connections__connection_id__link_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Connection Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BankLinkIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankConnectionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Link Account",
+        "tags": [
+          "bank"
+        ]
+      }
+    },
+    "/api/v1/bank/connections/{connection_id}/revoke": {
+      "post": {
+        "operationId": "revoke_connection_api_v1_bank_connections__connection_id__revoke_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Connection Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankRevokeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Connection",
+        "tags": [
+          "bank"
+        ]
+      }
+    },
+    "/api/v1/bank/connections/{connection_id}/sync": {
+      "post": {
+        "operationId": "sync_connection_api_v1_bank_connections__connection_id__sync_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Connection Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankSyncOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sync Connection",
+        "tags": [
+          "bank"
         ]
       }
     },

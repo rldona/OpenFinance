@@ -71,6 +71,14 @@ export function App() {
     return () => setUnauthorizedHandler(null)
   }, [])
 
+  // El banco devuelve a la raíz con ?code=…&state=…: quien lo completa está en Ajustes (OF-1401).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.has('code') && params.has('state') && !window.location.hash.startsWith('#ajustes')) {
+      window.location.hash = '#ajustes'
+    }
+  }, [])
+
   useEffect(() => {
     const controller = new AbortController()
     api.me(controller.signal).then(

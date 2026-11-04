@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     vapid_private_key: str = ""
     vapid_subject: str = ""
     """Contacto de quien envía, ``mailto:`` o https (lo exige el estándar)."""
+    bank_app_id: str = ""
+    """Aplicación en Enable Banking (ADR-0024). Sin las tres, la conexión está apagada."""
+    bank_private_key: str = ""
+    """El PEM de la clave privada de la aplicación. Se admite con ``\\n`` en una sola línea."""
+    bank_redirect_url: str = ""
+    """Adonde vuelve el banco tras autorizar: la raíz de la web, registrada en el agregador."""
 
     @model_validator(mode="after")
     def _check(self) -> "Settings":
@@ -54,6 +60,10 @@ class Settings(BaseSettings):
     @property
     def push_enabled(self) -> bool:
         return bool(self.vapid_public_key and self.vapid_private_key and self.vapid_subject)
+
+    @property
+    def bank_enabled(self) -> bool:
+        return bool(self.bank_app_id and self.bank_private_key and self.bank_redirect_url)
 
     @property
     def cookie_secure(self) -> bool:

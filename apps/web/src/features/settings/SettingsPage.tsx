@@ -6,6 +6,7 @@ import { invalid } from '../../lib/invalid'
 import { ErrorState, Loading } from '../../components/LoadState'
 import { formatMoney } from '../../lib/format'
 import { ExchangeRates } from './ExchangeRates'
+import { BankSettings } from './BankSettings'
 import { NotificationSettings } from './NotificationSettings'
 import { type Theme, getTheme, setTheme } from '../../lib/theme'
 import { useLoad } from '../../lib/useLoad'
@@ -373,6 +374,7 @@ export function SettingsPage() {
           <RechargeCards />
           <Appearance />
           <Accounts />
+          <BankSettings />
           <NotificationSettings />
           <ExchangeRates />
           <Sessions />

@@ -25,6 +25,7 @@ from openfinance.domain.alerts import (
     Alert,
     AlertKind,
     Severity,
+    consents,
     duplicates,
     fees,
     price_rises,
@@ -126,6 +127,11 @@ def _movements(uow: UnitOfWork, actor: Actor, today: date) -> list[Alert]:
     return [*duplicates(txns, today), *fees(txns, today)]
 
 
+def _consents(uow: UnitOfWork, actor: Actor, today: date) -> list[Alert]:
+    """Solo las conexiones de quien mira: el consentimiento es personal (ADR-0024)."""
+    return consents(uow.bank.for_owner(actor.household_id, actor.user_id), today)
+
+
 def current_alerts(uow: UnitOfWork, actor: Actor, today: date) -> list[Alert]:
     """Todos los avisos de hoy para esta persona, incluidos los que ya descartó."""
     return sort_alerts(
@@ -135,6 +141,7 @@ def current_alerts(uow: UnitOfWork, actor: Actor, today: date) -> list[Alert]:
             *_budgets(uow, actor, today),
             *_recurring(uow, actor, today),
             *_movements(uow, actor, today),
+            *_consents(uow, actor, today),
         ]
     )
 

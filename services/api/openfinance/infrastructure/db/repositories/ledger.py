@@ -102,6 +102,7 @@ def _transaction(row: TransactionRow) -> Transaction:
         bank_type=row.bank_type,
         source=row.source,
         fingerprint=row.fingerprint,
+        bank_ref=row.bank_ref,
         import_id=row.import_id,
         note=row.note,
         voided=row.voided,
@@ -139,6 +140,7 @@ def _new_row(t: Transaction) -> TransactionRow:
         bank_type=t.bank_type,
         source=t.source,
         fingerprint=t.fingerprint,
+        bank_ref=t.bank_ref,
         import_id=t.import_id,
         note=t.note,
         voided=t.voided,
@@ -501,16 +503,27 @@ class SqlTransactionRepository:
         found: set[str] = set()
         for i in range(0, len(fingerprints), 500):
             chunk = fingerprints[i : i + 500]
-            found.update(
-                f
-                for f in self._s.scalars(
-                    select(TransactionRow.fingerprint).where(
-                        TransactionRow.household_id == household_id,
-                        TransactionRow.account_id == account_id,
-                        TransactionRow.fingerprint.in_(chunk),
-                        _ACTIVE,
+            for column in (TransactionRow.fingerprint, TransactionRow.bank_ref):
+                found.update(
+                    f
+                    for f in self._s.scalars(
+                        select(column).where(
+                            TransactionRow.household_id == household_id,
+                            TransactionRow.account_id == account_id,
+                            column.in_(chunk),
+                            _ACTIVE,
+                        )
                     )
+                    if f is not None
                 )
-                if f is not None
-            )
         return found
+
+    def adopt(
+        self, household_id: WorkspaceId, transaction_id: TransactionId, bank_ref: str
+    ) -> None:
+        self._s.execute(
+            update(TransactionRow)
+            .where(TransactionRow.household_id == household_id, TransactionRow.id == transaction_id)
+            .values(bank_ref=bank_ref)
+        )
+        _flush(self._s)

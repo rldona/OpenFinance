@@ -142,6 +142,9 @@ class Transaction:
     """Anulado (borrado o importación deshecha): no cuenta en nada, pero no se borra (ADR-0017)."""
     reviewed: bool = False
     """Revisado contra el banco (OF-1006): deshacer una importación o aplicar reglas no lo toca."""
+    bank_ref: str | None = None
+    """Huella del banco con que se concilió un movimiento ya anotado (ADR-0024, OF-1404). La
+    huella propia no cambia, así que reimportar el mismo extracto sigue sin duplicar."""
 
     def __post_init__(self) -> None:
         if self.kind is TransactionKind.CONTRIBUTION and self.member_id is None:

@@ -10,6 +10,12 @@ from uuid import UUID
 
 from openfinance.domain.attachments import Attachment
 from openfinance.domain.automation import AutomationRule
+from openfinance.domain.bank import (
+    BankAccountRef,
+    BankConnection,
+    RemoteBalance,
+    RemoteTransaction,
+)
 from openfinance.domain.categories import Category, CategoryId, CategoryRule
 from openfinance.domain.changes import Entity, Operation
 from openfinance.domain.csv_profile import CsvProfile, CsvSample
@@ -109,6 +115,50 @@ class PushSender(Protocol):
     @property
     def enabled(self) -> bool: ...
     def send(self, subscription: PushSubscription, message: PushMessage) -> SendResult: ...
+
+
+class BankRepository(Protocol):
+    """Conexiones con el banco (ADR-0024). Cada una es de la persona que la creó."""
+
+    def add(self, connection: BankConnection) -> None: ...
+    def save(self, connection: BankConnection) -> None: ...
+    def get(self, household_id: WorkspaceId, connection_id: UUID) -> BankConnection | None: ...
+    def by_state(self, state: str) -> BankConnection | None:
+        """La conexión pendiente que espera esa vuelta del banco."""
+        ...
+
+    def for_owner(self, household_id: WorkspaceId, owner_id: UserId) -> list[BankConnection]: ...
+    def active(self) -> list[BankConnection]:
+        """Todas las conexiones activas de todos los hogares (para ``openfinance bank sync``)."""
+        ...
+
+    def linked_to(self, household_id: WorkspaceId, account_id: AccountId) -> bool:
+        """Si alguna conexión activa o caducada alimenta ya esa cuenta."""
+        ...
+
+
+class BankAggregator(Protocol):
+    """El agregador PSD2 (Enable Banking). Solo lectura de cuentas."""
+
+    @property
+    def enabled(self) -> bool: ...
+    def banks(self, country: str) -> list[str]:
+        """Los bancos que el agregador ofrece en un país."""
+        ...
+
+    def start(self, aspsp: str, country: str, state: str, valid_until: datetime) -> str:
+        """Pide al agregador la URL del banco donde la persona autoriza."""
+        ...
+
+    def authorize(self, code: str) -> tuple[str, list[BankAccountRef], datetime]:
+        """Cambia el código de vuelta por la sesión, las cuentas y la fecha de caducidad."""
+        ...
+
+    def transactions(
+        self, session_id: str, remote_uid: str, since: date
+    ) -> list[RemoteTransaction]: ...
+    def balance(self, session_id: str, remote_uid: str) -> RemoteBalance | None: ...
+    def revoke(self, session_id: str) -> None: ...
 
 
 class UserRepository(Protocol):
@@ -238,6 +288,13 @@ class TransactionRepository(Protocol):
     def existing_fingerprints(
         self, household_id: WorkspaceId, account_id: AccountId, fingerprints: list[str]
     ) -> set[str]: ...
+    def adopt(
+        self, household_id: WorkspaceId, transaction_id: TransactionId, bank_ref: str
+    ) -> None:
+        """Un movimiento ya anotado queda conciliado con el del banco (OF-1404): guarda la
+        huella del banco aparte, sin tocar la suya (reimportar su extracto sigue sin duplicar)
+        ni su lote (deshacer una sincronización no debe anular lo que alguien anotó)."""
+        ...
 
 
 class CategoryRepository(Protocol):
@@ -600,6 +657,8 @@ class UnitOfWork(Protocol):
     def alerts(self) -> AlertRepository: ...
     @property
     def notifications(self) -> NotificationRepository: ...
+    @property
+    def bank(self) -> BankRepository: ...
     @property
     def member_patterns(self) -> MemberPatternRepository: ...
     @property

@@ -200,7 +200,7 @@ def _parse(
     return result
 
 
-def _preview_rows(
+def preview_rows(
     uow: UnitOfWork, actor: Actor, account: Account, result: ParseResult
 ) -> list[PreviewRow]:
     existing = uow.transactions.existing_fingerprints(
@@ -252,10 +252,43 @@ def _preview_rows(
     return rows
 
 
+def new_transaction(
+    actor: Actor, account: Account, r: PreviewRow, source: str, import_id: UUID
+) -> Transaction:
+    """El movimiento que sale de una fila ya revisada (extracto o banco)."""
+    row = r.row
+    kind = r.kind
+    try:
+        return Transaction(
+            id=TransactionId(uuid4()),
+            household_id=actor.household_id,
+            account_id=account.id,
+            booked_at=row.booked_at,
+            value_date=row.value_date,
+            description=row.description,
+            amount=row.amount,
+            kind=kind,
+            member_id=r.member_id if kind is TransactionKind.CONTRIBUTION else None,
+            category_id=r.category_id if kind is TransactionKind.EXPENSE else None,
+            bank_type=row.bank_type,
+            note=r.note,
+            merchant=r.merchant or "",
+            source=source,
+            fingerprint=row.fingerprint,
+            import_id=import_id,
+        )
+    except LedgerError as exc:
+        # Los lectores ya descartan lo que el dominio no admite; si algo se escapa, la
+        # importación entera se deshace (no se guarda nada) en vez de dar un error 500.
+        raise InvalidRequestError(
+            f"La fila {row.line} del extracto no se puede guardar: {exc}"
+        ) from exc
+
+
 def _build_preview(
     uow: UnitOfWork, actor: Actor, account: Account, batch: ImportBatch, result: ParseResult
 ) -> ImportPreview:
-    rows = _preview_rows(uow, actor, account, result)
+    rows = preview_rows(uow, actor, account, result)
     current = balance_of(uow, actor, account)
     after = current
     for r in rows:
@@ -344,7 +377,7 @@ def commit_import(
         if profile is None:
             raise ConflictError("El perfil de CSV de esta importación ya no existe")
     result = _parse(uow, parsers, actor, account, content, profile)
-    rows = _preview_rows(uow, actor, account, result)
+    rows = preview_rows(uow, actor, account, result)
     # Lo de una importación deshecha vuelve con su identificador y sus correcciones en lugar
     # de duplicarse (ADR-0017): deshacer y volver a importar da el mismo resultado.
     voided = uow.transactions.voided_with_fingerprints(
@@ -362,33 +395,9 @@ def commit_import(
             uow.transactions.save(replace(previous, voided=False, import_id=batch.id))
             created += 1
             continue
-        kind = r.kind
-        member = r.member_id
-        try:
-            transaction = Transaction(
-                id=TransactionId(uuid4()),
-                household_id=actor.household_id,
-                account_id=account.id,
-                booked_at=row.booked_at,
-                value_date=row.value_date,
-                description=row.description,
-                amount=row.amount,
-                kind=kind,
-                member_id=member if kind is TransactionKind.CONTRIBUTION else None,
-                category_id=r.category_id if kind is TransactionKind.EXPENSE else None,
-                bank_type=row.bank_type,
-                note=r.note,
-                merchant=r.merchant or "",
-                source=f"import:{batch.filename}"[:MAX_SOURCE],
-                fingerprint=row.fingerprint,
-                import_id=batch.id,
-            )
-        except LedgerError as exc:
-            # Los lectores ya descartan lo que el dominio no admite; si algo se escapa, la
-            # importación entera se deshace (no se guarda nada) en vez de dar un error 500.
-            raise InvalidRequestError(
-                f"La fila {row.line} del extracto no se puede guardar: {exc}"
-            ) from exc
+        transaction = new_transaction(
+            actor, account, r, f"import:{batch.filename}"[:MAX_SOURCE], batch.id
+        )
         new.append(transaction)
         if r.tags:
             tagged[transaction.id] = r.tags

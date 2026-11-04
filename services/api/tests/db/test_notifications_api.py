@@ -80,7 +80,15 @@ class TestStatusAndPreferences:
         assert body["configured"] is False and body["public_key"] is None
         assert body["devices"] == 0 and body["weekly"] is True
         assert sorted(body["kinds"]) == sorted(
-            ["late_payment", "low_balance", "budget_over", "duplicate", "price_rise", "fee"]
+            [
+                "late_payment",
+                "low_balance",
+                "budget_over",
+                "duplicate",
+                "price_rise",
+                "fee",
+                "consent",
+            ]
         )
 
     def test_with_keys_it_gives_the_public_key_and_never_the_private_one(
@@ -99,7 +107,7 @@ class TestStatusAndPreferences:
         )
         assert r.json()["kinds"] == ["low_balance"] and r.json()["weekly"] is False
         assert as_raul.get("/api/v1/notifications").json()["kinds"] == ["low_balance"]
-        assert len(as_elena.get("/api/v1/notifications").json()["kinds"]) == 6
+        assert len(as_elena.get("/api/v1/notifications").json()["kinds"]) == 7
 
     def test_unknown_kinds_are_refused(self, as_raul) -> None:
         r = as_raul.put("/api/v1/notifications/preferences", json={"kinds": ["x"], "weekly": True})

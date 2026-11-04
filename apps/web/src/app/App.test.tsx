@@ -2517,6 +2517,30 @@ describe('Pagos programados', () => {
     expect(JSON.parse(String(sent?.body))).toEqual({ key: 'fee:t1' })
   })
 
+  it('el aviso de una conexión bancaria por caducar lleva a Ajustes', async () => {
+    window.location.hash = '#mes'
+    loggedIn({
+      'GET /api/v1/insights/month': { body: OVERVIEW },
+      'GET /api/v1/alerts': {
+        body: [
+          {
+            ...ALERT,
+            kind: 'consent',
+            key: 'consent:c1:2026-11-10',
+            severity: 'warning',
+            title: 'La conexión con Bankinter caduca el 2026-11-10',
+            amount: null,
+            account_id: null,
+          },
+        ],
+      },
+    })
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Avisos' })
+    expect(card).toHaveTextContent('La conexión con Bankinter caduca')
+    expect(within(card).getByRole('link', { name: 'Ir a Ajustes' })).toHaveAttribute('href', '#ajustes')
+  })
+
   it('sin avisos no hay tarjeta, y si no se pueden pedir Este mes sigue funcionando', async () => {
     window.location.hash = '#mes'
     loggedIn({ 'GET /api/v1/insights/month': { body: OVERVIEW }, 'GET /api/v1/alerts': { body: [] } })
@@ -2718,5 +2742,178 @@ describe('Resumen semanal (OF-1303)', () => {
     loggedIn({ 'GET /api/v1/insights/month': { body: OVERVIEW } })
     render(<App />)
     expect(await screen.findByRole('link', { name: 'Resumen de la semana' })).toHaveAttribute('href', '#semana')
+  })
+})
+
+describe('Conexión con el banco (OF-1401)', () => {
+  const link = (extra: object = {}) => ({
+    remote_uid: 'uid-1',
+    iban_tail: '1234',
+    name: 'Cuenta corriente',
+    currency: 'EUR',
+    account_id: null,
+    bank_balance: null,
+    bank_balance_at: null,
+    balance_difference: null,
+    ...extra,
+  })
+  const connection = (extra: object = {}) => ({
+    id: 'conn-1',
+    aspsp: 'Bankinter',
+    country: 'ES',
+    status: 'active',
+    valid_until: '2027-02-01T00:00:00Z',
+    expires_soon: false,
+    last_sync_at: null,
+    last_error: '',
+    links: [link()],
+    ...extra,
+  })
+  const base = (bank: object) => ({
+    'GET /api/v1/version': { body: { current: '0.2.0', enabled: false, latest: null, url: null, update_available: false } },
+    'GET /api/v1/csv-profiles': { body: [] },
+    'GET /api/v1/rates': { body: [] },
+    'GET /api/v1/sessions': { body: [] },
+    'GET /api/v1/bank': { body: bank },
+    'GET /api/v1/bank/banks': { body: ['Bankinter', 'Revolut'] },
+  })
+
+  afterEach(() => {
+    window.history.replaceState(null, '', '/')
+  })
+
+  it('sin configuración lo dice y no ofrece conectar', async () => {
+    window.location.hash = '#ajustes'
+    loggedIn(base({ configured: false, connections: [] }))
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Banco' })
+    expect(card).toHaveTextContent('no tiene configurada la conexión')
+    expect(within(card).queryByRole('button')).toBeNull()
+  })
+
+  it('enseña la conexión, enlaza una cuenta y se puede revocar', async () => {
+    window.location.hash = '#ajustes'
+    const calls = loggedIn({
+      ...base({ configured: true, connections: [connection()] }),
+      'PUT /api/v1/bank/connections/conn-1/link': {
+        body: connection({ links: [link({ account_id: 'a-joint' })] }),
+      },
+      'POST /api/v1/bank/connections/conn-1/revoke': {
+        body: { connection: connection({ status: 'revoked' }), closed_at_bank: false },
+      },
+    })
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Banco' })
+    expect(card).toHaveTextContent('Bankinter · Activa hasta el')
+    await userEvent.selectOptions(within(card).getByRole('combobox', { name: /Cuenta corriente/ }), 'a-joint')
+    await waitFor(() => {
+      const put = calls.find((c) => c.method === 'PUT' && c.url.pathname === '/api/v1/bank/connections/conn-1/link')
+      expect(JSON.parse(String(put?.body))).toEqual({ remote_uid: 'uid-1', account_id: 'a-joint' })
+    })
+    await userEvent.click(within(card).getByRole('button', { name: 'Revocar conexión' }))
+    expect(await screen.findByText(/el banco no confirmó el cierre/)).toBeInTheDocument()
+  })
+
+  it('sincronizar ahora cuenta los movimientos nuevos o dice por qué no', async () => {
+    window.location.hash = '#ajustes'
+    const calls = loggedIn({
+      ...base({ configured: true, connections: [connection({ links: [link({ account_id: 'a-joint' })] })] }),
+      'POST /api/v1/bank/connections/conn-1/sync': {
+        body: { connection: connection(), created: 2, links: [], skipped_reason: '' },
+      },
+    })
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Banco' })
+    expect(card).toHaveTextContent('Aún sin sincronizar')
+    await userEvent.click(within(card).getByRole('button', { name: 'Sincronizar ahora' }))
+    expect(await screen.findByText('2 movimientos nuevos')).toBeInTheDocument()
+    expect(calls.some((c) => c.method === 'POST' && c.url.pathname === '/api/v1/bank/connections/conn-1/sync')).toBe(true)
+  })
+
+  it('al sincronizar cuenta también lo conciliado y enseña la diferencia con el saldo del banco', async () => {
+    window.location.hash = '#ajustes'
+    const eur = (amount: string) => ({ amount, currency: 'EUR' })
+    loggedIn({
+      ...base({
+        configured: true,
+        connections: [
+          connection({
+            links: [link({ account_id: 'a-joint', bank_balance: eur('100.00'), balance_difference: eur('-12.50') })],
+          }),
+        ],
+      }),
+      'POST /api/v1/bank/connections/conn-1/sync': {
+        body: {
+          connection: connection(),
+          created: 1,
+          links: [{ name: 'Cuenta corriente', created: 1, duplicates: 0, reconciled: 2, skipped: 0, error: '' }],
+          skipped_reason: '',
+        },
+      },
+    })
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Banco' })
+    expect(card).toHaveTextContent('Diferencia con el saldo del banco: -12,50 €')
+    await userEvent.click(within(card).getByRole('button', { name: 'Sincronizar ahora' }))
+    expect(await screen.findByText('1 movimiento nuevo · 2 conciliados con lo que ya tenías')).toBeInTheDocument()
+  })
+
+  it('un fallo del banco al sincronizar se enseña tal cual', async () => {
+    window.location.hash = '#ajustes'
+    loggedIn({
+      ...base({ configured: true, connections: [connection()] }),
+      'POST /api/v1/bank/connections/conn-1/sync': {
+        body: {
+          connection: connection({ last_error: 'El banco limita las consultas' }),
+          created: 0,
+          links: [{ name: 'Cuenta corriente', created: 0, duplicates: 0, reconciled: 0, skipped: 0, error: 'El banco limita las consultas' }],
+          skipped_reason: '',
+        },
+      },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Sincronizar ahora' }))
+    expect(await screen.findByText('El banco no respondió: El banco limita las consultas')).toBeInTheDocument()
+  })
+
+  it('avisa cuando el consentimiento caduca pronto', async () => {
+    window.location.hash = '#ajustes'
+    loggedIn(base({ configured: true, connections: [connection({ expires_soon: true })] }))
+    render(<App />)
+    expect(await screen.findByText(/caduca pronto/)).toBeInTheDocument()
+  })
+
+  it('al volver del banco completa la conexión una sola vez y limpia la dirección', async () => {
+    window.history.replaceState(null, '', '/?code=c0de&state=s3cret')
+    window.location.hash = ''
+    const calls = loggedIn({
+      ...base({ configured: true, connections: [] }),
+      'POST /api/v1/bank/connections/complete': { body: connection() },
+    })
+    render(<App />)
+    expect(await screen.findByText(/Banco conectado/)).toBeInTheDocument()
+    expect(window.location.hash).toBe('#ajustes')
+    expect(window.location.search).toBe('')
+    const posts = calls.filter((c) => c.url.pathname === '/api/v1/bank/connections/complete')
+    expect(posts).toHaveLength(1)
+    expect(JSON.parse(String(posts[0]?.body))).toEqual({ state: 's3cret', code: 'c0de' })
+  })
+
+  it('conectar lleva a la dirección que da el banco', async () => {
+    window.location.hash = '#ajustes'
+    const assign = vi.fn()
+    vi.stubGlobal('location', { ...window.location, assign })
+    const calls = loggedIn({
+      ...base({ configured: true, connections: [] }),
+      'POST /api/v1/bank/connections': { body: { connection_id: 'conn-2', url: 'https://bank.example/auth' } },
+    })
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Banco' })
+    await userEvent.type(within(card).getByLabelText('Banco'), 'Revolut')
+    await userEvent.click(within(card).getByRole('button', { name: 'Conectar' }))
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('https://bank.example/auth'))
+    const post = calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/bank/connections')
+    expect(JSON.parse(String(post?.body))).toEqual({ aspsp: 'Revolut', country: 'ES' })
+    vi.unstubAllGlobals()
   })
 })
