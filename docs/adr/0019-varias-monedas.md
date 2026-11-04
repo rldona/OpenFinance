@@ -1,23 +1,23 @@
-# ADR-0019: Varias monedas
+# ADR-0019: Multiple currencies
 
-- Estado: Accepted
-- Fecha: 2026-11-01
+- Status: Accepted
+- Date: 2026-11-01
 
-## Contexto
+## Context
 
-`Money` ya lleva la moneda de cada importe y las operaciones entre monedas distintas fallan, pero el hogar entero está en una sola moneda y los informes la dan por hecha. Hay quien viaja, cobra en otra moneda o tiene una cuenta en el extranjero.
+`Money` already carries the currency of each amount and operations between different currencies fail, but the whole household is in a single currency and the reports take it for granted. Some people travel, are paid in another currency, or have an account abroad.
 
-## Decisión
+## Decision
 
-- **Cada cuenta tiene una moneda** y sus movimientos van en ella. No hay cuentas multimoneda.
-- **El hogar tiene una moneda de referencia** (la de hoy, EUR por defecto). Los informes, los presupuestos y los objetivos se calculan en ella.
-- **Tipos de cambio manuales o importados, nunca consultados en línea**: una tabla `exchange_rates` (hogar, moneda, fecha, tasa `Decimal` con 8 decimales, procedencia `manual|extracto`). OpenFinance no llama a ningún servicio de cotizaciones (coherente con [ADR-0007](0007-local-first-self-hosted.md)).
-- **Conversión a una fecha**: la tasa más reciente anterior o igual a la fecha del movimiento. Si no hay ninguna, el movimiento **no se convierte** y el informe lo dice («3 movimientos en USD sin tipo de cambio») en lugar de inventar un valor.
-- La conversión es siempre una vista de cálculo: el importe original no se modifica y se redondea una sola vez, al final, con `ROUND_HALF_EVEN`.
-- Un traspaso entre cuentas de monedas distintas guarda sus dos importes reales; el cambio implícito se enseña, no se corrige.
+- **Each account has one currency** and its transactions are in it. There are no multi-currency accounts.
+- **The household has a reference currency** (today's, EUR by default). Reports, budgets and goals are computed in it.
+- **Exchange rates are manual or imported, never looked up online**: an `exchange_rates` table (household, currency, date, `Decimal` rate with 8 decimals, source `manual|extracto`). OpenFinance does not call any quote service (consistent with [ADR-0007](0007-local-first-self-hosted.md)).
+- **Conversion at a date**: the most recent rate on or before the transaction date. If there is none, the transaction is **not converted** and the report says so ("3 transactions in USD without an exchange rate") instead of inventing a value.
+- Conversion is always a calculation view: the original amount is not modified and is rounded only once, at the end, with `ROUND_HALF_EVEN`.
+- A transfer between accounts in different currencies stores its two real amounts; the implied exchange is shown, not corrected.
 
-## Consecuencias
+## Consequences
 
-- Los informes del Core pasan a recibir un conversor (puerto) en vez de sumar `Money` directamente.
-- Un hogar con una sola moneda no nota nada: sin tasas, todo se queda como está.
-- Es el último ticket de la fase porque toca los totales de todas las pantallas.
+- Core reports now receive a converter (port) instead of summing `Money` directly.
+- A single-currency household notices nothing: without rates, everything stays as it is.
+- It is the last ticket of the phase because it touches the totals on every screen.

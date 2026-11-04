@@ -1,18 +1,18 @@
-# ADR-0003: PostgreSQL como almacenamiento principal
+# ADR-0003: PostgreSQL as the main storage
 
-- Estado: Accepted
-- Fecha: 2026-10-31
+- Status: Accepted
+- Date: 2026-10-31
 
-## Contexto
+## Context
 
-Necesitamos transacciones ACID, integridad referencial, tipos `NUMERIC` exactos y un único motor que funcione igual en local y en servidor.
+We need ACID transactions, referential integrity, exact `NUMERIC` types and a single engine that behaves the same locally and on a server.
 
-## Decisión
+## Decision
 
-PostgreSQL 16 como base de datos, SQLAlchemy 2 como ORM y Alembic para migraciones. Las restricciones usan una convención de nombres fija (`infrastructure/db/base.py`). Los importes se guardan como `NUMERIC` con la moneda en columna aparte.
+PostgreSQL 16 as the database, SQLAlchemy 2 as the ORM and Alembic for migrations. Constraints use a fixed naming convention (`infrastructure/db/base.py`). Amounts are stored as `NUMERIC` with the currency in a separate column.
 
-## Consecuencias
+## Consequences
 
-- La instalación local usa PostgreSQL empaquetado en Docker Compose.
-- SQLite queda como posible adaptador futuro, no como requisito.
-- CI aplica las migraciones sobre PostgreSQL real y ejecuta `alembic check`.
+- The local installation uses PostgreSQL packaged in Docker Compose.
+- SQLite remains a possible future adapter, not a requirement.
+- CI applies the migrations on a real PostgreSQL and runs `alembic check`.

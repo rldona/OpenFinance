@@ -1,22 +1,22 @@
-# ADR-0004: Separación entre Core y Manager
+# ADR-0004: Separation between Core and Manager
 
-- Estado: Accepted
-- Fecha: 2026-10-31
+- Status: Accepted
+- Date: 2026-10-31
 
-## Contexto
+## Context
 
-El Manager usa LLMs, que pueden equivocarse o ser manipulados mediante inyección de instrucciones (por ejemplo, desde la descripción de un movimiento bancario importado). Las reglas financieras deben seguir siendo correctas pase lo que pase en esa capa.
+The Manager uses LLMs, which can make mistakes or be manipulated through prompt injection (for example, from the description of an imported bank transaction). The financial rules must stay correct no matter what happens in that layer.
 
-## Decisión
+## Decision
 
-- El Core (dominio + aplicación) no depende de ningún proveedor de IA y funciona sin él.
-- El Manager solo actúa a través de un **Tool Gateway** con herramientas tipadas (`transactions.search`, `budgets.get_status`, `transactions.propose_category`…), cada una con esquema de argumentos, permiso requerido y límite de alcance.
-- El Manager nunca tiene credenciales de base de datos ni ejecuta SQL.
-- Los permisos se evalúan en el gateway con la identidad del usuario que inició la tarea; el modelo no puede ampliarlos.
-- Las cifras de las respuestas proceden de resultados de herramientas, que se guardan con la ejecución (`AgentRun`).
+- The Core (domain + application) does not depend on any AI provider and works without one.
+- The Manager acts only through a **Tool Gateway** with typed tools (`transactions.search`, `budgets.get_status`, `transactions.propose_category`…), each with an argument schema, a required permission and a scope limit.
+- The Manager never has database credentials or runs SQL.
+- Permissions are evaluated in the gateway with the identity of the user who started the task; the model cannot widen them.
+- The figures in responses come from tool results, which are stored with the run (`AgentRun`).
 
-## Consecuencias
+## Consequences
 
-- Cada capacidad nueva del Manager exige definir antes su herramienta en el Core.
-- El proveedor de LLM es intercambiable mediante un adaptador.
-- Los datos externos se pasan al modelo como contenido marcado, nunca como instrucciones.
+- Each new Manager capability requires defining its tool in the Core first.
+- The LLM provider is interchangeable through an adapter.
+- External data is passed to the model as marked content, never as instructions.

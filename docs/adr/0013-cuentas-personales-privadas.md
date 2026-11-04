@@ -1,22 +1,22 @@
-# ADR-0013: Cuentas personales en el hogar, privadas por defecto
+# ADR-0013: Personal accounts in the household, private by default
 
-- Estado: Accepted
-- Fecha: 2026-10-31
+- Status: Accepted
+- Date: 2026-10-31
 
-## Contexto
+## Context
 
-La cuenta conjunta está en Revolut y cada persona tiene además su cuenta personal en Bankinter, desde la que aporta a la conjunta. Queremos poder incorporar esas cuentas personales sin perder la sencillez de ADR-0012 ni exponer las finanzas de cada persona a la otra sin decidirlo.
+The joint account is at Revolut and each person also has a personal account at Bankinter, from which they contribute to the joint one. We want to be able to bring in those personal accounts without losing the simplicity of ADR-0012 and without exposing each person's finances to the other unless they decide so.
 
-## Decisión
+## Decision
 
-- Cada `Account` tiene un **tipo** (`joint`, `savings`, `personal`) y una **entidad** (`revolut`, `bankinter`, `other`).
-- Una cuenta `personal` tiene obligatoriamente un **titular** (`owner_id`); las demás no tienen titular. La base de datos lo garantiza con una restricción `CHECK`.
-- **Visibilidad:** la cuenta conjunta y las huchas las ven todos los miembros del hogar. Una cuenta personal **solo la ve su titular**, y sus movimientos tampoco aparecen a nadie más, ni en listados ni consultando su id (404).
-- Las aportaciones se registran como `contribution` con la persona que aporta: en la conjunta son **entrada**; en la cuenta personal, si se importa, son una **salida** que no cuenta como gasto.
-- Los totales del hogar (gasto, ahorro y gráficos) se calculan sobre la cuenta conjunta y las huchas. Las cuentas personales tendrán su propia vista cuando se importen (OF-107).
+- Each `Account` has a **type** (`joint`, `savings`, `personal`) and an **institution** (`revolut`, `bankinter`, `other`).
+- A `personal` account must have an **owner** (`owner_id`); the others have no owner. The database guarantees this with a `CHECK` constraint.
+- **Visibility:** the joint account and the savings pockets are visible to all household members. A personal account is **visible only to its owner**, and its transactions do not appear to anyone else either, neither in listings nor when querying by id (404).
+- Contributions are recorded as `contribution` with the contributing person: in the joint account they are an **inflow**; in the personal account, if imported, they are an **outflow** that does not count as spending.
+- Household totals (spending, savings and charts) are calculated over the joint account and the savings pockets. Personal accounts will have their own view once they are imported (OF-107).
 
-## Consecuencias
+## Consequences
 
-- Toda consulta de cuentas y movimientos filtra por hogar **y** por visibilidad; hay tests negativos para ambos casos.
-- Si en el futuro queréis compartir una cuenta personal, bastará con añadir un permiso explícito («compartir con…») sin cambiar el modelo.
-- Esta decisión amplía ADR-0012 en un único punto (las cuentas personales); el resto del alcance de v0.1 no cambia.
+- Every account and transaction query filters by household **and** by visibility; there are negative tests for both cases.
+- If in the future you want to share a personal account, it will be enough to add an explicit permission ("compartir con…", share with…) without changing the model.
+- This decision extends ADR-0012 on a single point (personal accounts); the rest of the v0.1 scope does not change.

@@ -1,38 +1,38 @@
-# ADR-0017: Registro de cambios con deshacer y rehacer
+# ADR-0017: Change log with undo and redo
 
-- Estado: Accepted
-- Fecha: 2026-11-01
+- Status: Accepted
+- Date: 2026-11-01
 
-## Contexto
+## Context
 
-La fase 7 (OF-701 … OF-706) permite corregir datos desde la web: tipo, persona y nota de un movimiento, categorías en bloque, reglas, movimientos de efectivo y deshacer una importación. Toda corrección tiene que quedar trazada (quién, cuándo, antes y después) y poder deshacerse sin miedo.
+Phase 7 (OF-701 … OF-706) allows correcting data from the web app: a transaction's type, person and note, categories in bulk, rules, cash transactions, and undoing an import. Every correction must be traced (who, when, before and after) and be undoable without fear.
 
-La auditoría proponía primero una tabla `transaction_corrections` (OF-701) y después ampliarla a un registro general (OF-706). Hacerlo en dos pasos obliga a migrar datos reales a mitad del mes de uso. Se hace el registro general desde el principio y OF-701 es su primer uso.
+The audit first proposed a `transaction_corrections` table (OF-701) and later extending it into a general log (OF-706). Doing it in two steps forces migrating real data in the middle of the month of use. The general log is built from the start and OF-701 is its first use.
 
-## Decisión
+## Decision
 
-### Modelo
+### Model
 
-- **Operación** (`change_operations`): una acción de una persona, con hogar, autor, fecha, tipo (`transaction.edit`, `transactions.categorize`, `rule.delete`, `import.undo`…), un resumen legible y, si se ha deshecho, cuándo y por quién. Varias escrituras van en la misma operación (poner una categoría y que la regla clasifique otros 40).
-- **Cambio** (`change_entries`): entidad (`transaction`, `rule`, `import`), su identificador, campo, valor antes y valor después (JSON). Solo se registran campos que se pueden corregir: en un movimiento `kind`, `member_id`, `category_id`, `note` y `voided`; en una regla, su categoría (`null` = sin regla); en una importación, su estado.
-- **Nada se borra.** Borrar un movimiento manual o deshacer una importación pone `voided = true` (y queda en el registro). Las consultas, los totales y la exportación ignoran los movimientos anulados. El importe, la fecha, el concepto y la huella de un movimiento importado nunca cambian.
-- Alta de un movimiento manual: se registra como `voided: true → false`, así deshacerla es anularlo.
+- **Operation** (`change_operations`): one action by one person, with household, author, date, type (`transaction.edit`, `transactions.categorize`, `rule.delete`, `import.undo`…), a human-readable summary and, if it has been undone, when and by whom. Several writes go in the same operation (setting a category and having the rule classify 40 others).
+- **Change** (`change_entries`): entity (`transaction`, `rule`, `import`), its identifier, field, value before and value after (JSON). Only correctable fields are recorded: on a transaction `kind`, `member_id`, `category_id`, `note` and `voided`; on a rule, its category (`null` = no rule); on an import, its status.
+- **Nothing is deleted.** Deleting a manual transaction or undoing an import sets `voided = true` (and it stays in the log). Queries, totals and the export ignore voided transactions. The amount, date, description and fingerprint of an imported transaction never change.
+- Creating a manual transaction: recorded as `voided: true → false`, so undoing it voids it.
 
-### Deshacer y rehacer
+### Undo and redo
 
-- Cada persona solo deshace y rehace **sus** operaciones.
-- Deshacer recorre los cambios al revés y pone el valor «antes» **solo donde el valor actual sigue siendo el «después»**. Si alguien (esa persona o la pareja) lo cambió después, ese cambio se respeta y la respuesta dice cuántos se han dejado y quién los tocó. Rehacer es lo simétrico. Nunca se pisa un cambio posterior.
-- Consecuencia: deshacer todas las operaciones en orden inverso devuelve el estado inicial (test de propiedades).
-- Deshacer o rehacer también queda en la operación (`undone_at`, `undone_by`).
+- Each person only undoes and redoes **their own** operations.
+- Undo walks the changes backwards and sets the "before" value **only where the current value is still the "after"**. If someone (that person or the partner) changed it afterwards, that change is respected and the response says how many were left and who touched them. Redo is the mirror image. A later change is never overwritten.
+- Consequence: undoing all operations in reverse order returns to the initial state (property test).
+- Undo or redo is also recorded on the operation (`undone_at`, `undone_by`).
 
-### Privacidad (ADR-0013)
+### Privacy (ADR-0013)
 
-- El historial de un movimiento solo se ve si se ve el movimiento: la pareja no ve el de una cuenta personal ajena (404, como el propio movimiento).
-- La lista de operaciones de una persona solo incluye las suyas. Las reglas personales y sus cambios solo los ve su titular.
+- A transaction's history is visible only if the transaction is visible: the partner does not see that of someone else's personal account (404, like the transaction itself).
+- A person's operation list includes only their own. Personal rules and their changes are visible only to their owner.
 
-## Consecuencias
+## Consequences
 
-- Toda escritura nueva sobre movimientos, reglas o importaciones pasa por el registro: es la base de las fusiones de comercios, el motor de reglas y las propuestas del asistente de fases posteriores.
-- Las consultas de movimientos llevan siempre el filtro `voided = false`; hay tests que lo comprueban en listados, totales y exportación.
-- Volver a importar un extracto deshecho reactiva sus movimientos (misma huella, mismo identificador) en lugar de duplicarlos.
-- El registro crece con el uso. Con dos personas son unos cientos de filas al mes; no se purga.
+- Every new write on transactions, rules or imports goes through the log: it is the basis for merchant merges, the rules engine and the assistant's proposals in later phases.
+- Transaction queries always carry the `voided = false` filter; there are tests that check this in listings, totals and export.
+- Re-importing an undone statement reactivates its transactions (same fingerprint, same identifier) instead of duplicating them.
+- The log grows with use. With two people it is a few hundred rows per month; it is not purged.

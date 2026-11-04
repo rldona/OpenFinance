@@ -1,21 +1,21 @@
-# ADR-0007: Local-first y self-hosted con servicios externos opcionales
+# ADR-0007: Local-first and self-hosted with optional external services
 
-- Estado: Accepted
-- Fecha: 2026-10-31
+- Status: Accepted
+- Date: 2026-10-31
 
-## Contexto
+## Context
 
-El despliegue es «híbrido»: el usuario decide dónde residen sus datos y qué servicios externos usa.
+Deployment is "hybrid": the user decides where their data lives and which external services they use.
 
-## Decisión
+## Decision
 
-- **Modo local:** aplicación y base de datos en el equipo del usuario (Docker Compose).
-- **Modo self-hosted:** el mismo artefacto en un servidor propio, con acceso web autenticado.
-- **Servicios externos opcionales:** proveedores de LLM, conectores bancarios, etc., siempre mediante adaptadores explícitos y desactivados por defecto.
-- Una sola aplicación para ambos modos; nada de bifurcaciones del producto.
+- **Local mode:** application and database on the user's machine (Docker Compose).
+- **Self-hosted mode:** the same artifact on the user's own server, with authenticated web access.
+- **Optional external services:** LLM providers, bank connectors, etc., always through explicit adapters and disabled by default.
+- A single application for both modes; no product forks.
 
-## Consecuencias
+## Consequences
 
-- Hay que documentar qué datos salen de la instalación con cada servicio externo activado.
-- Secretos fuera del código y de los prompts; copia de seguridad y restauración documentadas y probadas antes de v0.1.
-- Soporte futuro de modelos locales mediante el mismo adaptador de proveedores.
+- We must document which data leaves the installation with each external service enabled.
+- Secrets outside the code and the prompts; backup and restore documented and tested before v0.1.
+- Future support for local models through the same provider adapter.

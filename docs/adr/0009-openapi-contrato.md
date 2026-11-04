@@ -1,19 +1,19 @@
-# ADR-0009: OpenAPI como contrato entre frontend y backend
+# ADR-0009: OpenAPI as the contract between frontend and backend
 
-- Estado: Proposed
-- Fecha: 2026-10-31
+- Status: Proposed
+- Date: 2026-10-31
 
-## Contexto
+## Context
 
-La web y la API evolucionan en paralelo y podrán existir otros clientes (CLI, móvil).
+The web app and the API evolve in parallel and other clients (CLI, mobile) may exist.
 
-## Decisión propuesta
+## Proposed decision
 
-- FastAPI publica el esquema en `/openapi.json`, bajo el prefijo versionado `/api/v1`.
-- El esquema se exporta al repositorio y el cliente TypeScript de `apps/web/src/api` se genera o se comprueba a partir de él en CI.
-- Los cambios incompatibles requieren una nueva versión de la API.
+- FastAPI publishes the schema at `/openapi.json`, under the versioned prefix `/api/v1`.
+- The schema is exported to the repository and the TypeScript client in `apps/web/src/api` is generated or checked from it in CI.
+- Breaking changes require a new API version.
 
-## Consecuencias
+## Consequences
 
-- Las roturas de contrato se detectan antes de integrar.
-- Hay que elegir el generador de cliente (pendiente; hoy el cliente es manual y mínimo).
+- Contract breakages are detected before integration.
+- A client generator has to be chosen (pending; today the client is manual and minimal).

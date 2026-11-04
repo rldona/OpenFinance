@@ -1,38 +1,38 @@
-# ADR-0012: Empezar por el hogar
+# ADR-0012: Start with the household
 
-- Estado: Accepted
-- Fecha: 2026-10-31
+- Status: Accepted
+- Date: 2026-10-31
 
-## Contexto
+## Context
 
-El diseño inicial planteaba una plataforma multiusuario con roles, módulos, un Manager con agentes de IA, aprobaciones y perfiles compartidos con reparto de gastos. Es demasiado para empezar. La necesidad real es más concreta: **una pareja con una cuenta común** quiere saber cuánto gasta, en qué y cómo ahorrar mejor, viéndolo de la forma más gráfica posible.
+The initial design proposed a multi-user platform with roles, modules, a Manager with AI agents, approvals and shared profiles with expense splitting. That is too much to start with. The real need is more concrete: **a couple with a joint account** wants to know how much they spend, on what, and how to save better, seeing it as graphically as possible.
 
-## Decisión
+## Decision
 
-v0.1 es un gestor económico **para un hogar**:
+v0.1 is a personal finance manager **for one household**:
 
-- **Un hogar** (un `Workspace`), **dos personas** con acceso completo y **una cuenta común**. Más adelante se pueden añadir cuentas, como la de ahorro.
-- Los movimientos entran **importando el CSV del banco**, con deduplicación.
-- **Categorías** con reglas que se aprenden al corregir un movimiento.
-- **Visualización**: mes actual, gasto por categoría y comercio, evolución de 12 meses, presupuestos por categoría, objetivos de ahorro e ideas de ahorro calculadas a partir de los propios datos.
-- Las aportaciones de cada persona a la cuenta común son entradas y los traspasos a la cuenta de ahorro son ahorro, no gasto.
+- **One household** (one `Workspace`), **two people** with full access and **one joint account**. Accounts, such as the savings one, can be added later.
+- Transactions come in by **importing the bank's CSV**, with deduplication.
+- **Categories** with rules that are learned when a transaction is corrected.
+- **Visualization**: current month, spending by category and merchant, 12-month evolution, budgets per category, savings goals and savings ideas calculated from the data itself.
+- Each person's contributions to the joint account are inflows and transfers to the savings account are savings, not spending.
 
-Se mantienen las bases que no añaden complejidad al usuario: dominio sin frameworks (ADR-0001), PostgreSQL (ADR-0003), `Money` sin `float`, ejecución local o en servidor propio (ADR-0007), OpenAPI (ADR-0009) y una sola instalación (ADR-0010).
+The foundations that add no complexity for the user are kept: framework-free domain (ADR-0001), PostgreSQL (ADR-0003), `Money` without `float`, local or own-server execution (ADR-0007), OpenAPI (ADR-0009) and a single installation (ADR-0010).
 
-### Aplazado
+### Deferred
 
-| ADR | Qué queda para más adelante |
+| ADR | What is left for later |
 | --- | --- |
-| 0002 | Se mantiene `Workspace` como frontera de datos, pero sin roles ni permisos por cuenta: los dos miembros pueden hacer todo. |
-| 0004, 0005 | Manager con agentes de IA, propuestas y aprobaciones. Las «ideas para ahorrar» de v0.1 son cálculos deterministas, sin LLM. |
-| 0006 | Módulos y SDK. El código se organiza por contextos, sin registro de módulos. |
-| 0011 | Perfiles compartidos con reparto de gastos y liquidaciones. |
+| 0002 | `Workspace` is kept as the data boundary, but without roles or per-account permissions: both members can do everything. |
+| 0004, 0005 | Manager with AI agents, proposals and approvals. The v0.1 "savings ideas" ("ideas para ahorrar") are deterministic calculations, with no LLM. |
+| 0006 | Modules and SDK. The code is organized by contexts, with no module registry. |
+| 0011 | Shared profiles with expense splitting and settlements. |
 
-Ninguna de estas decisiones se descarta: se retomarán cuando la base esté en uso.
+None of these decisions is discarded: they will be revisited once the base is in use.
 
-## Consecuencias
+## Consequences
 
-- El MVP se puede terminar mucho antes y probar con datos reales del hogar.
-- El modelo conserva `workspace_id` en cada entidad para poder crecer sin migraciones dolorosas.
-- Las ideas de ahorro deben explicar de dónde sale cada cifra (movimientos y periodo).
-- El prototipo de la plataforma completa se conserva en `docs/product/prototypes/archive-plataforma/` como referencia.
+- The MVP can be finished much sooner and tested with the household's real data.
+- The model keeps `workspace_id` on every entity so it can grow without painful migrations.
+- The savings ideas must explain where each figure comes from (transactions and period).
+- The prototype of the full platform is kept in `docs/product/prototypes/archive-plataforma/` as a reference.

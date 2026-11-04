@@ -1,98 +1,98 @@
-# Primeros pasos
+# Getting started
 
-## Requisitos
+## Requirements
 
-- Python 3.12 y [uv](https://docs.astral.sh/uv/)
-- Node.js 24 y npm
-- PostgreSQL 16 (o Docker, que lo levanta por ti)
+- Python 3.12 and [uv](https://docs.astral.sh/uv/)
+- Node.js 24 and npm
+- PostgreSQL 16 (or Docker, which starts it for you)
 
-## Desarrollo local sin Docker
+## Local development without Docker
 
 ```bash
-cp .env.example .env          # ajusta DATABASE_URL
+cp .env.example .env          # adjust DATABASE_URL
 make setup
-make db                       # opcional: PostgreSQL en Docker, publicado en 127.0.0.1:5432
-make migrate                  # requiere PostgreSQL accesible en DATABASE_URL
-make bootstrap                # alta del hogar: dos personas, cuenta conjunta y cuentas personales
-make api                      # http://localhost:8000 · OpenAPI en /docs
-make web                      # http://localhost:5173 (proxy de /api y /health a la API)
+make db                       # optional: PostgreSQL in Docker, published on 127.0.0.1:5432
+make migrate                  # requires PostgreSQL reachable at DATABASE_URL
+make bootstrap                # household setup: two people, joint account and personal accounts
+make api                      # http://localhost:8000 · OpenAPI at /docs
+make web                      # http://localhost:5173 (proxies /api and /health to the API)
 ```
 
-Para probar sin PostgreSQL basta con `DATABASE_URL=sqlite:///./dev.db` (solo desarrollo).
+To try it without PostgreSQL, `DATABASE_URL=sqlite:///./dev.db` is enough (development only).
 
-Para ver los gráficos sin datos reales: `make demo` crea un hogar ficticio con 12 meses de movimientos (usuarios `raul@demo.openfinance` y `elena@demo.openfinance`, contraseña `demo-openfinance`). No lo uses en una instalación con datos reales.
+To see the charts without real data: `make demo` creates a fictional household with 12 months of transactions (users `raul@demo.openfinance` and `elena@demo.openfinance`, password `demo-openfinance`). Do not use it on an installation with real data.
 
-`make bootstrap` pregunta por el nombre del hogar, el nombre, el email y la contraseña de cada persona, el saldo inicial de la cuenta conjunta de Revolut y si se añaden las cuentas personales de Bankinter. No hay registro público: el alta se hace una vez desde el servidor.
+`make bootstrap` asks for the household name, each person's name, email and password, the initial balance of the joint Revolut account, and whether to add the personal Bankinter accounts. There is no public sign-up: setup is done once from the server.
 
-### API disponible
+### Available API
 
-| Método | Ruta | Qué hace |
+| Method | Path | What it does |
 | --- | --- | --- |
-| `POST` | `/api/v1/auth/login` | Inicia sesión (`{"email", "password"}`) y deja una cookie `HttpOnly` |
-| `POST` | `/api/v1/auth/logout` | Cierra la sesión |
-| `GET` | `/api/v1/me` | Persona, hogar y miembros |
-| `GET` | `/api/v1/accounts` | Cuentas visibles con su saldo |
-| `GET` | `/api/v1/transactions` | Movimientos visibles; filtros `month=AAAA-MM`, `q`, `uncategorized`, `account_id` |
-| `POST` | `/api/v1/imports` | Vista previa de un extracto (multipart: `account_id`, `file`); no guarda nada |
-| `POST` | `/api/v1/imports/{id}/commit` | Guarda los movimientos nuevos de la vista previa; repetirlo no duplica |
-| `GET` / `POST` | `/api/v1/categories` | Categorías del hogar / crear una |
-| `PATCH` | `/api/v1/categories/{id}` | Renombrar, icono, color u ocultar |
-| `PATCH` | `/api/v1/transactions/{id}` | Poner o quitar la categoría de un gasto; con `learn` aprende la regla del comercio |
-| `GET` | `/api/v1/transactions/uncategorized-count` | Gastos sin categoría visibles para ti |
-| `GET` | `/api/v1/insights/month?month=AAAA-MM` | Resumen del mes para «Este mes» |
-| `GET` | `/api/v1/insights/category?month=&category_id=` | Una categoría en 12 meses y sus comercios |
-| `GET` | `/api/v1/insights/trends?month=&months=12` | Evolución mensual |
-| `GET` | `/api/v1/budgets?month=` | Presupuestos con lo gastado y su estado |
-| `PUT` / `DELETE` | `/api/v1/budgets/{category_id}` | Poner o quitar el presupuesto de una categoría |
-| `GET` / `POST` | `/api/v1/goals` | Objetivos de ahorro con su proyección / crear uno |
-| `PATCH` / `DELETE` | `/api/v1/goals/{id}` | Actualizar o borrar un objetivo |
-| `GET` | `/api/v1/savings/overview` | Pantalla Ahorrar: medias, cuotas fijas, ideas y objetivos |
-| `GET` | `/api/v1/export?format=json\|csv` | Descarga lo que ve quien la pide: JSON o ZIP con un CSV por entidad |
+| `POST` | `/api/v1/auth/login` | Signs in (`{"email", "password"}`) and sets an `HttpOnly` cookie |
+| `POST` | `/api/v1/auth/logout` | Signs out |
+| `GET` | `/api/v1/me` | Person, household and members |
+| `GET` | `/api/v1/accounts` | Visible accounts with their balance |
+| `GET` | `/api/v1/transactions` | Visible transactions; filters `month=YYYY-MM`, `q`, `uncategorized`, `account_id` |
+| `POST` | `/api/v1/imports` | Preview of a statement (multipart: `account_id`, `file`); saves nothing |
+| `POST` | `/api/v1/imports/{id}/commit` | Saves the new transactions from the preview; repeating it does not duplicate |
+| `GET` / `POST` | `/api/v1/categories` | Household categories / create one |
+| `PATCH` | `/api/v1/categories/{id}` | Rename, icon, color or hide |
+| `PATCH` | `/api/v1/transactions/{id}` | Set or remove an expense's category; with `learn` it learns the merchant rule |
+| `GET` | `/api/v1/transactions/uncategorized-count` | Uncategorized expenses visible to you |
+| `GET` | `/api/v1/insights/month?month=YYYY-MM` | Month summary for the "Este mes" (This month) screen |
+| `GET` | `/api/v1/insights/category?month=&category_id=` | One category over 12 months and its merchants |
+| `GET` | `/api/v1/insights/trends?month=&months=12` | Monthly trends |
+| `GET` | `/api/v1/budgets?month=` | Budgets with amount spent and status |
+| `PUT` / `DELETE` | `/api/v1/budgets/{category_id}` | Set or remove a category's budget |
+| `GET` / `POST` | `/api/v1/goals` | Savings goals with their projection / create one |
+| `PATCH` / `DELETE` | `/api/v1/goals/{id}` | Update or delete a goal |
+| `GET` | `/api/v1/savings/overview` | "Ahorrar" (Save) screen: averages, fixed payments, ideas and goals |
+| `GET` | `/api/v1/export?format=json\|csv` | Downloads what the requester can see: JSON or a ZIP with one CSV per entity |
 
-Todas las peticiones que escriben (`POST`, `PUT`, `PATCH`, `DELETE`) deben llevar la cabecera `X-Requested-With: OpenFinance`; el cliente de la web la añade solo.
+All requests that write (`POST`, `PUT`, `PATCH`, `DELETE`) must carry the `X-Requested-With: OpenFinance` header; the web client adds it automatically.
 
-Si cambias la API, regenera el contrato y los tipos de la web con `make openapi` (CI comprueba que estén al día).
+If you change the API, regenerate the contract and the web types with `make openapi` (CI checks they are up to date).
 
-Los importes viajan como texto decimal exacto: `{"amount": "-87.34", "currency": "EUR"}`.
+Amounts travel as exact decimal text: `{"amount": "-87.34", "currency": "EUR"}`.
 
-`/health` y `/api/v1/meta` no necesitan base de datos, así que la API arranca aunque PostgreSQL no esté disponible todavía.
+`/health` and `/api/v1/meta` do not need a database, so the API starts even if PostgreSQL is not available yet.
 
-## Con Docker Compose
+## With Docker Compose
 
 ```bash
-cp .env.example .env          # define POSTGRES_PASSWORD
+cp .env.example .env          # set POSTGRES_PASSWORD
 make up                       # db + api + web
 ```
 
-- Web (nginx con el build de producción y proxy a la API): http://localhost:8080
-- Alta del hogar: `docker compose exec api openfinance bootstrap`
-- Ni PostgreSQL ni la API publican puertos; para desarrollar contra el PostgreSQL de Docker usa `make db`.
+- Web (nginx with the production build and a proxy to the API): http://localhost:8080
+- Household setup: `docker compose exec api openfinance bootstrap`
+- Neither PostgreSQL nor the API publishes ports; to develop against the Docker PostgreSQL use `make db`.
 
-`make down` para parar; los datos persisten en el volumen `db-data`. Acceso desde el móvil, HTTPS con dominio propio, copias (`make backup`, `make restore`) y actualización: [Instalar en casa](../deployment/home.md).
+`make down` stops it; data persists in the `db-data` volume. Phone access, HTTPS with your own domain, backups (`make backup`, `make restore`) and upgrading: [Install at home](../deployment/home.md).
 
-## Calidad
+## Quality
 
 ```bash
-make check     # lint, tipos, contratos de capas, tests y build
-make test      # solo tests
+make check     # lint, types, layer contracts, tests and build
+make test      # tests only
 ```
 
-CI (`.github/workflows/ci.yml`) ejecuta lo mismo, pero los tests de base de datos corren contra PostgreSQL (`TEST_DATABASE_URL`) en lugar de SQLite. Además aplica las migraciones y verifica con `alembic check` que el modelo y las migraciones coinciden.
+CI (`.github/workflows/ci.yml`) runs the same, but the database tests run against PostgreSQL (`TEST_DATABASE_URL`) instead of SQLite. It also applies the migrations and verifies with `alembic check` that the model and the migrations match.
 
-### Pruebas en navegador (Playwright)
+### Browser tests (Playwright)
 
-`make e2e` ejecuta `apps/web/e2e` contra una instancia en marcha con los datos de `openfinance demo`: comprueba que las pantallas se usan en un móvil (Chrome a 360 px y Safari/WebKit a 390 px) y en escritorio, que los gráficos caben y se leen, el flujo Importar y la exportación. No forma parte de `make check`. La primera vez instala los navegadores con `cd apps/web && npx playwright install chromium webkit`.
+`make e2e` runs `apps/web/e2e` against a running instance with the `openfinance demo` data: it checks that the screens are usable on a phone (Chrome at 360 px and Safari/WebKit at 390 px) and on desktop, that the charts fit and are legible, the "Importar" (Import) flow and the export. It is not part of `make check`. The first time, install the browsers with `cd apps/web && npx playwright install chromium webkit`.
 
 ```bash
-# Sin Docker: SQLite desechable, API, demo y vite (cada uno en su terminal)
+# Without Docker: throwaway SQLite, API, demo and vite (each in its own terminal)
 export DATABASE_URL=sqlite:////tmp/openfinance-e2e.db
 make migrate && make demo && make api
 make web
 E2E_BASE_URL=http://localhost:5173 make e2e
 ```
 
-Por defecto apunta a `http://127.0.0.1:8080`, la instalación de Docker Compose en modo directo; así lo ejecuta CI sobre una instalación desechable (`openfinance demo --force`).
+By default it targets `http://127.0.0.1:8080`, the Docker Compose installation in direct mode; this is how CI runs it against a throwaway installation (`openfinance demo --force`).
 
-Variables: `E2E_BASE_URL`, `E2E_EMAIL` y `E2E_PASSWORD` (por defecto las del demo), `E2E_INSECURE_TLS=1` para el certificado interno de Caddy y `E2E_SCREENSHOTS=<dir>` para guardar capturas de cada pantalla. Cada ejecución importa movimientos nuevos en la cuenta conjunta: úsalo con datos de prueba, nunca contra vuestra instalación real. El inicio de sesión se hace una sola vez por ejecución (nginx limita los intentos).
+Variables: `E2E_BASE_URL`, `E2E_EMAIL` and `E2E_PASSWORD` (the demo ones by default), `E2E_INSECURE_TLS=1` for Caddy's internal certificate and `E2E_SCREENSHOTS=<dir>` to save screenshots of each screen. Each run imports new transactions into the joint account: use it with test data, never against your real installation. Sign-in happens only once per run (nginx rate-limits attempts).
 
-El job `compose-e2e` levanta la instalación de Docker Compose en sus dos modos (`direct` y `https` con Caddy) y comprueba puertos, IP falsificada, cookie `Secure`, Playwright, exportación, copia y restauración con los mismos saldos y que los logs no contienen secretos (`deploy/scripts/ci/`). Sin Docker en local, esa parte solo se verifica en CI.
+The `compose-e2e` job brings up the Docker Compose installation in both modes (`direct` and `https` with Caddy) and checks ports, spoofed IP, the `Secure` cookie, Playwright, export, backup and restore with the same balances, and that the logs contain no secrets (`deploy/scripts/ci/`). Without Docker locally, that part is only verified in CI.

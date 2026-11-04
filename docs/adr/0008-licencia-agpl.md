@@ -1,27 +1,27 @@
-# ADR-0008: AGPL-3.0 como licencia de distribución
+# ADR-0008: AGPL-3.0 as the distribution license
 
-- Estado: Accepted
-- Fecha: 2026-10-31 (propuesto) · 2026-11-01 (aceptado, OF-504)
+- Status: Accepted
+- Date: 2026-10-31 (proposed) · 2026-11-01 (accepted, OF-504)
 
-## Contexto
+## Context
 
-Queremos que las mejoras de OpenFinance sigan siendo abiertas, también cuando alguien lo ofrezca como servicio de red.
+We want OpenFinance's improvements to remain open, also when someone offers it as a network service.
 
-Antes de aceptarlo quedaban pendientes cuatro cosas: auditar las licencias de las dependencias, elegir la política de contribuciones (DCO o CLA), valorar las implicaciones para servicios comerciales y extensiones, y decidir sobre el texto de la licencia y las cabeceras SPDX.
+Before accepting it, four things were pending: auditing the dependencies' licenses, choosing the contribution policy (DCO or CLA), assessing the implications for commercial services and extensions, and deciding on the license text and SPDX headers.
 
-## Decisión
+## Decision
 
-1. **Licencia: AGPL-3.0-or-later.** El texto literal de la GNU Affero General Public License v3, descargado de <https://www.gnu.org/licenses/agpl-3.0.txt>, está en [`LICENSE`](../../LICENSE). Los metadatos lo declaran con su identificador SPDX: `license = "AGPL-3.0-or-later"` en `services/api/pyproject.toml` y `"license": "AGPL-3.0-or-later"` en `apps/web/package.json`.
-2. **Dependencias compatibles.** La auditoría de OF-504 ([docs/legal/dependencias.md](../legal/dependencias.md)) no encontró ninguna licencia incompatible. Solo hay licencias permisivas y psycopg (LGPL-3.0-only, compatible con la familia GPLv3). CI comprueba en cada cambio que las dependencias de producción siguen dentro de esa lista (`make licenses CHECK=1`).
-3. **Contribuciones con DCO, sin CLA.** Cada commit lleva `Signed-off-by:` (`git commit -s`) y con ello quien contribuye certifica el [Developer Certificate of Origin 1.1](https://developercertificate.org/). No se pide ceder derechos ni firmar un CLA: cada contribución entra bajo la misma AGPL-3.0-or-later. Detalles en [CONTRIBUTING.md](../../CONTRIBUTING.md).
-4. **Sin cabeceras SPDX por fichero.** La licencia se declara una sola vez, en `LICENSE` y en los metadatos de los paquetes. Esto vale para todo el repositorio salvo que un fichero diga otra cosa.
+1. **License: AGPL-3.0-or-later.** The verbatim text of the GNU Affero General Public License v3, downloaded from <https://www.gnu.org/licenses/agpl-3.0.txt>, is in [`LICENSE`](../../LICENSE). The metadata declares it with its SPDX identifier: `license = "AGPL-3.0-or-later"` in `services/api/pyproject.toml` and `"license": "AGPL-3.0-or-later"` in `apps/web/package.json`.
+2. **Compatible dependencies.** The OF-504 audit ([docs/legal/dependencias.md](../legal/dependencias.md)) found no incompatible license. There are only permissive licenses and psycopg (LGPL-3.0-only, compatible with the GPLv3 family). CI checks on every change that production dependencies stay within that list (`make licenses CHECK=1`).
+3. **Contributions with DCO, no CLA.** Each commit carries `Signed-off-by:` (`git commit -s`) and with it the contributor certifies the [Developer Certificate of Origin 1.1](https://developercertificate.org/). No one is asked to assign rights or sign a CLA: each contribution enters under the same AGPL-3.0-or-later. Details in [CONTRIBUTING.md](../../CONTRIBUTING.md).
+4. **No per-file SPDX headers.** The license is declared once, in `LICENSE` and in the package metadata. This holds for the whole repository unless a file says otherwise.
 
-## Consecuencias
+## Consequences
 
-- Copyleft fuerte: quien modifique OpenFinance y lo ofrezca por red debe ofrecer el código de sus cambios a quienes lo usan (AGPL-3.0 §13).
-- Un hogar que lo instala en casa sin modificarlo no tiene ninguna obligación adicional.
-- El uso comercial está permitido en las mismas condiciones. Puede reducir la adopción por parte de empresas que evitan la AGPL.
-- Sin CLA, el proyecto no puede relicenciar ni ofrecer licencias comerciales sin el permiso de cada autor. Es una decisión consciente: nadie concentra derechos que el resto no tenga.
-- «or-later» permite usar el código bajo versiones futuras de la AGPL que publique la FSF.
-- Las extensiones de terceros (ADR-0006, aplazado) se decidirán cuando haya SDK. Mientras tanto, un módulo que se integre en el proceso de la API o en el bundle de la web forma parte de la obra y queda bajo AGPL.
-- Si en el futuro se publican imágenes Docker, hay que ofrecer también el código fuente de los componentes GPL de su sistema base (ver la auditoría).
+- Strong copyleft: anyone who modifies OpenFinance and offers it over a network must offer the source code of their changes to its users (AGPL-3.0 §13).
+- A household that installs it at home without modifying it has no additional obligation.
+- Commercial use is allowed under the same terms. It may reduce adoption by companies that avoid the AGPL.
+- Without a CLA, the project cannot relicense or offer commercial licenses without each author's permission. This is a conscious decision: nobody concentrates rights that the rest do not have.
+- "or-later" allows using the code under future versions of the AGPL published by the FSF.
+- Third-party extensions (ADR-0006, deferred) will be decided when there is an SDK. In the meantime, a module integrated into the API process or the web bundle is part of the work and falls under the AGPL.
+- If Docker images are published in the future, the source code of the GPL components of their base system must also be offered (see the audit).

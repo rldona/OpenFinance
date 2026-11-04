@@ -1,20 +1,20 @@
-# ADR-0006: Módulos oficiales primero; SDK público después
+# ADR-0006: Official modules first; public SDK later
 
-- Estado: Accepted
-- Fecha: 2026-10-31
+- Status: Accepted
+- Date: 2026-10-31
 
-## Contexto
+## Context
 
-Diseñar un SDK de extensiones antes de tener módulos reales suele producir contratos incompletos que luego no se pueden cambiar sin romper a terceros.
+Designing an extension SDK before having real modules tends to produce incomplete contracts that later cannot be changed without breaking third parties.
 
-## Decisión
+## Decision
 
-- Los primeros módulos (categorización, presupuestos) son oficiales y viven en `openfinance.modules`.
-- Implementan un contrato interno versionado: identidad y versión, compatibilidad con el Core, capacidades, permisos solicitados, herramientas y eventos que publican o consumen, configuración, migraciones y ciclo de vida.
-- Un módulo no tiene acceso global a datos: recibe solo los permisos declarados y aprobados.
-- No se ejecuta código de terceros en el proceso principal.
+- The first modules (categorization, budgeting) are official and live in `openfinance.modules`.
+- They implement a versioned internal contract: identity and version, compatibility with the Core, capabilities, requested permissions, tools and events they publish or consume, configuration, migrations and lifecycle.
+- A module has no global access to data: it receives only the declared and approved permissions.
+- No third-party code runs in the main process.
 
-## Consecuencias
+## Consequences
 
-- El SDK público se diseñará a partir de al menos dos módulos oficiales reales.
-- Las extensiones de terceros, cuando lleguen, se aislarán en procesos separados o en un runtime con capacidades limitadas.
+- The public SDK will be designed from at least two real official modules.
+- Third-party extensions, when they arrive, will be isolated in separate processes or in a runtime with limited capabilities.

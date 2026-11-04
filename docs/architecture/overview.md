@@ -1,8 +1,8 @@
-# Arquitectura
+# Architecture
 
-Alcance actual: [ADR-0012 · Empezar por el hogar](../adr/0012-empezar-por-el-hogar.md).
+Current scope: [ADR-0012 · Start with the household](../adr/0012-empezar-por-el-hogar.md).
 
-## Vista lógica (v0.1)
+## Logical view (v0.1)
 
 ```
 ┌───────────────────────────────────────────────────────────┐
@@ -11,49 +11,51 @@ Alcance actual: [ADR-0012 · Empezar por el hogar](../adr/0012-empezar-por-el-ho
 └───────────────────────────┬───────────────────────────────┘
                             │ REST /api/v1 (OpenAPI)
 ┌───────────────────────────▼───────────────────────────────┐
-│ services/api — OpenFinance Core (monolito modular)        │
-│  api/            HTTP → casos de uso                      │
-│  application/    casos de uso, puertos (Protocols)        │
-│  domain/         hogar, movimientos, categorías…  (puro)  │
-│  infrastructure/ SQLAlchemy, config, lector de CSV        │
+│ services/api — OpenFinance Core (modular monolith)        │
+│  api/            HTTP → use cases                         │
+│  application/    use cases, ports (Protocols)             │
+│  domain/         household, ledger, categories… (pure)    │
+│  infrastructure/ SQLAlchemy, config, CSV reader           │
 └───────────────────────────┬───────────────────────────────┘
                      ┌──────▼──────┐
                      │ PostgreSQL  │
                      └─────────────┘
 ```
 
-Un solo proceso para la API y un solo frontend. Sin workers, colas ni IA en v0.1.
+A single process for the API and a single frontend. No workers, queues or AI in v0.1.
 
-## Contextos de dominio (v0.1)
+UI screens in the diagram (the app UI is in Spanish): "Este mes" (This month), "¿En qué gastamos?" (What do we spend on?), "Evolución" (Trends), "Ahorrar" (Save).
 
-| Contexto | Responsabilidad |
+## Domain contexts (v0.1)
+
+| Context | Responsibility |
 | --- | --- |
-| identity | Las dos personas del hogar e inicio de sesión |
-| workspaces | El hogar: frontera de datos (`workspace_id` en todo) |
-| ledger | Cuentas y movimientos: aportaciones, gastos y traspasos a ahorro |
-| categorization | Categorías por hogar y reglas aprendidas por comercio (del hogar o personales) |
-| budgeting | Presupuestos mensuales por categoría |
-| imports | Lectura de CSV del banco, normalización y deduplicación |
-| insights | Agregados para gráficos, objetivos de ahorro, ideas y simulador |
+| identity | The household's two people and sign-in |
+| workspaces | The household: data boundary (`workspace_id` everywhere) |
+| ledger | Accounts and transactions: contributions, expenses and transfers to savings |
+| categorization | Categories per household and rules learned per merchant (household or personal) |
+| budgeting | Monthly budgets per category |
+| imports | Reading bank CSVs, normalization and deduplication |
+| insights | Aggregates for charts, savings goals, ideas and simulator |
 
-La lista vive en `openfinance.domain.BOUNDED_CONTEXTS` y se expone en `GET /api/v1/meta`.
+The list lives in `openfinance.domain.BOUNDED_CONTEXTS` and is exposed at `GET /api/v1/meta`.
 
-Aplazados (ADR-0012): `manager`, `approvals`, `modules`, `sharing` y `audit` avanzada.
+Deferred (ADR-0012): `manager`, `approvals`, `modules`, `sharing` and advanced `audit`.
 
-## Reglas de dependencia
+## Dependency rules
 
-Se hacen cumplir con `import-linter` (`services/api/pyproject.toml`):
+Enforced with `import-linter` (`services/api/pyproject.toml`):
 
-- `api → infrastructure → application → domain` (solo hacia abajo).
-- `domain` sin frameworks; `application` sin HTTP ni ORM.
+- `api → infrastructure → application → domain` (downward only).
+- `domain` has no frameworks; `application` has no HTTP or ORM.
 
-## Reglas del dinero
+## Money rules
 
-- `Money` = `Decimal` + `Currency` ISO 4217, cuantizado a céntimos; rechaza `float`.
-- Tipos de movimiento: **aportación** (entra a la cuenta común), **gasto** (con categoría), **traspaso a ahorro** (no es gasto).
-- Cuentas: conjunta (Revolut) y huchas visibles para el hogar; personales (Bankinter) visibles solo para su titular ([ADR-0013](../adr/0013-cuentas-personales-privadas.md)).
-- Cada movimiento guarda su comercio normalizado (`merchant`) para aplicar reglas sin recalcularlo.
-- Sesiones en servidor: cookie `HttpOnly` con un token aleatorio del que solo se guarda el hash; contraseñas con Argon2id.
-- Fecha efectiva ≠ fecha de importación; cada movimiento importado conserva su archivo de origen.
-- Deduplicación por identificador externo cuando el banco lo da; si no, por huella de fecha, importe y concepto normalizado.
-- Los gráficos se calculan en el Core (`domain/insights.py`) solo con la conjunta y las huchas; el frontend solo pinta, con componentes SVG propios ([ADR-0014](../adr/0014-graficos-svg-propios.md)).
+- `Money` = `Decimal` + `Currency` ISO 4217, quantized to cents; rejects `float`.
+- Transaction types: **contribution** (goes into the shared account), **expense** (with a category), **transfer to savings** (not an expense).
+- Accounts: joint (Revolut) and savings pots visible to the household; personal (Bankinter) visible only to their owner ([ADR-0013](../adr/0013-cuentas-personales-privadas.md)).
+- Each transaction stores its normalized merchant (`merchant`) so rules can be applied without recomputing it.
+- Server-side sessions: `HttpOnly` cookie with a random token of which only the hash is stored; passwords use Argon2id.
+- Effective date ≠ import date; each imported transaction keeps its source file.
+- Deduplication by external identifier when the bank provides one; otherwise by a fingerprint of date, amount and normalized description.
+- Charts are computed in the Core (`domain/insights.py`) using only the joint account and savings pots; the frontend only renders, with its own SVG components ([ADR-0014](../adr/0014-graficos-svg-propios.md)).

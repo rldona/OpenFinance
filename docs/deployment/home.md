@@ -1,187 +1,187 @@
-# Instalar OpenFinance en casa
+# Install OpenFinance at home
 
-Guía para dejar OpenFinance funcionando en un equipo de casa con Docker Compose. Las decisiones de fondo están en [ADR-0016](../adr/0016-exposicion-y-copias.md).
+Guide to getting OpenFinance running on a home machine with Docker Compose. The underlying decisions are in [ADR-0016](../adr/0016-exposicion-y-copias.md).
 
-## Requisitos
+## Requirements
 
-- Un equipo **x86-64** encendido mientras lo uséis (un mini PC, un portátil viejo o una NAS con Docker).
-- **Docker** con **Docker Compose ≥ 2.24** (`docker compose version`).
-- `make` y `git` (o descargar el repositorio).
+- An **x86-64** machine that is on whenever you use it (a mini PC, an old laptop or a NAS with Docker).
+- **Docker** with **Docker Compose ≥ 2.24** (`docker compose version`).
+- `make` and `git` (or download the repository).
 
-## 1. Configuración
+## 1. Configuration
 
 ```bash
 git clone <repositorio> openfinance && cd openfinance
 cp .env.example .env
-openssl rand -hex 24          # úsalo como POSTGRES_PASSWORD en .env
+openssl rand -hex 24          # use it as POSTGRES_PASSWORD in .env
 ```
 
-Edita `.env`: como mínimo `POSTGRES_PASSWORD`. El resto de valores se explica en los apartados siguientes.
+Edit `.env`: at a minimum `POSTGRES_PASSWORD`. The remaining values are explained in the following sections.
 
-## 2. Arrancar
+## 2. Start
 
 ```bash
-make up                       # construye y arranca db + api + web
-docker compose ps             # todos «healthy»
+make up                       # builds and starts db + api + web
+docker compose ps             # all "healthy"
 ```
 
-Por defecto solo se entra desde el propio equipo: http://localhost:8080. Ni la base de datos ni la API publican puertos.
+By default it can only be reached from the machine itself: http://localhost:8080. Neither the database nor the API publish ports.
 
-## 3. Alta del hogar
+## 3. Household setup
 
 ```bash
 docker compose exec api openfinance bootstrap
 ```
 
-Pregunta el nombre del hogar, el nombre, el email y la contraseña de cada persona y las cuentas. No hay registro público: más personas entran con una invitación que crea quien administra el hogar en **Ajustes → Personas del hogar** (un enlace de un solo uso que vale 7 días).
+It asks for the household name, each person's name, email and password, and the accounts. There is no public sign-up: more people join with an invitation created by whoever administers the household in **"Ajustes → Personas del hogar"** (Settings → Household members) (a single-use link valid for 7 days).
 
-Para identificar las aportaciones que no llevan vuestro nombre (recargas con tarjeta, salidas de las cuentas personales), consulta `docker compose exec api openfinance member-patterns --help`.
+To identify contributions that do not carry your name (card top-ups, outflows from personal accounts), see `docker compose exec api openfinance member-patterns --help`.
 
-Más tarea de mantenimiento desde el servidor:
+More maintenance tasks from the server:
 
-- Si alguien olvida su contraseña: `docker compose exec api openfinance users set-password <email>`. La pide sin eco y cierra las sesiones abiertas de esa persona.
-- Para añadir una hucha o una cuenta después del alta: `docker compose exec api openfinance accounts add <email> 'Hucha viaje' --kind savings --opening-balance 120.50`. Con `--kind personal` la cuenta es de esa persona y solo la ve su titular.
+- If someone forgets their password: `docker compose exec api openfinance users set-password <email>`. It asks for it without echo and closes that person's open sessions.
+- To add a pocket or an account after setup: `docker compose exec api openfinance accounts add <email> 'Hucha viaje' --kind savings --opening-balance 120.50`. With `--kind personal` the account belongs to that person and only its owner sees it.
 
-## 4. Entrar desde el móvil en casa (http)
+## 4. Access from a phone at home (http)
 
-En `.env`:
+In `.env`:
 
 ```dotenv
-OPENFINANCE_BIND=192.168.1.20                 # IP del equipo en la red de casa (o 0.0.0.0)
-OPENFINANCE_SESSION_COOKIE_SECURE=false       # se entra por http: la cookie no puede ser Secure
+OPENFINANCE_BIND=192.168.1.20                 # the machine's IP on the home network (or 0.0.0.0)
+OPENFINANCE_SESSION_COOKIE_SECURE=false       # accessed over http: the cookie cannot be Secure
 ```
 
-`make up` de nuevo y abrid `http://192.168.1.20:8080` en el móvil (conviene fijar esa IP en el router). Si olvidáis `OPENFINANCE_SESSION_COOKIE_SECURE=false`, el login «funciona» pero el navegador no guarda la sesión; la API lo avisa en `docker compose logs api`.
+Run `make up` again and open `http://192.168.1.20:8080` on the phone (it is a good idea to fix that IP in the router). If you forget `OPENFINANCE_SESSION_COOKIE_SECURE=false`, the login "works" but the browser does not keep the session; the API warns about it in `docker compose logs api`.
 
-**Instalarla como app (OF-805).** Con HTTPS y dominio propio, el navegador del móvil ofrece «Añadir a la pantalla de inicio» (Chrome: menú ⋮ → *Instalar aplicación*; Safari: Compartir → *Añadir a pantalla de inicio*). Por `http://` en la red local solo se guarda un acceso directo, sin service worker. La app instalada guarda únicamente su carcasa: los datos siempre se piden al servidor. El tema claro u oscuro se elige en Ajustes → Apariencia.
+**Installing it as an app (OF-805).** With HTTPS and your own domain, the phone's browser offers "Add to home screen" (Chrome: ⋮ menu → *Install app*; Safari: Share → *Add to Home Screen*). Over `http://` on the local network only a shortcut is saved, without a service worker. The installed app only stores its shell: data is always requested from the server. The light or dark theme is chosen in "Ajustes → Apariencia" (Settings → Appearance).
 
-Así el tráfico va sin cifrar dentro de la red de casa: usadlo solo en una red de confianza.
+This way traffic goes unencrypted inside the home network: use it only on a trusted network.
 
-## 5. Entrar desde fuera con HTTPS (dominio propio)
+## 5. Access from outside with HTTPS (own domain)
 
-Necesitáis un dominio (o subdominio) con un registro DNS apuntando a la IP pública de casa y los puertos **80 y 443** del router redirigidos a este equipo. En `.env`:
+You need a domain (or subdomain) with a DNS record pointing to the home's public IP and ports **80 and 443** on the router forwarded to this machine. In `.env`:
 
 ```dotenv
 COMPOSE_FILE=compose.yaml:compose.https.yaml
 OPENFINANCE_DOMAIN=finanzas.example.org
 ```
 
-y quitad `OPENFINANCE_SESSION_COOKIE_SECURE=false` si lo teníais. `make up` arranca además Caddy, que obtiene y renueva el certificado, redirige http a https y añade `Strict-Transport-Security`. nginx deja de publicar el puerto 8080 y la cookie es siempre `Secure`. Entrad por `https://finanzas.example.org`, también desde casa.
+and remove `OPENFINANCE_SESSION_COOKIE_SECURE=false` if you had it. `make up` additionally starts Caddy, which obtains and renews the certificate, redirects http to https and adds `Strict-Transport-Security`. nginx stops publishing port 8080 and the cookie is always `Secure`. Use `https://finanzas.example.org`, also from home.
 
-> **Aviso.** En modo `caddy`, **no publiquéis el puerto de nginx** (no añadáis `ports` al servicio `web` ni lo saquéis de `compose.https.yaml`). En ese modo nginx se fía de la IP que le pasa Caddy en `X-Forwarded-For`; si se pudiera llegar a nginx directamente, cualquiera podría inventarse la IP y saltarse el límite de intentos de login. Los dos modos son excluyentes, y el modo lo decide el fichero de Compose, no una variable de `.env`.
+> **Warning.** In `caddy` mode, **do not publish nginx's port** (do not add `ports` to the `web` service or remove it from `compose.https.yaml`). In that mode nginx trusts the IP that Caddy passes in `X-Forwarded-For`; if nginx could be reached directly, anyone could forge the IP and bypass the login attempt limit. The two modes are mutually exclusive, and the mode is decided by the Compose file, not by a `.env` variable.
 
-## 6. Copias de seguridad
+## 6. Backups
 
-Las copias van **cifradas con [age](https://github.com/FiloSottile/age)**: sin la clave privada no se pueden abrir, así que pueden salir de casa sin riesgo. El equipo solo guarda la clave **pública**; la privada se guarda fuera y solo hace falta para restaurar.
+Backups are **encrypted with [age](https://github.com/FiloSottile/age)**: they cannot be opened without the private key, so they can leave the house without risk. The machine only stores the **public** key; the private one is kept elsewhere and is only needed to restore.
 
-Una sola vez:
+Once:
 
 ```bash
-sudo apt install age          # o: brew install age
-age-keygen -o clave.txt       # imprime «Public key: age1...»
+sudo apt install age          # or: brew install age
+age-keygen -o clave.txt       # prints "Public key: age1..."
 ```
 
-Guardad `clave.txt` **fuera del equipo** (gestor de contraseñas, papel en un sitio seguro, la otra persona): si la perdéis, las copias no se pueden recuperar. En `.env` poned solo la clave pública:
+Store `clave.txt` **off the machine** (password manager, paper in a safe place, the other person): if you lose it, the backups cannot be recovered. In `.env` put only the public key:
 
 ```dotenv
 OPENFINANCE_BACKUP_RECIPIENT=age1...
-OPENFINANCE_BACKUP_KEEP=30     # copias que se conservan (por defecto 30; 0 = no borrar)
+OPENFINANCE_BACKUP_KEEP=30     # backups kept (default 30; 0 = never delete)
 ```
 
-(Para cifrar a varias claves, `OPENFINANCE_BACKUP_RECIPIENTS_FILE=fichero` con una clave pública por línea.)
+(To encrypt to several keys, `OPENFINANCE_BACKUP_RECIPIENTS_FILE=fichero` with one public key per line.)
 
 ```bash
-make backup                   # backups/openfinance-AAAAmmdd-HHMMSS.dump.age (permisos 600)
-make backup DIR=/mnt/disco    # en otra carpeta
+make backup                   # backups/openfinance-AAAAmmdd-HHMMSS.dump.age (permissions 600)
+make backup DIR=/mnt/disco    # into another folder
 ```
 
-Sin clave pública, `make backup` se niega a hacer la copia. Solo se puede hacer en claro a sabiendas, con `OPENFINANCE_BACKUP_PLAINTEXT=1`. La copia contiene **todo**: las cuentas personales de ambas personas y los hashes de las contraseñas. Los adjuntos (tickets y facturas de los movimientos) viven en un volumen de Docker aparte y van en un segundo fichero de la misma fecha, `openfinance-AAAAmmdd-HHMMSS.attachments.tar.age`, cifrado igual; si no hay adjuntos no se crea. Antes de cifrar se comprueba que el volcado se puede leer; el volcado en claro se escribe un instante en la misma carpeta con permisos 600 y se borra enseguida.
+Without a public key, `make backup` refuses to make the backup. It can only be done in plaintext knowingly, with `OPENFINANCE_BACKUP_PLAINTEXT=1`. The backup contains **everything**: both people's personal accounts and the password hashes. Attachments (receipts and invoices of transactions) live in a separate Docker volume and go in a second file with the same date, `openfinance-AAAAmmdd-HHMMSS.attachments.tar.age`, encrypted the same way; if there are no attachments it is not created. Before encrypting, the dump is checked to be readable; the plaintext dump is written briefly in the same folder with 600 permissions and deleted right away.
 
-Tras cada copia se borran las más antiguas hasta dejar `OPENFINANCE_BACKUP_KEEP`. Solo se tocan ficheros con el nombre exacto `openfinance-AAAAmmdd-HHMMSS.dump[.age]`.
+After each backup, the oldest ones are deleted until only `OPENFINANCE_BACKUP_KEEP` remain. Only files with the exact name `openfinance-AAAAmmdd-HHMMSS.dump[.age]` are touched.
 
-### Guardarlas fuera del equipo
+### Keeping them off the machine
 
-Una copia en el mismo disco no sirve si el disco falla. Con las copias cifradas, cualquiera de estas vale, porque quien las robe no puede leerlas:
+A backup on the same disk is useless if the disk fails. With encrypted backups, any of these works, because whoever steals them cannot read them:
 
-- **Otro disco o equipo de casa**: `make backup DIR=/mnt/disco/openfinance` (o `rsync -a backups/ otro-equipo:openfinance/`).
-- **Almacenamiento en la nube** con [rclone](https://rclone.org/): `rclone copy backups remoto:openfinance --include 'openfinance-*.dump.age'`.
-- **Un disco USB** que cambiéis de sitio de vez en cuando.
+- **Another disk or machine at home**: `make backup DIR=/mnt/disco/openfinance` (or `rsync -a backups/ otro-equipo:openfinance/`).
+- **Cloud storage** with [rclone](https://rclone.org/): `rclone copy backups remoto:openfinance --include 'openfinance-*.dump.age'`.
+- **A USB drive** that you move to a different place from time to time.
 
-Copia diaria con `cron` (`crontab -e`), a las 3:30; la rotación ya la hace el script:
+Daily backup with `cron` (`crontab -e`), at 3:30; rotation is already handled by the script:
 
 ```cron
 30 3 * * * cd /ruta/a/openfinance && make backup DIR=/mnt/disco/openfinance >> /var/log/openfinance-backup.log 2>&1
 ```
 
-Probad una restauración al menos una vez (sección siguiente): una copia que nunca se ha restaurado no es una copia.
+Test a restore at least once (next section): a backup that has never been restored is not a backup.
 
-### Notificaciones en el móvil
+### Phone notifications
 
-Los avisos (duplicados, comisiones, recibos que suben, pagos atrasados, saldo en negativo) se ven siempre en «Este mes». Para recibirlos también como notificación del móvil se usa Web Push ([ADR-0023](../adr/0023-avisos-y-notificaciones.md)); necesita el modo HTTPS y, en iPhone, iOS 16.4 o superior con la app añadida a la pantalla de inicio.
+Alerts (duplicates, fees, rising bills, late payments, negative balance) always show in "Este mes" (This month). To also receive them as phone notifications, Web Push is used ([ADR-0023](../adr/0023-avisos-y-notificaciones.md)); it needs HTTPS mode and, on iPhone, iOS 16.4 or later with the app added to the home screen.
 
-1. Genera las claves una vez: `docker compose run --rm --no-deps -T api openfinance alerts keys`.
-2. Pega las tres líneas en `.env` (la privada es un secreto, como la contraseña de PostgreSQL), pon en `OPENFINANCE_VAPID_SUBJECT` un `mailto:` vuestro y `docker compose up -d`.
-3. En cada móvil: **Ajustes → Notificaciones → Activar en este dispositivo**. Cada persona elige qué tipos de aviso quiere.
-4. Programa el envío con `cron`; es idempotente, no repite lo ya enviado:
+1. Generate the keys once: `docker compose run --rm --no-deps -T api openfinance alerts keys`.
+2. Paste the three lines into `.env` (the private one is a secret, like the PostgreSQL password), set `OPENFINANCE_VAPID_SUBJECT` to a `mailto:` of yours and run `docker compose up -d`.
+3. On each phone: **"Ajustes → Notificaciones → Activar en este dispositivo"** (Settings → Notifications → Enable on this device). Each person chooses which types of alert they want.
+4. Schedule the sending with `cron`; it is idempotent, it does not repeat what was already sent:
 
 ```cron
 0 * * * * cd /ruta/a/openfinance && docker compose exec -T api openfinance alerts notify >> /var/log/openfinance-alerts.log 2>&1
 ```
 
-El mensaje solo dice cuántos avisos hay y de qué tipo, sin importes ni comercios. Los servicios push de Google, Apple y Mozilla ven que hay una notificación, no su contenido financiero.
+The message only says how many alerts there are and of what type, with no amounts or merchants. The push services of Google, Apple and Mozilla see that there is a notification, not its financial content.
 
-### Conectar el banco
+### Connecting the bank
 
-Además de importar extractos, OpenFinance puede traer los movimientos directamente del banco por PSD2 ([ADR-0024](../adr/0024-conexion-con-el-banco.md)). Un banco solo entrega esos datos a un proveedor autorizado, así que usáis **vuestra propia cuenta** en [Enable Banking](https://enablebanking.com): sus datos de aplicación quedan en vuestro servidor y los movimientos no pasan por ningún servidor nuestro. Es solo lectura: nunca mueve dinero. Necesita el modo HTTPS.
+Besides importing statements, OpenFinance can fetch transactions directly from the bank via PSD2 ([ADR-0024](../adr/0024-conexion-con-el-banco.md)). A bank only hands that data to an authorized provider, so you use **your own account** at [Enable Banking](https://enablebanking.com): its application data stays on your server and the transactions do not pass through any server of ours. It is read-only: it never moves money. It needs HTTPS mode.
 
-1. Entra en el [panel de Enable Banking](https://enablebanking.com/cp/applications) y registra una aplicación:
-   - **Entorno: Production** (no Sandbox: Sandbox solo habla con bancos simulados). Queda «Inactive».
-   - **Clave:** deja «Generate in the browser». Al registrar se descarga un `.pem` con el identificador de la aplicación como nombre. Guárdalo **fuera del repositorio**; es la clave que firma todas las peticiones.
-   - **Allowed redirect URLs:** la raíz de vuestra web, **solo con `https`** (`http://…` se rechaza: «unsupported scheme»), con la barra final: `https://finanzas.ejemplo.org/`. Para probar en tu equipo vale `https://localhost/` con el modo `https` de Compose (Caddy usa una CA interna: el navegador avisa del certificado y se acepta una vez).
-   - **Privacy URL y Terms URL:** el formulario los pide aunque se marquen como opcionales. Para uso propio vale la dirección del repositorio.
-   - Pulsa **Activate by linking accounts** y autoriza tus cuentas en el banco. Hasta entonces la aplicación está inactiva y solo puede leer las cuentas **enlazadas** (modo restringido, para uso individual y no comercial). La pantalla «Billing» es una solicitud de presupuesto comercial: no hace falta.
-2. En `.env`: `OPENFINANCE_BANK_APP_ID` (el identificador de la aplicación), `OPENFINANCE_BANK_REDIRECT_URL` (esa misma dirección, idéntica) y `OPENFINANCE_BANK_PRIVATE_KEY` con el PEM en **una sola línea**, cambiando cada salto de línea por `\n` y **entre comillas simples** (con comillas dobles Compose expande `\n`). La clave es un secreto, como la contraseña de PostgreSQL. Después `docker compose up -d`. Un comando que lo escribe sin mostrar la clave:
+1. Go to the [Enable Banking panel](https://enablebanking.com/cp/applications) and register an application:
+   - **Environment: Production** (not Sandbox: Sandbox only talks to simulated banks). It stays "Inactive".
+   - **Key:** leave "Generate in the browser". On registering, a `.pem` named with the application identifier is downloaded. Store it **outside the repository**; it is the key that signs all requests.
+   - **Allowed redirect URLs:** the root of your website, **with `https` only** (`http://…` is rejected: "unsupported scheme"), with the trailing slash: `https://finanzas.ejemplo.org/`. To test on your machine, `https://localhost/` works with Compose's `https` mode (Caddy uses an internal CA: the browser warns about the certificate and you accept it once).
+   - **Privacy URL and Terms URL:** the form asks for them even though they are marked as optional. For personal use, the repository address works.
+   - Click **Activate by linking accounts** and authorize your accounts at the bank. Until then the application is inactive and can only read the **linked** accounts (restricted mode, for individual non-commercial use). The "Billing" screen is a commercial quote request: not needed.
+2. In `.env`: `OPENFINANCE_BANK_APP_ID` (the application identifier), `OPENFINANCE_BANK_REDIRECT_URL` (that same address, identical) and `OPENFINANCE_BANK_PRIVATE_KEY` with the PEM on **a single line**, replacing each line break with `\n` and **in single quotes** (with double quotes Compose expands `\n`). The key is a secret, like the PostgreSQL password. Then `docker compose up -d`. A command that writes it without showing the key:
 
 ```bash
 PEM=/ruta/a/ID-DE-LA-APLICACION.pem
 printf "OPENFINANCE_BANK_PRIVATE_KEY='%s'\n" "$(awk '{printf "%s\\n",$0}' "$PEM")" >> .env
 ```
 
-3. Cada persona, en **Ajustes → Conexión con el banco**, elige país y banco (el que dice el agregador: **Revolut** y **Bankinter** salen con país `ES`; el desplegable propone los nombres exactos), autoriza en la web del banco y, al volver, elige a qué cuenta de OpenFinance alimenta cada cuenta del banco. Una conexión es de quien la crea: la otra persona no la ve.
-4. Los movimientos se traen con **Sincronizar ahora** o programando `cron`; es idempotente (no duplica) y respeta el límite de consultas del banco (no vuelve a consultar una conexión sincronizada hace menos de 6 horas):
+3. Each person, in **"Ajustes → Conexión con el banco"** (Settings → Bank connection), chooses country and bank (as the aggregator names it: **Revolut** and **Bankinter** appear with country `ES`; the dropdown suggests the exact names), authorizes on the bank's website and, on returning, chooses which OpenFinance account each bank account feeds. A connection belongs to whoever creates it: the other person does not see it.
+4. Transactions are fetched with **"Sincronizar ahora"** (Sync now) or by scheduling `cron`; it is idempotent (it does not duplicate) and respects the bank's query limit (it does not query a connection again if it was synced less than 6 hours ago):
 
 ```cron
 0 */6 * * * cd /ruta/a/openfinance && docker compose exec -T api openfinance bank sync >> /var/log/openfinance-bank.log 2>&1
 ```
 
-   Cada sincronización con novedades es un lote en «Importar» y se puede deshacer como cualquier extracto.
-5. El consentimiento PSD2 caduca (hasta 180 días). Se avisa 14 días antes; renovarlo es conectar de nuevo. **Revocar** en Ajustes detiene la sincronización y pide al banco cerrar la sesión.
+   Each sync with new data is a batch in "Importar" (Import) and can be undone like any statement.
+5. The PSD2 consent expires (after up to 180 days). A warning appears 14 days before; renewing it means connecting again. **Revoking** in Settings stops the sync and asks the bank to close the session.
 
-**Probado con Revolut (`ES`, el 3 de noviembre de 2026)**: autorización, lectura de cuentas y una sincronización de 90 días (132 movimientos) cuya suma coincide con el saldo del banco al céntimo. Bankinter aún no.
+**Tested with Revolut (`ES`, on 3 November 2026)**: authorization, reading accounts and a 90-day sync (132 transactions) whose sum matches the bank's balance to the cent. Bankinter not yet.
 
-**El saldo inicial de la cuenta es el de antes del primer movimiento que se trae, no el de hoy.** Si pones el saldo actual, tras la primera sincronización Ajustes enseñará una diferencia igual (con signo contrario) a la suma de los movimientos traídos. Esa diferencia es la que corrige el saldo inicial: `saldo del banco − suma de los movimientos`. Desde la primera sincronización se piden 90 días de historial; lo anterior hay que importarlo con un extracto.
+**The account's opening balance is the one from before the first fetched transaction, not today's.** If you enter the current balance, after the first sync Settings will show a difference equal (with opposite sign) to the sum of the fetched transactions. That difference is what corrects the opening balance: `bank balance − sum of the transactions`. From the first sync, 90 days of history are requested; anything earlier must be imported with a statement.
 
-### Restaurar
+### Restoring
 
 ```bash
 make restore FILE=backups/openfinance-20261101-033000.dump.age OPENFINANCE_BACKUP_IDENTITY=clave.txt
 ```
 
-Se restauran también los adjuntos de la misma fecha, si hay (los actuales se sustituyen). Si la copia está cifrada hay que dar la clave privada (`OPENFINANCE_BACKUP_IDENTITY`); se descifra a un fichero temporal con permisos 600 que se borra al terminar. Primero comprueba que la copia se puede leer; luego pide escribir «restaurar» y sustituye **todos** los datos actuales. Restaurad con la misma versión de OpenFinance que hizo la copia o una más nueva: después se aplican las migraciones pendientes. Al terminar se cierran todas las sesiones y hay que volver a entrar.
+Attachments of the same date are also restored, if any (the current ones are replaced). If the backup is encrypted you must provide the private key (`OPENFINANCE_BACKUP_IDENTITY`); it is decrypted to a temporary file with 600 permissions that is deleted when done. First it checks that the backup is readable; then it asks you to type "restaurar" (restore) and replaces **all** current data. Restore with the same version of OpenFinance that made the backup or a newer one: pending migrations are applied afterwards. When finished, all sessions are closed and you have to sign in again.
 
-> **Restaurad solo copias vuestras** (hechas con `make backup` en vuestra instalación). `pg_restore` se ejecuta con el usuario de PostgreSQL de la instalación, que es superusuario de la base de datos: una copia manipulada podría ejecutar SQL arbitrario con esos permisos.
+> **Restore only your own backups** (made with `make backup` on your installation). `pg_restore` runs as the installation's PostgreSQL user, which is a database superuser: a tampered backup could run arbitrary SQL with those permissions.
 
-Si la restauración falla a medias, el script lo dice y deja la API parada. No la arranquéis sin ejecutar antes `docker compose run --rm --no-deps -T api openfinance sessions revoke-all` (o repetid la restauración con la misma copia).
+If the restore fails midway, the script says so and leaves the API stopped. Do not start it without first running `docker compose run --rm --no-deps -T api openfinance sessions revoke-all` (or repeat the restore with the same backup).
 
-## 7. Exportar vuestros datos
+## 7. Exporting your data
 
-Desde la web, **Exportar** (arriba a la derecha) descarga un JSON o un ZIP con un CSV por entidad. Cada persona exporta lo que ve: la cuenta personal de la otra no se incluye. Para una copia completa, usad `make backup`.
+From the web app, **"Exportar"** (Export) (top right) downloads a JSON or a ZIP with one CSV per entity. Each person exports what they see: the other's personal account is not included. For a full backup, use `make backup`.
 
-## 8. Imágenes publicadas y firmadas (opcional)
+## 8. Published and signed images (optional)
 
-Por defecto `make up` construye las imágenes en vuestro equipo. Cada versión (`vX.Y.Z`) también se publica ya construida para x86-64 y ARM en `ghcr.io/rldona/openfinance-api` y `ghcr.io/rldona/openfinance-web`, **firmadas con [cosign](https://github.com/sigstore/cosign)** sin claves propias: la firma sale de la identidad del workflow de GitHub que las construyó y queda en el registro público de Sigstore. Llevan además lista de materiales (SBOM) y procedencia.
+By default `make up` builds the images on your machine. Each version (`vX.Y.Z`) is also published prebuilt for x86-64 and ARM at `ghcr.io/rldona/openfinance-api` and `ghcr.io/rldona/openfinance-web`, **signed with [cosign](https://github.com/sigstore/cosign)** without own keys: the signature comes from the identity of the GitHub workflow that built them and is recorded in Sigstore's public log. They also carry a bill of materials (SBOM) and provenance.
 
-Comprobad la firma **antes de arrancar** (necesita `cosign`):
+Verify the signature **before starting** (needs `cosign`):
 
 ```bash
 V=0.2.0
@@ -192,41 +192,41 @@ for img in api web; do
 done
 ```
 
-Si no sale `Verification for … --` con la firma, no uséis la imagen. Para usarlas, en `.env`:
+If `Verification for … --` does not appear with the signature, do not use the image. To use them, in `.env`:
 
 ```dotenv
-COMPOSE_FILE=compose.yaml:compose.images.yaml      # o compose.yaml:compose.images.yaml:compose.https.yaml
+COMPOSE_FILE=compose.yaml:compose.images.yaml      # or compose.yaml:compose.images.yaml:compose.https.yaml
 OPENFINANCE_VERSION=0.2.0
 ```
 
-y `docker compose pull && make up`. Fijad siempre una versión concreta, nunca `latest`.
+and `docker compose pull && make up`. Always pin a specific version, never `latest`.
 
-### Avisar de versiones nuevas
+### Notifying about new versions
 
-Con `OPENFINANCE_UPDATE_CHECK=true` en `.env`, el servidor pregunta una vez al día a la API pública de GitHub cuál es la última release. Si es posterior a la vuestra, la web enseña un aviso con un enlace a las novedades (se puede descartar y no vuelve hasta la siguiente versión). **Solo avisa**: nada se actualiza solo, y la consulta no envía ningún dato de la instalación (GitHub ve la IP del servidor, como con cualquier visita). Está apagado por defecto. Para actualizar, seguid la sección siguiente.
+With `OPENFINANCE_UPDATE_CHECK=true` in `.env`, the server asks GitHub's public API once a day for the latest release. If it is newer than yours, the web app shows a notice with a link to the release notes (it can be dismissed and does not return until the next version). **It only notifies**: nothing updates itself, and the query sends no data about the installation (GitHub sees the server's IP, as with any visit). It is off by default. To update, follow the next section.
 
-## 9. Actualizar
+## 9. Updating
 
 ```bash
-make backup                   # antes de nada
+make backup                   # first of all
 git pull
-make up                       # reconstruye; las migraciones se aplican al arrancar la API
-# con imágenes publicadas: cambiad OPENFINANCE_VERSION en .env, comprobad la firma y `docker compose pull && make up`
+make up                       # rebuilds; migrations are applied when the API starts
+# with published images: change OPENFINANCE_VERSION in .env, verify the signature and `docker compose pull && make up`
 ```
 
-## Problemas frecuentes
+## Common problems
 
-| Síntoma | Causa |
+| Symptom | Cause |
 | --- | --- |
-| Entro y vuelvo a la pantalla de login | Cookie `Secure` por http: `OPENFINANCE_SESSION_COOKIE_SECURE=false` en el modo `direct`, o usad HTTPS |
-| `Define POSTGRES_PASSWORD en .env` | Falta `.env` o la variable |
-| `ports: !reset` no válido | Docker Compose anterior a 2.24 |
-| Caddy no obtiene el certificado | DNS no apunta a casa o los puertos 80/443 no llegan al equipo |
-| `Demasiados intentos` | Límite de intentos de login: esperad 15 minutos |
+| I sign in and return to the login screen | `Secure` cookie over http: `OPENFINANCE_SESSION_COOKIE_SECURE=false` in `direct` mode, or use HTTPS |
+| `Define POSTGRES_PASSWORD en .env` | `.env` or the variable is missing |
+| `ports: !reset` invalid | Docker Compose older than 2.24 |
+| Caddy does not get the certificate | DNS does not point home or ports 80/443 do not reach the machine |
+| `Demasiados intentos` (Too many attempts) | Login attempt limit: wait 15 minutes |
 
-## Logs y comprobaciones de estado
+## Logs and health checks
 
-- `docker compose logs -f api` enseña una línea por petición: `fecha NIVEL nombre [id-de-petición] GET /ruta -> estado en N ms`. No lleva la query de la URL, cuerpos, cookies ni cabeceras. El nivel se cambia con `OPENFINANCE_LOG_LEVEL` (`DEBUG`, `INFO`, `WARNING`, `ERROR`).
-- Cada respuesta lleva `X-Request-ID`: si algo falla, dad ese identificador y se busca la línea exacta. El identificador lo pone nginx y llega a la API.
-- Los logs de cada contenedor rotan solos: 5 ficheros de 10 MB.
-- `/health` dice que la API está viva; `/ready` (solo dentro de Compose) comprueba además que la base de datos contesta. El `healthcheck` de la API usa `/ready`.
+- `docker compose logs -f api` shows one line per request: `date LEVEL name [request-id] GET /path -> status in N ms`. It does not include the URL query, bodies, cookies or headers. The level is changed with `OPENFINANCE_LOG_LEVEL` (`DEBUG`, `INFO`, `WARNING`, `ERROR`).
+- Every response carries `X-Request-ID`: if something fails, give that identifier and the exact line can be found. The identifier is set by nginx and reaches the API.
+- Each container's logs rotate automatically: 5 files of 10 MB.
+- `/health` says the API is alive; `/ready` (only inside Compose) also checks that the database responds. The API's `healthcheck` uses `/ready`.

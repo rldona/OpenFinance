@@ -1,48 +1,48 @@
-# ADR-0025: Patrimonio neto, flujo de caja, informes a medida y exportación v2
+# ADR-0025: Net worth, cash flow, custom reports and export v2
 
-- Estado: Accepted
-- Fecha: 2026-11-03
+- Status: Accepted
+- Date: 2026-11-03
 
-## Contexto
+## Context
 
-Con cuentas de varios tipos (ADR-0018), varias monedas (ADR-0019), pagos programados (ADR-0021) y datos que ya llegan solos del banco (ADR-0024), las pantallas del mes y la evolución se quedan cortas para dos preguntas: «¿cuánto tenemos de verdad?» y «¿de dónde sale y adónde va el dinero?». Además la exportación v1 no lleva lo que se ha añadido desde la fase 10 y nadie puede pedir un informe distinto de los fijos.
+With accounts of several types (ADR-0018), several currencies (ADR-0019), scheduled payments (ADR-0021) and data that now arrives on its own from the bank (ADR-0024), the month and evolution screens fall short for two questions: "how much do we really have?" and "where does the money come from and where does it go?". In addition, export v1 does not carry what has been added since phase 10 and nobody can ask for a report other than the fixed ones.
 
-Todo son **vistas calculadas** sobre los movimientos, sin tablas nuevas salvo los informes guardados.
+All of these are **computed views** over the transactions, with no new tables except for saved reports.
 
-## Decisión
+## Decision
 
-### Patrimonio neto (OF-1501)
+### Net worth (OF-1501)
 
-- **Patrimonio = activos − deudas**, en la moneda del hogar y con las cuentas que ve quien pregunta (ADR-0013): una cuenta personal ajena no suma, ni en el total ni en el historial. Los **activos** son la suma de los saldos positivos y las **deudas** la de los negativos (en valor absoluto), sea cual sea el tipo de cuenta: una tarjeta o un préstamo con saldo negativo es lo que se debe, y un descubierto en una cuenta bancaria también. Una tarjeta con saldo positivo (se pagó de más) es un activo: no se oculta. El desglose por tipo (banco, efectivo, inversión, tarjeta, préstamo) enseña el neto de cada uno.
-- Se enseña el total, el desglose por tipo y por cuenta y la **evolución de los últimos 12 fines de mes** más el de hoy. El saldo de cada fecha es el inicial más los movimientos hasta ese día (los anulados no cuentan).
-- **Otras monedas** se convierten con el tipo de cambio más reciente anterior o igual a cada fecha (ADR-0019). Una cuenta sin tipo para una fecha **no entra** en esa fecha y se lista aparte, para decir «falta el tipo de USD» en vez de inventar un valor.
-- El patrimonio incluye las cuentas personales de quien mira. Quien mira la vista del hogar ve el suyo; no hay un «patrimonio de la pareja» que sume cuentas ajenas.
+- **Net worth = assets − debts**, in the household currency and with the accounts visible to whoever asks (ADR-0013): another person's personal account does not add up, neither in the total nor in the history. **Assets** are the sum of positive balances and **debts** the sum of negative ones (in absolute value), whatever the account type: a card or a loan with a negative balance is what is owed, and so is an overdraft on a bank account. A card with a positive balance (overpaid) is an asset: it is not hidden. The breakdown by type (bank, cash, investment, card, loan) shows the net of each.
+- It shows the total, the breakdown by type and by account and the **evolution over the last 12 month-ends** plus today's. The balance at each date is the opening balance plus the transactions up to that day (voided ones do not count).
+- **Other currencies** are converted at the most recent exchange rate on or before each date (ADR-0019). An account without a rate for a date **does not enter** at that date and is listed separately, to say "falta el tipo de USD" ("the USD rate is missing") instead of inventing a value.
+- Net worth includes the personal accounts of whoever is looking. Whoever looks at the household view sees their own; there is no "couple's net worth" that adds up other people's accounts.
 
-### Flujo de caja (OF-1502)
+### Cash flow (OF-1502)
 
-- Por mes, sobre el **dinero líquido** que ve quien pregunta (cuentas bancarias y efectivo) **en la moneda del hogar**: **ingresos**, **aportaciones** (netas: lo que entra a la conjunta menos lo que sale de una personal, así que se compensan cuando se ven las dos), **gasto** (neto de devoluciones), **al ahorro** (neto de lo que se saca de la hucha), **traspasos propios** (netos, normalmente cero) y el **saldo al final del mes**. Ingresos + aportaciones − gasto − ahorro + traspasos = variación del mes = diferencia entre los saldos de fin de mes: la identidad se comprueba en tests.
-- Las cuentas líquidas en **otra moneda quedan fuera** (se cuentan en el resultado y la pantalla lo dice): convertir movimientos y saldos con tipos distintos haría que la identidad no cuadrase al céntimo, y es preferible no enseñar una cifra que parece exacta y no lo es.
-- Los últimos 12 meses por defecto (de 1 a 36). El mes en curso se marca como parcial.
-- Las tarjetas, los préstamos y las inversiones no son líquidos y quedan fuera: sus compras ya son gasto de la tarjeta (ADR-0018) y mezclarlas contaría dos veces.
+- Per month, over the **liquid money** visible to whoever asks (bank accounts and cash) **in the household currency**: **income**, **contributions** (net: what goes into the joint account minus what leaves a personal one, so they offset when both are seen), **spending** (net of refunds), **to savings** (net of what is withdrawn from the piggy bank), **own transfers** (net, normally zero) and the **balance at month end**. Income + contributions − spending − savings + transfers = change in the month = difference between month-end balances: the identity is checked in tests.
+- Liquid accounts in **another currency are left out** (they are counted in the result and the screen says so): converting transactions and balances with different rates would make the identity not balance to the cent, and it is preferable not to show a figure that looks exact and is not.
+- The last 12 months by default (1 to 36). The current month is marked as partial.
+- Cards, loans and investments are not liquid and are left out: their purchases are already card spending (ADR-0018) and mixing them in would count twice.
 
-### Informes a medida (OF-1503)
+### Custom reports (OF-1503)
 
-- Un informe es una **definición** (no un resultado): periodo (de mes a mes, máximo 36 meses), qué medir (**gasto** neto de devoluciones, **ingresos**, **ahorro** neto o **neto** = ingresos menos gasto), por qué agrupar (categoría, comercio, cuenta o mes) y filtros opcionales: cuentas, categorías (con «sin categoría»), etiquetas (movimientos con **alguna** de ellas) e importe mínimo por movimiento. Cuentan las cuentas que ve quien lo ejecuta y que entran en informes (no préstamos ni inversiones), en la moneda del hogar; los movimientos en otra moneda sin tipo de cambio quedan fuera y se avisa.
-- Se ejecuta siempre con los **permisos de quien lo ejecuta**: la misma definición da resultados distintos a cada persona porque cada una ve cuentas distintas, y nunca se guarda un resultado. Filtrar por una cuenta que no se ve es **404**, no un resultado vacío.
-- Se pueden **guardar** (`saved_reports`): personales o compartidos con el hogar. Máximo 30 por persona. Un informe personal no existe para nadie más (404). Uno compartido lo pueden ejecutar los del hogar, con sus permisos; solo su dueño lo cambia o borra. **Un informe compartido no puede filtrar por cuentas personales** (enseñaría sus identificadores). Si una cuenta del filtro de un informe compartido deja de ser visible para quien lo ejecuta, se ignora y se avisa; si no queda ninguna, el resultado es **vacío**, nunca «todas las cuentas».
-- El resultado se puede descargar en **CSV** con la misma protección frente a fórmulas que la exportación (OF-501). La lista enseña hasta 100 grupos (los de más peso); el total incluye todos y se dice cuántos no caben.
-- No hay lenguaje de consulta ni expresiones: solo campos cerrados, validados.
+- A report is a **definition** (not a result): period (month to month, maximum 36 months), what to measure (**spending** net of refunds, **income**, net **savings** or **net** = income minus spending), what to group by (category, merchant, account or month) and optional filters: accounts, categories (with "sin categoría" ("uncategorized")), tags (transactions with **any** of them) and minimum amount per transaction. The accounts counted are those visible to whoever runs it and that enter reports (not loans or investments), in the household currency; transactions in another currency without an exchange rate are left out and a warning is shown.
+- It always runs with the **permissions of whoever runs it**: the same definition gives different results to each person because each sees different accounts, and a result is never stored. Filtering by an account that is not visible gives **404**, not an empty result.
+- They can be **saved** (`saved_reports`): personal or shared with the household. Maximum 30 per person. A personal report does not exist for anyone else (404). A shared one can be run by the household members, with their own permissions; only its owner changes or deletes it. **A shared report cannot filter by personal accounts** (it would reveal their identifiers). If an account in a shared report's filter stops being visible to whoever runs it, it is ignored and a warning is shown; if none remain, the result is **empty**, never "all accounts".
+- The result can be downloaded as **CSV** with the same formula-injection protection as the export (OF-501). The list shows up to 100 groups (the heaviest); the total includes all of them and it states how many do not fit.
+- There is no query language or expressions: only closed, validated fields.
 
-### Exportación v2 (OF-1504)
+### Export v2 (OF-1504)
 
-- `format_version: 2` añade lo que v1 no llevaba: importes de presupuesto por mes y modo (límite o sobre), aportaciones a objetivos, pagos programados, plantillas, reglas de automatización, comercios con nombre propio, etiquetas, informes guardados propios y compartidos, conexiones bancarias (banco, estado, caducidad y últimos cuatro dígitos del IBAN) y tipos de cambio.
-- **Nunca** se exporta el identificador de sesión del agregador, el `state` de una conexión, las claves VAPID, las suscripciones push, las huellas de movimientos, las sesiones ni los hashes de contraseña. Lo de otra persona del hogar (cuentas personales, informes personales, conexiones, sus reglas personales) tampoco, como en v1.
-- Cada bloque aplica su propia regla de visibilidad: pagos programados solo de cuentas que se ven; plantillas y reglas, las del hogar y las propias; informes guardados, los propios y los compartidos; conexiones bancarias, solo las propias (un enlace a una cuenta que no se ve sale sin cuenta). Un **comercio con nombre propio solo sale si alguna de sus variantes aparece en los movimientos exportados**: sus variantes podrían delatar un gasto de una cuenta personal ajena.
-- v1 sigue disponible con `?version=1` para quien lo use; sin parámetro se entrega v2. El CSV de movimientos no cambia.
+- `format_version: 2` adds what v1 did not carry: budget amounts per month and mode (limit or envelope), goal contributions, scheduled payments, templates, automation rules, merchants with their own name, tags, saved reports (own and shared), bank connections (bank, status, expiry and last four digits of the IBAN) and exchange rates.
+- The aggregator's session identifier, a connection's `state`, the VAPID keys, push subscriptions, transaction fingerprints, sessions and password hashes are **never** exported. Neither is anything belonging to another household member (personal accounts, personal reports, connections, their personal rules), as in v1.
+- Each block applies its own visibility rule: scheduled payments only from visible accounts; templates and rules, the household's and one's own; saved reports, one's own and the shared ones; bank connections, only one's own (a link to an account that is not visible comes out without an account). A **merchant with its own name is only exported if any of its variants appears in the exported transactions**: its variants could betray an expense from another person's personal account.
+- v1 remains available with `?version=1` for those who use it; without a parameter, v2 is delivered. The transactions CSV does not change.
 
-## Consecuencias
+## Consequences
 
-- Una tabla nueva, `saved_reports`; el resto no toca el esquema.
-- El patrimonio y el flujo de caja tienen sus cifras cruzadas en tests (variación del mes = diferencia de saldos; la suma por tipo = el total).
-- Los informes a medida son otra superficie de lectura de movimientos: cada consulta pasa por las cuentas visibles y tiene tests negativos entre personas y entre hogares.
-- La exportación v2 es mayor que v1 y se prueba con una lista explícita de campos que **no** debe contener.
+- One new table, `saved_reports`; the rest does not touch the schema.
+- Net worth and cash flow have their figures cross-checked in tests (change in the month = difference of balances; the sum by type = the total).
+- Custom reports are another surface for reading transactions: each query goes through the visible accounts and has negative tests across people and across households.
+- Export v2 is larger than v1 and is tested with an explicit list of fields that it must **not** contain.

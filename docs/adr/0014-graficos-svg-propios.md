@@ -1,53 +1,53 @@
-# ADR-0014: Gráficos SVG propios en React
+# ADR-0014: Custom SVG charts in React
 
-- Estado: Accepted
-- Fecha: 2026-10-31
+- Status: Accepted
+- Date: 2026-10-31
 
-## Contexto
+## Context
 
-La fase 3 (OF-302 a OF-305) necesita estos gráficos: donut, barras con línea de referencia y mes resaltado, barras apiladas, líneas con área y anillo de progreso (fase 4). Son pocos y sencillos, con volúmenes pequeños: 12 meses y unas 15 categorías. Deben:
+Phase 3 (OF-302 to OF-305) needs these charts: donut, bars with a reference line and a highlighted month, stacked bars, lines with area, and a progress ring (phase 4). They are few and simple, with small data volumes: 12 months and about 15 categories. They must:
 
-- verse bien en el móvil (OF-503);
-- ser accesibles;
-- poder probarse con los mismos tests que el resto de la web (Vitest + jsdom);
-- no tratar importes como `float`.
+- look good on mobile (OF-503);
+- be accessible;
+- be testable with the same tests as the rest of the web app (Vitest + jsdom);
+- not treat amounts as `float`.
 
-El prototipo (`docs/product/prototypes/charts.js`) ya los dibuja con SVG a mano en unas 150 líneas.
+The prototype (`docs/product/prototypes/charts.js`) already draws them by hand with SVG in about 150 lines.
 
-### Medidas
+### Measurements
 
-Se construyó el mismo conjunto (donut, barras con referencia y líneas) con cada opción, con `esbuild --minify` y gzip -9 en producción. La tabla muestra cuánto añade cada una sobre la base de React 19 (69,1 KB gzip):
+The same set (donut, bars with reference, and lines) was built with each option, using `esbuild --minify` and gzip -9 in production. The table shows how much each one adds on top of the React 19 baseline (69.1 KB gzip):
 
-| Opción | Versión | Añade (gzip) | Tecnología |
+| Option | Version | Adds (gzip) | Technology |
 | --- | --- | --- | --- |
-| SVG propio | — | ≈ 0,2 KB por gráfico (≈ 4 KB todos) | SVG en React |
-| Chart.js | 4.6.1 | 61,7 KB | `<canvas>` |
-| Recharts | 3.10.1 | 121,6 KB | SVG (con dependencias de d3) |
+| Custom SVG | — | ≈ 0.2 KB per chart (≈ 4 KB for all) | SVG in React |
+| Chart.js | 4.6.1 | 61.7 KB | `<canvas>` |
+| Recharts | 3.10.1 | 121.6 KB | SVG (with d3 dependencies) |
 
-La web completa ocupa hoy ≈ 74 KB gzip; Recharts casi la triplicaría.
+The whole web app currently weighs ≈ 74 KB gzip; Recharts would almost triple it.
 
-### Otros criterios
+### Other criteria
 
-| Criterio | SVG propio | Chart.js | Recharts |
+| Criterion | Custom SVG | Chart.js | Recharts |
 | --- | --- | --- | --- |
-| Accesibilidad | `role="img"`, `aria-label`, `<title>` y tabla equivalente para lectores de pantalla | Canvas: un mapa de bits sin estructura; hay que duplicar los datos aparte | SVG accesible, pero con sus propias capas a configurar |
-| Tests en jsdom | Se puede inspeccionar el DOM de cada barra | jsdom no implementa canvas: hace falta simularlo | Necesita simular `ResizeObserver` y medidas del contenedor |
-| Móvil | `viewBox` escalable, sin medir el contenedor | Redimensiona por JS | `ResponsiveContainer` redimensiona por JS |
-| Mantenimiento | Código nuestro (≈ 300 líneas), sin dependencias | Dependencia madura, API imperativa | Dependencia grande, cambios de API entre versiones mayores |
-| Interacción avanzada (zoom, selección de rangos) | No | Sí, mediante plugins | Parcial |
+| Accessibility | `role="img"`, `aria-label`, `<title>` and an equivalent table for screen readers | Canvas: a bitmap with no structure; the data has to be duplicated separately | Accessible SVG, but with its own layers to configure |
+| Tests in jsdom | The DOM of each bar can be inspected | jsdom does not implement canvas: it has to be mocked | Needs mocking `ResizeObserver` and container measurements |
+| Mobile | Scalable `viewBox`, no container measuring | Resizes via JS | `ResponsiveContainer` resizes via JS |
+| Maintenance | Our own code (≈ 300 lines), no dependencies | Mature dependency, imperative API | Large dependency, API changes between major versions |
+| Advanced interaction (zoom, range selection) | No | Yes, via plugins | Partial |
 
-## Decisión
+## Decision
 
-Portar a componentes React los gráficos SVG del prototipo, en `apps/web/src/components/charts/`:
+Port the prototype's SVG charts to React components, in `apps/web/src/components/charts/`:
 
-- **Accesibilidad:** cada gráfico se dibuja dentro de un `<figure>` con `role="img"` y un `aria-label` que resume el dato principal. Además lleva una tabla de datos visualmente oculta (`.sr-only`) para lectores de pantalla y un `<title>` por elemento, que hace de tooltip nativo.
-- **Escalado:** se usa `viewBox` y el gráfico ocupa el 100 % del ancho, sin medir el contenedor.
-- **Importes:** la API sigue enviando texto decimal exacto. Para dibujar, los importes se convierten a céntimos (`BigInt`) y de ahí a `Number`. Ese `Number` solo se usa para calcular la geometría; las cifras que se muestran siempre salen del texto original con `formatMoney`.
-- **Cálculos en el Core:** los totales, medias y agregados se calculan en el backend (OF-301); los componentes solo pintan.
+- **Accessibility:** each chart is drawn inside a `<figure>` with `role="img"` and an `aria-label` that summarizes the main data point. It also includes a visually hidden data table (`.sr-only`) for screen readers and a `<title>` per element, which serves as a native tooltip.
+- **Scaling:** a `viewBox` is used and the chart takes 100 % of the width, without measuring the container.
+- **Amounts:** the API keeps sending exact decimal text. For drawing, amounts are converted to cents (`BigInt`) and from there to `Number`. That `Number` is used only to compute geometry; the figures that are displayed always come from the original text through `formatMoney`.
+- **Calculations in the Core:** totals, averages and aggregates are computed in the backend (OF-301); the components only paint.
 
-## Consecuencias
+## Consequences
 
-- El tamaño de la web prácticamente no cambia (≈ 4 KB) y no se añade ninguna dependencia.
-- Los gráficos se prueban con Testing Library como cualquier otro componente.
-- Mantenemos nosotros ejes, escalas y etiquetas; los casos raros (valores negativos, meses sin datos) hay que probarlos.
-- Se revisará esta decisión si hace falta interacción avanzada (zoom, selección de rangos o series largas de muchos años). La alternativa preferida entonces sería una librería de bajo nivel y por módulos, o Chart.js si se acepta el canvas.
+- The web app size practically does not change (≈ 4 KB) and no dependency is added.
+- The charts are tested with Testing Library like any other component.
+- We maintain axes, scales and labels ourselves; edge cases (negative values, months with no data) must be tested.
+- This decision will be revisited if advanced interaction is needed (zoom, range selection, or long series spanning many years). The preferred alternative then would be a low-level, modular library, or Chart.js if canvas is accepted.

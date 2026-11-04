@@ -1,55 +1,55 @@
 # OpenFinance
 
-Gestor económico open source para el hogar: una pareja, una cuenta común y gráficos claros para saber **cuánto gastamos, en qué y cómo ahorrar mejor**. Se ejecuta en casa o en un servidor propio y los datos no salen de ahí.
+Open source household finance manager: a couple, a shared account and clear charts to see **how much we spend, on what, and how to save better**. It runs at home or on your own server, and your data never leaves it.
 
-> Estado: **pre-alpha (v0.1 en desarrollo)**. Prototipo navegable en [docs/product/prototypes/index.html](docs/product/prototypes/index.html).
+> Status: **pre-alpha (v0.1 in development)**. Clickable prototype at [docs/product/prototypes/index.html](docs/product/prototypes/index.html).
 
-## Principios
+## Principles
 
-- **Simple primero.** Un hogar, una cuenta común e importación de CSV. Se crece cuando la base esté en uso ([ADR-0012](docs/adr/0012-empezar-por-el-hogar.md)).
-- **Cifras exactas.** Importes en decimal, nunca `float`; los traspasos a ahorro no cuentan como gasto.
-- **Visual.** Cada pantalla responde a una pregunta con un gráfico.
-- **Tus datos, en tu casa.** Local o self-hosted, sin servicios externos obligatorios.
+- **Simple first.** One household, one shared account and CSV import. We grow once the base is in use ([ADR-0012](docs/adr/0012-empezar-por-el-hogar.md)).
+- **Exact figures.** Amounts in decimal, never `float`; transfers to savings do not count as spending.
+- **Visual.** Each screen answers one question with a chart.
+- **Your data, in your home.** Local or self-hosted, with no mandatory external services.
 
-## Estructura
+## Structure
 
 ```
-apps/web/          Aplicación web (React + TypeScript + Vite)
-services/api/      OpenFinance Core: dominio, casos de uso, persistencia y API (FastAPI)
-deploy/docker/     Imágenes de contenedor y configuración de nginx
-deploy/caddy/      HTTPS con dominio propio (opcional)
-deploy/scripts/    Copias de seguridad, restauración y licencias
-docs/              Producto, arquitectura, ADRs y guías
-compose.yaml       Instalación self-hosted (compose.https.yaml añade HTTPS)
+apps/web/          Web application (React + TypeScript + Vite)
+services/api/      OpenFinance Core: domain, use cases, persistence and API (FastAPI)
+deploy/docker/     Container images and nginx configuration
+deploy/caddy/      HTTPS with your own domain (optional)
+deploy/scripts/    Backups, restore and licenses
+docs/              Product, architecture, ADRs and guides
+compose.yaml       Self-hosted install (compose.https.yaml adds HTTPS)
 ```
 
-## Empezar
+## Getting started
 
 ```bash
-make setup     # instala dependencias (uv + npm)
-make api       # API en http://localhost:8000  (docs en /docs)
-make web       # Web en http://localhost:5173
-make check     # lint, tipos, tests y build
+make setup     # installs dependencies (uv + npm)
+make api       # API at http://localhost:8000  (docs at /docs)
+make web       # Web at http://localhost:5173
+make check     # lint, types, tests and build
 ```
 
-Guía completa: [docs/development/getting-started.md](docs/development/getting-started.md).
+Full guide: [docs/development/getting-started.md](docs/development/getting-started.md).
 
-Para instalarlo en casa (Docker Compose, acceso desde el móvil, HTTPS y copias de seguridad): [docs/deployment/home.md](docs/deployment/home.md).
+To install it at home (Docker Compose, phone access, HTTPS and backups): [docs/deployment/home.md](docs/deployment/home.md).
 
-## Documentación
+## Documentation
 
-- [Visión de producto](docs/product/vision.md)
-- [Roadmap y backlog](docs/product/roadmap.md)
-- [Prototipos](docs/product/prototypes/index.html)
-- [Arquitectura](docs/architecture/overview.md)
-- [Instalar en casa](docs/deployment/home.md)
-- [Decisiones de arquitectura (ADRs)](docs/adr/README.md)
-- [Cambios (CHANGELOG)](CHANGELOG.md)
-- [Preparar una release](docs/development/release.md)
+- [Product vision](docs/product/vision.md)
+- [Roadmap and backlog](docs/product/roadmap.md)
+- [Prototypes](docs/product/prototypes/index.html)
+- [Architecture](docs/architecture/overview.md)
+- [Install at home](docs/deployment/home.md)
+- [Architecture decisions (ADRs)](docs/adr/README.md)
+- [Changes (CHANGELOG)](CHANGELOG.md)
+- [Prepare a release](docs/development/release.md)
 
-## Licencia
+## License
 
-[AGPL-3.0-or-later](LICENSE) ([ADR-0008](docs/adr/0008-licencia-agpl.md)). Puedes usarlo, modificarlo y ofrecerlo como servicio; si lo modificas y lo ofreces por red, debes publicar tus cambios bajo la misma licencia.
+[AGPL-3.0-or-later](LICENSE) ([ADR-0008](docs/adr/0008-licencia-agpl.md)). You may use it, modify it and offer it as a service; if you modify it and offer it over a network, you must publish your changes under the same license.
 
-- Licencias de las dependencias: [docs/legal/dependencias.md](docs/legal/dependencias.md) (`make licenses`).
-- Contribuciones con DCO (`git commit -s`), sin CLA: [CONTRIBUTING.md](CONTRIBUTING.md).
+- Dependency licenses: [docs/legal/dependencias.md](docs/legal/dependencias.md) (`make licenses`).
+- Contributions use the DCO (`git commit -s`), no CLA: [CONTRIBUTING.md](CONTRIBUTING.md).

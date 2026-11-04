@@ -1,558 +1,558 @@
-# Roadmap y backlog
+# Roadmap and backlog
 
-Alcance: [ADR-0012 · Empezar por el hogar](../adr/0012-empezar-por-el-hogar.md). Referencia visual: [prototipo](prototypes/index.html).
+Scope: [ADR-0012 · Empezar por el hogar](../adr/0012-empezar-por-el-hogar.md) (Start with the household). Visual reference: [prototype](prototypes/index.html).
 
-Un ticket está terminado cuando cumple sus criterios de aceptación, tiene tests y `make check` está en verde. Los criterios marcados con 🧪 deben quedar como tests automáticos.
+A ticket is done when it meets its acceptance criteria, has tests, and `make check` is green. Criteria marked with 🧪 must end up as automated tests.
 
-## Resumen
+## Summary
 
-| Fase | Objetivo | Tickets | Estado |
+| Phase | Goal | Tickets | Status |
 | --- | --- | --- | --- |
-| 0 · Base | Repositorio, CI, entorno y `Money` | OF-001 … OF-003 | ✅ Hecha |
-| 1 · Datos | Meter los movimientos reales de Revolut (conjunta) y Bankinter (personales) | OF-101 … OF-108 | ✅ Hecha |
-| 2 · Categorías | Que cada gasto tenga su categoría casi sin esfuerzo | OF-201 … OF-203 | ✅ Hecha |
-| 3 · Gráficos | Este mes, ¿En qué gastamos? y Evolución | OF-301 … OF-305 | ✅ Hecha |
-| 4 · Ahorro | Presupuestos, objetivos, ideas y simulador | OF-401 … OF-405 | ✅ Hecha |
-| 5 · Uso real | Instalado en casa, con copias de seguridad | OF-501 … OF-504 | ✅ OF-501 a OF-503 (CI en verde, también `compose-e2e`) · OF-504 preparado: falta la etiqueta `v0.1.0` tras el mes de uso real |
-| 6 · Datos fiables | Que cualquier extracto real se importe sin errores ni entradas infladas | OF-601 … OF-608 | ✅ Hecha · falta reconocer los traspasos internos de OF-602 (pendiente de un extracto real) |
-| 7 · Corregir sin miedo | Editar, deshacer y ajustar desde la web, con historial | OF-701 … OF-706 | ✅ Hecha (falta probarla en el mes de uso real) |
-| 8 · Uso diario | Móvil, PWA, accesibilidad y mes en curso honesto (v0.2) | OF-801 … OF-806 | ✅ Hecha (falta probarla en un móvil real y pasar `make e2e`) |
-| 9 · Operación | Copias cifradas, dependencias y actualizaciones (v0.2) | OF-901 … OF-907 | ✅ |
-| 10 – 17 | Del libro contable completo a la 1.0 | OF-1001 … OF-1705 | Ver [Después de v0.2](#después-de-v02) |
+| 0 · Foundation | Repository, CI, environment and `Money` | OF-001 … OF-003 | ✅ Done |
+| 1 · Data | Get the real transactions from Revolut (joint) and Bankinter (personal) in | OF-101 … OF-108 | ✅ Done |
+| 2 · Categories | Give every expense a category with almost no effort | OF-201 … OF-203 | ✅ Done |
+| 3 · Charts | "Este mes" (This month), "¿En qué gastamos?" (What do we spend on?) and "Evolución" (Evolution) | OF-301 … OF-305 | ✅ Done |
+| 4 · Savings | Budgets, goals, ideas and simulator | OF-401 … OF-405 | ✅ Done |
+| 5 · Real use | Installed at home, with backups | OF-501 … OF-504 | ✅ OF-501 to OF-503 (CI green, `compose-e2e` too) · OF-504 prepared: the `v0.1.0` tag is missing until after the month of real use |
+| 6 · Reliable data | Any real statement imports without errors or inflated entries | OF-601 … OF-608 | ✅ Done · recognising OF-602's internal transfers is missing (waiting on a real statement) |
+| 7 · Correct without fear | Edit, undo and adjust from the web, with history | OF-701 … OF-706 | ✅ Done (still to be tried in the month of real use) |
+| 8 · Daily use | Mobile, PWA, accessibility and an honest current month (v0.2) | OF-801 … OF-806 | ✅ Done (still to be tried on a real phone and to run `make e2e`) |
+| 9 · Operations | Encrypted backups, dependencies and updates (v0.2) | OF-901 … OF-907 | ✅ |
+| 10 – 17 | From the complete ledger to 1.0 | OF-1001 … OF-1705 | See [After v0.2](#after-v02) |
 
-**Hito v0.1:** fases 6 y 7 terminadas y al menos un mes de uso real con vuestros datos. La auditoría del 1 de noviembre de 2026 encontró fallos que, con datos reales, dejan importaciones que no se pueden confirmar o totales inflados que no se pueden corregir; por eso la fase 6 va antes del mes de uso real.
+**Milestone v0.1:** phases 6 and 7 finished and at least one month of real use with your data. The audit of 1 November 2026 found bugs that, with real data, leave imports that cannot be confirmed or inflated totals that cannot be corrected; that is why phase 6 comes before the month of real use.
 
-## Cómo retomar
+## How to resume
 
-Estado a 1 de noviembre de 2026. Código en [github.com/rldona/OpenFinance](https://github.com/rldona/OpenFinance) (público, rama `main`). CI en verde en todos sus jobs: `backend`, `frontend`, `licenses` y `compose-e2e` en los modos `direct` y `https`.
+Status as of 1 November 2026. Code at [github.com/rldona/OpenFinance](https://github.com/rldona/OpenFinance) (public, `main` branch). CI green in all its jobs: `backend`, `frontend`, `licenses` and `compose-e2e` in the `direct` and `https` modes.
 
-### Lo que falta para v0.1, en orden
+### What is left for v0.1, in order
 
-0. ✅ **Fases 6 y 7 hechas.** Solo falta reconocer los traspasos internos de OF-602, que necesitan ver su texto en un extracto real: se puede cerrar con el primer extracto del paso 1. Lo que salga del mes de uso real se corrige ya desde la web, con historial y deshacer.
-1. **Instalar en casa** siguiendo [Instalar en casa](../deployment/home.md), en modo HTTPS con dominio propio, en un equipo x86-64:
-   1. Configurar el DNS del dominio y abrir los puertos 80 y 443 del router hacia el equipo.
-   2. En `.env`: `COMPOSE_FILE=compose.yaml:compose.https.yaml`, `OPENFINANCE_DOMAIN` y una contraseña de PostgreSQL aleatoria.
-   3. `docker compose up -d --wait` y después `make bootstrap` para crear el hogar, las dos personas y sus cuentas.
-   4. **Antes de importar nada**, guardar el final de la tarjeta con la que cada persona recarga la conjunta: `openfinance member-patterns add <email> '*NNNN'`. Revolut muestra las recargas como «Recarga de \*NNNN», sin nombre. Sin ese patrón entran como ingreso y **no se pueden reclasificar después**.
-   5. Comprobar un extracto sin tocar la base de datos: `openfinance statement-check --bank revolut|bankinter FICHERO`. Solo muestra recuentos.
-   6. Importar desde la pantalla **Importar**: Revolut en la conjunta y el Bankinter de cada persona en su cuenta personal.
-   7. Programar `make backup` con cron y probar una vez `make restore FILE=…`.
-   8. Abrirlo desde un móvil real: pestañas, Importar, descarga de la exportación y que el teclado no tape los campos.
-2. **Un mes de uso real** con vuestros datos.
-3. **Release:** seguir [release.md](../development/release.md). Hay que subir las versiones a 0.1.0, crear la etiqueta anotada `v0.1.0` y publicar la release en GitHub.
+0. ✅ **Phases 6 and 7 done.** Only recognising OF-602's internal transfers is left; it needs to see their text in a real statement, so it can be closed with the first statement of step 1. Whatever comes out of the month of real use can already be corrected from the web, with history and undo.
+1. **Install at home** following [Instalar en casa](../deployment/home.md) (Install at home), in HTTPS mode with your own domain, on an x86-64 machine:
+   1. Configure the domain's DNS and open ports 80 and 443 on the router towards the machine.
+   2. In `.env`: `COMPOSE_FILE=compose.yaml:compose.https.yaml`, `OPENFINANCE_DOMAIN` and a random PostgreSQL password.
+   3. `docker compose up -d --wait` and then `make bootstrap` to create the household, the two people and their accounts.
+   4. **Before importing anything**, store the last digits of the card each person uses to top up the joint account: `openfinance member-patterns add <email> '*NNNN'`. Revolut shows top-ups as "Recarga de \*NNNN" (Top-up from \*NNNN), without a name. Without that pattern they come in as income and **cannot be reclassified afterwards**.
+   5. Check a statement without touching the database: `openfinance statement-check --bank revolut|bankinter FILE`. It only shows counts.
+   6. Import from the **Importar** (Import) screen: Revolut into the joint account and each person's Bankinter into their personal account.
+   7. Schedule `make backup` with cron and try `make restore FILE=…` once.
+   8. Open it from a real phone: tabs, Importar, export download, and the keyboard not covering the fields.
+2. **One month of real use** with your data.
+3. **Release:** follow [release.md](../development/release.md). The versions must be bumped to 0.1.0, the annotated tag `v0.1.0` created and the release published on GitHub.
 
-### Pendientes menores (no bloquean v0.1)
+### Minor pending items (do not block v0.1)
 
-- Revolut (ver [bancos.md](bancos.md)): confirmar si las horas están en hora local o en UTC, el signo de la comisión y cómo aparecen las huchas en el Excel en español. El extracto de octubre no tiene comisiones ni huchas, así que se confirmará con los próximos.
-- «Cerrar todas las sesiones» desde la web, cuando exista el cambio de contraseña. Hoy solo existe en la CLI: `openfinance sessions revoke-all`.
+- Revolut (see [bancos.md](bancos.md)): confirm whether the times are local or UTC, the sign of the fee, and how pockets appear in the Spanish-language Excel. The October statement has no fees or pockets, so it will be confirmed with the next ones.
+- "Cerrar todas las sesiones" (Log out of all sessions) from the web, once password change exists. Today it only exists in the CLI: `openfinance sessions revoke-all`.
 
-### Notas de entorno
+### Environment notes
 
-- **Extractos reales:** van en `/Extractos`, que está en `.gitignore`. Nunca se copian a tests, fixtures ni documentación. Los tests usan archivos sintéticos.
-- **Sin Docker ni PostgreSQL en el portátil de desarrollo:** los tests de base de datos corren en local con SQLite, y Compose solo se prueba en CI. Playwright sí funciona en local con la API sobre SQLite y Vite (ver [getting-started](../development/getting-started.md)).
-- **Identidad de git:** commits con `Raúl López Doña <1206870+rldona@users.noreply.github.com>` (ya configurado en este repositorio) y firmados con DCO (`git commit -s`).
-- **npm:** el `~/.npmrc` del equipo apunta a un registro corporativo. Si se regenera el lock, hay que hacerlo con `npm install --registry=https://registry.npmjs.org/`. CI falla si `package-lock.json` contiene URLs de otro registro.
-- **Vercel:** nunca se lanzan despliegues de preview. Todo pasa por GitHub Actions.
+- **Real statements:** they go in `/Extractos`, which is in `.gitignore`. They are never copied into tests, fixtures or documentation. Tests use synthetic files.
+- **No Docker or PostgreSQL on the development laptop:** database tests run locally with SQLite, and Compose is only tested in CI. Playwright does work locally with the API on SQLite and Vite (see [getting-started](../development/getting-started.md)).
+- **Git identity:** commits with `Raúl López Doña <1206870+rldona@users.noreply.github.com>` (already configured in this repository) and signed off with DCO (`git commit -s`).
+- **npm:** the machine's `~/.npmrc` points to a corporate registry. If the lock is regenerated, it must be done with `npm install --registry=https://registry.npmjs.org/`. CI fails if `package-lock.json` contains URLs from another registry.
+- **Vercel:** preview deployments are never launched. Everything goes through GitHub Actions.
 
 ---
 
-## Fase 0 · Base ✅
+## Phase 0 · Foundation ✅
 
-| ID | Ticket | Estado |
+| ID | Ticket | Status |
 | --- | --- | --- |
-| OF-001 | Monorepo: `services/api` (FastAPI) y `apps/web` (React) con capas y `import-linter` | ✅ |
-| OF-002 | Entorno: Docker Compose, `.env.example`, `Makefile` | ✅ (Compose revisado en OF-502 y probado de extremo a extremo en CI: job `compose-e2e`) |
-| OF-003 | CI: lint, tipos, tests, build y migraciones sobre PostgreSQL | ✅ |
+| OF-001 | Monorepo: `services/api` (FastAPI) and `apps/web` (React) with layers and `import-linter` | ✅ |
+| OF-002 | Environment: Docker Compose, `.env.example`, `Makefile` | ✅ (Compose reviewed in OF-502 and tested end to end in CI: `compose-e2e` job) |
+| OF-003 | CI: lint, types, tests, build and migrations on PostgreSQL | ✅ |
 
 ---
 
-## Fase 1 · Datos
+## Phase 1 · Data
 
-### OF-101 · Hogar y personas ✅
-Un hogar (`Workspace`) con dos personas que inician sesión con email y contraseña.
-- ✅ `make bootstrap` (o `openfinance bootstrap`) crea el hogar, las dos personas y sus cuentas; no hay registro público.
-- ✅ Sesión en servidor con cookie `HttpOnly` y `SameSite=Lax` (`Secure` configurable); en la base de datos solo se guarda el hash del token. Contraseñas con Argon2id, mínimo 10 caracteres.
-- ✅ Las dos personas tienen acceso completo a lo común; no hay roles.
-- ✅ 🧪 Sin sesión, la API responde 401; con sesión, solo devuelve datos de su hogar. Una contraseña errónea y un email desconocido dan la misma respuesta; la sesión caduca y el cierre de sesión la invalida.
-- ✅ Revisión de seguridad aplicada:
-  - Limitador de intentos de login: 5 por email y 20 por IP cada 15 minutos, y también en nginx.
-  - Como mucho 2 verificaciones de Argon2 a la vez.
-  - La cookie es `Secure` en producción.
-  - Al iniciar sesión se sustituye la sesión anterior y se purgan las caducadas.
-  - Los errores 422 no devuelven lo enviado.
-  - Se rechaza CORS `*` y `/docs` queda oculto en producción.
-  - Claves foráneas compuestas que impiden mezclar hogares en movimientos y titulares.
-- Pendiente: pantalla de login en la web (OF-106); «cerrar todas las sesiones» cuando exista el cambio de contraseña; exigir JSON y comprobar `Origin` en los futuros endpoints de escritura.
+### OF-101 · Household and people ✅
+One household (`Workspace`) with two people who log in with email and password.
+- ✅ `make bootstrap` (or `openfinance bootstrap`) creates the household, the two people and their accounts; there is no public sign-up.
+- ✅ Server-side session with an `HttpOnly`, `SameSite=Lax` cookie (`Secure` configurable); only the token hash is stored in the database. Passwords use Argon2id, minimum 10 characters.
+- ✅ Both people have full access to shared data; there are no roles.
+- ✅ 🧪 Without a session the API responds 401; with a session it only returns data from its own household. A wrong password and an unknown email give the same response; the session expires and logging out invalidates it.
+- ✅ Security review applied:
+  - Login attempt limiter: 5 per email and 20 per IP every 15 minutes, also in nginx.
+  - At most 2 Argon2 verifications at a time.
+  - The cookie is `Secure` in production.
+  - On login the previous session is replaced and expired ones are purged.
+  - 422 errors do not echo back what was submitted.
+  - CORS `*` is rejected and `/docs` is hidden in production.
+  - Composite foreign keys that prevent mixing households in transactions and holders.
+- Pending: login screen in the web app (OF-106); "cerrar todas las sesiones" once password change exists; require JSON and check `Origin` in future write endpoints.
 
-### OF-102 · Cuentas ✅
-Cuenta conjunta de Revolut, huchas y cuentas personales de Bankinter, con entidad, moneda y saldo inicial ([ADR-0013](../adr/0013-cuentas-personales-privadas.md)).
-- ✅ Una cuenta personal tiene titular y solo la ve esa persona.
-- ✅ 🧪 Saldo actual = saldo inicial + suma de movimientos, calculado con `Money`.
-- ✅ `GET /api/v1/accounts`: primero la conjunta, después las huchas y al final las personales.
+### OF-102 · Accounts ✅
+Revolut joint account, pockets and Bankinter personal accounts, with institution, currency and opening balance ([ADR-0013](../adr/0013-cuentas-personales-privadas.md)).
+- ✅ A personal account has a holder and only that person sees it.
+- ✅ 🧪 Current balance = opening balance + sum of transactions, computed with `Money`.
+- ✅ `GET /api/v1/accounts`: the joint account first, then pockets and finally personal accounts.
 
-### OF-103 · Movimientos ✅
-Modelo y API de movimientos.
-- ✅ Campos: cuenta, fecha y hora, fecha valor, concepto original, importe (`Money`, comisión incluida), tipo, categoría (opcional), persona (en aportaciones), tipo según el banco, procedencia y huella de deduplicación (única por cuenta).
-- ✅ Tipos: `contribution`, `expense` (un importe positivo es una devolución), `income`, `savings_transfer` e `internal_transfer`.
+### OF-103 · Transactions ✅
+Transaction model and API.
+- ✅ Fields: account, date and time, value date, original description, amount (`Money`, fee included), type, category (optional), person (on contributions), bank-specific type, provenance and deduplication fingerprint (unique per account).
+- ✅ Types: `contribution`, `expense` (a positive amount is a refund), `income`, `savings_transfer` and `internal_transfer`.
 - ✅ `GET /api/v1/transactions?month=2026-10&q=…&uncategorized=true&account_id=…`.
-- ✅ 🧪 Los traspasos y las transferencias internas no cuentan como gasto; las aportaciones cuentan como entrada; las devoluciones restan gasto; una aportación que sale de una cuenta personal no es entrada ni gasto del hogar.
-- ✅ 🧪 Aislamiento: ni los movimientos de otro hogar ni los de la cuenta personal de tu pareja aparecen; pedirlos por id da 404.
-- Nota: la categoría es por ahora un texto libre (`super`, `vivienda`…); OF-201 la convertirá en entidad.
+- ✅ 🧪 Transfers and internal transfers do not count as expenses; contributions count as inflows; refunds reduce expenses; a contribution leaving a personal account is neither an inflow nor an expense of the household.
+- ✅ 🧪 Isolation: neither another household's transactions nor those of your partner's personal account appear; requesting them by id gives 404.
+- Note: the category is for now free text (`super`, `vivienda`…); OF-201 will turn it into an entity.
 
-### OF-104 · Lector del extracto de Revolut ✅
-Lectura del extracto de la cuenta conjunta de Revolut. Formato y decisiones en [bancos.md](bancos.md) y [ADR-0015](../adr/0015-patrones-por-persona-y-xlsx.md).
-- ✅ Lector `parse_revolut` que detecta el formato: CSV con cabeceras en inglés o Excel (.xlsx) en español, validado con un extracto real. Solo filas completadas y del producto de la cuenta, comisión incluida en el importe.
-- ✅ Los importes nunca pasan por `float`: del CSV se leen como texto y del Excel desde su representación decimal.
-- ✅ Cabeceras con la codificación rota (`DescripciÃ³n`) reparadas; horas de Excel redondeadas al segundo; pendientes sin fecha de fin ni saldo descartados con su motivo.
-- ✅ Propone el tipo: aportación por persona (nombre o patrón guardado), traspaso a hucha, ingreso, gasto o devolución (también un pago con tarjeta positivo).
-- ✅ Huella estable para deduplicar, sin fusionar filas idénticas del mismo archivo. 🧪 El mismo extracto en CSV y en Excel da las mismas huellas; 🧪 las huellas ya guardadas no cambian.
-- ✅ Comprobación del saldo fila a fila en el orden del archivo (fecha de finalización); el saldo final del banco es el de la última fila.
-- ✅ Patrones de cada persona guardados en el hogar (`member_patterns`) y gestionados con `openfinance member-patterns` (ADR-0015).
-- ✅ Lectura segura de Excel: límites de tamaño, ratio de compresión, filas y columnas; sin fórmulas ni enlaces; XML con `defusedxml`.
-- ✅ `openfinance statement-check` para comprobar un extracto sin base de datos mostrando solo recuentos.
-- Pendiente (ver [bancos.md](bancos.md)): hora local o UTC, signo de la comisión y texto de las huchas en el Excel en español.
+### OF-104 · Revolut statement reader ✅
+Reading the Revolut joint account statement. Format and decisions in [bancos.md](bancos.md) and [ADR-0015](../adr/0015-patrones-por-persona-y-xlsx.md).
+- ✅ `parse_revolut` reader that detects the format: CSV with English headers or Excel (.xlsx) in Spanish, validated with a real statement. Only completed rows of the account's product, fee included in the amount.
+- ✅ Amounts never go through `float`: from CSV they are read as text and from Excel from their decimal representation.
+- ✅ Headers with broken encoding (`DescripciÃ³n`) repaired; Excel times rounded to the second; pending rows with no end date or balance discarded with their reason.
+- ✅ Proposes the type: contribution by person (name or saved pattern), transfer to pocket, income, expense or refund (including a positive card payment).
+- ✅ Stable fingerprint for deduplication, without merging identical rows from the same file. 🧪 The same statement as CSV and as Excel gives the same fingerprints; 🧪 already-stored fingerprints do not change.
+- ✅ Balance check row by row in file order (completion date); the bank's final balance is that of the last row.
+- ✅ Each person's patterns stored in the household (`member_patterns`) and managed with `openfinance member-patterns` (ADR-0015).
+- ✅ Safe Excel reading: limits on size, compression ratio, rows and columns; no formulas or links; XML with `defusedxml`.
+- ✅ `openfinance statement-check` to check a statement without a database, showing only counts.
+- Pending (see [bancos.md](bancos.md)): local time or UTC, sign of the fee and pocket text in the Spanish-language Excel.
 
-### OF-105 · Importación idempotente ✅
-Vista previa → confirmación, sin duplicados.
-- ✅ `POST /api/v1/imports` (multipart: `account_id`, `file`): lee el extracto y devuelve la vista previa sin guardar movimientos. Indica nuevos, ya importados, filas descartadas con su motivo, descuadres internos del extracto y si el saldo final coincidirá con el del banco.
-- ✅ `POST /api/v1/imports/{id}/commit`: guarda solo los nuevos, con procedencia (`import:<archivo>` e `import_id`). Repetirlo devuelve el mismo resultado sin volver a guardar.
-- ✅ Deduplicación por huella, única por cuenta en la base de datos, y comprobación previa de las huellas existentes.
-- ✅ Aportaciones reconocidas por el nombre de cada persona en el concepto; «To pocket» → hucha. Se ajustará con los extractos reales.
-- ✅ Límites: 5 MB por archivo y vista previa válida 24 h. El contenido del archivo se borra al confirmar.
-- ✅ 🧪 Importar dos veces el mismo archivo no crea movimientos nuevos; confirmar dos veces tampoco.
-- ✅ 🧪 Dos cafés iguales el mismo día en el mismo archivo **no** se consideran duplicados.
-- ✅ 🧪 Un extracto que solapa con uno anterior solo añade lo nuevo.
-- ✅ 🧪 No se puede importar en la cuenta personal de la pareja ni en otro hogar; nadie de otro hogar puede confirmar una vista previa ajena.
-- ✅ Las escrituras de la API exigen la cabecera `X-Requested-With: OpenFinance` (protección CSRF).
+### OF-105 · Idempotent import ✅
+Preview → confirmation, without duplicates.
+- ✅ `POST /api/v1/imports` (multipart: `account_id`, `file`): reads the statement and returns the preview without saving transactions. It reports new ones, already imported ones, discarded rows with their reason, internal mismatches in the statement, and whether the final balance will match the bank's.
+- ✅ `POST /api/v1/imports/{id}/commit`: saves only the new ones, with provenance (`import:<file>` and `import_id`). Repeating it returns the same result without saving again.
+- ✅ Deduplication by fingerprint, unique per account in the database, and a prior check of the existing fingerprints.
+- ✅ Contributions recognised by each person's name in the description; "To pocket" → pocket. It will be tuned with the real statements.
+- ✅ Limits: 5 MB per file and preview valid for 24 h. The file content is deleted on confirmation.
+- ✅ 🧪 Importing the same file twice creates no new transactions; confirming twice does not either.
+- ✅ 🧪 Two identical coffees on the same day in the same file are **not** considered duplicates.
+- ✅ 🧪 A statement that overlaps a previous one only adds what is new.
+- ✅ 🧪 You cannot import into your partner's personal account or into another household; nobody from another household can confirm someone else's preview.
+- ✅ API writes require the `X-Requested-With: OpenFinance` header (CSRF protection).
 
-### OF-106 · Pantallas Movimientos e Importar ✅
-Versión real de las pantallas del prototipo.
-- ✅ Pantalla de inicio de sesión y cabecera con hogar, pestañas, miembros y «Salir».
-- ✅ **Movimientos**: por mes (o todos), búsqueda, filtro por cuenta y «solo sin categoría». Cada fila indica su tipo: aportación de quién, a la hucha, devolución, ingreso o sin categoría.
-- ✅ **Importar** en 3 pasos: elegir cuenta y extracto; revisar nuevos, ya importados, descartados y si el saldo cuadra con el banco; confirmar.
-- ✅ Cliente de API tipado con tipos generados desde OpenAPI (`make openapi`); CI falla si el contrato o los tipos no están al día (ADR-0009).
-- ✅ Importes formateados desde el decimal exacto, sin `float`, también en el navegador.
-- ✅ Probadas en navegadores reales con Playwright (OF-503), junto con las pestañas de gráficos (fase 3).
+### OF-106 · Transactions and Import screens ✅
+Real version of the prototype screens.
+- ✅ Login screen and header with household, tabs, members and "Salir" (Log out).
+- ✅ **Movimientos** (Transactions): by month (or all), search, filter by account and "only uncategorised". Each row indicates its type: contribution from whom, to the pocket, refund, income or uncategorised.
+- ✅ **Importar** (Import) in 3 steps: choose account and statement; review new, already imported, discarded and whether the balance matches the bank's; confirm.
+- ✅ Typed API client with types generated from OpenAPI (`make openapi`); CI fails if the contract or the types are not up to date (ADR-0009).
+- ✅ Amounts formatted from the exact decimal, without `float`, in the browser too.
+- ✅ Tested in real browsers with Playwright (OF-503), together with the chart tabs (phase 3).
 
-### OF-107 · Lector de Bankinter (cuentas personales) ✅
-- ✅ Lector `parse_bankinter` del Excel de movimientos, validado con un extracto real: salta el preámbulo y los filtros, descarta los pendientes con su motivo e invierte el orden (el banco lista del más reciente al más antiguo) para que cuadre el saldo.
-- ✅ El número de cuenta del preámbulo no se lee ni aparece en errores ni en filas descartadas. Los `.xls` antiguos y los CSV se rechazan con un mensaje claro.
-- ✅ 🧪 Sin hora en el extracto, la huella incluye el saldo: dos movimientos iguales el mismo día no se fusionan y un extracto solapado no duplica.
-- ✅ 🧪 Las salidas «Revolut\*\*NNNN\*» y las que coinciden con un patrón de salida del titular son **aportación** del titular; no cuentan como gasto ni en los totales del hogar.
-- ✅ 🧪 En la cuenta personal no se usan los nombres: un Bizum de la pareja es ingreso. Transferencias y Bizum según el signo.
-- ✅ 🧪 Solo el titular puede previsualizar, confirmar y ver los movimientos importados; ni la pareja ni otro hogar.
-- La vista personal «mi gasto» pasa a OF-108.
-- Depende de: OF-105.
+### OF-107 · Bankinter reader (personal accounts) ✅
+- ✅ `parse_bankinter` reader for the transactions Excel, validated with a real statement: skips the preamble and filters, discards pending rows with their reason and reverses the order (the bank lists from newest to oldest) so that the balance matches.
+- ✅ The account number in the preamble is not read nor does it appear in errors or discarded rows. Old `.xls` files and CSVs are rejected with a clear message.
+- ✅ 🧪 With no time in the statement, the fingerprint includes the balance: two identical transactions on the same day are not merged and an overlapping statement does not duplicate.
+- ✅ 🧪 Outgoing "Revolut\*\*NNNN\*" transfers and those matching an outgoing pattern of the holder are a **contribution** by the holder; they count neither as an expense nor in the household totals.
+- ✅ 🧪 Names are not used in the personal account: a Bizum from the partner is income. Transfers and Bizum depend on the sign.
+- ✅ 🧪 Only the holder can preview, confirm and see the imported transactions; neither the partner nor another household.
+- The personal "mi gasto" (my spending) view moves to OF-108.
+- Depends on: OF-105.
 
-### OF-108 · Vista «mi gasto» de cada persona ✅
-Vista de las cuentas personales de cada persona, visible solo para ella (ADR-0013).
-- ✅ `GET /api/v1/insights/month` y `/insights/category` aceptan `view=household|mine` (por defecto `household`). `mine` usa solo las cuentas personales de quien pregunta: gastado, ingresos, aportado a la conjunta (`contributed`) y gasto por categoría con su media; al elegir una categoría, sus 12 meses y comercios.
-- ✅ `GET /api/v1/transactions?mine_only=true` lista los movimientos de esas cuentas (incompatible con `shared_only`).
-- ✅ Web: selector «Hogar / Mío» en «Este mes» y «¿En qué gastamos?», compartido entre las dos pantallas. En «Mío», lo aportado a la conjunta se muestra aparte («no cuenta como gasto tuyo») y no aparecen los presupuestos, que son del hogar.
-- ✅ 🧪 Tests negativos: la pareja no ve los agregados ni los movimientos de la cuenta personal del otro, ni pidiendo una categoría; otro hogar tampoco. La vista personal no altera los totales del hogar.
-- Decidido: basta la vista del mes. «Evolución» (12 meses de todo) sigue siendo solo del hogar; si hace falta una evolución personal, merece su propio ticket.
-- Depende de: OF-107.
-
----
-
-## Fase 2 · Categorías
-
-### OF-201 · Categorías ✅
-- ✅ Categorías por hogar con nombre, icono, color y orden; cada hogar nace con las 13 del prototipo (identificadas por `slug`).
-- ✅ Crear, renombrar, cambiar icono o color y ocultar (`GET/POST /api/v1/categories`, `PATCH /api/v1/categories/{id}`). No se borran.
-- ✅ Nombres únicos por hogar sin distinguir mayúsculas ni tildes.
-- ✅ 🧪 Ocultar una categoría no borra la de sus movimientos; una categoría oculta no se puede asignar a movimientos nuevos.
-- ✅ Migración 0004 de los datos existentes: el texto libre pasa a categoría (las desconocidas se crean como propias) y se calcula el comercio de cada movimiento.
-
-### OF-202 · Reglas por comercio ✅
-- ✅ Comercio normalizado (`merchant_key`): quita prefijos del banco («COMPRA TARJETA 4821», «PAGO CON TARJETA», «RECIBO DE»…), números de tarjeta o terminal y sufijos societarios. Ejemplo: «MERCADONA 0087» → `MERCADONA`.
-- ✅ Al corregir la categoría de un gasto se guarda la regla «comercio → categoría» y se aplica a los gastos **sin categoría** de ese comercio; nunca pisa una elegida a mano. Al quitar la categoría, se olvida la regla.
-- ✅ Prudencia antes que cobertura:
-  - Una regla aplica si sus palabras son el principio del comercio (`MERCADONA` → `MERCADONA VALENCIA`), nunca al revés.
-  - Las reglas de una sola palabra corta (`BAR`, `GAS`) o de intermediarios (`PAYPAL`, `AMAZON`…) solo aplican al comercio exacto y no se propagan.
-- ✅ Privacidad (ADR-0013): una regla aprendida en una cuenta personal es solo de su titular y solo afecta a sus cuentas personales. Las del hogar afectan a las cuentas que ve quien corrige.
-- ✅ Las reglas se aplican en la vista previa de importación y al confirmar.
-- ✅ 🧪 Corregir «MERCADONA 1234» clasifica también «MERCADONA 0087» y «COMPRA TARJETA … MERCADONA VALENCIA».
-
-### OF-203 · Corrección en la tabla ✅
-- ✅ `PATCH /api/v1/transactions/{id}` (`category_id`, `learn`) devuelve la regla aprendida y cuántos movimientos más se han clasificado.
-- ✅ Web: selector de categoría en cada gasto, aviso «N gastos sin categoría» con acceso directo al filtro y contador en la pestaña (`GET /api/v1/transactions/uncategorized-count`).
-- ✅ Mensaje «Regla guardada: «Mercadona» → Supermercado · 2 más clasificados».
-- ✅ Pantalla **Categorías** (`#categorias`) para crear, renombrar, cambiar icono o color y ocultar.
-- ✅ La vista previa de importación muestra la categoría propuesta por regla.
+### OF-108 · Each person's "mi gasto" view ✅
+View of each person's personal accounts, visible only to them (ADR-0013).
+- ✅ `GET /api/v1/insights/month` and `/insights/category` accept `view=household|mine` (default `household`). `mine` uses only the asker's personal accounts: spent, income, contributed to the joint account (`contributed`) and spending by category with its average; when a category is chosen, its 12 months and merchants.
+- ✅ `GET /api/v1/transactions?mine_only=true` lists the transactions of those accounts (incompatible with `shared_only`).
+- ✅ Web: "Hogar / Mío" (Household / Mine) selector in "Este mes" (This month) and "¿En qué gastamos?" (What do we spend on?), shared between the two screens. Under "Mío", what was contributed to the joint account is shown separately ("no cuenta como gasto tuyo", i.e. does not count as your spending) and budgets do not appear, as they belong to the household.
+- ✅ 🧪 Negative tests: the partner sees neither the aggregates nor the transactions of the other's personal account, not even by requesting a category; another household does not either. The personal view does not alter the household totals.
+- Decided: the month view is enough. "Evolución" (Evolution; 12 months of everything) remains household-only; if a personal evolution is needed, it deserves its own ticket.
+- Depends on: OF-107.
 
 ---
 
-## Fase 3 · Gráficos
+## Phase 2 · Categories
 
-### OF-301 · API de agregados (`insights`) ✅
-El Core calcula y el frontend solo pinta. Los totales del hogar usan solo la conjunta y las huchas (ADR-0013).
-- ✅ `GET /api/v1/insights/month`: gastado, entradas (aportaciones por persona), ahorro y %, gasto por categoría con su media, gasto acumulado por día, mes anterior y media de los meses anteriores con datos.
-- ✅ Mes en curso: la curva llega hasta hoy (en la zona horaria del hogar, `OPENFINANCE_TIMEZONE`) y se compara con el mismo tramo del mes anterior.
-- ✅ `GET /api/v1/insights/category`: 12 meses de una categoría (o «sin categoría»), su media y los comercios principales de los últimos 3 meses.
-- ✅ `GET /api/v1/insights/trends`: 12 meses de gasto, entradas, ahorro y gasto por categoría; totales, medias, % de ahorro y mejor y peor mes.
-- ✅ `GET /api/v1/transactions?category_id=…&shared_only=true` para listar los movimientos de un gráfico.
-- ✅ 🧪 Las sumas por categoría cuadran con el gasto del mes; los traspasos a ahorro quedan fuera del gasto; las cuentas personales nunca cuentan; los meses sin datos no entran en las medias.
+### OF-201 · Categories ✅
+- ✅ Categories per household with name, icon, colour and order; each household starts with the prototype's 13 (identified by `slug`).
+- ✅ Create, rename, change icon or colour, and hide (`GET/POST /api/v1/categories`, `PATCH /api/v1/categories/{id}`). They are not deleted.
+- ✅ Names unique per household, ignoring case and accents.
+- ✅ 🧪 Hiding a category does not delete that of its transactions; a hidden category cannot be assigned to new transactions.
+- ✅ Migration 0004 of existing data: free text becomes a category (unknown ones are created as custom) and each transaction's merchant is computed.
 
-### OF-302 · Componentes de gráficos ✅
-- ✅ Decidido en [ADR-0014](../adr/0014-graficos-svg-propios.md), con medidas: SVG propio (≈ 4 KB) frente a Chart.js (+62 KB gzip) y Recharts (+122 KB gzip).
-- ✅ Donut, barras (con referencia, mes resaltado y negativos), barras apiladas, líneas con área y anillo de progreso en `apps/web/src/components/charts/`.
-- ✅ Accesibles (`role="img"` con resumen y una tabla de datos oculta para lectores de pantalla) y escalables con `viewBox`.
+### OF-202 · Rules per merchant ✅
+- ✅ Normalised merchant (`merchant_key`): strips bank prefixes ("COMPRA TARJETA 4821", "PAGO CON TARJETA", "RECIBO DE"…), card or terminal numbers and company-type suffixes. Example: "MERCADONA 0087" → `MERCADONA`.
+- ✅ When an expense's category is corrected, the "merchant → category" rule is stored and applied to **uncategorised** expenses of that merchant; it never overrides one chosen by hand. When the category is removed, the rule is forgotten.
+- ✅ Caution over coverage:
+  - A rule applies if its words are the beginning of the merchant (`MERCADONA` → `MERCADONA VALENCIA`), never the other way round.
+  - Rules of a single short word (`BAR`, `GAS`) or of intermediaries (`PAYPAL`, `AMAZON`…) only apply to the exact merchant and do not propagate.
+- ✅ Privacy (ADR-0013): a rule learned in a personal account belongs only to its holder and only affects their personal accounts. Household rules affect the accounts visible to whoever corrects.
+- ✅ Rules are applied in the import preview and on confirmation.
+- ✅ 🧪 Correcting "MERCADONA 1234" also classifies "MERCADONA 0087" and "COMPRA TARJETA … MERCADONA VALENCIA".
 
-### OF-303 · Pantalla «Este mes» ✅
-- ✅ Pantalla de inicio: gastado (frente al mes anterior y a la media), ahorrado y %, dónde más se va, donut con las 5 categorías principales, ritmo de gasto frente al mes anterior y lo que más ha cambiado frente a la media.
-- Los presupuestos se añadirán con OF-401.
-
-### OF-304 · Pantalla «¿En qué gastamos?» ✅
-- ✅ Donut y ranking de categorías; al elegir una (o «sin categoría»): 12 meses frente a la media, comercios principales y movimientos del mes.
-
-### OF-305 · Pantalla «Evolución» ✅
-- ✅ Barras apiladas de 12 meses (6 categorías principales + resto), ahorro de cada mes con su media, ahorrado en el periodo y mejor y peor mes.
-
-### Demostración
-- ✅ `make demo` crea un hogar ficticio con 12 meses de datos para ver los gráficos sin datos reales. Es todo o nada y se niega en producción salvo con `--force`, porque la contraseña es pública.
+### OF-203 · Correction in the table ✅
+- ✅ `PATCH /api/v1/transactions/{id}` (`category_id`, `learn`) returns the learned rule and how many more transactions were classified.
+- ✅ Web: category selector on each expense, "N gastos sin categoría" (N uncategorised expenses) notice with direct access to the filter, and a counter on the tab (`GET /api/v1/transactions/uncategorized-count`).
+- ✅ Message "Regla guardada: «Mercadona» → Supermercado · 2 más clasificados" (Rule saved: "Mercadona" → Supermarket · 2 more classified).
+- ✅ **Categorías** (Categories) screen (`#categorias`) to create, rename, change icon or colour, and hide.
+- ✅ The import preview shows the category proposed by rule.
 
 ---
 
-## Fase 4 · Ahorro
+## Phase 3 · Charts
 
-### OF-401 · Presupuestos ✅
-- ✅ Límite mensual por categoría (`GET /api/v1/budgets?month=`, `PUT/DELETE /api/v1/budgets/{category_id}`), con aviso al 85 % («cerca») y al pasarse («pasado»).
-- ✅ 🧪 El porcentaje usa solo gastos de esa categoría y ese mes, de la conjunta y las huchas. Se redondea hacia abajo y el estado se decide con los importes exactos.
-- ✅ «Este mes» muestra las barras de presupuesto. La línea de presupuesto total en el ritmo de gasto solo aparece si todo lo gastado tiene presupuesto.
-- ✅ Pantalla **Presupuestos** (`#presupuestos`) con vuestra media de cada categoría y un botón para usarla, redondeada hacia arriba a decenas.
+### OF-301 · Aggregates API (`insights`) ✅
+The Core computes and the frontend only draws. Household totals use only the joint account and the pockets (ADR-0013).
+- ✅ `GET /api/v1/insights/month`: spent, inflows (contributions per person), savings and %, spending by category with its average, cumulative spending per day, previous month and average of previous months with data.
+- ✅ Current month: the curve runs up to today (in the household's time zone, `OPENFINANCE_TIMEZONE`) and is compared with the same stretch of the previous month.
+- ✅ `GET /api/v1/insights/category`: 12 months of a category (or "uncategorised"), its average and the main merchants of the last 3 months.
+- ✅ `GET /api/v1/insights/trends`: 12 months of spending, inflows, savings and spending by category; totals, averages, savings % and best and worst month.
+- ✅ `GET /api/v1/transactions?category_id=…&shared_only=true` to list the transactions behind a chart.
+- ✅ 🧪 Sums by category match the month's spending; transfers to savings are left out of spending; personal accounts never count; months without data do not enter the averages.
 
-### OF-402 · Objetivos de ahorro ✅
-- ✅ Nombre, icono, meta, ahorrado (a mano o el saldo de una hucha vinculada), aportación mensual y fecha límite opcional (`/api/v1/goals`).
-- ✅ Proyección: progreso, meses que faltan, fecha estimada y, con fecha límite, lo que haría falta apartar al mes y si se llega a tiempo.
-- ✅ Solo se pueden vincular huchas del propio hogar (nunca cuentas personales ni de otro hogar).
+### OF-302 · Chart components ✅
+- ✅ Decided in [ADR-0014](../adr/0014-graficos-svg-propios.md), with measurements: own SVG (≈ 4 KB) versus Chart.js (+62 KB gzip) and Recharts (+122 KB gzip).
+- ✅ Donut, bars (with reference, highlighted month and negatives), stacked bars, lines with area and progress ring in `apps/web/src/components/charts/`.
+- ✅ Accessible (`role="img"` with a summary and a data table hidden for screen readers) and scalable with `viewBox`.
 
-### OF-403 · Cargos recurrentes ✅
-- ✅ Detecta cuotas: mismo comercio en al menos 3 meses (≥ 75 % del periodo), sin más de 2 cargos al mes, importe que se repite (±1 %) y activas en los últimos 45 días. Una cuota cobrada en dos veces cuenta como una.
-- ✅ Importe y subidas de precio calculados con meses completos (el mes en curso solo confirma que sigue activa).
-- ✅ 🧪 Detecta la subida de Netflix del conjunto de datos de prueba.
+### OF-303 · "Este mes" (This month) screen ✅
+- ✅ Home screen: spent (versus the previous month and the average), saved and %, where most goes, donut with the top 5 categories, spending pace versus the previous month and what changed most versus the average.
+- Budgets will be added with OF-401.
 
-### OF-404 · Ideas de ahorro ✅
-- ✅ Ideas deterministas, sin IA, cada una con su respaldo (movimientos y periodo) y la estimación en la que se basa:
-  - cuotas que han subido de precio;
-  - suscripciones;
-  - restaurantes (−25 %), supermercado (−10 %) y suministros (−10 %).
-- ✅ Medias solo con meses completos: se excluye el mes en curso y el primer mes importado si empieza a mitad de mes. Sin meses completos no se proyecta nada.
+### OF-304 · "¿En qué gastamos?" (What do we spend on?) screen ✅
+- ✅ Donut and category ranking; when one is chosen (or "uncategorised"): 12 months versus the average, main merchants and transactions of the month.
 
-### OF-405 · Simulador de recortes ✅
-- ✅ Deslizadores por categoría que calculan el ahorro extra al mes y al año (céntimos exactos con BigInt) y cuántos meses antes se alcanza el primer objetivo pendiente.
+### OF-305 · "Evolución" (Evolution) screen ✅
+- ✅ 12-month stacked bars (6 main categories + rest), each month's savings with its average, saved over the period and best and worst month.
 
----
-
-## Fase 5 · Uso real
-
-### OF-501 · Exportación y copia de seguridad ✅
-- ✅ `GET /api/v1/export?format=json|csv`: lo que ve quien la pide (nunca la cuenta personal de la otra persona, sesiones, hashes ni huellas), con `format_version` 1, importes exactos como texto y CSV protegidos frente a fórmulas. Botón **Exportar** en la cabecera.
-- ✅ 🧪 Tests negativos de visibilidad: cuenta personal, reglas y patrones de salida de la pareja, y otro hogar.
-- ✅ `make backup` y `make restore FILE=…` ([ADR-0016](../adr/0016-exposicion-y-copias.md)); restaurar aplica migraciones y cierra todas las sesiones (`openfinance sessions revoke-all`).
-- ✅ 🧪 Restaurar una copia en una instalación limpia deja los mismos saldos (CI, `compose-e2e`).
-
-### OF-502 · Instalación en casa ✅
-- ✅ Docker Compose probado de principio a fin en CI en dos modos: `direct` (red local por http) y `caddy` (HTTPS con dominio propio). Ni PostgreSQL ni la API publican puertos.
-- ✅ La IP real llega a la API sin que el cliente pueda falsificarla (nginx sobrescribe `X-Forwarded-For`); aviso en el log si la cookie `Secure` llega por http.
-- ✅ Guía: [Instalar en casa](../deployment/home.md) (móvil en la red local, HTTPS, copias programadas y actualización).
-
-### OF-503 · Móvil ✅ (falta probarlo en un móvil real)
-- ✅ Las 6 pantallas, el acceso, Categorías y Presupuestos se usan en un móvil: pestañas en una fila desplazable, tablas en filas compactas, objetivos táctiles de al menos 40 px y campos de 16 px para que iOS no amplíe la página.
-- ✅ Gráficos legibles en pantalla estrecha: se dibujan al ancho real (el texto no encoge con el `viewBox`) y escriben menos etiquetas cuando no caben. Siguen alimentándose de los agregados del Core.
-- ✅ 🧪 Playwright (`apps/web/e2e`, `make e2e`) en Chrome a 360 px, Safari (WebKit) a 390 px y escritorio: sin scroll horizontal, gráficos dentro de la pantalla con etiquetas de al menos 11 px y sin solapes, pestañas alcanzables, Importar en 3 pasos con un extracto sintético y descarga de la exportación. En CI contra Docker Compose (`compose-e2e`, modo `direct`).
-
-### OF-504 · Release v0.1 — preparado (falta la etiqueta tras el mes de uso real)
-- ✅ Licencias de las dependencias auditadas ([docs/legal/dependencias.md](../legal/dependencias.md)): todas compatibles con AGPL-3.0; psycopg es LGPL-3.0-only y no plantea problemas. `make licenses` las lista y el job `licenses` de CI falla si una dependencia de producción sale de la lista permitida.
-- ✅ `LICENSE` con el texto literal de la AGPL-3.0 y [ADR-0008](../adr/0008-licencia-agpl.md) aceptado: AGPL-3.0-or-later, contribuciones con DCO (`git commit -s`, [CONTRIBUTING.md](../../CONTRIBUTING.md)), sin CLA y sin cabeceras SPDX por fichero.
-- ✅ [CHANGELOG.md](../../CHANGELOG.md) (Keep a Changelog) con las fases 0 a 5 y lo pendiente.
-- ✅ Checklist de release: [docs/development/release.md](../development/release.md).
-- Pendiente: subir las versiones a 0.1.0 y crear la etiqueta anotada `v0.1.0` con su release en GitHub, **después de un mes de uso real**. Decidido así a propósito.
+### Demo
+- ✅ `make demo` creates a fictional household with 12 months of data to see the charts without real data. It is all or nothing and refuses to run in production except with `--force`, because the password is public.
 
 ---
 
-## Fase 6 · Datos fiables
+## Phase 4 · Savings
 
-Que cualquier extracto real de Revolut o Bankinter se importe sin errores y sin inflar las entradas. Sale de la auditoría del 1 de noviembre de 2026 y **va antes del mes de uso real**.
+### OF-401 · Budgets ✅
+- ✅ Monthly limit per category (`GET /api/v1/budgets?month=`, `PUT/DELETE /api/v1/budgets/{category_id}`), with a warning at 85 % ("cerca", near) and when exceeded ("pasado", over).
+- ✅ 🧪 The percentage uses only expenses of that category and that month, from the joint account and the pockets. It is rounded down and the status is decided with the exact amounts.
+- ✅ "Este mes" shows the budget bars. The total budget line in the spending pace only appears if everything spent has a budget.
+- ✅ **Presupuestos** (Budgets) screen (`#presupuestos`) with your average for each category and a button to use it, rounded up to tens.
 
-### OF-601 · Filas de importe cero o vacío ✅
-Una verificación de tarjeta a 0,00 € pasaba la vista previa, pero al confirmar el dominio la rechazaba y la API respondía 500: el extracto no se podía importar nunca.
-- ✅ Los lectores de Revolut y Bankinter descartan las filas de importe cero («importe cero: no mueve dinero») y las de importe vacío («fila no válida: falta el importe»), con su motivo en la vista previa. El saldo sigue cuadrando.
-- ✅ Si al confirmar el dominio rechaza una fila, la API responde 422 y no guarda nada: el lote no queda reclamado y se puede volver a confirmar.
-- ✅ 🧪 Un extracto con una verificación de tarjeta a 0,00 se previsualiza y se confirma; 🧪 un error del dominio al confirmar da 422 y deja la importación intacta.
+### OF-402 · Savings goals ✅
+- ✅ Name, icon, target, saved (by hand or the balance of a linked pocket), monthly contribution and optional deadline (`/api/v1/goals`).
+- ✅ Projection: progress, months remaining, estimated date and, with a deadline, what would need to be set aside each month and whether it is reached in time.
+- ✅ Only the household's own pockets can be linked (never personal accounts or those of another household).
 
-### OF-602 · Clasificación: huchas en los dos sentidos, nombres por palabra completa y traspasos internos ✅ (salvo traspasos internos)
-- ✅ Patrones de hucha «To pocket» y «From pocket». Sacar de la hucha es `savings_transfer` positivo: no cuenta como ingreso, resta de lo traspasado al ahorro y en Movimientos se lee «De la hucha». Los textos en español siguen pendientes de un extracto real ([bancos.md](bancos.md)).
-- ✅ Todos los patrones (nombres, patrones por persona, huchas) se buscan por palabra completa tras normalizar: «MARIANA» no es aportación de Ana y «\*1234» no reconoce «\*12345». Solo se exige frontera en el extremo que es letra o cifra, así que «REVOLUT\*\*» sigue reconociendo «Revolut\*\*9876\*».
-- ⏳ `internal_patterns` con las recargas de la conjunta hacia las cuentas personales: **pendiente de ver el texto en un extracto real**. Inventarlo clasificaría mal movimientos reales que luego no se pueden reclasificar (hasta OF-701).
-- ✅ 🧪 «From pocket EUR Viaje» no cuenta como entrada; ✅ 🧪 «Transferencia de MARIANA LOPEZ» no es aportación de Ana; ✅ 🧪 las huellas ya guardadas no cambian (la de la muestra queda fijada en el test y no depende de las reglas).
+### OF-403 · Recurring charges ✅
+- ✅ Detects instalments: same merchant in at least 3 months (≥ 75 % of the period), no more than 2 charges per month, a repeating amount (±1 %) and active in the last 45 days. An instalment charged in two parts counts as one.
+- ✅ Amount and price increases computed with complete months (the current month only confirms it is still active).
+- ✅ 🧪 Detects the Netflix increase in the test dataset.
 
-### OF-603 · Búsqueda con «#» y ErrorBoundary global ✅
-- ✅ La clave de la consulta de Movimientos es `JSON.stringify([consulta, versión])`, sin partirla por «#». Antes, buscar «#1» lanzaba un `SyntaxError` y la lista se quedaba congelada.
-- ✅ Un `ErrorBoundary` por pestaña en `App.tsx` muestra «Algo ha fallado · Recargar» en lugar de congelar la pantalla; la cabecera y las otras pestañas siguen funcionando.
-- ✅ 🧪 Buscar «#1», «%», comillas o apóstrofos envía la búsqueda tal cual y la lista sigue funcionando; ✅ 🧪 una respuesta que rompe la pantalla muestra el aviso con «Recargar».
+### OF-404 · Savings ideas ✅
+- ✅ Deterministic ideas, no AI, each with its backing (transactions and period) and the estimate it is based on:
+  - instalments that have gone up in price;
+  - subscriptions;
+  - restaurants (−25 %), supermarket (−10 %) and utilities (−10 %).
+- ✅ Averages only with complete months: the current month and the first imported month, if it starts mid-month, are excluded. With no complete months nothing is projected.
 
-### OF-604 · Importes ambiguos: rechazar en vez de adivinar ✅
-- ✅ `to_decimal` recibe el separador decimal del banco y el otro solo puede agrupar miles de tres en tres. El CSV de Revolut declara «.»; los Excel de Revolut y Bankinter traen números, y si una celda llega como texto solo se acepta lo inequívoco («12,30», «1.234,56»), porque su formato de texto no se ha visto en un extracto real.
-- ✅ Lo que no sigue el formato («12,30» en el CSV inglés, «1,23,456», «1.5.») es una fila no válida con su motivo.
-- ✅ 🧪 «1,234» en el CSV inglés se lee como 1234 y el saldo cuadra; ✅ 🧪 sin formato declarado, «1,234» y «1.234» se rechazan como «importe ambiguo», nunca se leen como 1,234.
-
-### OF-605 · `useLoad` común con estados de carga, error y reintento ✅
-- ✅ `useLoad` en `src/lib/useLoad.ts`, con `reload`: al recargar se siguen viendo los datos hasta que llegan los nuevos, y un error se quita al reintentar. Lo usan Este mes, ¿En qué gastamos? (y su panel), Evolución, Ahorrar y Presupuestos; Movimientos mantiene su carga propia (filas atenuadas mientras llega la nueva consulta) con el mismo «Reintentar».
-- ✅ Componentes `<Loading/>` y `<ErrorState onRetry/>` en `src/components/LoadState.tsx`. `<UncategorizedNotice/>` no se ha extraído: el aviso solo aparece en Este mes.
-- ✅ 🧪 Si fallan los movimientos de una categoría se ve el error con «Reintentar» y al reintentar se cargan; ✅ 🧪 Presupuestos se recupera al reintentar (antes el error se quedaba para siempre).
-
-### OF-606 · CLI de mantenimiento: contraseña, cuentas y personas ✅
-- ✅ `openfinance users set-password <email>`: la contraseña se pide sin eco (nunca como argumento), y se cierran solo las sesiones de esa persona.
-- ✅ `openfinance accounts add <email> <nombre> [--kind savings|joint|personal] [--bank …] [--opening-balance …]`: añade una cuenta al hogar de esa persona; con `personal`, es su titular. El nombre no se puede repetir en el hogar.
-- ✅ 🧪 Tras cambiar la contraseña, la sesión anterior da 401, la de la otra persona sigue abierta y la contraseña vieja ya no entra; ✅ 🧪 una cuenta personal nueva solo la ve su titular y no se puede dar a alguien de otro hogar.
-- Guía: [Instalar en casa](../deployment/home.md).
-
-### OF-607 · Purgar el contenido de importaciones caducadas ✅
-- ✅ El archivo de una vista previa sin confirmar de más de 24 h se borra al arrancar la API, en cada inicio de sesión y en cada vista previa. `make backup` ejecuta `openfinance imports purge` antes de volcar. Si al arrancar la base de datos no responde, la API arranca igual y lo deja en el registro.
-- ✅ 🧪 Una vista previa de más de 24 h no conserva su contenido tras el siguiente login (de cualquier persona del hogar); ✅ 🧪 una reciente sí; ✅ 🧪 el arranque y `imports purge` también la borran.
-
-### OF-608 · El mes en curso en el Core ✅
-- ✅ `insights/trends` toma las medias de meses completos: si el periodo llega al mes en curso, de los 12 meses anteriores a él, igual que Este mes. El mes en curso cuenta en los totales, pero no en las medias ni en el mejor o peor mes, y se marca con `is_partial`.
-- ✅ `insights/month` devuelve para cada categoría su `reference` (la media o, en el mes en curso, la media de lo gastado hasta el mismo día) y su `change`, y la lista `changes` con las que más cambian (máx. 4, sin importes de menos de 20 €). El frontend ya no lo calcula.
-- ✅ 🧪 Evolución y Este mes dan la misma media; ✅ 🧪 el día 1 ninguna categoría aparece por debajo de su media; ✅ 🧪 el mejor y el peor mes no incluyen el mes en curso; ✅ 🧪 un mes pasado mantiene su ventana de 12 meses.
+### OF-405 · Cuts simulator ✅
+- ✅ Sliders per category that compute the extra monthly and yearly savings (exact cents with BigInt) and how many months sooner the first pending goal is reached.
 
 ---
 
-## Fase 7 · Corregir sin miedo
+## Phase 5 · Real use
 
-Que cualquier error de datos se arregle desde la web, quede trazado y se pueda deshacer. Se hace durante el mes de uso real; al terminarla se etiqueta `v0.1.0`. Cada ticket lleva sus tests negativos de privacidad (la pareja y otro hogar).
+### OF-501 · Export and backup ✅
+- ✅ `GET /api/v1/export?format=json|csv`: what the requester sees (never the other person's personal account, sessions, hashes or fingerprints), with `format_version` 1, exact amounts as text and CSV protected against formulas. **Exportar** (Export) button in the header.
+- ✅ 🧪 Negative visibility tests: personal account, the partner's outgoing rules and patterns, and another household.
+- ✅ `make backup` and `make restore FILE=…` ([ADR-0016](../adr/0016-exposicion-y-copias.md)); restoring applies migrations and closes all sessions (`openfinance sessions revoke-all`).
+- ✅ 🧪 Restoring a backup on a clean installation leaves the same balances (CI, `compose-e2e`).
 
-**Decisión de diseño ([ADR-0017](../adr/0017-registro-de-cambios.md)):** el registro general de OF-706 se construye primero y OF-701 lo usa desde el principio, en lugar de crear `transaction_corrections` y migrarlo después. Nada se borra: anular un movimiento es `voided = true`, con su entrada en el registro.
+### OF-502 · Installation at home ✅
+- ✅ Docker Compose tested end to end in CI in two modes: `direct` (local network over http) and `caddy` (HTTPS with your own domain). Neither PostgreSQL nor the API publish ports.
+- ✅ The real IP reaches the API without the client being able to forge it (nginx overwrites `X-Forwarded-For`); log warning if the `Secure` cookie arrives over http.
+- ✅ Guide: [Instalar en casa](../deployment/home.md) (phone on the local network, HTTPS, scheduled backups and updating).
 
-### Base del registro de cambios (de OF-706) ✅
-- ✅ Tablas `change_operations` (autor, fecha, tipo, resumen, deshecha) y `change_entries` (entidad, campo, antes y después en JSON). Migración `0007_change_log`, que añade también `note` y `voided` a los movimientos.
-- ✅ Todas las consultas de movimientos ignoran los anulados: listados, totales, gráficos, saldos, huellas y exportación.
-- ✅ `POST /api/v1/changes/{id}/undo` y `/redo`: solo las operaciones propias (las de la pareja dan 404). Deshacer pone el valor anterior solo donde el actual sigue siendo el que dejó la operación; lo que alguien cambió después se respeta y la respuesta dice quién fue.
-- ✅ 🧪 Propiedad: para 12 secuencias aleatorias de correcciones de las dos personas, deshacer todas en orden inverso devuelve el estado inicial.
+### OF-503 · Mobile ✅ (still to be tried on a real phone)
+- ✅ The 6 screens, login, Categorías and Presupuestos work on a phone: tabs in a scrollable row, tables as compact rows, touch targets of at least 40 px and 16 px fields so iOS does not zoom the page.
+- ✅ Charts legible on a narrow screen: they are drawn at the real width (text does not shrink with the `viewBox`) and write fewer labels when they do not fit. They are still fed by the Core aggregates.
+- ✅ 🧪 Playwright (`apps/web/e2e`, `make e2e`) on Chrome at 360 px, Safari (WebKit) at 390 px and desktop: no horizontal scroll, charts inside the screen with labels of at least 11 px and no overlaps, reachable tabs, Importar in 3 steps with a synthetic statement and export download. In CI against Docker Compose (`compose-e2e`, `direct` mode).
 
-### OF-701 · Editar tipo, persona y nota de un movimiento, con historial ✅
-- ✅ `PATCH /api/v1/transactions/{id}` acepta `kind`, `member_id`, `note` y `category_id` (solo cambia lo que se envía), con las invariantes del dominio: persona solo en aportaciones y del mismo hogar, categoría solo en gastos. Un movimiento que deja de ser gasto pierde su categoría, y el cambio queda registrado.
-- ✅ El importe, la fecha, el concepto y la huella nunca cambian.
-- ✅ `GET /api/v1/transactions/{id}/history`: quién, cuándo y qué («Bizum de E M: Ingreso → Aportación de Elena»).
-- ✅ En Movimientos, el concepto abre el detalle: tipo, persona, nota e historial. Cada corrección avisa con «Deshacer» durante 8 s.
-- ✅ 🧪 La pareja no puede editar ni ver el historial de una cuenta personal ajena (404), ni otro hogar; ✅ 🧪 corregir un ingreso a aportación cambia las entradas del mes; ✅ 🧪 cada corrección deja una fila de historial con su autor.
+### OF-504 · Release v0.1 — prepared (tag missing until after the month of real use)
+- ✅ Dependency licences audited ([docs/legal/dependencias.md](../legal/dependencias.md)): all compatible with AGPL-3.0; psycopg is LGPL-3.0-only and poses no problems. `make licenses` lists them and the CI `licenses` job fails if a production dependency falls outside the allowed list.
+- ✅ `LICENSE` with the verbatim AGPL-3.0 text and [ADR-0008](../adr/0008-licencia-agpl.md) accepted: AGPL-3.0-or-later, contributions with DCO (`git commit -s`, [CONTRIBUTING.md](../../CONTRIBUTING.md)), no CLA and no per-file SPDX headers.
+- ✅ [CHANGELOG.md](../../CHANGELOG.md) (Keep a Changelog) with phases 0 to 5 and what is pending.
+- ✅ Release checklist: [docs/development/release.md](../development/release.md).
+- Pending: bump the versions to 0.1.0 and create the annotated tag `v0.1.0` with its GitHub release, **after one month of real use**. Decided this way on purpose.
 
-### OF-702 · Reglas visibles: confirmar, deshacer y gestionar ✅
-- ✅ Al categorizar, el aviso dice cuántos movimientos ha clasificado la regla y lleva «Deshacer» durante 8 s: revierte la categoría, la regla y lo que clasificó (es una sola operación del registro).
-- ✅ Los Bizum y las transferencias a o de personas (por concepto o por tipo del banco) no aprenden reglas: su «comercio» es el nombre de alguien.
-- ✅ Pantalla Reglas (`#reglas`, enlazada desde Movimientos y Categorías; `GET /api/v1/rules`, `DELETE /api/v1/rules/{household|personal}/{comercio}`): comercio, categoría, cuántos movimientos coinciden y si es personal. Borrar no cambia lo ya clasificado, queda en el registro y se puede deshacer.
-- ✅ 🧪 Deshacer devuelve a «sin categoría» solo los movimientos que la regla había clasificado (los corregidos después a mano se respetan); ✅ 🧪 la pareja no ve ni borra las reglas personales del otro, ni otro hogar.
+---
 
-### OF-703 · Historial de importaciones y deshacer una importación ✅
-- ✅ En Importar, la lista de importaciones (`GET /api/v1/imports`): archivo, cuenta, quién, cuándo, nuevos, ya importados y descartados, y si está deshecha. Solo de las cuentas que ve cada persona.
-- ✅ «Deshacer» con confirmación en la propia pantalla (`POST /api/v1/imports/{id}/undo`): anula sus movimientos, con sus correcciones, en una operación del registro que también se puede deshacer. Solo la última importación confirmada de cada cuenta.
-- ✅ Volver a importar un archivo deshecho reactiva los mismos movimientos (mismo identificador y correcciones) en lugar de duplicarlos.
-- No se guarda si el saldo cuadró al confirmar: la vista previa lo comprueba, pero el historial no lo enseña todavía.
-- ✅ 🧪 Deshacer y volver a importar el mismo archivo da el mismo resultado (mismos nuevos, mismos duplicados, mismos movimientos); ✅ 🧪 no se puede deshacer una importación de la cuenta personal de la pareja (404) ni de otro hogar, ni verla en la lista.
+## Phase 6 · Reliable data
 
-### OF-704 · Ajustes: cuenta propia, sesiones y recargas de la conjunta ✅
-- ✅ Pantalla Ajustes (⚙️ en la cabecera, `#ajustes`). Cambiar la contraseña pide la actual (`POST /api/v1/me/password`); una actual incorrecta da 422 y no 401 (un 401 cerraría la sesión en la web) y cuenta para el límite de intentos.
-- ✅ «Cerrar sesión en los demás dispositivos» (`POST /api/v1/me/sessions/revoke-others`). Cambiar la contraseña también las cierra; la sesión de este navegador sigue abierta. Se cierran las demás y no todas para no echar a quien lo pulsa: para salir ya está «Salir».
-- ✅ «Recargas de la conjunta»: cada persona guarda y quita sus `*NNNN` (`GET/POST/DELETE /api/v1/me/patterns`); [ADR-0015](../adr/0015-patrones-por-persona-y-xlsx.md) actualizada. Al importar en la conjunta de Revolut, la vista previa dice quién no tiene tarjeta guardada y no deja confirmar sin marcar «Importar igualmente».
-- ✅ Entradas a Categorías, Presupuestos y Reglas desde Ajustes.
-- ✅ 🧪 Cambiar la contraseña revoca las demás sesiones de esa persona (no las de la pareja) y la nueva entra; ✅ 🧪 una persona no ve ni borra los patrones de la otra, ni otro hogar; ✅ 🧪 intentos repetidos con una contraseña actual incorrecta dan 429.
+So that any real Revolut or Bankinter statement imports without errors and without inflating inflows. It comes from the audit of 1 November 2026 and **comes before the month of real use**.
 
-### OF-705 · Clasificar varios a la vez y movimientos de efectivo ✅
-- ✅ En «Solo sin categoría», casillas para elegir varios gastos y «Poner categoría» (`POST /api/v1/transactions/categorize`): sin aprender reglas y como una sola operación, que «Deshacer» revierte entera. Si alguno no se puede ver, no se toca ninguno (404).
-- ✅ «+ Añadir a mano» (`POST /api/v1/transactions`): gasto o ingreso con fecha, concepto, importe positivo (el tipo da el signo), cuenta y categoría, con procedencia `manual`. Se propone una cuenta de «otra entidad»; en una cuenta del banco avisa de que su saldo dejará de cuadrar con el extracto. Hasta la fase 10 no hay cuentas de efectivo propias: se crean con `openfinance accounts add … --bank other`.
-- ✅ «Borrar» en el detalle de un movimiento manual (`DELETE /api/v1/transactions/{id}`): queda anulado y en el registro, y se puede deshacer. Los importados no se borran (422): se deshace su importación (OF-703).
-- ✅ 🧪 Un movimiento manual cuenta en los totales y al borrarlo deja de contar (ni en listados ni en la exportación), con su alta y su baja en el historial; ✅ 🧪 los importados no se borran; ✅ 🧪 la pareja no añade ni borra en la cuenta personal del otro, ni otro hogar.
+### OF-601 · Zero or empty amount rows ✅
+A card verification of 0.00 € passed the preview, but on confirmation the domain rejected it and the API responded 500: the statement could never be imported.
+- ✅ The Revolut and Bankinter readers discard zero-amount rows ("importe cero: no mueve dinero", zero amount: moves no money) and empty-amount rows ("fila no válida: falta el importe", invalid row: amount missing), with their reason in the preview. The balance still matches.
+- ✅ If the domain rejects a row on confirmation, the API responds 422 and saves nothing: the batch is not claimed and can be confirmed again.
+- ✅ 🧪 A statement with a 0.00 card verification is previewed and confirmed; 🧪 a domain error on confirmation gives 422 and leaves the import intact.
 
-### OF-706 · Registro de cambios con deshacer y rehacer ✅
-- ✅ Sobre la base de arriba: correcciones, reglas, clasificar varios, movimientos manuales e importaciones escriben en el registro, y todo se deshace con la misma regla.
-- ✅ Pantalla «Mis cambios» (`#cambios`, desde Ajustes y Movimientos): tus últimas 50 operaciones con «Deshacer» o «Rehacer».
-- ✅ Los resúmenes se guardan sin recuentos y se cuentan al leerlos sobre lo que ve quien lee: una regla del hogar que aprende la pareja también clasifica sus cuentas personales, y contarlas en el historial de la conjunta revelaría cuántos movimientos tiene allí.
-- ✅ 🧪 Deshacer no expone datos de una cuenta personal ajena: ni identificadores ni recuentos en el historial, y el resultado de deshacer solo dice quién cambió algo después, no qué puso; ✅ 🧪 cada persona solo lista sus operaciones, de la más reciente a la más antigua.
+### OF-602 · Classification: pockets in both directions, names by whole word and internal transfers ✅ (except internal transfers)
+- ✅ Pocket patterns "To pocket" and "From pocket". Withdrawing from the pocket is a positive `savings_transfer`: it does not count as income, it subtracts from what was transferred to savings, and in Movimientos it reads "De la hucha" (From the pocket). The Spanish texts are still pending a real statement ([bancos.md](bancos.md)).
+- ✅ All patterns (names, per-person patterns, pockets) are searched by whole word after normalising: "MARIANA" is not a contribution by Ana and "\*1234" does not match "\*12345". A boundary is only required at the end that is a letter or digit, so "REVOLUT\*\*" still matches "Revolut\*\*9876\*".
+- ⏳ `internal_patterns` with the joint account's top-ups to the personal accounts: **pending seeing the text in a real statement**. Making it up would misclassify real transactions that then cannot be reclassified (until OF-701).
+- ✅ 🧪 "From pocket EUR Viaje" does not count as an inflow; ✅ 🧪 "Transferencia de MARIANA LOPEZ" is not a contribution by Ana; ✅ 🧪 already-stored fingerprints do not change (the sample's one is pinned in the test and does not depend on the rules).
+
+### OF-603 · Search with "#" and global ErrorBoundary ✅
+- ✅ The Movimientos query key is `JSON.stringify([query, version])`, without splitting it on "#". Before, searching "#1" threw a `SyntaxError` and the list froze.
+- ✅ An `ErrorBoundary` per tab in `App.tsx` shows "Algo ha fallado · Recargar" (Something went wrong · Reload) instead of freezing the screen; the header and the other tabs keep working.
+- ✅ 🧪 Searching "#1", "%", quotes or apostrophes sends the search as is and the list keeps working; ✅ 🧪 a response that breaks the screen shows the notice with "Recargar".
+
+### OF-604 · Ambiguous amounts: reject instead of guessing ✅
+- ✅ `to_decimal` receives the bank's decimal separator and the other one can only group thousands in threes. The Revolut CSV declares "."; the Revolut and Bankinter Excel files carry numbers, and if a cell arrives as text only the unambiguous is accepted ("12,30", "1.234,56"), because their text format has not been seen in a real statement.
+- ✅ Whatever does not follow the format ("12,30" in the English CSV, "1,23,456", "1.5.") is an invalid row with its reason.
+- ✅ 🧪 "1,234" in the English CSV is read as 1234 and the balance matches; ✅ 🧪 with no declared format, "1,234" and "1.234" are rejected as "importe ambiguo" (ambiguous amount), never read as 1.234.
+
+### OF-605 · Shared `useLoad` with loading, error and retry states ✅
+- ✅ `useLoad` in `src/lib/useLoad.ts`, with `reload`: on reload the data stays visible until the new data arrives, and an error is cleared on retry. Used by Este mes, ¿En qué gastamos? (and its panel), Evolución, Ahorrar (Save) and Presupuestos; Movimientos keeps its own loading (rows dimmed while the new query arrives) with the same "Reintentar" (Retry).
+- ✅ Components `<Loading/>` and `<ErrorState onRetry/>` in `src/components/LoadState.tsx`. `<UncategorizedNotice/>` was not extracted: the notice only appears in Este mes.
+- ✅ 🧪 If a category's transactions fail, the error is shown with "Reintentar" and on retry they load; ✅ 🧪 Presupuestos recovers on retry (before, the error stayed forever).
+
+### OF-606 · Maintenance CLI: password, accounts and people ✅
+- ✅ `openfinance users set-password <email>`: the password is prompted for without echo (never as an argument), and only that person's sessions are closed.
+- ✅ `openfinance accounts add <email> <name> [--kind savings|joint|personal] [--bank …] [--opening-balance …]`: adds an account to that person's household; with `personal`, they are its holder. The name cannot be repeated in the household.
+- ✅ 🧪 After changing the password, the previous session gives 401, the other person's stays open and the old password no longer works; ✅ 🧪 a new personal account is only seen by its holder and cannot be given to someone from another household.
+- Guide: [Instalar en casa](../deployment/home.md).
+
+### OF-607 · Purge the content of expired imports ✅
+- ✅ The file of an unconfirmed preview older than 24 h is deleted when the API starts, on every login and on every preview. `make backup` runs `openfinance imports purge` before dumping. If the database does not respond at startup, the API starts anyway and logs it.
+- ✅ 🧪 A preview older than 24 h does not keep its content after the next login (by any person in the household); ✅ 🧪 a recent one does; ✅ 🧪 startup and `imports purge` also delete it.
+
+### OF-608 · The current month in the Core ✅
+- ✅ `insights/trends` takes averages from complete months: if the period reaches the current month, from the 12 months before it, just like Este mes. The current month counts in the totals, but not in the averages or in the best or worst month, and is flagged with `is_partial`.
+- ✅ `insights/month` returns for each category its `reference` (the average or, in the current month, the average of what was spent up to the same day) and its `change`, and the `changes` list with those that change most (max. 4, no amounts under €20). The frontend no longer computes it.
+- ✅ 🧪 Evolución and Este mes give the same average; ✅ 🧪 on day 1 no category appears below its average; ✅ 🧪 the best and worst month do not include the current month; ✅ 🧪 a past month keeps its 12-month window.
+
+---
+
+## Phase 7 · Correct without fear
+
+So that any data error can be fixed from the web, is traced and can be undone. It is done during the month of real use; when finished, `v0.1.0` is tagged. Each ticket carries its own negative privacy tests (the partner and another household).
+
+**Design decision ([ADR-0017](../adr/0017-registro-de-cambios.md)):** the general log of OF-706 is built first and OF-701 uses it from the start, instead of creating `transaction_corrections` and migrating it later. Nothing is deleted: voiding a transaction is `voided = true`, with its log entry.
+
+### Change log foundation (from OF-706) ✅
+- ✅ Tables `change_operations` (author, date, type, summary, undone) and `change_entries` (entity, field, before and after as JSON). Migration `0007_change_log`, which also adds `note` and `voided` to transactions.
+- ✅ All transaction queries ignore voided ones: listings, totals, charts, balances, fingerprints and export.
+- ✅ `POST /api/v1/changes/{id}/undo` and `/redo`: only your own operations (the partner's give 404). Undo restores the previous value only where the current one is still the one the operation left; whatever someone changed afterwards is respected and the response says who it was.
+- ✅ 🧪 Property: for 12 random sequences of corrections by the two people, undoing all of them in reverse order returns the initial state.
+
+### OF-701 · Edit a transaction's type, person and note, with history ✅
+- ✅ `PATCH /api/v1/transactions/{id}` accepts `kind`, `member_id`, `note` and `category_id` (only what is sent changes), with the domain invariants: person only on contributions and from the same household, category only on expenses. A transaction that stops being an expense loses its category, and the change is recorded.
+- ✅ The amount, date, description and fingerprint never change.
+- ✅ `GET /api/v1/transactions/{id}/history`: who, when and what ("Bizum de E M: Ingreso → Aportación de Elena", i.e. Bizum from E M: Income → Contribution by Elena).
+- ✅ In Movimientos, the description opens the detail: type, person, note and history. Each correction shows a notice with "Deshacer" (Undo) for 8 s.
+- ✅ 🧪 The partner can neither edit nor see the history of the other's personal account (404), nor can another household; ✅ 🧪 correcting an income to a contribution changes the month's inflows; ✅ 🧪 each correction leaves a history row with its author.
+
+### OF-702 · Visible rules: confirm, undo and manage ✅
+- ✅ When categorising, the notice says how many transactions the rule classified and carries "Deshacer" for 8 s: it reverts the category, the rule and what it classified (a single log operation).
+- ✅ Bizum and transfers to or from people (by description or by bank type) do not learn rules: their "merchant" is someone's name.
+- ✅ Reglas (Rules) screen (`#reglas`, linked from Movimientos and Categorías; `GET /api/v1/rules`, `DELETE /api/v1/rules/{household|personal}/{merchant}`): merchant, category, how many transactions match and whether it is personal. Deleting does not change what was already classified, is recorded in the log and can be undone.
+- ✅ 🧪 Undo returns to "sin categoría" (uncategorised) only the transactions the rule had classified (those corrected by hand afterwards are respected); ✅ 🧪 the partner neither sees nor deletes the other's personal rules, nor does another household.
+
+### OF-703 · Import history and undoing an import ✅
+- ✅ In Importar, the list of imports (`GET /api/v1/imports`): file, account, who, when, new, already imported and discarded, and whether it is undone. Only for the accounts each person sees.
+- ✅ "Deshacer" with confirmation on the screen itself (`POST /api/v1/imports/{id}/undo`): voids its transactions, with their corrections, in a log operation that can also be undone. Only the last confirmed import of each account.
+- ✅ Re-importing an undone file reactivates the same transactions (same identifier and corrections) instead of duplicating them.
+- Whether the balance matched on confirmation is not stored: the preview checks it, but the history does not show it yet.
+- ✅ 🧪 Undoing and re-importing the same file gives the same result (same new, same duplicates, same transactions); ✅ 🧪 an import into the partner's personal account cannot be undone (404) nor one from another household, nor seen in the list.
+
+### OF-704 · Ajustes (Settings): own account, sessions and joint-account top-ups ✅
+- ✅ Ajustes screen (⚙️ in the header, `#ajustes`). Changing the password asks for the current one (`POST /api/v1/me/password`); a wrong current one gives 422 and not 401 (a 401 would log out the web session) and counts towards the attempt limit.
+- ✅ "Cerrar sesión en los demás dispositivos" (Log out on other devices) (`POST /api/v1/me/sessions/revoke-others`). Changing the password also closes them; this browser's session stays open. The others are closed and not all of them, so as not to kick out whoever presses it: "Salir" already exists to log out.
+- ✅ "Recargas de la conjunta" (Joint-account top-ups): each person stores and removes their `*NNNN` (`GET/POST/DELETE /api/v1/me/patterns`); [ADR-0015](../adr/0015-patrones-por-persona-y-xlsx.md) updated. When importing into the Revolut joint account, the preview says who has no stored card and does not allow confirming without ticking "Importar igualmente" (Import anyway).
+- ✅ Entries to Categorías, Presupuestos and Reglas from Ajustes.
+- ✅ 🧪 Changing the password revokes that person's other sessions (not the partner's) and the new one works; ✅ 🧪 a person neither sees nor deletes the other's patterns, nor does another household; ✅ 🧪 repeated attempts with a wrong current password give 429.
+
+### OF-705 · Classify several at once and cash transactions ✅
+- ✅ In "Solo sin categoría" (Only uncategorised), checkboxes to select several expenses and "Poner categoría" (Set category) (`POST /api/v1/transactions/categorize`): without learning rules and as a single operation, which "Deshacer" reverts entirely. If any cannot be seen, none is touched (404).
+- ✅ "+ Añadir a mano" (Add by hand) (`POST /api/v1/transactions`): expense or income with date, description, positive amount (the type gives the sign), account and category, with provenance `manual`. An account from "otra entidad" (another institution) is proposed; on a bank account it warns that its balance will no longer match the statement. Until phase 10 there are no own cash accounts: they are created with `openfinance accounts add … --bank other`.
+- ✅ "Borrar" (Delete) in the detail of a manual transaction (`DELETE /api/v1/transactions/{id}`): it is voided and recorded in the log, and can be undone. Imported ones are not deleted (422): their import is undone (OF-703).
+- ✅ 🧪 A manual transaction counts in the totals and once deleted stops counting (neither in listings nor in the export), with its creation and removal in the history; ✅ 🧪 imported ones are not deleted; ✅ 🧪 the partner neither adds nor deletes in the other's personal account, nor does another household.
+
+### OF-706 · Change log with undo and redo ✅
+- ✅ On top of the foundation above: corrections, rules, classifying several, manual transactions and imports write to the log, and everything is undone by the same rule.
+- ✅ "Mis cambios" (My changes) screen (`#cambios`, from Ajustes and Movimientos): your last 50 operations with "Deshacer" or "Rehacer" (Redo).
+- ✅ Summaries are stored without counts and counted when read, over what the reader sees: a household rule the partner learns also classifies their personal accounts, and counting them in the joint account's history would reveal how many transactions they have there.
+- ✅ 🧪 Undo does not expose data from another person's personal account: neither identifiers nor counts in the history, and the undo result only says who changed something afterwards, not what they set; ✅ 🧪 each person only lists their own operations, from newest to oldest.
 
 --- | --- | --- |
-| OF-701 | Editar tipo, persona y nota de un movimiento, con historial de correcciones (`transaction_corrections`) | L |
-| OF-702 | Reglas visibles: aviso con «Deshacer», pantalla Reglas (`GET/DELETE /api/v1/rules`), los Bizum no aprenden reglas | M |
-| OF-703 | Historial de importaciones y deshacer una importación (anulación trazada, nunca borrado silencioso) | M |
-| OF-704 | Ajustes: cambio de contraseña, cerrar sesiones, tarjetas de recarga desde la web (revisa ADR-0015) | M |
-| OF-705 | Clasificar varios a la vez y movimientos de efectivo | M |
-| OF-706 | Registro de cambios con deshacer y rehacer: base de reglas, fusiones, importaciones y asistente | L |
+| OF-701 | Edit a transaction's type, person and note, with correction history (`transaction_corrections`) | L |
+| OF-702 | Visible rules: notice with "Deshacer", Reglas screen (`GET/DELETE /api/v1/rules`), Bizum do not learn rules | M |
+| OF-703 | Import history and undoing an import (traced voiding, never silent deletion) | M |
+| OF-704 | Ajustes: password change, closing sessions, top-up cards from the web (revises ADR-0015) | M |
+| OF-705 | Classify several at once and cash transactions | M |
+| OF-706 | Change log with undo and redo: rules foundation, merges, imports and assistant | L |
 
-Cada ticket lleva sus tests negativos de privacidad (la pareja y otro hogar).
+Each ticket carries its own negative privacy tests (the partner and another household).
 
 ---
 
-## Fase 8 · Uso diario (v0.2) ✅
+## Phase 8 · Daily use (v0.2) ✅
 
-Que la web se use cada día desde el móvil, el portátil o la tableta, sin sorpresas en los números del mes en curso. Sin ADR nuevo: cambia la presentación y añade lo mínimo en la API.
+So that the web app is used every day from the phone, laptop or tablet, with no surprises in the current month's numbers. No new ADR: it changes the presentation and adds the minimum to the API.
 
-### OF-801 · Navegación adaptable y estado en la URL ✅
-- ✅ Barra inferior en el móvil (< 640 px), carril a la izquierda en la tableta (640–1023 px) y barra lateral con los nombres completos en el escritorio. La cabecera conserva el nombre del hogar, Exportar, Ajustes y Salir. El aviso (toast) sube para no quedar detrás de la barra inferior.
-- ✅ El mes, «Hogar / Mío», la categoría elegida y los filtros de Movimientos (`q`, `cuenta`, `sin`, `todos`) viven en el hash de la URL (`#movimientos?mes=2026-09&q=luz`): se comparten con un enlace y sobreviven a recargar. Cambiar de filtro no añade entradas al historial. El menú arrastra el mes y la vista al cambiar de pantalla.
-- ✅ 🧪 Los filtros se leen y se escriben en la URL; un mes inválido se ignora; el menú conserva el mes; la pantalla actual lleva `aria-current`.
-- Pendiente de comprobar en un móvil real: `make e2e` (el test de objetivos táctiles ahora mide `.nav a`).
+### OF-801 · Adaptive navigation and state in the URL ✅
+- ✅ Bottom bar on the phone (< 640 px), a rail on the left on the tablet (640–1023 px) and a sidebar with full names on desktop. The header keeps the household name, Exportar, Ajustes and Salir. The notice (toast) moves up so as not to end up behind the bottom bar.
+- ✅ The month, "Hogar / Mío", the chosen category and the Movimientos filters (`q`, `cuenta`, `sin`, `todos`) live in the URL hash (`#movimientos?mes=2026-09&q=luz`): they are shared with a link and survive a reload. Changing a filter adds no history entries. The menu carries the month and view over when switching screens.
+- ✅ 🧪 Filters are read from and written to the URL; an invalid month is ignored; the menu keeps the month; the current screen carries `aria-current`.
+- Pending verification on a real phone: `make e2e` (the touch-target test now measures `.nav a`).
 
-### OF-802 · «Este mes» honesto ✅
-- ✅ `GET /api/v1/insights/month` añade `forecast` (gasto con el que cerraría el mes en curso) y `pending_charges` (cuotas habituales que aún no han llegado, con su día habitual; las que ya tocaban y no han llegado van como `late` y no se suman). Previsión = lo gastado + cuotas por llegar + ritmo diario del gasto variable (sin las cuotas ya cobradas) × días que quedan. Sin previsión antes del día 7 ni en meses cerrados.
-- ✅ Presupuestos: las cuotas fijas (cobradas o por cobrar) no disparan «cerca»; el aviso mira solo el margen que dejan para el gasto variable, y «pasado» sigue siendo siempre. `BudgetOut.fixed` lo enseña («120 € son cuotas fijas»).
-- ✅ 🧪 Previsión y pendientes con cuotas pagadas, por llegar y retrasadas; mes cerrado y pocos días sin previsión; la vista «Mío» no lista las cuotas de la pareja y otro hogar no se cuela; las cuotas fijas solas no dicen «cerca» pero el gasto variable sí y pasarse siempre avisa.
+### OF-802 · An honest "Este mes" ✅
+- ✅ `GET /api/v1/insights/month` adds `forecast` (spending with which the current month would close) and `pending_charges` (usual instalments that have not arrived yet, with their usual day; those that were already due and have not arrived are marked `late` and are not added up). Forecast = what was spent + instalments yet to arrive + daily pace of variable spending (without the instalments already charged) × days remaining. No forecast before day 7 or in closed months.
+- ✅ Budgets: fixed instalments (charged or yet to be charged) do not trigger "cerca" (near); the warning looks only at the margin they leave for variable spending, and "pasado" (over) always applies. `BudgetOut.fixed` shows it ("120 € son cuotas fijas", i.e. €120 are fixed instalments).
+- ✅ 🧪 Forecast and pending items with paid, yet-to-arrive and late instalments; closed month and few days with no forecast; the "Mío" view does not list the partner's instalments and another household does not leak in; fixed instalments alone do not say "cerca" but variable spending does, and going over always warns.
 
-### OF-803 · Movimientos con paginación por cursor ✅
-- ✅ `GET /api/v1/transactions/page`: 50 por página (hasta 200), cursor opaco (fecha + identificador, estable con empates), y en cada página `count` y `total` de todo el filtro. El listado simple `GET /api/v1/transactions` sigue para los gráficos.
-- ✅ En Movimientos, «Cargar más», «Mostrando 50 de 70 movimientos» y «Suma del filtro». Cambiar un filtro vuelve a la primera página. Cambiar una categoría actualiza solo esa fila (se vuelve a pedir la lista solo si la regla ha clasificado más movimientos o la fila deja de cumplir el filtro). Desaparece el tope de 1000 movimientos.
-- ✅ 🧪 Recorrer el cursor devuelve cada movimiento una vez y en el mismo orden que el listado; el total no cambia entre páginas ni cuenta los anulados; la cuenta personal de la pareja no entra en páginas ni totales (ni con un cursor ajeno ni pidiendo su `account_id`, 404); otro hogar no ve nada; cursor y límite inválidos dan 422.
+### OF-803 · Transactions with cursor pagination ✅
+- ✅ `GET /api/v1/transactions/page`: 50 per page (up to 200), opaque cursor (date + identifier, stable with ties), and on every page `count` and `total` for the whole filter. The simple listing `GET /api/v1/transactions` remains for the charts.
+- ✅ In Movimientos, "Cargar más" (Load more), "Mostrando 50 de 70 movimientos" (Showing 50 of 70 transactions) and "Suma del filtro" (Filter total). Changing a filter returns to the first page. Changing a category updates only that row (the list is requested again only if the rule has classified more transactions or the row stops meeting the filter). The 1000-transaction cap disappears.
+- ✅ 🧪 Walking the cursor returns each transaction once and in the same order as the listing; the total does not change between pages nor count voided ones; the partner's personal account does not enter pages or totals (neither with someone else's cursor nor by requesting its `account_id`, 404); another household sees nothing; invalid cursor and limit give 422.
 
-### OF-804 · Accesibilidad ✅
-- ✅ `document.title` por pantalla («Movimientos · OpenFinance»), enlace «Saltar al contenido», el foco pasa al contenido al cambiar de pantalla y anillo de foco visible.
-- ✅ Errores junto al campo (`aria-invalid` + `aria-describedby`, y el foco vuelve al campo): acceso, contraseña actual incorrecta, importe de «Añadir a mano» y presupuestos (se conserva lo escrito).
-- ✅ 🧪 axe-core (WCAG 2.1 A/AA) sin violaciones en las once pantallas y en el acceso. El contraste no se puede medir en jsdom: un test calcula la razón de cada par de colores de `index.css` en los tres temas (mínimo 4,5:1). Subió el fondo de las etiquetas verde y naranja, que quedaban en 4,3:1.
-- axe-core es MPL-2.0 y solo de desarrollo ([dependencias](../legal/dependencias.md)).
+### OF-804 · Accessibility ✅
+- ✅ `document.title` per screen ("Movimientos · OpenFinance"), "Saltar al contenido" (Skip to content) link, focus moves to the content when switching screens, and a visible focus ring.
+- ✅ Errors next to the field (`aria-invalid` + `aria-describedby`, and focus returns to the field): login, wrong current password, "Añadir a mano" amount and budgets (what was typed is kept).
+- ✅ 🧪 axe-core (WCAG 2.1 A/AA) with no violations on the eleven screens and on login. Contrast cannot be measured in jsdom: a test computes the ratio of each colour pair in `index.css` across the three themes (minimum 4.5:1). The background of the green and orange labels was raised, as they were at 4.3:1.
+- axe-core is MPL-2.0 and development-only ([dependencias](../legal/dependencias.md)).
 
-### OF-805 · Modo oscuro e instalable en el móvil ✅
-- ✅ Tema oscuro por tokens de color: sigue al sistema y en Ajustes → Apariencia se fuerza «Claro» u «Oscuro» (se recuerda en el navegador; si no deja guardar, vale para la visita).
-- ✅ PWA: `manifest.webmanifest`, iconos propios (192, 512, maskable y de iOS; sustituyen el logotipo por defecto de Vite) y un service worker mínimo que guarda solo la carcasa de la app. Nunca toca `/api/` ni `/health`. Se registra solo en producción y con HTTPS.
-- ✅ 🧪 Elegir y recordar el tema; manifiesto con iconos existentes; `index.html` enlaza manifiesto, color y icono; el service worker excluye la API.
-- Sin acceso a datos sin conexión: sin red se abre la carcasa con el aviso de que no hay conexión.
+### OF-805 · Dark mode and installable on the phone ✅
+- ✅ Dark theme via colour tokens: it follows the system and in Ajustes → Apariencia (Appearance) "Claro" (Light) or "Oscuro" (Dark) can be forced (remembered in the browser; if it cannot be saved, it applies for the visit).
+- ✅ PWA: `manifest.webmanifest`, own icons (192, 512, maskable and iOS; they replace Vite's default logo) and a minimal service worker that caches only the app shell. It never touches `/api/` or `/health`. It registers only in production and over HTTPS.
+- ✅ 🧪 Choosing and remembering the theme; manifest with existing icons; `index.html` links the manifest, colour and icon; the service worker excludes the API.
+- No offline data access: without a network the shell opens with a notice that there is no connection.
 
-### OF-806 · Simulador con todas las categorías e ideas descartables ✅
-- ✅ El simulador ofrece todas las categorías con gasto (antes seis fijas), de mayor a menor media: se ven seis y «Mostrar las N restantes»; el total cuenta también las plegadas.
-- ✅ «Descartar» una idea la esconde para todo el hogar (`PUT/DELETE /api/v1/savings/ideas/{id}/dismissed`, migración `0008_dismissed_ideas`); «Ver N ideas descartadas» y «Recuperar». Solo valen ideas que existen (404 si no).
-- ✅ 🧪 Descartar y recuperar es idempotente y se ve igual desde la pareja; ideas inventadas dan 404; otro hogar no se ve afectado; sin sesión no se puede.
+### OF-806 · Simulator with all categories and dismissible ideas ✅
+- ✅ The simulator offers all categories with spending (before, six fixed ones), from highest to lowest average: six are shown plus "Mostrar las N restantes" (Show the remaining N); the total also counts the collapsed ones.
+- ✅ "Descartar" (Dismiss) an idea hides it for the whole household (`PUT/DELETE /api/v1/savings/ideas/{id}/dismissed`, migration `0008_dismissed_ideas`); "Ver N ideas descartadas" (See N dismissed ideas) and "Recuperar" (Restore). Only existing ideas are valid (404 otherwise).
+- ✅ 🧪 Dismissing and restoring is idempotent and looks the same from the partner's side; made-up ideas give 404; another household is unaffected; without a session it is not possible.
 
-## Fase 9 · Operación (v0.2) ✅
+## Phase 9 · Operations (v0.2) ✅
 
 | ID | Ticket |
 | 
 
-Notas de la implementación (sin probar en un equipo con Docker; lo comprueban los jobs `security`, `scripts` y `compose-e2e` de CI):
+Implementation notes (not tested on a machine with Docker; the CI jobs `security`, `scripts` and `compose-e2e` check it):
 
-- OF-901: `make backup` exige `OPENFINANCE_BACKUP_RECIPIENT`; se prueba con `make scripts-test` (docker y age simulados).
-- OF-902: Trivy y `pip-audit` pueden fallar con vulnerabilidades que ya existan en las dependencias: se corrigen o se justifican en `.trivyignore`.
-- OF-903: `deploy/scripts/ci/headers.sh` comprueba cabeceras, caché y gzip contra una instalación real.
-- OF-905: `repositories.py` ahora es un paquete con un módulo por contexto.
-- OF-906: el cambio de contraseña también usa el limitador nuevo, pero su Argon2 sigue en el grupo de hilos común (solo para personas con sesión).
-- OF-907: la consulta de versión es opt-in por privacidad; la firma de las imágenes solo se ve en la primera etiqueta publicada.
+- OF-901: `make backup` requires `OPENFINANCE_BACKUP_RECIPIENT`; it is tested with `make scripts-test` (simulated docker and age).
+- OF-902: Trivy and `pip-audit` may fail on vulnerabilities that already exist in the dependencies: they are fixed or justified in `.trivyignore`.
+- OF-903: `deploy/scripts/ci/headers.sh` checks headers, caching and gzip against a real installation.
+- OF-905: `repositories.py` is now a package with one module per context.
+- OF-906: password change also uses the new limiter, but its Argon2 stays in the common thread pool (only for people with a session).
+- OF-907: the version check is opt-in for privacy; the image signature is only visible on the first published tag.
 
 --- | --- |
-| OF-901 | Copias cifradas con `age`, rotación y receta para guardarlas fuera del equipo |
-| OF-902 | Imágenes por digest, actions por SHA, Renovate, `pip-audit`, `npm audit` y Trivy |
-| OF-903 | nginx con `gzip`, `Cache-Control` y cabeceras; Compose endurecido y rotación de logs |
-| OF-904 | Logging configurado, identificador de petición y `/ready` con base de datos |
-| OF-905 | Saldos con `SUM` en SQL, un solo flush al confirmar y `repositories.py` partido por contexto |
-| OF-906 | Limitador de login acotado y atómico; Argon2 fuera del threadpool común |
-| OF-907 | Imágenes publicadas y firmadas; aviso de versión nueva |
+| OF-901 | Encrypted backups with `age`, rotation and a recipe to store them off the machine |
+| OF-902 | Images by digest, actions by SHA, Renovate, `pip-audit`, `npm audit` and Trivy |
+| OF-903 | nginx with `gzip`, `Cache-Control` and headers; hardened Compose and log rotation |
+| OF-904 | Configured logging, request identifier and `/ready` with database |
+| OF-905 | Balances with `SUM` in SQL, a single flush on confirmation and `repositories.py` split by context |
+| OF-906 | Bounded and atomic login limiter; Argon2 out of the common threadpool |
+| OF-907 | Published and signed images; new-version notice |
 
 ---
 
-## Fase 10 · Libro contable completo (v0.3) ✅
+## Phase 10 · Complete ledger (v0.3) ✅
 
-Hecha (sin probar en un equipo con Docker: lo comprueba `compose-e2e`). Alcance en [ADR-0018](../adr/0018-libro-contable-completo.md) y [ADR-0019](../adr/0019-varias-monedas.md), ambos aceptados el 1 de noviembre de 2026. Cada ticket lleva su migración, su cambio de OpenAPI (`make openapi`), tests de privacidad negativos y registro de cambios con deshacer.
+Done (not tested on a machine with Docker: `compose-e2e` checks it). Scope in [ADR-0018](../adr/0018-libro-contable-completo.md) and [ADR-0019](../adr/0019-varias-monedas.md), both accepted on 1 November 2026. Each ticket carries its migration, its OpenAPI change (`make openapi`), negative privacy tests and change log with undo.
 
-| ID | Ticket | Criterio de hecho |
+| ID | Ticket | Definition of done |
 | --- | --- | --- |
-| OF-1001 ✅ | Comercios: entidad con variantes del banco, renombrar y fusionar | Fusionar dos comercios reclasifica sus movimientos y se deshace; el nombre visible sale en listados e informes |
-| OF-1002 ✅ | Etiquetas y notas largas en movimientos | Filtrar por etiqueta; las etiquetas son del hogar y heredan la visibilidad del movimiento |
-| OF-1003 ✅ | Dividir un movimiento en partes con categoría | La suma de las partes es el importe original; los informes usan las partes (test de propiedades: dividir no cambia el total) |
-| OF-1004 ✅ | Traspasos enlazados entre cuentas propias | Los dos lados se enlazan y ninguno cuenta como gasto ni ingreso; enlazar y desenlazar se deshace |
-| OF-1005 ✅ | Tipos de cuenta: efectivo, tarjeta, préstamo e inversión | El saldo de `card` y `loan` resta; no entran en gasto ni presupuestos; migración sin tocar cuentas existentes |
-| OF-1006 ✅ | Conciliación: revisado y saldo contra el del banco en una fecha | Un movimiento revisado no cambia con una importación; la diferencia de saldo se muestra |
-| OF-1007 ✅ | Adjuntos (ticket, factura) en un movimiento | En disco, con la privacidad del movimiento, en la copia de seguridad y con límite de tamaño y tipo |
-| OF-1008 ✅ | Varias monedas con tipos de cambio manuales (ADR-0019) | Sin tasa, el movimiento no se convierte y el informe lo dice; un hogar de una moneda no cambia |
+| OF-1001 ✅ | Merchants: entity with bank variants, rename and merge | Merging two merchants reclassifies their transactions and can be undone; the visible name appears in listings and reports |
+| OF-1002 ✅ | Tags and long notes on transactions | Filter by tag; tags belong to the household and inherit the transaction's visibility |
+| OF-1003 ✅ | Split a transaction into parts with a category | The sum of the parts is the original amount; reports use the parts (property test: splitting does not change the total) |
+| OF-1004 ✅ | Linked transfers between own accounts | The two sides are linked and neither counts as expense or income; linking and unlinking can be undone |
+| OF-1005 ✅ | Account types: cash, card, loan and investment | The balance of `card` and `loan` subtracts; they do not enter spending or budgets; migration without touching existing accounts |
+| OF-1006 ✅ | Reconciliation: reviewed and balance against the bank's on a date | A reviewed transaction does not change with an import; the balance difference is shown |
+| OF-1007 ✅ | Attachments (receipt, invoice) on a transaction | On disk, with the transaction's privacy, in the backup and with a size and type limit |
+| OF-1008 ✅ | Multiple currencies with manual exchange rates (ADR-0019) | Without a rate, the transaction is not converted and the report says so; a single-currency household does not change |
 
 ---
 
-## Fase 11 · Reglas e importación universal (v0.4) ✅
+## Phase 11 · Rules and universal import (v0.4) ✅
 
-Alcance en [ADR-0020](../adr/0020-motor-de-reglas-e-importacion-universal.md). Cada ticket lleva su migración, su cambio de OpenAPI (`make openapi`), tests de privacidad negativos y, si cambia datos, registro de cambios con deshacer. Los extractos de prueba son siempre sintéticos.
+Scope in [ADR-0020](../adr/0020-motor-de-reglas-e-importacion-universal.md). Each ticket carries its migration, its OpenAPI change (`make openapi`), negative privacy tests and, if it changes data, change log with undo. Test statements are always synthetic.
 
-| ID | Ticket | Criterio de hecho |
+| ID | Ticket | Definition of done |
 | --- | --- | --- |
-| OF-1101 ✅ | Reglas con condiciones, acciones y fases | Cada condición y cada acción tiene su test; «la primera que fija, gana»; las reglas aprendidas siguen funcionando; sin expresiones regulares |
-| OF-1102 ✅ | Vista previa de una regla y aplicar a lo existente | La vista previa no escribe; aplicar es una operación que se deshace; nunca pisa lo fijado a mano, lo revisado ni lo dividido; test de idempotencia |
-| OF-1103 ✅ | Importar OFX y QIF | Archivos sintéticos de ejemplo; mismas huellas al importar dos veces; saldo comprobado si el formato lo trae |
-| OF-1104 ✅ | Importar CAMT.053 | XML con `defusedxml` (sin entidades); varios movimientos por entrada; débito y crédito con su signo |
-| OF-1105 ✅ | CSV de cualquier banco con perfiles | Perfil creado desde la vista previa, guardado y reutilizado; fecha y número en varios formatos; débito/crédito en dos columnas |
+| OF-1101 ✅ | Rules with conditions, actions and phases | Each condition and each action has its test; "first to set wins"; learned rules keep working; no regular expressions |
+| OF-1102 ✅ | Rule preview and apply to existing data | The preview does not write; applying is an operation that can be undone; it never overrides what was set by hand, reviewed or split; idempotency test |
+| OF-1103 ✅ | Import OFX and QIF | Synthetic sample files; same fingerprints when importing twice; balance checked if the format carries it |
+| OF-1104 ✅ | Import CAMT.053 | XML with `defusedxml` (no entities); several transactions per entry; debit and credit with their sign |
+| OF-1105 ✅ | CSV from any bank with profiles | Profile created from the preview, saved and reused; date and number in several formats; debit/credit in two columns |
 
 ---
 
-## Fase 12 · Planificar (v0.5) ✅
+## Phase 12 · Planning (v0.5) ✅
 
-Hecha (sin probar en un equipo con Docker ni con PostgreSQL: lo comprueba CI). Alcance en [ADR-0021](../adr/0021-pagos-programados-y-prevision.md) y [ADR-0022](../adr/0022-presupuestos-con-limites-o-sobres.md), ambos aceptados el 2 de noviembre de 2026. Cada ticket lleva su migración, su cambio de OpenAPI (`make openapi`), tests de privacidad negativos y, si cambia datos, registro de cambios con deshacer.
+Done (not tested on a machine with Docker or PostgreSQL: CI checks it). Scope in [ADR-0021](../adr/0021-pagos-programados-y-prevision.md) and [ADR-0022](../adr/0022-presupuestos-con-limites-o-sobres.md), both accepted on 2 November 2026. Each ticket carries its migration, its OpenAPI change (`make openapi`), negative privacy tests and, if it changes data, change log with undo.
 
-| ID | Ticket | Criterio de hecho |
+| ID | Ticket | Definition of done |
 | --- | --- | --- |
-| OF-1201 ✅ | Pagos programados: calendario, emparejado con lo cobrado y atrasos | Las ocurrencias son una función pura del calendario (meses cortos, fin, rango); emparejar no escribe movimientos (se calcula, ver ADR-0021); crear, cambiar y borrar se deshace; un cargo detectado se convierte en pago programado desde «Ahorrar» |
-| OF-1202 ✅ | Previsión de saldo por cuenta y del hogar | Saldo día a día; primer día en negativo y mínimo; una cuenta personal ajena no entra; `card` y `loan` fuera; cada moneda se suma aparte, sin mezclar |
-| OF-1203 ✅ | Presupuestos con límites o sobres, arrastre e importes por mes (ADR-0022) | Los presupuestos existentes siguen siendo límites; el arrastre se recalcula desde el gasto (hasta 36 meses atrás); un sobre en negativo arrastra el déficit; las cuentas personales nunca cuentan. La exportación v1 solo lleva el importe base (la v2, de la fase 15, lleva modo y importes por mes) |
-| OF-1204 ✅ | Plantillas de movimientos | Crear desde plantilla usa el alta manual normal, con registro de cambios y deshacer; una plantilla del hogar no usa cuentas personales y una personal solo la ve su dueño |
-| OF-1205 ✅ | «Hoy podéis gastar» | Cifra con su desglose; sin datos suficientes lo dice en vez de inventar; solo cuenta la conjunta, así que no depende de quién mire; muestra lo que queda en cada sobre |
-| OF-1206 ✅ | Objetivos v2: aportaciones, prioridad y recordatorio | Las aportaciones alimentan lo ahorrado si no hay hucha; reparto por prioridad (solo sugiere); aportar, retirar y borrar se deshace; el recordatorio es un pago programado ya rellenado |
+| OF-1201 ✅ | Scheduled payments: calendar, matching with what was charged, and overdue ones | Occurrences are a pure function of the calendar (short months, end, range); matching does not write transactions (it is computed, see ADR-0021); creating, changing and deleting can be undone; a detected charge becomes a scheduled payment from "Ahorrar" |
+| OF-1202 ✅ | Balance forecast per account and for the household | Day-by-day balance; first day in the red and minimum; another person's personal account does not enter; `card` and `loan` excluded; each currency is summed separately, without mixing |
+| OF-1203 ✅ | Budgets with limits or envelopes, carry-over and per-month amounts (ADR-0022) | Existing budgets remain limits; carry-over is recomputed from spending (up to 36 months back); an overspent envelope carries the deficit forward; personal accounts never count. Export v1 only carries the base amount (v2, from phase 15, carries mode and per-month amounts) |
+| OF-1204 ✅ | Transaction templates | Creating from a template uses the normal manual entry, with change log and undo; a household template does not use personal accounts and a personal one is only seen by its owner |
+| OF-1205 ✅ | "Hoy podéis gastar" (Today you can spend) | A figure with its breakdown; with insufficient data it says so instead of making things up; only the joint account counts, so it does not depend on who looks; shows what is left in each envelope |
+| OF-1206 ✅ | Goals v2: contributions, priority and reminder | Contributions feed the saved amount if there is no pocket; split by priority (only suggests); contributing, withdrawing and deleting can be undone; the reminder is a pre-filled scheduled payment |
 
 ---
 
-## Fase 13 · Alertas (v0.6) ✅
+## Phase 13 · Alerts (v0.6) ✅
 
-Hecha (sin probar en un móvil real ni con un servicio push de verdad: los tests usan un envío simulado). Alcance en [ADR-0023](../adr/0023-avisos-y-notificaciones.md), aceptado el 3 de noviembre de 2026. Los avisos son funciones puras que se recalculan; solo se guarda quién descartó cuál. Canal de notificaciones: Web Push.
+Done (not tested on a real phone or with a real push service: the tests use a simulated sender). Scope in [ADR-0023](../adr/0023-avisos-y-notificaciones.md), accepted on 3 November 2026. Alerts are pure functions that are recomputed; only who dismissed which one is stored. Notification channel: Web Push.
 
-| ID | Ticket | Criterio de hecho |
+| ID | Ticket | Definition of done |
 | --- | --- | --- |
-| OF-1301 ✅ | Motor de avisos y bandeja | Duplicados, comisiones, recibos que suben, pagos atrasados, saldo negativo previsto y presupuesto superado, cada uno con su test; descartar es por persona; una cuenta personal ajena no genera, muestra ni deja descartar avisos |
-| OF-1302 ✅ | Notificaciones Web Push y preferencias | Suscripción por dispositivo y tipos de aviso por persona; `openfinance alerts notify` es idempotente; el texto no lleva importes ni comercios; sin claves VAPID está apagado y lo dice |
-| OF-1303 ✅ | Resumen semanal | Gasto de la semana frente a la anterior, categorías que más pesan, pagos de los próximos 7 días y avisos abiertos; una vez por semana y persona; se puede apagar |
+| OF-1301 ✅ | Alert engine and inbox | Duplicates, fees, rising bills, overdue payments, forecast negative balance and exceeded budget, each with its test; dismissing is per person; another person's personal account neither generates, shows nor allows dismissing alerts |
+| OF-1302 ✅ | Web Push notifications and preferences | Subscription per device and alert types per person; `openfinance alerts notify` is idempotent; the text carries no amounts or merchants; without VAPID keys it is off and says so |
+| OF-1303 ✅ | Weekly summary | The week's spending versus the previous one, heaviest categories, payments in the next 7 days and open alerts; once per week and person; can be turned off |
 
 ---
 
-## Fase 14 · Conexión con el banco (v0.7) ✅
+## Phase 14 · Bank connection (v0.7) ✅
 
-Hecha. Probada con Revolut (`ES`) el 3 de noviembre de 2026; Bankinter pendiente de probar. Los tests de CI usan un agregador simulado. Alcance en [ADR-0024](../adr/0024-conexion-con-el-banco.md), aceptado el 3 de noviembre de 2026. Agregador PSD2 con la cuenta del propio hogar; solo lectura.
+Done. Tested with Revolut (`ES`) on 3 November 2026; Bankinter still to be tested. CI tests use a simulated aggregator. Scope in [ADR-0024](../adr/0024-conexion-con-el-banco.md), accepted on 3 November 2026. PSD2 aggregator using the household's own account; read-only.
 
-| ID | Ticket | Criterio de hecho |
+| ID | Ticket | Definition of done |
 | --- | --- | --- |
-| OF-1401 ✅ | Conexión y consentimiento | Cada persona conecta su banco y la conexión es suya (otra persona o de otro hogar recibe 404); el `state` es de un solo uso y solo lo completa quien lo creó; las cuentas del banco se enlazan solo con cuentas que la persona ve y de su moneda; la sesión del agregador no sale por la API; sin variables de Enable Banking está apagado y lo dice; revocar cierra la sesión y no borra movimientos |
-| OF-1402 ✅ | Sincronización por la tubería de importación | Misma huella y mismas reglas que un extracto; sincronizar dos veces no duplica; cada sincronización es un lote que se puede deshacer; los pendientes no entran; un fallo del banco no toca nada y queda dicho; `openfinance bank sync` para cron |
-| OF-1403 ✅ | Caducidad del consentimiento | Pasada la fecha deja de sincronizar y se ve como caducada; aviso 14 días antes y al caducar, solo para su titular; renovar no pierde el historial |
-| OF-1404 ✅ | Conciliación automática | Un movimiento ya anotado (a mano o importado) con el mismo importe a ≤ 3 días se concilia en vez de duplicarse y conserva su propia huella (reimportar su extracto no duplica); con varios candidatos no se adivina; deshacer una sincronización no anula lo conciliado; el saldo del banco se compara con el calculado y la diferencia se ve |
+| OF-1401 ✅ | Connection and consent | Each person connects their bank and the connection is theirs (another person or another household gets 404); the `state` is single-use and only completed by whoever created it; the bank's accounts are linked only to accounts the person sees and in their currency; the aggregator session does not leave through the API; without Enable Banking variables it is off and says so; revoking closes the session and does not delete transactions |
+| OF-1402 ✅ | Sync through the import pipeline | Same fingerprint and same rules as a statement; syncing twice does not duplicate; each sync is a batch that can be undone; pending items do not enter; a bank failure touches nothing and is reported; `openfinance bank sync` for cron |
+| OF-1403 ✅ | Consent expiry | After the date it stops syncing and shows as expired; notice 14 days before and on expiry, only for its holder; renewing does not lose the history |
+| OF-1404 ✅ | Automatic reconciliation | A transaction already recorded (by hand or imported) with the same amount within ≤ 3 days is reconciled instead of duplicated and keeps its own fingerprint (re-importing its statement does not duplicate); with several candidates it does not guess; undoing a sync does not void what was reconciled; the bank's balance is compared with the computed one and the difference is visible |
 
 ---
 
-## Fase 15 · Informes y patrimonio (v0.8) ✅
+## Phase 15 · Reports and net worth (v0.8) ✅
 
-Hecha. Alcance en [ADR-0025](../adr/0025-informes-y-patrimonio.md), aceptado el 3 de noviembre de 2026. Todo son vistas calculadas con los permisos de quien las pide.
+Done. Scope in [ADR-0025](../adr/0025-informes-y-patrimonio.md), accepted on 3 November 2026. Everything is views computed with the permissions of whoever requests them.
 
-| ID | Ticket | Criterio de hecho |
+| ID | Ticket | Definition of done |
 | --- | --- | --- |
-| OF-1501 ✅ | Patrimonio neto | Activos (saldos positivos) menos deudas (negativos) de las cuentas que ve quien pregunta; hoy y 12 fines de mes; una cuenta personal ajena nunca suma; otras monedas se convierten y, sin tipo de cambio, se listan aparte en vez de inventar; los movimientos anulados no cuentan |
-| OF-1502 ✅ | Flujo de caja | Por mes y sobre el dinero líquido que ve quien pregunta, en la moneda del hogar: ingresos, aportaciones netas, gasto, ahorro y traspasos propios; su suma es exactamente la variación del saldo del mes; tarjetas, préstamos, inversiones y cuentas en otra moneda fuera (y se dice) |
-| OF-1503 ✅ | Informes a medida | Definición cerrada (periodo, medida, agrupación, filtros) que se ejecuta con los permisos de quien la ejecuta; guardar personal o compartido (un compartido no filtra por cuentas personales y, si una cuenta deja de verse, no se ensancha); filtrar por una cuenta que no se ve es 404; CSV protegido frente a fórmulas |
-| OF-1504 ✅ | Exportación v2 | `format_version` 2 con presupuestos por mes, aportaciones, pagos programados, plantillas, reglas, comercios, informes y conexiones bancarias (sin sesión ni `state`); v1 sigue con `?version=1`; lista de campos que nunca salen |
+| OF-1501 ✅ | Net worth | Assets (positive balances) minus debts (negative) of the accounts the asker sees; today and 12 month-ends; another person's personal account never adds up; other currencies are converted and, without an exchange rate, listed separately instead of made up; voided transactions do not count |
+| OF-1502 ✅ | Cash flow | Per month and over the liquid money the asker sees, in the household currency: income, net contributions, spending, savings and own transfers; their sum is exactly the month's balance change; cards, loans, investments and accounts in another currency excluded (and it says so) |
+| OF-1503 ✅ | Custom reports | Closed definition (period, measure, grouping, filters) that runs with the permissions of whoever runs it; save as personal or shared (a shared one does not filter by personal accounts and, if an account stops being visible, it does not widen); filtering by an account that is not visible is 404; CSV protected against formulas |
+| OF-1504 ✅ | Export v2 | `format_version` 2 with budgets per month, contributions, scheduled payments, templates, rules, merchants, reports and bank connections (without session or `state`); v1 continues with `?version=1`; list of fields that never leave |
 
 ---
 
-## Fase 16 · Hogar ampliado (v0.9) ✅
+## Phase 16 · Extended household (v0.9) ✅
 
-Hecha (sin probar con personas reales invitando y repartiendo; solo tests y la instalación de demostración). Alcance en [ADR-0026](../adr/0026-hogar-ampliado.md), aceptado el 3 de noviembre de 2026. Se reutiliza el hogar como frontera: un hogar de cuatro personas es el «piso compartido».
+Done (not tested with real people inviting and splitting; only tests and the demo installation). Scope in [ADR-0026](../adr/0026-hogar-ampliado.md), accepted on 3 November 2026. The household is reused as the boundary: a four-person household is the "shared flat".
 
-| ID | Ticket | Criterio de hecho |
+| ID | Ticket | Definition of done |
 | --- | --- | --- |
-| OF-1601 ✅ | Más personas con roles e invitaciones | Roles `owner`, `editor` y `viewer` (hasta 10 personas); un `viewer` no escribe en ninguna ruta de escritura (se recorren todas); solo un `owner` invita, cambia roles y quita personas, sin dejar el hogar sin `owner` ni quitar a quien tiene cuentas personales; el rol no abre cuentas personales; la invitación se enseña una vez, solo se guarda su hash, vale 7 días y una sola vez, y todo fallo da el mismo mensaje; aceptar está limitado por intentos |
-| OF-1602 ✅ | Reparto de gastos | Partes que suman exactamente el importe (mayor resto); saldos entre personas que suman cero; sugerencias con el mínimo de transferencias; liquidaciones con doble confirmación e idempotentes; invitados sin usuario; nada de otro hogar |
-| OF-1603 ✅ | Eventos y viajes | Un evento agrupa gastos compartidos y resume total, pagado, parte de cada uno, saldos solo con sus gastos y gasto por categoría; cerrado no admite gastos nuevos |
+| OF-1601 ✅ | More people with roles and invitations | Roles `owner`, `editor` and `viewer` (up to 10 people); a `viewer` does not write on any write route (all of them are walked); only an `owner` invites, changes roles and removes people, without leaving the household without an `owner` or removing someone who has personal accounts; the role does not open personal accounts; the invitation is shown once, only its hash is stored, it is valid for 7 days and a single use, and every failure gives the same message; accepting is attempt-limited |
+| OF-1602 ✅ | Expense splitting | Shares that add up exactly to the amount (largest remainder); balances between people that sum to zero; suggestions with the minimum number of transfers; settlements with double confirmation and idempotent; guests without a user; nothing from another household |
+| OF-1603 ✅ | Events and trips | An event groups shared expenses and summarises total, paid, each person's share, balances using only its expenses, and spending by category; once closed it admits no new expenses |
 
 ---
 
-## Después de v0.2
+## After v0.2
 
-Inspirado en Wallet, Spendee, Fintonic y Actual Budget. Cada fase empieza con su ADR y se detalla en tickets al empezarla. Esfuerzo estimado para una persona a tiempo completo.
+Inspired by Wallet, Spendee, Fintonic and Actual Budget. Each phase starts with its ADR and is broken down into tickets when started. Estimated effort for one person full time.
 
-| Fase | Versión | Qué consigue | Tickets | Esfuerzo |
+| Phase | Version | What it delivers | Tickets | Effort |
 | --- | --- | --- | --- | --- |
-| 10 · Libro contable completo | v0.3 | Hecha: [Fase 10](#fase-10--libro-contable-completo-v03) | OF-1001 … OF-1008 | ✅ |
-| 11 · Reglas e importación universal | v0.4 | Hecha: [Fase 11](#fase-11--reglas-e-importación-universal-v04) | OF-1101 … OF-1105 | ✅ |
-| 12 · Planificar | v0.5 | Hecha: [Fase 12](#fase-12--planificar-v05) | OF-1201 … OF-1206 | ✅ |
-| 13 · Alertas | v0.6 | Hecha: [Fase 13](#fase-13--alertas-v06) | OF-1301 … OF-1303 | ✅ |
-| 14 · Conexión con el banco | v0.7 | Hecha: [Fase 14](#fase-14--conexión-con-el-banco-v07) | OF-1401 … OF-1404 | ✅ |
-| 15 · Informes y patrimonio | v0.8 | Hecha: [Fase 15](#fase-15--informes-y-patrimonio-v08) | OF-1501 … OF-1504 | ✅ |
-| 16 · Hogar ampliado | v0.9 | Hecha: [Fase 16](#fase-16--hogar-ampliado-v09) | OF-1601 … OF-1603 | ✅ |
-| 17 · Plataforma 1.0 | v1.0 | API con tokens, servidor MCP de lectura, asistente con aprobación (ADR-0004, ADR-0005), auditoría externa de seguridad | OF-1701 … OF-1705 | 6 semanas |
+| 10 · Complete ledger | v0.3 | Done: [Phase 10](#phase-10--complete-ledger-v03) | OF-1001 … OF-1008 | ✅ |
+| 11 · Rules and universal import | v0.4 | Done: [Phase 11](#phase-11--rules-and-universal-import-v04) | OF-1101 … OF-1105 | ✅ |
+| 12 · Planning | v0.5 | Done: [Phase 12](#phase-12--planning-v05) | OF-1201 … OF-1206 | ✅ |
+| 13 · Alerts | v0.6 | Done: [Phase 13](#phase-13--alerts-v06) | OF-1301 … OF-1303 | ✅ |
+| 14 · Bank connection | v0.7 | Done: [Phase 14](#phase-14--bank-connection-v07) | OF-1401 … OF-1404 | ✅ |
+| 15 · Reports and net worth | v0.8 | Done: [Phase 15](#phase-15--reports-and-net-worth-v08) | OF-1501 … OF-1504 | ✅ |
+| 16 · Extended household | v0.9 | Done: [Phase 16](#phase-16--extended-household-v09) | OF-1601 … OF-1603 | ✅ |
+| 17 · Platform 1.0 | v1.0 | API with tokens, read-only MCP server, assistant with approval (ADR-0004, ADR-0005), external security audit | OF-1701 … OF-1705 | 6 weeks |
 
-Fuera de alcance a propósito: nota financiera, préstamos, seguros y cuentas remuneradas (son negocio de intermediación) y cifrado de extremo a extremo (impediría calcular los agregados en el servidor; se cubre con disco y copias cifradas).
+Deliberately out of scope: financial scoring, loans, insurance and interest-bearing accounts (they are an intermediation business) and end-to-end encryption (it would prevent computing the aggregates on the server; it is covered with disk and backup encryption).

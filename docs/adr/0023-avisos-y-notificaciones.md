@@ -1,46 +1,46 @@
-# ADR-0023: Avisos deterministas, notificaciones Web Push y resumen semanal
+# ADR-0023: Deterministic alerts, Web Push notifications and weekly summary
 
-- Estado: Accepted
-- Fecha: 2026-11-03
+- Status: Accepted
+- Date: 2026-11-03
 
-## Contexto
+## Context
 
-Con pagos programados, previsión y presupuestos (ADR-0021, ADR-0022) hay datos para avisar de lo que importa: un cargo duplicado, una comisión, un recibo que sube, un pago que no ha llegado, un saldo que se queda en negativo. Hoy hay que abrir la app para enterarse. El hogar son dos personas y la instalación es propia (HTTPS con dominio propio).
+With scheduled payments, forecast and budgets (ADR-0021, ADR-0022) there is data to warn about what matters: a duplicate charge, a fee, a bill that goes up, a payment that has not arrived, a balance about to go negative. Today you have to open the app to find out. The household is two people and the installation is self-hosted (HTTPS with its own domain).
 
-## Decisión
+## Decision
 
-### Avisos (OF-1301)
+### Alerts (OF-1301)
 
-- Un **aviso** es una función pura de los datos de hoy. **No se guarda**: se recalcula en cada consulta, como el emparejado de pagos. Lo único que se guarda es que una persona lo **descartó**, por su clave (`alert_dismissals`, por persona, no por hogar).
-- Detectores, cada uno con su umbral explícito y sin aprendizaje:
-  - `duplicate`: mismo gasto (cuenta, comercio, importe) a ≤ 2 días; solo los últimos 14 días.
-  - `fee`: gasto cuyo concepto o tipo de banco dice «comisión»/«fee», últimos 30 días.
-  - `price_rise`: cuota recurrente cuyo último cambio fue este mes o el anterior y subió ≥ 5 %.
-  - `late_payment`: ocurrencia atrasada de un pago programado.
-  - `low_balance`: una cuenta de efectivo queda en negativo en los próximos 30 días según la previsión.
-  - `budget_over`: presupuesto superado este mes.
-- La **clave** de cada aviso es estable y nombra lo que lo causa (`duplicate:<movimiento>`, `price_rise:<comercio>:<mes>`…): un cambio de precio nuevo avisa de nuevo; descartar uno no apaga el siguiente.
-- **Privacidad (ADR-0013)**: cada detector solo ve las cuentas visibles para quien consulta. Un aviso de una cuenta personal solo lo ve su titular, no se puede descartar desde otra cuenta (404) y no aparece en ninguna notificación ajena. Los avisos de presupuestos y cuotas recurrentes usan solo la conjunta, como el resto de informes del hogar.
-- Descartar solo acepta claves de avisos que existen hoy para esa persona: una clave inventada o ajena da 404.
+- An **alert** is a pure function of today's data. **It is not stored**: it is recomputed on every query, like payment matching. The only thing stored is that a person **dismissed** it, by its key (`alert_dismissals`, per person, not per household).
+- Detectors, each with its explicit threshold and no learning:
+  - `duplicate`: same expense (account, merchant, amount) within ≤ 2 days; only the last 14 days.
+  - `fee`: expense whose description or bank type says "comisión"/"fee" (fee), last 30 days.
+  - `price_rise`: recurring charge whose last change was this month or the previous one and rose by ≥ 5%.
+  - `late_payment`: overdue occurrence of a scheduled payment.
+  - `low_balance`: a cash account goes negative in the next 30 days according to the forecast.
+  - `budget_over`: budget exceeded this month.
+- Each alert's **key** is stable and names what causes it (`duplicate:<transaction>`, `price_rise:<merchant>:<month>`…): a new price change alerts again; dismissing one does not silence the next.
+- **Privacy (ADR-0013)**: each detector only sees the accounts visible to the person querying. An alert from a personal account is only seen by its owner, cannot be dismissed from another account (404) and does not appear in any other person's notification. Budget and recurring-charge alerts use only the joint account, like the rest of the household reports.
+- Dismissing only accepts keys of alerts that exist today for that person: an invented or foreign key returns 404.
 
-### Notificaciones (OF-1302): Web Push
+### Notifications (OF-1302): Web Push
 
-- Canal único en esta fase: **Web Push** (estándar W3C con claves VAPID). La app ya es una PWA y la instalación usa HTTPS, así que no hay servidor ni app extra, y el contenido viaja cifrado de extremo a extremo hasta el dispositivo. Se descarta ntfy por ahora (otro servicio que mantener y, en el servidor público, el texto lo ve un tercero); el envío va detrás de un puerto (`PushSender`), así que ntfy puede ser un segundo adaptador más adelante sin tocar el motor.
-- Cada persona se suscribe desde su móvil (una suscripción por navegador) y elige qué tipos de aviso quiere. Una suscripción caducada (HTTP 404/410 del servicio push) se borra sola.
-- **El servidor solo envía a servicios push conocidos** (`fcm.googleapis.com`, `push.services.mozilla.com`, `push.apple.com`, `notify.windows.com`, solo https y sin puerto ni credenciales): el endpoint lo aporta el cliente y, sin esa lista, cualquier persona con sesión podría hacer que el servidor pidiera cualquier URL (SSRF).
-- **Nada corre dentro del servidor**: igual que las copias, el envío lo lanza `openfinance alerts notify` desde cron. Es idempotente: `alert_deliveries` guarda (persona, clave) de lo ya enviado, así que ejecutarlo cada hora no repite nada.
-- El texto de una notificación **no lleva importes ni nombres de comercio**: solo el tipo de aviso y cuántos hay («Tienes 2 avisos nuevos en OpenFinance»); el detalle se ve dentro, con sesión iniciada. Los servicios push (Google, Apple, Mozilla) ven metadatos pero nunca el contenido financiero.
-- Sin claves VAPID configuradas (`OPENFINANCE_VAPID_PRIVATE_KEY`, `OPENFINANCE_VAPID_SUBJECT`), la función está apagada y la web lo dice; los avisos siguen viéndose en la app.
-- Solo funciona en HTTPS; en modo `direct` (HTTP) no se ofrece. En iPhone exige iOS 16.4+ y la PWA añadida a inicio.
+- Single channel in this phase: **Web Push** (W3C standard with VAPID keys). The app is already a PWA and the installation uses HTTPS, so there is no extra server or app, and the content travels end-to-end encrypted to the device. ntfy is ruled out for now (another service to maintain and, on the public server, a third party sees the text); sending goes behind a port (`PushSender`), so ntfy can be a second adapter later without touching the engine.
+- Each person subscribes from their phone (one subscription per browser) and chooses which alert types they want. An expired subscription (HTTP 404/410 from the push service) is deleted automatically.
+- **The server only sends to known push services** (`fcm.googleapis.com`, `push.services.mozilla.com`, `push.apple.com`, `notify.windows.com`, https only and no port or credentials): the endpoint is supplied by the client and, without that list, anyone with a session could make the server request any URL (SSRF).
+- **Nothing runs inside the server**: like backups, sending is launched by `openfinance alerts notify` from cron. It is idempotent: `alert_deliveries` stores (person, key) of what has already been sent, so running it every hour repeats nothing.
+- The text of a notification **carries no amounts or merchant names**: only the alert type and how many there are ("Tienes 2 avisos nuevos en OpenFinance" ("You have 2 new alerts in OpenFinance")); the detail is seen inside, once signed in. Push services (Google, Apple, Mozilla) see metadata but never the financial content.
+- Without VAPID keys configured (`OPENFINANCE_VAPID_PRIVATE_KEY`, `OPENFINANCE_VAPID_SUBJECT`), the feature is off and the web app says so; alerts can still be seen in the app.
+- It only works over HTTPS; in `direct` mode (HTTP) it is not offered. On iPhone it requires iOS 16.4+ and the PWA added to the home screen.
 
-### Resumen semanal (OF-1303)
+### Weekly summary (OF-1303)
 
-- Una vista calculada, no un informe guardado: gasto de la última semana completa frente a la anterior a esa, las tres categorías que más pesan, los pagos de los próximos 7 días y los avisos abiertos. Se calcula sobre la conjunta y las cuentas visibles de quien lo pide.
-- Se envía como una notificación más (solo el aviso de que está listo; el contenido se abre en la app), una vez por semana ISO y persona: la primera vez que corre `alerts notify` cada semana, así que si cron falla un lunes llega al día siguiente. La semana resumida es la última completa (de lunes a domingo). Cada persona puede apagarlo.
+- A computed view, not a stored report: spending in the last complete week versus the one before it, the three heaviest categories, payments in the next 7 days and open alerts. It is computed over the joint account and the accounts visible to the requester.
+- It is sent as one more notification (only the notice that it is ready; the content is opened in the app), once per ISO week and person: the first time `alerts notify` runs each week, so if cron fails on a Monday it arrives the next day. The summarized week is the last complete one (Monday to Sunday). Each person can turn it off.
 
-## Consecuencias
+## Consequences
 
-- Los detectores son funciones puras y se prueban uno a uno; cualquier cambio de umbral es una constante visible.
-- Se añaden `alert_dismissals`, `push_subscriptions`, `notification_preferences` y `alert_deliveries`. Ninguna toca el libro ni entra en el registro de cambios (son estado de interfaz, no datos contables).
-- Dependencia nueva: `pywebpush` (licencia MPL-2.0, ya permitida por `make licenses`).
-- Pendiente de probar en un móvil real; en CI solo se prueba con un servicio push simulado.
+- The detectors are pure functions and are tested one by one; any threshold change is a visible constant.
+- `alert_dismissals`, `push_subscriptions`, `notification_preferences` and `alert_deliveries` are added. None touches the ledger or enters the change log (they are interface state, not accounting data).
+- New dependency: `pywebpush` (MPL-2.0 license, already allowed by `make licenses`).
+- Still to be tested on a real phone; in CI it is only tested with a simulated push service.
