@@ -115,6 +115,21 @@ Copia diaria con `cron` (`crontab -e`), a las 3:30; la rotación ya la hace el s
 
 Probad una restauración al menos una vez (sección siguiente): una copia que nunca se ha restaurado no es una copia.
 
+### Notificaciones en el móvil
+
+Los avisos (duplicados, comisiones, recibos que suben, pagos atrasados, saldo en negativo) se ven siempre en «Este mes». Para recibirlos también como notificación del móvil se usa Web Push ([ADR-0023](../adr/0023-avisos-y-notificaciones.md)); necesita el modo HTTPS y, en iPhone, iOS 16.4 o superior con la app añadida a la pantalla de inicio.
+
+1. Genera las claves una vez: `docker compose run --rm --no-deps -T api openfinance alerts keys`.
+2. Pega las tres líneas en `.env` (la privada es un secreto, como la contraseña de PostgreSQL), pon en `OPENFINANCE_VAPID_SUBJECT` un `mailto:` vuestro y `docker compose up -d`.
+3. En cada móvil: **Ajustes → Notificaciones → Activar en este dispositivo**. Cada persona elige qué tipos de aviso quiere.
+4. Programa el envío con `cron`; es idempotente, no repite lo ya enviado:
+
+```cron
+0 * * * * cd /ruta/a/openfinance && docker compose exec -T api openfinance alerts notify >> /var/log/openfinance-alerts.log 2>&1
+```
+
+El mensaje solo dice cuántos avisos hay y de qué tipo, sin importes ni comercios. Los servicios push de Google, Apple y Mozilla ven que hay una notificación, no su contenido financiero.
+
 ### Restaurar
 
 ```bash

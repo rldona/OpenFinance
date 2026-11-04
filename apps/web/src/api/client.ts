@@ -13,6 +13,10 @@ export type ScheduleItem = Schemas['ScheduleItemOut']
 export type ForecastView = Schemas['ForecastViewOut']
 export type Template = Schemas['TemplateOut']
 export type Allowance = Schemas['AllowanceOut']
+export type Alert = Schemas['AlertOut']
+export type WeeklySummary = Schemas['WeeklySummaryOut']
+export type Notifications = Schemas['NotificationsOut']
+export type AlertKind = Alert['kind']
 export type TemplateInput = Schemas['TemplateIn']
 export type AccountForecast = Schemas['ForecastOut']
 export type ScheduledPayment = Schemas['ScheduledPaymentOut']
@@ -207,6 +211,19 @@ export const api = {
   },
   /** «Hoy podéis gastar» con el dinero de la conjunta (OF-1205). */
   allowance: (signal?: AbortSignal) => request<Allowance>('GET', '/api/v1/allowance', { signal }),
+  /** Avisos deterministas de hoy y descartarlos (OF-1301). */
+  alerts: (signal?: AbortSignal) => request<Alert[]>('GET', '/api/v1/alerts', { signal }),
+  dismissAlert: (key: string) => request<void>('POST', '/api/v1/alerts/dismiss', { json: { key } }),
+  /** Resumen de la última semana completa (OF-1303). */
+  weeklySummary: (signal?: AbortSignal) => request<WeeklySummary>('GET', '/api/v1/summary/weekly', { signal }),
+  /** Notificaciones push de esta persona (OF-1302). */
+  notifications: (signal?: AbortSignal) => request<Notifications>('GET', '/api/v1/notifications', { signal }),
+  saveNotificationPrefs: (kinds: AlertKind[], weekly: boolean) =>
+    request<Notifications>('PUT', '/api/v1/notifications/preferences', { json: { kinds, weekly } }),
+  subscribePush: (endpoint: string, keys: { p256dh: string; auth: string }) =>
+    request<void>('POST', '/api/v1/notifications/subscriptions', { json: { endpoint, keys } }),
+  unsubscribePush: (endpoint: string) =>
+    request<void>('POST', '/api/v1/notifications/subscriptions/remove', { json: { endpoint } }),
   /** Plantillas de movimientos manuales (OF-1204). */
   templates: (signal?: AbortSignal) => request<Template[]>('GET', '/api/v1/templates', { signal }),
   createTemplate: (template: TemplateInput) =>

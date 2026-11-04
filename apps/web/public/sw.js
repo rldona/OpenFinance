@@ -43,3 +43,35 @@ self.addEventListener('fetch', (event) => {
     )
   }
 })
+
+// Notificaciones push (OF-1302). El servidor solo manda cuántos avisos hay y de qué tipo; nunca
+// importes ni comercios. El detalle se ve al abrir la app, con la sesión iniciada.
+self.addEventListener('push', (event) => {
+  let data = {}
+  try {
+    data = event.data ? event.data.json() : {}
+  } catch {
+    // un mensaje que no es JSON se ignora
+  }
+  const title = typeof data.title === 'string' ? data.title : 'OpenFinance'
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: typeof data.body === 'string' ? data.body : '',
+      tag: typeof data.tag === 'string' ? data.tag : 'openfinance',
+      icon: '/icon-192.png',
+      data: { url: typeof data.url === 'string' && data.url.startsWith('/') ? data.url : '/' },
+    }),
+  )
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const url = (event.notification.data && event.notification.data.url) || '/'
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+      const open = windows.find((w) => new URL(w.url).origin === self.location.origin)
+      if (open) return open.focus().then((w) => w.navigate(url))
+      return self.clients.openWindow(url)
+    }),
+  )
+})

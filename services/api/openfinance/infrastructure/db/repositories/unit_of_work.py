@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from openfinance.application.errors import ConflictError
+from openfinance.infrastructure.db.repositories.alerts import SqlAlertRepository
 from openfinance.infrastructure.db.repositories.attachments import SqlAttachmentRepository
 from openfinance.infrastructure.db.repositories.automation import SqlAutomationRepository
 from openfinance.infrastructure.db.repositories.categories import (
@@ -29,6 +30,7 @@ from openfinance.infrastructure.db.repositories.ledger import (
 )
 from openfinance.infrastructure.db.repositories.links import SqlLinkRepository
 from openfinance.infrastructure.db.repositories.merchants import SqlMerchantRepository
+from openfinance.infrastructure.db.repositories.notifications import SqlNotificationRepository
 from openfinance.infrastructure.db.repositories.rates import SqlRateRepository
 from openfinance.infrastructure.db.repositories.reconciliations import (
     SqlReconciliationRepository,
@@ -69,6 +71,8 @@ class SqlUnitOfWork:
         self.csv_profiles = SqlCsvProfileRepository(session)
         self.schedule = SqlScheduleRepository(session)
         self.templates = SqlTemplateRepository(session)
+        self.alerts = SqlAlertRepository(session)
+        self.notifications = SqlNotificationRepository(session)
         self.member_patterns = SqlMemberPatternRepository(session)
         self.changes = SqlChangeRepository(session)
 

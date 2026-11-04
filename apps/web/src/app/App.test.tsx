@@ -2489,6 +2489,42 @@ describe('Pagos programados', () => {
     expect(within(card).getByRole('list', { name: 'Sobres' })).toHaveTextContent('quedan 52,66 € en el sobre')
   })
 
+  const ALERT = {
+    kind: 'fee',
+    key: 'fee:t1',
+    severity: 'info',
+    title: 'Comisión: Mantenimiento',
+    detail: '2.00 EUR cobrados por el banco.',
+    on: '2026-10-20',
+    amount: eurm('2.00'),
+    account_id: 'a-joint',
+  }
+
+  it('Este mes enseña los avisos y deja descartarlos', async () => {
+    window.location.hash = '#mes'
+    const calls = loggedIn({
+      'GET /api/v1/insights/month': { body: OVERVIEW },
+      'GET /api/v1/alerts': { body: [{ ...ALERT, kind: 'low_balance', key: 'low:1', severity: 'critical', title: 'Cuenta conjunta se queda en negativo' }, ALERT] },
+      'POST /api/v1/alerts/dismiss': { status: 204 },
+    })
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Avisos' })
+    const items = within(card).getAllByRole('listitem')
+    expect(items[0]).toHaveTextContent('Cuenta conjunta se queda en negativo')
+    await userEvent.click(within(card).getByRole('button', { name: 'Descartar: Comisión: Mantenimiento' }))
+    await waitFor(() => expect(within(card).queryByText('Comisión: Mantenimiento')).toBeNull())
+    const sent = calls.find((c) => c.url.pathname === '/api/v1/alerts/dismiss')
+    expect(JSON.parse(String(sent?.body))).toEqual({ key: 'fee:t1' })
+  })
+
+  it('sin avisos no hay tarjeta, y si no se pueden pedir Este mes sigue funcionando', async () => {
+    window.location.hash = '#mes'
+    loggedIn({ 'GET /api/v1/insights/month': { body: OVERVIEW }, 'GET /api/v1/alerts': { body: [] } })
+    render(<App />)
+    await screen.findByRole('heading', { name: '¿En qué se ha ido?' })
+    expect(screen.queryByRole('region', { name: 'Avisos' })).toBeNull()
+  })
+
   it('si no llega, la tarjeta lo dice en lugar de repartir', async () => {
     window.location.hash = '#mes'
     loggedIn({
@@ -2552,5 +2588,135 @@ describe('Pagos programados', () => {
     await userEvent.type(screen.getByLabelText('Importe'), '900')
     await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Ya hay un pago con ese nombre')
+  })
+})
+
+describe('Notificaciones push (OF-1302)', () => {
+  const NOTIFICATIONS = {
+    configured: true,
+    public_key: 'BPublicKey',
+    devices: 0,
+    kinds: ['low_balance', 'late_payment', 'budget_over', 'duplicate', 'price_rise', 'fee'],
+    weekly: true,
+  }
+  const base = (notifications: object) => ({
+    'GET /api/v1/version': { body: { current: '0.2.0', enabled: false, latest: null, url: null, update_available: false } },
+    'GET /api/v1/csv-profiles': { body: [] },
+    'GET /api/v1/rates': { body: [] },
+    'GET /api/v1/sessions': { body: [] },
+    'GET /api/v1/notifications': { body: notifications },
+  })
+
+  function supportPush() {
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: { ready: Promise.resolve({ pushManager: { getSubscription: async () => null } }) },
+    })
+    vi.stubGlobal('PushManager', class {})
+    vi.stubGlobal('Notification', class {})
+    Object.defineProperty(window, 'isSecureContext', { configurable: true, value: true })
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    Reflect.deleteProperty(navigator, 'serviceWorker')
+  })
+
+  it('sin claves VAPID Ajustes lo dice y no ofrece activar nada', async () => {
+    window.location.hash = '#ajustes'
+    loggedIn(base({ ...NOTIFICATIONS, configured: false, public_key: null }))
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Notificaciones' })
+    expect(card).toHaveTextContent('faltan las claves VAPID')
+    expect(within(card).queryByRole('button')).toBeNull()
+  })
+
+  it('si el navegador no admite push, explica qué hace falta', async () => {
+    window.location.hash = '#ajustes'
+    loggedIn(base(NOTIFICATIONS))
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Notificaciones' })
+    expect(card).toHaveTextContent('iOS 16.4')
+  })
+
+  it('guarda qué avisos se quieren recibir', async () => {
+    supportPush()
+    window.location.hash = '#ajustes'
+    const calls = loggedIn({
+      ...base(NOTIFICATIONS),
+      'PUT /api/v1/notifications/preferences': {
+        body: { ...NOTIFICATIONS, kinds: ['low_balance', 'late_payment', 'budget_over', 'duplicate', 'price_rise'] },
+      },
+    })
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Notificaciones' })
+    expect(within(card).getByRole('button', { name: 'Activar en este dispositivo' })).toBeEnabled()
+    await userEvent.click(within(card).getByRole('checkbox', { name: 'Comisiones' }))
+    await waitFor(() => expect(within(card).getByRole('checkbox', { name: 'Comisiones' })).not.toBeChecked())
+    const put = calls.find((c) => c.method === 'PUT' && c.url.pathname === '/api/v1/notifications/preferences')
+    expect(JSON.parse(String(put?.body)).kinds).not.toContain('fee')
+  })
+
+  it('sin permiso del navegador no se suscribe nada', async () => {
+    supportPush()
+    vi.stubGlobal('Notification', Object.assign(class {}, { requestPermission: async () => 'denied' }))
+    window.location.hash = '#ajustes'
+    const calls = loggedIn(base(NOTIFICATIONS))
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Activar en este dispositivo' }))
+    expect(await screen.findByText('Sin permiso del navegador no se pueden enviar avisos')).toBeInTheDocument()
+    expect(calls.some((c) => c.url.pathname === '/api/v1/notifications/subscriptions')).toBe(false)
+  })
+})
+
+describe('Resumen semanal (OF-1303)', () => {
+  const eurw = (amount: string) => ({ amount, currency: 'EUR' })
+  const WEEK = {
+    start: '2026-10-26',
+    end: '2026-11-01',
+    spent: eurw('120.00'),
+    previous: eurw('100.00'),
+    change_percent: 20,
+    top: [
+      { category_id: 'c-super', amount: eurw('80.00') },
+      { category_id: null, amount: eurw('40.00') },
+    ],
+    upcoming: [{ name: 'Gimnasio', due: '2026-11-05', amount: eurw('-30.00') }],
+    open_alerts: 2,
+  }
+
+  it('enseña el gasto, la comparación, lo que más pesó y lo que viene', async () => {
+    window.location.hash = '#semana'
+    loggedIn({ 'GET /api/v1/summary/weekly': { body: WEEK } })
+    render(<App />)
+    const spent = await screen.findByRole('region', { name: 'Gasto de la semana' })
+    expect(spent).toHaveTextContent('120,00 € gastados')
+    expect(spent).toHaveTextContent('20 % más que la semana anterior (100,00 €)')
+    const top = screen.getByRole('region', { name: 'Lo que más pesó' })
+    expect(top).toHaveTextContent('Supermercado')
+    expect(top).toHaveTextContent('Sin categoría')
+    expect(screen.getByRole('region', { name: 'Próximos 7 días' })).toHaveTextContent('Gimnasio')
+    expect(screen.getByText(/Tienes 2 avisos abiertos/)).toBeInTheDocument()
+  })
+
+  it('sin semana anterior con la que comparar no inventa un porcentaje', async () => {
+    window.location.hash = '#semana'
+    loggedIn({
+      'GET /api/v1/summary/weekly': {
+        body: { ...WEEK, previous: eurw('0.00'), change_percent: null, top: [], upcoming: [], open_alerts: 0 },
+      },
+    })
+    render(<App />)
+    const spent = await screen.findByRole('region', { name: 'Gasto de la semana' })
+    expect(spent).toHaveTextContent('no hay base para comparar')
+    expect(screen.getByText('Sin gastos esa semana.')).toBeInTheDocument()
+    expect(screen.getByText('Programar un pago')).toBeInTheDocument()
+  })
+
+  it('«Este mes» enlaza con el resumen', async () => {
+    window.location.hash = '#mes'
+    loggedIn({ 'GET /api/v1/insights/month': { body: OVERVIEW } })
+    render(<App />)
+    expect(await screen.findByRole('link', { name: 'Resumen de la semana' })).toHaveAttribute('href', '#semana')
   })
 })

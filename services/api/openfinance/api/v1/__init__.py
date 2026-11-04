@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from openfinance.api.v1 import (
+    alerts,
     attachments,
     auth,
     automation,
@@ -13,10 +14,12 @@ from openfinance.api.v1 import (
     ledger,
     merchants,
     meta,
+    notifications,
     rates,
     savings,
     schedule,
     settings,
+    summary,
     templates,
 )
 
@@ -35,6 +38,9 @@ router.include_router(insights.router)
 router.include_router(savings.router)
 router.include_router(schedule.router)
 router.include_router(templates.router)
+router.include_router(alerts.router)
+router.include_router(notifications.router)
+router.include_router(summary.router)
 router.include_router(export.router)
 router.include_router(changes.router)
 router.include_router(settings.router)

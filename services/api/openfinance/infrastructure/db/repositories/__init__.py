@@ -1,5 +1,6 @@
 """Repositorios SQL (implementan los puertos de `application.ports`), uno por contexto."""
 
+from openfinance.infrastructure.db.repositories.alerts import SqlAlertRepository
 from openfinance.infrastructure.db.repositories.attachments import SqlAttachmentRepository
 from openfinance.infrastructure.db.repositories.automation import SqlAutomationRepository
 from openfinance.infrastructure.db.repositories.categories import (
@@ -23,6 +24,7 @@ from openfinance.infrastructure.db.repositories.ledger import (
 )
 from openfinance.infrastructure.db.repositories.links import SqlLinkRepository
 from openfinance.infrastructure.db.repositories.merchants import SqlMerchantRepository
+from openfinance.infrastructure.db.repositories.notifications import SqlNotificationRepository
 from openfinance.infrastructure.db.repositories.rates import SqlRateRepository
 from openfinance.infrastructure.db.repositories.reconciliations import (
     SqlReconciliationRepository,
@@ -40,6 +42,7 @@ from openfinance.infrastructure.db.repositories.unit_of_work import SqlUnitOfWor
 
 __all__ = [
     "SqlAccountRepository",
+    "SqlAlertRepository",
     "SqlAttachmentRepository",
     "SqlAutomationRepository",
     "SqlBudgetRepository",
@@ -53,6 +56,7 @@ __all__ = [
     "SqlLinkRepository",
     "SqlMemberPatternRepository",
     "SqlMerchantRepository",
+    "SqlNotificationRepository",
     "SqlRateRepository",
     "SqlReconciliationRepository",
     "SqlRuleRepository",

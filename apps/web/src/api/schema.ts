@@ -49,6 +49,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Alerts
+         * @description Los avisos de hoy que no has descartado, lo más grave primero.
+         */
+        get: operations["list_alerts_api_v1_alerts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/alerts/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dismiss Alert */
+        post: operations["dismiss_alert_api_v1_alerts_dismiss_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/allowance": {
         parameters: {
             query?: never;
@@ -942,6 +979,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Notifications */
+        get: operations["get_notifications_api_v1_notifications_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Save Preferences */
+        put: operations["save_preferences_api_v1_notifications_preferences_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Subscribe */
+        post: operations["subscribe_api_v1_notifications_subscriptions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/subscriptions/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Unsubscribe */
+        post: operations["unsubscribe_api_v1_notifications_subscriptions_remove_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/rules": {
         parameters: {
             query?: never;
@@ -1057,6 +1162,26 @@ export interface paths {
         post?: never;
         /** Delete Payment */
         delete: operations["delete_payment_api_v1_schedule__schedule_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/summary/weekly": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Weekly
+         * @description La última semana completa frente a la anterior, para las cuentas que ves.
+         */
+        get: operations["weekly_api_v1_summary_weekly_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1518,6 +1643,41 @@ export interface components {
             type: "set_category" | "set_kind" | "add_tags" | "set_note" | "set_merchant";
             /** Value */
             value: string | string[];
+        };
+        /** AlertDismissIn */
+        AlertDismissIn: {
+            /** Key */
+            key: string;
+        };
+        /** AlertOut */
+        AlertOut: {
+            /** Account Id */
+            account_id: string | null;
+            amount: components["schemas"]["MoneyOut"] | null;
+            /** Detail */
+            detail: string;
+            /**
+             * Key
+             * @description Estable entre consultas; sirve para descartarlo
+             */
+            key: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "late_payment" | "low_balance" | "budget_over" | "duplicate" | "price_rise" | "fee";
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "info" | "warning" | "critical";
+            /** Title */
+            title: string;
         };
         /** AllowanceItemOut */
         AllowanceItemOut: {
@@ -2708,6 +2868,32 @@ export interface components {
             month: string;
             saved: components["schemas"]["MoneyOut"];
         };
+        /** NotificationPrefsIn */
+        NotificationPrefsIn: {
+            /** Kinds */
+            kinds: ("late_payment" | "low_balance" | "budget_over" | "duplicate" | "price_rise" | "fee")[];
+            /** Weekly */
+            weekly: boolean;
+        };
+        /** NotificationsOut */
+        NotificationsOut: {
+            /**
+             * Configured
+             * @description Hay claves VAPID y el servidor puede enviar
+             */
+            configured: boolean;
+            /** Devices */
+            devices: number;
+            /** Kinds */
+            kinds: ("late_payment" | "low_balance" | "budget_over" | "duplicate" | "price_rise" | "fee")[];
+            /**
+             * Public Key
+             * @description Clave pública VAPID para suscribirse
+             */
+            public_key: string | null;
+            /** Weekly */
+            weekly: boolean;
+        };
         /** OccurrenceOut */
         OccurrenceOut: {
             amount: components["schemas"]["MoneyOut"];
@@ -2859,6 +3045,24 @@ export interface components {
             /** Changes */
             changes: components["schemas"]["ProposedChangeOut"][];
             transaction: components["schemas"]["TransactionOut"];
+        };
+        /** PushEndpointIn */
+        PushEndpointIn: {
+            /** Endpoint */
+            endpoint: string;
+        };
+        /** PushKeysIn */
+        PushKeysIn: {
+            /** Auth */
+            auth: string;
+            /** P256Dh */
+            p256dh: string;
+        };
+        /** PushSubscriptionIn */
+        PushSubscriptionIn: {
+            /** Endpoint */
+            endpoint: string;
+            keys: components["schemas"]["PushKeysIn"];
         };
         /** RateIn */
         RateIn: {
@@ -3490,6 +3694,17 @@ export interface components {
              */
             voided: number;
         };
+        /** UpcomingPaymentOut */
+        UpcomingPaymentOut: {
+            amount: components["schemas"]["MoneyOut"];
+            /**
+             * Due
+             * Format: date
+             */
+            due: string;
+            /** Name */
+            name: string;
+        };
         /** UserOut */
         UserOut: {
             /** Display Name */
@@ -3542,6 +3757,38 @@ export interface components {
          * @enum {string}
          */
         View: "household" | "mine";
+        /** WeekCategoryOut */
+        WeekCategoryOut: {
+            amount: components["schemas"]["MoneyOut"];
+            /** Category Id */
+            category_id: string | null;
+        };
+        /** WeeklySummaryOut */
+        WeeklySummaryOut: {
+            /**
+             * Change Percent
+             * @description Respecto a la semana anterior; nulo sin base
+             */
+            change_percent: number | null;
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            /** Open Alerts */
+            open_alerts: number;
+            previous: components["schemas"]["MoneyOut"];
+            spent: components["schemas"]["MoneyOut"];
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            /** Top */
+            top: components["schemas"]["WeekCategoryOut"][];
+            /** Upcoming */
+            upcoming: components["schemas"]["UpcomingPaymentOut"][];
+        };
     };
     responses: never;
     parameters: never;
@@ -3658,6 +3905,57 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ReconciliationOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_alerts_api_v1_alerts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertOut"][];
+                };
+            };
+        };
+    };
+    dismiss_alert_api_v1_alerts_dismiss_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AlertDismissIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -5427,6 +5725,121 @@ export interface operations {
             };
         };
     };
+    get_notifications_api_v1_notifications_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationsOut"];
+                };
+            };
+        };
+    };
+    save_preferences_api_v1_notifications_preferences_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationPrefsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    subscribe_api_v1_notifications_subscriptions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushSubscriptionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unsubscribe_api_v1_notifications_subscriptions_remove_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushEndpointIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_rules_api_v1_rules_get: {
         parameters: {
             query?: never;
@@ -5683,6 +6096,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    weekly_api_v1_summary_weekly_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WeeklySummaryOut"];
                 };
             };
         };

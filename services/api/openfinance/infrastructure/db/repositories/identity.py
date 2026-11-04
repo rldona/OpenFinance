@@ -85,6 +85,9 @@ class SqlHouseholdRepository:
         )
         return [WorkspaceId(h) for h in rows]
 
+    def all_ids(self) -> list[WorkspaceId]:
+        return [WorkspaceId(h) for h in self._s.scalars(select(HouseholdRow.id))]
+
     def members(self, household_id: WorkspaceId) -> list[User]:
         rows = self._s.scalars(
             select(UserRow)

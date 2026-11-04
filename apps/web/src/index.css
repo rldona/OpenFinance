@@ -1568,3 +1568,31 @@ fieldset.appearance {
   color: var(--text);
   font-size: 11px;
 }
+
+/* Avisos (OF-1301) */
+.alerts li.alert {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+.alerts li.alert:first-child {
+  border-top: 0;
+}
+.alerts li.alert > div:first-child {
+  min-width: 0;
+  flex: 1 1 220px;
+}
+.alerts li.alert.critical strong {
+  color: var(--warn);
+}
+.alerts li.alert p {
+  margin: 2px 0 0;
+}
+.alerts li.alert .actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}

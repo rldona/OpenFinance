@@ -388,6 +388,51 @@ class TransactionTemplateRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class AlertDismissalRow(Base):
+    """Aviso descartado por una persona (OF-1301). Los avisos se recalculan; esto no."""
+
+    __tablename__ = "alert_dismissals"
+
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    key: Mapped[str] = mapped_column(String(160), primary_key=True)
+    dismissed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class PushSubscriptionRow(Base):
+    """Un dispositivo suscrito a las notificaciones de una persona (OF-1302)."""
+
+    __tablename__ = "push_subscriptions"
+    __table_args__ = (Index("ix_push_subscriptions_user", "user_id"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    endpoint: Mapped[str] = mapped_column(String(500), unique=True)
+    p256dh: Mapped[str] = mapped_column(String(200))
+    auth: Mapped[str] = mapped_column(String(100))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class NotificationPrefRow(Base):
+    """Qué avisos quiere recibir una persona. Sin fila, todos."""
+
+    __tablename__ = "notification_prefs"
+
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    kinds: Mapped[str] = mapped_column(String(200), default="", server_default="")
+    """Los tipos activados, separados por comas."""
+    weekly: Mapped[bool] = mapped_column(Boolean, default=True, server_default=sa_true())
+
+
+class AlertDeliveryRow(Base):
+    """Lo que ya se ha notificado a cada persona, para no repetirlo (OF-1302, OF-1303)."""
+
+    __tablename__ = "alert_deliveries"
+
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    key: Mapped[str] = mapped_column(String(160), primary_key=True)
+    delivered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class MerchantRow(Base):
     """Comercio con nombre propio (OF-1001). Los que nadie ha tocado no tienen fila."""
 

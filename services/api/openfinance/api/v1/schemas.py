@@ -11,6 +11,7 @@ from openfinance.application.allowance import Status as AllowanceStatus
 from openfinance.application.decorate import Decor
 from openfinance.application.imports import ImportPreview, ImportResult
 from openfinance.application.savings import BudgetView, GoalView
+from openfinance.domain.alerts import Alert
 from openfinance.domain.allowance import Horizon as AllowanceHorizon
 from openfinance.domain.attachments import Attachment
 from openfinance.domain.automation import AutomationRule, Phase
@@ -405,6 +406,34 @@ class ManualTransactionIn(BaseModel):
 class ManualTransactionOut(BaseModel):
     transaction: TransactionOut
     operation_id: UUID | None
+
+
+class AlertOut(BaseModel):
+    kind: Literal["late_payment", "low_balance", "budget_over", "duplicate", "price_rise", "fee"]
+    key: str = Field(description="Estable entre consultas; sirve para descartarlo")
+    severity: Literal["info", "warning", "critical"]
+    title: str
+    detail: str
+    on: date
+    amount: MoneyOut | None
+    account_id: UUID | None
+
+    @classmethod
+    def of(cls, a: Alert) -> AlertOut:
+        return cls(
+            kind=a.kind.value,
+            key=a.key,
+            severity=a.severity.value,
+            title=a.title,
+            detail=a.detail,
+            on=a.on,
+            amount=MoneyOut.of(a.amount) if a.amount else None,
+            account_id=UUID(a.account_id) if a.account_id else None,
+        )
+
+
+class AlertDismissIn(BaseModel):
+    key: str = Field(min_length=1, max_length=160)
 
 
 class OperationRefOut(BaseModel):
@@ -1298,3 +1327,56 @@ class AllowanceOut(BaseModel):
             next_income=item(a.next_income) if a.next_income else None,
             envelopes=envelopes,
         )
+
+
+class NotificationPrefsIn(BaseModel):
+    kinds: list[
+        Literal["late_payment", "low_balance", "budget_over", "duplicate", "price_rise", "fee"]
+    ] = Field(max_length=6)
+    weekly: bool
+
+
+class NotificationsOut(BaseModel):
+    configured: bool = Field(description="Hay claves VAPID y el servidor puede enviar")
+    public_key: str | None = Field(description="Clave pública VAPID para suscribirse")
+    devices: int
+    kinds: list[
+        Literal["late_payment", "low_balance", "budget_over", "duplicate", "price_rise", "fee"]
+    ]
+    weekly: bool
+
+
+class PushKeysIn(BaseModel):
+    p256dh: str = Field(min_length=1, max_length=200)
+    auth: str = Field(min_length=1, max_length=100)
+
+
+class PushSubscriptionIn(BaseModel):
+    endpoint: str = Field(min_length=1, max_length=500)
+    keys: PushKeysIn
+
+
+class PushEndpointIn(BaseModel):
+    endpoint: str = Field(min_length=1, max_length=500)
+
+
+class WeekCategoryOut(BaseModel):
+    category_id: UUID | None
+    amount: MoneyOut
+
+
+class UpcomingPaymentOut(BaseModel):
+    name: str
+    due: date
+    amount: MoneyOut
+
+
+class WeeklySummaryOut(BaseModel):
+    start: date
+    end: date
+    spent: MoneyOut
+    previous: MoneyOut
+    change_percent: int | None = Field(description="Respecto a la semana anterior; nulo sin base")
+    top: list[WeekCategoryOut]
+    upcoming: list[UpcomingPaymentOut]
+    open_alerts: int

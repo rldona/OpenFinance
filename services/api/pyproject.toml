@@ -16,6 +16,7 @@ dependencies = [
     "python-multipart>=0.0.33",
     "openpyxl>=3.1.5",
     "defusedxml>=0.7.1",
+    "pywebpush>=2.0",
 ]
 
 [project.scripts]
@@ -65,7 +66,8 @@ strict = true
 
 [[tool.mypy.overrides]]
 # defusedxml no trae tipos; se usa solo para leer XML no fiable (CAMT.053).
-module = ["defusedxml", "defusedxml.*"]
+# pywebpush y py_vapid tampoco: se usan solo detrás de ``PushSender`` (OF-1302).
+module = ["defusedxml", "defusedxml.*", "pywebpush", "py_vapid", "py_vapid.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
