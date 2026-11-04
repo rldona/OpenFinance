@@ -155,6 +155,157 @@
         "title": "ActionIn",
         "type": "object"
       },
+      "AllowanceItemOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "due": {
+            "format": "date",
+            "title": "Due",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "due",
+          "amount"
+        ],
+        "title": "AllowanceItemOut",
+        "type": "object"
+      },
+      "AllowanceOut": {
+        "properties": {
+          "available": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Saldo menos lo comprometido; puede ser negativo"
+          },
+          "balance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "committed": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que está por pagar hasta el horizonte"
+          },
+          "days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days"
+          },
+          "envelopes": {
+            "items": {
+              "$ref": "#/components/schemas/EnvelopeLeftOut"
+            },
+            "title": "Envelopes",
+            "type": "array"
+          },
+          "horizon": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Horizon"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "next_income": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AllowanceItemOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pending": {
+            "items": {
+              "$ref": "#/components/schemas/AllowanceItemOut"
+            },
+            "title": "Pending",
+            "type": "array"
+          },
+          "per_day": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que se puede gastar cada día"
+          },
+          "short": {
+            "description": "Lo comprometido es más que el saldo",
+            "title": "Short",
+            "type": "boolean"
+          },
+          "status": {
+            "$ref": "#/components/schemas/Status"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Until"
+          }
+        },
+        "required": [
+          "status",
+          "balance",
+          "committed",
+          "available",
+          "per_day",
+          "days",
+          "until",
+          "horizon",
+          "short",
+          "pending",
+          "next_income",
+          "envelopes"
+        ],
+        "title": "AllowanceOut",
+        "type": "object"
+      },
       "AttachmentAddedOut": {
         "properties": {
           "attachment": {
@@ -486,6 +637,24 @@
             "pattern": "^\\d{1,9}([.,]\\d{1,2})?$",
             "title": "Amount",
             "type": "string"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/BudgetMode",
+            "default": "limit",
+            "description": "limit: un tope por mes. envelope: lo que sobra o falta pasa al mes siguiente"
+          },
+          "started": {
+            "anyOf": [
+              {
+                "pattern": "^(19|2\\d)\\d{2}-(0[1-9]|1[0-2])$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "En un sobre, desde qué mes se arrastra (por defecto, el actual)",
+            "title": "Started"
           }
         },
         "required": [
@@ -494,10 +663,47 @@
         "title": "BudgetIn",
         "type": "object"
       },
+      "BudgetMode": {
+        "enum": [
+          "limit",
+          "envelope"
+        ],
+        "title": "BudgetMode",
+        "type": "string"
+      },
+      "BudgetMonthIn": {
+        "properties": {
+          "amount": {
+            "examples": [
+              "900"
+            ],
+            "pattern": "^\\d{1,9}([.,]\\d{1,2})?$",
+            "title": "Amount",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount"
+        ],
+        "title": "BudgetMonthIn",
+        "type": "object"
+      },
       "BudgetOut": {
         "properties": {
           "amount": {
             "$ref": "#/components/schemas/MoneyOut"
+          },
+          "available": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Lo asignado más lo arrastrado, menos lo gastado"
+          },
+          "base_amount": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "El importe de cualquier mes sin importe propio"
+          },
+          "carried": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Lo que arrastra un sobre de los meses anteriores"
           },
           "category_id": {
             "format": "uuid",
@@ -508,12 +714,32 @@
             "$ref": "#/components/schemas/MoneyOut",
             "description": "Cuotas fijas de la categoría este mes, cobradas y por cobrar (OF-802)"
           },
+          "has_override": {
+            "description": "Ese mes tiene un importe propio",
+            "title": "Has Override",
+            "type": "boolean"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/BudgetMode"
+          },
           "percent": {
             "title": "Percent",
             "type": "integer"
           },
           "spent": {
             "$ref": "#/components/schemas/MoneyOut"
+          },
+          "started": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mes desde el que un sobre arrastra (AAAA-MM)",
+            "title": "Started"
           },
           "status": {
             "description": "ok, warning (≥ 85 % del margen que dejan las cuotas fijas) u over (> 100 %)",
@@ -527,7 +753,13 @@
           "spent",
           "percent",
           "status",
-          "fixed"
+          "fixed",
+          "mode",
+          "base_amount",
+          "has_override",
+          "carried",
+          "available",
+          "started"
         ],
         "title": "BudgetOut",
         "type": "object"
@@ -1096,6 +1328,100 @@
         "title": "ConditionIn",
         "type": "object"
       },
+      "ContributionChangeOut": {
+        "properties": {
+          "contribution": {
+            "$ref": "#/components/schemas/ContributionOut"
+          },
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          }
+        },
+        "required": [
+          "contribution",
+          "operation_id"
+        ],
+        "title": "ContributionChangeOut",
+        "type": "object"
+      },
+      "ContributionIn": {
+        "properties": {
+          "amount": {
+            "description": "Positivo aporta; negativo retira",
+            "pattern": "^-?\\d{1,9}([.,]\\d{1,2})?$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "made_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Por defecto, hoy",
+            "title": "Made On"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount"
+        ],
+        "title": "ContributionIn",
+        "type": "object"
+      },
+      "ContributionOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "goal_id": {
+            "format": "uuid",
+            "title": "Goal Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "made_on": {
+            "format": "date",
+            "title": "Made On",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "goal_id",
+          "made_on",
+          "amount",
+          "note"
+        ],
+        "title": "ContributionOut",
+        "type": "object"
+      },
       "CountOut": {
         "properties": {
           "count": {
@@ -1516,6 +1842,160 @@
         "title": "CsvTestRowOut",
         "type": "object"
       },
+      "EnvelopeLeftOut": {
+        "properties": {
+          "available": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "category_id": {
+            "format": "uuid",
+            "title": "Category Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "category_id",
+          "available",
+          "status"
+        ],
+        "title": "EnvelopeLeftOut",
+        "type": "object"
+      },
+      "ForecastOut": {
+        "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Vacío en el total de una moneda",
+            "title": "Account Id"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "end": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "first_negative": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Negative"
+          },
+          "lowest": {
+            "$ref": "#/components/schemas/ForecastPointOut"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "points": {
+            "description": "Hoy y cada día en que el saldo cambia",
+            "items": {
+              "$ref": "#/components/schemas/ForecastPointOut"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "start": {
+            "$ref": "#/components/schemas/MoneyOut"
+          }
+        },
+        "required": [
+          "account_id",
+          "name",
+          "currency",
+          "start",
+          "end",
+          "lowest",
+          "first_negative",
+          "points"
+        ],
+        "title": "ForecastOut",
+        "type": "object"
+      },
+      "ForecastPointOut": {
+        "properties": {
+          "balance": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          }
+        },
+        "required": [
+          "day",
+          "balance"
+        ],
+        "title": "ForecastPointOut",
+        "type": "object"
+      },
+      "ForecastViewOut": {
+        "properties": {
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/ForecastOut"
+            },
+            "title": "Accounts",
+            "type": "array"
+          },
+          "totals": {
+            "items": {
+              "$ref": "#/components/schemas/ForecastOut"
+            },
+            "title": "Totals",
+            "type": "array"
+          },
+          "until": {
+            "format": "date",
+            "title": "Until",
+            "type": "string"
+          }
+        },
+        "required": [
+          "until",
+          "accounts",
+          "totals"
+        ],
+        "title": "ForecastViewOut",
+        "type": "object"
+      },
+      "Frequency": {
+        "enum": [
+          "once",
+          "weekly",
+          "monthly",
+          "yearly"
+        ],
+        "title": "Frequency",
+        "type": "string"
+      },
       "GoalIn": {
         "properties": {
           "account_id": {
@@ -1560,6 +2040,14 @@
             "minLength": 1,
             "title": "Name",
             "type": "string"
+          },
+          "priority": {
+            "default": 50,
+            "description": "Cuanto menor, antes",
+            "maximum": 99.0,
+            "minimum": 1.0,
+            "title": "Priority",
+            "type": "integer"
           },
           "saved": {
             "default": "0",
@@ -1664,6 +2152,10 @@
             ],
             "title": "On Track"
           },
+          "priority": {
+            "title": "Priority",
+            "type": "integer"
+          },
           "progress": {
             "title": "Progress",
             "type": "integer"
@@ -1693,7 +2185,8 @@
           "months_to_go",
           "eta",
           "needed_monthly",
-          "on_track"
+          "on_track",
+          "priority"
         ],
         "title": "GoalOut",
         "type": "object"
@@ -1768,6 +2261,19 @@
             ],
             "title": "Name"
           },
+          "priority": {
+            "anyOf": [
+              {
+                "maximum": 99.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority"
+          },
           "saved": {
             "anyOf": [
               {
@@ -1826,6 +2332,14 @@
         ],
         "title": "HealthResponse",
         "type": "object"
+      },
+      "Horizon": {
+        "enum": [
+          "income",
+          "month_end"
+        ],
+        "title": "Horizon",
+        "type": "string"
       },
       "HouseholdOut": {
         "properties": {
@@ -2757,6 +3271,50 @@
         "title": "MonthSavedOut",
         "type": "object"
       },
+      "OccurrenceOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "due": {
+            "format": "date",
+            "title": "Due",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OccurrenceStatus"
+          },
+          "transaction_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transaction Id"
+          }
+        },
+        "required": [
+          "due",
+          "amount",
+          "status",
+          "transaction_id"
+        ],
+        "title": "OccurrenceOut",
+        "type": "object"
+      },
+      "OccurrenceStatus": {
+        "enum": [
+          "paid",
+          "pending",
+          "late"
+        ],
+        "title": "OccurrenceStatus",
+        "type": "string"
+      },
       "OperationOut": {
         "properties": {
           "action": {
@@ -3595,6 +4153,252 @@
         "title": "SavingsOverviewOut",
         "type": "object"
       },
+      "ScheduleItemOut": {
+        "properties": {
+          "occurrences": {
+            "items": {
+              "$ref": "#/components/schemas/OccurrenceOut"
+            },
+            "title": "Occurrences",
+            "type": "array"
+          },
+          "payment": {
+            "$ref": "#/components/schemas/ScheduledPaymentOut"
+          }
+        },
+        "required": [
+          "payment",
+          "occurrences"
+        ],
+        "title": "ScheduleItemOut",
+        "type": "object"
+      },
+      "ScheduledPaymentChangeOut": {
+        "properties": {
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "payment": {
+            "$ref": "#/components/schemas/ScheduledPaymentOut"
+          }
+        },
+        "required": [
+          "payment",
+          "operation_id"
+        ],
+        "title": "ScheduledPaymentChangeOut",
+        "type": "object"
+      },
+      "ScheduledPaymentIn": {
+        "properties": {
+          "account_id": {
+            "format": "uuid",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "amount": {
+            "description": "Con signo: negativo es un pago",
+            "examples": [
+              "-900.00"
+            ],
+            "maxLength": 20,
+            "title": "Amount",
+            "type": "string"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "ends_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends On"
+          },
+          "first_due": {
+            "format": "date",
+            "title": "First Due",
+            "type": "string"
+          },
+          "frequency": {
+            "$ref": "#/components/schemas/Frequency"
+          },
+          "interval": {
+            "default": 1,
+            "maximum": 60.0,
+            "minimum": 1.0,
+            "title": "Interval",
+            "type": "integer"
+          },
+          "merchant": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Merchant",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "variable": {
+            "default": false,
+            "title": "Variable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "amount",
+          "account_id",
+          "frequency",
+          "first_due"
+        ],
+        "title": "ScheduledPaymentIn",
+        "type": "object"
+      },
+      "ScheduledPaymentOut": {
+        "properties": {
+          "account_id": {
+            "format": "uuid",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "ends_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends On"
+          },
+          "first_due": {
+            "format": "date",
+            "title": "First Due",
+            "type": "string"
+          },
+          "frequency": {
+            "$ref": "#/components/schemas/Frequency"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "interval": {
+            "title": "Interval",
+            "type": "integer"
+          },
+          "merchant": {
+            "title": "Merchant",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "variable": {
+            "title": "Variable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "amount",
+          "account_id",
+          "frequency",
+          "interval",
+          "first_due",
+          "ends_on",
+          "category_id",
+          "merchant",
+          "variable",
+          "active"
+        ],
+        "title": "ScheduledPaymentOut",
+        "type": "object"
+      },
+      "ShareOut": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut",
+            "description": "Lo que se sugiere aportar a este objetivo"
+          },
+          "goal_id": {
+            "format": "uuid",
+            "title": "Goal Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "remaining": {
+            "$ref": "#/components/schemas/MoneyOut"
+          }
+        },
+        "required": [
+          "goal_id",
+          "name",
+          "amount",
+          "remaining"
+        ],
+        "title": "ShareOut",
+        "type": "object"
+      },
       "SkippedRowOut": {
         "properties": {
           "description": {
@@ -3700,6 +4504,15 @@
         "title": "SplitPartOut",
         "type": "object"
       },
+      "Status": {
+        "enum": [
+          "ok",
+          "no_balance",
+          "no_schedule"
+        ],
+        "title": "Status",
+        "type": "string"
+      },
       "TagOut": {
         "properties": {
           "count": {
@@ -3760,6 +4573,190 @@
           "operation_id"
         ],
         "title": "TagsOut",
+        "type": "object"
+      },
+      "TemplateChangeOut": {
+        "properties": {
+          "operation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "template": {
+            "$ref": "#/components/schemas/TemplateOut"
+          }
+        },
+        "required": [
+          "template",
+          "operation_id"
+        ],
+        "title": "TemplateChangeOut",
+        "type": "object"
+      },
+      "TemplateIn": {
+        "properties": {
+          "account_id": {
+            "format": "uuid",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "amount": {
+            "description": "Positivo; el tipo da el signo",
+            "pattern": "^\\d{1,9}([.,]\\d{1,2})?$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "description": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/TransactionKind",
+            "default": "expense"
+          },
+          "name": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Note",
+            "type": "string"
+          },
+          "personal": {
+            "default": false,
+            "description": "Solo la ve quien la crea",
+            "title": "Personal",
+            "type": "boolean"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "amount",
+          "description",
+          "account_id"
+        ],
+        "title": "TemplateIn",
+        "type": "object"
+      },
+      "TemplateOut": {
+        "properties": {
+          "account_id": {
+            "format": "uuid",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/MoneyOut"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/TransactionKind"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "personal": {
+            "title": "Personal",
+            "type": "boolean"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "amount",
+          "description",
+          "account_id",
+          "personal",
+          "category_id",
+          "tags",
+          "note"
+        ],
+        "title": "TemplateOut",
+        "type": "object"
+      },
+      "TemplateUseIn": {
+        "properties": {
+          "booked_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Por defecto, hoy",
+            "title": "Booked On"
+          }
+        },
+        "title": "TemplateUseIn",
         "type": "object"
       },
       "TransactionKind": {
@@ -4440,6 +5437,28 @@
         ]
       }
     },
+    "/api/v1/allowance": {
+      "get": {
+        "description": "Cuánto se puede gastar al día con el dinero de la conjunta (OF-1205).",
+        "operationId": "allowance_api_v1_allowance_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AllowanceOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Allowance",
+        "tags": [
+          "schedule"
+        ]
+      }
+    },
     "/api/v1/attachments/{attachment_id}": {
       "delete": {
         "description": "Borra el adjunto. El archivo se conserva 30 días por si se deshace.",
@@ -5001,6 +6020,114 @@
           }
         },
         "summary": "Set Budget",
+        "tags": [
+          "savings"
+        ]
+      }
+    },
+    "/api/v1/budgets/{category_id}/months/{month}": {
+      "delete": {
+        "operationId": "clear_month_amount_api_v1_budgets__category_id__months__month__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "category_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Category Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "month",
+            "required": true,
+            "schema": {
+              "pattern": "^(19|2\\d)\\d{2}-(0[1-9]|1[0-2])$",
+              "title": "Month",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Clear Month Amount",
+        "tags": [
+          "savings"
+        ]
+      },
+      "put": {
+        "description": "Un importe propio para un mes (OF-1203). Devuelve el presupuesto de ese mes.",
+        "operationId": "set_month_amount_api_v1_budgets__category_id__months__month__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "category_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Category Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "month",
+            "required": true,
+            "schema": {
+              "pattern": "^(19|2\\d)\\d{2}-(0[1-9]|1[0-2])$",
+              "title": "Month",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BudgetMonthIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Month Amount",
         "tags": [
           "savings"
         ]
@@ -5668,6 +6795,52 @@
         ]
       }
     },
+    "/api/v1/forecast": {
+      "get": {
+        "description": "Saldo previsto de cada cuenta de efectivo y total por moneda (OF-1202).",
+        "operationId": "forecast_api_v1_forecast_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 60,
+              "maximum": 400,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForecastViewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Forecast",
+        "tags": [
+          "schedule"
+        ]
+      }
+    },
     "/api/v1/goals": {
       "get": {
         "operationId": "list_goals_api_v1_goals_get",
@@ -5727,6 +6900,54 @@
           }
         },
         "summary": "Create Goal",
+        "tags": [
+          "savings"
+        ]
+      }
+    },
+    "/api/v1/goals/split": {
+      "get": {
+        "description": "Cómo repartir una cantidad entre los objetivos, por prioridad (OF-1206). No apunta nada.",
+        "operationId": "suggest_split_api_v1_goals_split_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "amount",
+            "required": true,
+            "schema": {
+              "pattern": "^\\d{1,9}([.,]\\d{1,2})?$",
+              "title": "Amount",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ShareOut"
+                  },
+                  "title": "Response Suggest Split Api V1 Goals Split Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Suggest Split",
         "tags": [
           "savings"
         ]
@@ -5814,6 +7035,158 @@
           }
         },
         "summary": "Update Goal",
+        "tags": [
+          "savings"
+        ]
+      }
+    },
+    "/api/v1/goals/{goal_id}/contributions": {
+      "get": {
+        "operationId": "list_contributions_api_v1_goals__goal_id__contributions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "goal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Goal Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ContributionOut"
+                  },
+                  "title": "Response List Contributions Api V1 Goals  Goal Id  Contributions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Contributions",
+        "tags": [
+          "savings"
+        ]
+      },
+      "post": {
+        "description": "Anota una aportación (o, en negativo, una retirada) a un objetivo sin hucha.",
+        "operationId": "add_contribution_api_v1_goals__goal_id__contributions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "goal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Goal Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContributionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContributionChangeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Contribution",
+        "tags": [
+          "savings"
+        ]
+      }
+    },
+    "/api/v1/goals/{goal_id}/contributions/{contribution_id}": {
+      "delete": {
+        "operationId": "delete_contribution_api_v1_goals__goal_id__contributions__contribution_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "goal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Goal Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contribution_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Contribution Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationRefOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Contribution",
         "tags": [
           "savings"
         ]
@@ -6680,6 +8053,188 @@
         ]
       }
     },
+    "/api/v1/schedule": {
+      "get": {
+        "operationId": "list_schedule_api_v1_schedule_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 60,
+              "maximum": 400,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ScheduleItemOut"
+                  },
+                  "title": "Response List Schedule Api V1 Schedule Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Schedule",
+        "tags": [
+          "schedule"
+        ]
+      },
+      "post": {
+        "operationId": "create_payment_api_v1_schedule_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduledPaymentIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledPaymentChangeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Payment",
+        "tags": [
+          "schedule"
+        ]
+      }
+    },
+    "/api/v1/schedule/{schedule_id}": {
+      "delete": {
+        "operationId": "delete_payment_api_v1_schedule__schedule_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "schedule_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Schedule Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationRefOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Payment",
+        "tags": [
+          "schedule"
+        ]
+      },
+      "put": {
+        "operationId": "update_payment_api_v1_schedule__schedule_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "schedule_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Schedule Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduledPaymentIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledPaymentChangeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Payment",
+        "tags": [
+          "schedule"
+        ]
+      }
+    },
     "/api/v1/tags": {
       "get": {
         "description": "Las etiquetas de los movimientos que ves, con cuántos las llevan.",
@@ -6703,6 +8258,218 @@
         "summary": "List Tags",
         "tags": [
           "ledger"
+        ]
+      }
+    },
+    "/api/v1/templates": {
+      "get": {
+        "operationId": "list_templates_api_v1_templates_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TemplateOut"
+                  },
+                  "title": "Response List Templates Api V1 Templates Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Templates",
+        "tags": [
+          "templates"
+        ]
+      },
+      "post": {
+        "operationId": "create_template_api_v1_templates_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateChangeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Template",
+        "tags": [
+          "templates"
+        ]
+      }
+    },
+    "/api/v1/templates/{template_id}": {
+      "delete": {
+        "operationId": "delete_template_api_v1_templates__template_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Template Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationRefOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Template",
+        "tags": [
+          "templates"
+        ]
+      },
+      "put": {
+        "operationId": "update_template_api_v1_templates__template_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Template Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateChangeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Template",
+        "tags": [
+          "templates"
+        ]
+      }
+    },
+    "/api/v1/templates/{template_id}/use": {
+      "post": {
+        "description": "Crea el movimiento de la plantilla (hoy, o en la fecha que se indique).",
+        "operationId": "use_template_api_v1_templates__template_id__use_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Template Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateUseIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualTransactionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Use Template",
+        "tags": [
+          "templates"
         ]
       }
     },

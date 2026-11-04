@@ -67,16 +67,18 @@ class TestBudgets:
         r = as_raul.put(f"/api/v1/budgets/{super_}", json={"amount": "100"})
         assert r.status_code == 200
         oct_ = as_raul.get("/api/v1/budgets", params={"month": "2026-10"}).json()
-        assert oct_["items"] == [
-            {
-                "category_id": super_,
-                "amount": eur("100.00"),
-                "spent": eur("87.34"),
-                "percent": 87,
-                "status": "warning",
-                "fixed": eur("0.00"),
-            }
-        ]
+        [item] = oct_["items"]
+        assert {
+            k: item[k] for k in ("category_id", "amount", "spent", "percent", "status", "fixed")
+        } == {
+            "category_id": super_,
+            "amount": eur("100.00"),
+            "spent": eur("87.34"),
+            "percent": 87,
+            "status": "warning",
+            "fixed": eur("0.00"),
+        }
+        assert (item["mode"], item["carried"]) == ("limit", eur("0.00"))
         sep = as_raul.get("/api/v1/budgets", params={"month": "2026-09"}).json()["items"][0]
         assert (sep["spent"], sep["percent"], sep["status"]) == (eur("60.00"), 60, "ok")
 

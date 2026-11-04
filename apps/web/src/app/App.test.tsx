@@ -860,6 +860,85 @@ describe('Varios a la vez y efectivo (OF-705)', () => {
     expect(await screen.findByText('Añadido: Churrería')).toBeInTheDocument()
   })
 
+  it('crea un movimiento desde una plantilla con la fecha elegida', async () => {
+    const template = {
+      id: 'tpl1',
+      name: 'Café de la oficina',
+      kind: 'expense',
+      amount: { amount: '1.80', currency: 'EUR' },
+      description: 'Café',
+      account_id: 'a-joint',
+      personal: false,
+      category_id: null,
+      tags: [],
+      note: '',
+    }
+    const calls = loggedIn({
+      'GET /api/v1/templates': { body: [template] },
+      'POST /api/v1/templates/tpl1/use': {
+        status: 201,
+        body: { transaction: { ...TRANSACTIONS[3], id: 't9', description: 'Café', source: 'manual' }, operation_id: 'op-1' },
+      },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: '+ Añadir a mano' }))
+    const form = screen.getByRole('form', { name: 'Añadir a mano' })
+    fireEvent.change(within(form).getByLabelText('Fecha'), { target: { value: '2026-10-12' } })
+    await userEvent.click(await within(form).findByRole('button', { name: /Café de la oficina · 1,80/ }))
+    const post = calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/templates/tpl1/use')!
+    expect(JSON.parse(String(post.body))).toEqual({ booked_on: '2026-10-12' })
+    expect(await screen.findByText('Añadido: Café')).toBeInTheDocument()
+  })
+
+  it('guarda el formulario como plantilla y la borra con «Deshacer»', async () => {
+    const saved = {
+      id: 'tpl2',
+      name: 'Churros',
+      kind: 'expense',
+      amount: { amount: '7.50', currency: 'EUR' },
+      description: 'Churrería',
+      account_id: 'a-joint',
+      personal: false,
+      category_id: null,
+      tags: [],
+      note: '',
+    }
+    let current = [] as unknown[]
+    const calls = loggedIn({
+      'GET /api/v1/templates': () => ({ body: current }),
+      'POST /api/v1/templates': () => {
+        current = [saved]
+        return { status: 201, body: { template: saved, operation_id: 'op-5' } }
+      },
+      'DELETE /api/v1/templates/tpl2': () => {
+        current = []
+        return { body: { operation_id: 'op-6' } }
+      },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: '+ Añadir a mano' }))
+    const form = screen.getByRole('form', { name: 'Añadir a mano' })
+    await userEvent.type(within(form).getByLabelText('Concepto'), 'Churrería')
+    await userEvent.type(within(form).getByLabelText('Importe'), '7,50')
+    await userEvent.click(within(form).getByRole('button', { name: 'Guardar como plantilla' }))
+    const name = within(form).getByLabelText('Nombre de la plantilla')
+    await userEvent.clear(name)
+    await userEvent.type(name, 'Churros')
+    await userEvent.click(within(form).getByRole('button', { name: 'Guardar plantilla' }))
+    const post = calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/templates')!
+    expect(JSON.parse(String(post.body))).toMatchObject({
+      name: 'Churros',
+      kind: 'expense',
+      amount: '7.50',
+      description: 'Churrería',
+      account_id: 'a-joint',
+      personal: false,
+    })
+    await userEvent.click(await within(form).findByRole('button', { name: 'Borrar la plantilla Churros' }))
+    expect(await screen.findByText(/Plantilla «Churros» borrada/)).toBeInTheDocument()
+    expect(calls.some((c) => c.method === 'DELETE' && c.url.pathname === '/api/v1/templates/tpl2')).toBe(true)
+  })
+
   it('solo los movimientos añadidos a mano se pueden borrar', async () => {
     const manual = { ...TRANSACTIONS[3], source: 'manual' }
     const calls = loggedIn({
@@ -1526,11 +1605,13 @@ describe('Gráficos (fase 3)', () => {
   })
 })
 
+const BUDGET_DEFAULTS = { mode: 'limit', has_override: false, carried: eur('0.00'), started: null }
+
 const BUDGETS = {
   month: '2026-10',
   items: [
-    { category_id: 'c-super', amount: eur('550.00'), spent: eur('600.00'), percent: 109, status: 'over', fixed: eur('0.00') },
-    { category_id: 'c-rest', amount: eur('350.00'), spent: eur('300.00'), percent: 86, status: 'warning', fixed: eur('0.00') },
+    { ...BUDGET_DEFAULTS, category_id: 'c-super', amount: eur('550.00'), base_amount: eur('550.00'), available: eur('-50.00'), spent: eur('600.00'), percent: 109, status: 'over', fixed: eur('0.00') },
+    { ...BUDGET_DEFAULTS, category_id: 'c-rest', amount: eur('350.00'), base_amount: eur('350.00'), available: eur('50.00'), spent: eur('300.00'), percent: 86, status: 'warning', fixed: eur('0.00') },
   ],
   total_amount: eur('900.00'),
   total_spent: eur('900.00'),
@@ -1551,6 +1632,7 @@ const GOAL = {
   eta: '2028-01',
   needed_monthly: null,
   on_track: null,
+  priority: 50,
 }
 
 const SAVINGS = {
@@ -1666,6 +1748,63 @@ describe('Ahorro (fase 4)', () => {
     ])
   })
 
+  it('Este mes cuenta el arrastre de un sobre dentro de lo que se puede gastar', async () => {
+    window.location.hash = '#mes'
+    const envelope = { ...BUDGETS.items[1], mode: 'envelope', started: '2026-08', carried: eur('-40.00'), available: eur('90.00'), status: 'ok', percent: 80 }
+    loggedIn({
+      'GET /api/v1/categories': { body: CATS_WITH_SLUGS },
+      'GET /api/v1/budgets': { body: { ...BUDGETS, items: [envelope] } },
+      'GET /api/v1/insights/month': { body: OVERVIEW },
+    })
+    render(<App />)
+    expect(await screen.findByText('300 € de 310 €')).toBeInTheDocument()
+    expect(screen.getByText(/Sobre: arrastra un exceso de 40 € del mes anterior/)).toBeInTheDocument()
+  })
+
+  it('Presupuestos muestra el arrastre de un sobre y cambia de tipo', async () => {
+    window.location.hash = '#presupuestos'
+    const envelope = { ...BUDGETS.items[0], mode: 'envelope', started: '2026-08', carried: eur('120.00'), available: eur('70.00') }
+    const calls = loggedIn({
+      'GET /api/v1/categories': { body: CATS_WITH_SLUGS },
+      'GET /api/v1/budgets': { body: { ...BUDGETS, items: [envelope, BUDGETS.items[1]] } },
+      'GET /api/v1/savings/overview': { body: SAVINGS },
+      'PUT /api/v1/budgets/c-rest': { body: BUDGETS.items[1] },
+    })
+    render(<App />)
+    expect(await screen.findByText(/Sobre desde agosto de 2026 · arrastra 120,00 € · disponible 70,00 €/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Tipo de presupuesto de Supermercado')).toHaveValue('envelope')
+    expect(screen.getByLabelText('Tipo de presupuesto de Restaurantes')).toHaveValue('limit')
+    await userEvent.selectOptions(screen.getByLabelText('Tipo de presupuesto de Restaurantes'), 'envelope')
+    await waitFor(() => expect(calls.some((c) => c.method === 'PUT')).toBe(true))
+    const put = calls.find((c) => c.method === 'PUT')!
+    expect(put.url.pathname).toBe('/api/v1/budgets/c-rest')
+    expect(JSON.parse(String(put.body))).toEqual({ amount: '350.00', mode: 'envelope' })
+  })
+
+  it('Presupuestos pone y quita un importe solo para el mes elegido', async () => {
+    window.location.hash = '#presupuestos'
+    const withMonth = { ...BUDGETS.items[0], has_override: true, amount: eur('900.00') }
+    const calls = loggedIn({
+      'GET /api/v1/categories': { body: CATS_WITH_SLUGS },
+      'GET /api/v1/budgets': { body: { ...BUDGETS, items: [withMonth, BUDGETS.items[1]] } },
+      'GET /api/v1/savings/overview': { body: SAVINGS },
+      'PUT /api/v1/budgets/c-rest/months/2026-10': { body: BUDGETS.items[1] },
+      'DELETE /api/v1/budgets/c-super/months/2026-10': { status: 204 },
+    })
+    render(<App />)
+    const sup = await screen.findByLabelText('Importe de Supermercado solo en octubre de 2026')
+    expect(sup).toHaveValue('900.00')
+    // el presupuesto de siempre sigue siendo el base, no el del mes
+    expect(screen.getByLabelText('Presupuesto de Supermercado')).toHaveValue('550.00')
+    await userEvent.type(screen.getByLabelText('Importe de Restaurantes solo en octubre de 2026'), '500{Enter}')
+    await userEvent.clear(sup)
+    sup.blur()
+    await waitFor(() => expect(calls.filter((c) => c.method !== 'GET')).toHaveLength(2))
+    const writes = calls.filter((c) => c.method !== 'GET').map((c) => [c.method, c.url.pathname, c.body ? JSON.parse(String(c.body)) : null])
+    expect(writes).toContainEqual(['PUT', '/api/v1/budgets/c-rest/months/2026-10', { amount: '500' }])
+    expect(writes).toContainEqual(['DELETE', '/api/v1/budgets/c-super/months/2026-10', null])
+  })
+
   it('Ahorrar enseña objetivos, ideas y cuotas fijas', async () => {
     window.location.hash = '#ahorrar'
     loggedIn({
@@ -1681,6 +1820,92 @@ describe('Ahorro (fase 4)', () => {
     expect(holidays).toHaveTextContent('haría falta apartar 180 €/mes')
     expect(screen.getByText('648 €/año')).toBeInTheDocument()
     expect(screen.getByText(/13,99 € → 17,99 € en julio de 2026/)).toBeInTheDocument()
+  })
+
+  it('anota una aportación a un objetivo, la lista y la borra con «Deshacer»', async () => {
+    window.location.hash = '#ahorrar'
+    const contribution = { id: 'k1', goal_id: 'g1', made_on: '2026-10-12', amount: eur('150.00'), note: 'Paga extra' }
+    let current = [] as unknown[]
+    const calls = loggedIn({
+      'GET /api/v1/savings/overview': { body: SAVINGS },
+      'GET /api/v1/goals/g1/contributions': () => ({ body: current }),
+      'POST /api/v1/goals/g1/contributions': () => {
+        current = [contribution]
+        return { status: 201, body: { contribution, operation_id: 'op-7' } }
+      },
+      'DELETE /api/v1/goals/g1/contributions/k1': () => {
+        current = []
+        return { body: { operation_id: 'op-8' } }
+      },
+    })
+    render(<App />)
+    const fund = await screen.findByRole('article', { name: 'Fondo de emergencia' })
+    await userEvent.type(within(fund).getByLabelText('Cantidad para Fondo de emergencia'), '150')
+    await userEvent.type(within(fund).getByLabelText('Nota para Fondo de emergencia'), 'Paga extra')
+    await userEvent.click(within(fund).getByRole('button', { name: 'Aportar a Fondo de emergencia' }))
+    const post = calls.find((c) => c.method === 'POST')!
+    expect(JSON.parse(String(post.body))).toEqual({ amount: '150', note: 'Paga extra' })
+    expect(await screen.findByText('Aportación anotada')).toBeInTheDocument()
+
+    await userEvent.click(within(fund).getByRole('button', { name: 'Ver aportaciones' }))
+    const list = await within(fund).findByRole('list', { name: 'Aportaciones a Fondo de emergencia' })
+    expect(list).toHaveTextContent('+150,00 €')
+    expect(list).toHaveTextContent('Paga extra')
+    await userEvent.click(within(list).getByRole('button', { name: /Borrar la aportación de 150,00/ }))
+    await waitFor(() => expect(calls.some((c) => c.method === 'DELETE')).toBe(true))
+    expect(await screen.findByText('Aportación borrada')).toBeInTheDocument()
+  })
+
+  it('una retirada se manda en negativo', async () => {
+    window.location.hash = '#ahorrar'
+    const calls = loggedIn({
+      'GET /api/v1/savings/overview': { body: SAVINGS },
+      'POST /api/v1/goals/g1/contributions': {
+        status: 201,
+        body: { contribution: { id: 'k2', goal_id: 'g1', made_on: '2026-10-12', amount: eur('-40.00'), note: '' }, operation_id: null },
+      },
+    })
+    render(<App />)
+    const fund = await screen.findByRole('article', { name: 'Fondo de emergencia' })
+    await userEvent.type(within(fund).getByLabelText('Cantidad para Fondo de emergencia'), '40')
+    await userEvent.click(within(fund).getByRole('button', { name: 'Retirar de Fondo de emergencia' }))
+    await waitFor(() => expect(calls.some((c) => c.method === 'POST')).toBe(true))
+    expect(JSON.parse(String(calls.find((c) => c.method === 'POST')!.body))).toMatchObject({ amount: '-40' })
+  })
+
+  it('un objetivo con hucha no deja anotar aportaciones', async () => {
+    window.location.hash = '#ahorrar'
+    loggedIn({ 'GET /api/v1/savings/overview': { body: { ...SAVINGS, goals: [{ ...GOAL, account_id: 'a-pocket' }] } } })
+    render(<App />)
+    const fund = await screen.findByRole('article', { name: 'Fondo de emergencia' })
+    expect(within(fund).queryByRole('button', { name: /Aportar a/ })).toBeNull()
+  })
+
+  it('propone repartir una cantidad por prioridad y enlaza el recordatorio mensual', async () => {
+    window.location.hash = '#ahorrar'
+    const calls = loggedIn({
+      'GET /api/v1/savings/overview': { body: SAVINGS },
+      'GET /api/v1/goals/split': {
+        body: [
+          { goal_id: 'g1', name: 'Fondo de emergencia', amount: eur('200.00'), remaining: eur('200.00') },
+          { goal_id: 'g2', name: 'Vacaciones', amount: eur('100.00'), remaining: eur('800.00') },
+        ],
+      },
+    })
+    render(<App />)
+    const fund = await screen.findByRole('article', { name: 'Fondo de emergencia' })
+    const reminder = within(fund).getByRole('link', { name: 'Programar la aportación mensual a Fondo de emergencia' })
+    const href = new URLSearchParams(reminder.getAttribute('href')!.split('?')[1])
+    expect(href.get('nombre')).toBe('Aportación a Fondo de emergencia')
+    expect(href.get('importe')).toBe('-200.00')
+    expect(href.get('fecha')).toBe('2026-11-01')
+
+    await userEvent.type(screen.getByLabelText('Cantidad a repartir'), '300')
+    await userEvent.click(screen.getByRole('button', { name: 'Sugerir reparto' }))
+    const shares = await screen.findByRole('list', { name: 'Reparto sugerido' })
+    expect(shares).toHaveTextContent('Fondo de emergencia: 200,00 €')
+    expect(shares).toHaveTextContent('Vacaciones: 100,00 €')
+    expect(calls.find((c) => c.url.pathname === '/api/v1/goals/split')!.url.searchParams.get('amount')).toBe('300')
   })
 
   it('avisa cuando la fecha límite ya ha llegado', async () => {
@@ -1738,8 +1963,8 @@ describe('Ahorro (fase 4)', () => {
     await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true))
     const writes = calls.filter((c) => c.method !== 'GET').map((c) => [c.method, JSON.parse(String(c.body))])
     expect(writes).toEqual([
-      ['POST', { name: 'Coche', icon: '🎯', target: '12000', monthly: '250.50', saved: '0', deadline: null }],
-      ['PATCH', { clear_account: false, monthly: '300', saved: '6120.00' }],
+      ['POST', { name: 'Coche', icon: '🎯', target: '12000', monthly: '250.50', saved: '0', deadline: null, priority: 50 }],
+      ['PATCH', { clear_account: false, monthly: '300', saved: '6120.00', priority: 50 }],
     ])
   })
 })
@@ -2107,5 +2332,225 @@ describe('Simulador e ideas (OF-806)', () => {
     await userEvent.click(within(old).getByRole('button', { name: /Recuperar: Restaurantes/ }))
     expect(await screen.findByRole('button', { name: /Descartar: Restaurantes/ })).toBeInTheDocument()
     expect(screen.queryByRole('list', { name: 'Ideas descartadas' })).toBeNull()
+  })
+})
+
+describe('Pagos programados', () => {
+  const PAYMENT = {
+    id: 's1',
+    name: 'Alquiler',
+    amount: { amount: '-900.00', currency: 'EUR' },
+    account_id: 'a-joint',
+    frequency: 'monthly',
+    interval: 1,
+    first_due: '2026-10-01',
+    ends_on: null,
+    category_id: null,
+    merchant: '',
+    variable: false,
+    active: true,
+  }
+  const ITEM = {
+    payment: PAYMENT,
+    occurrences: [
+      { due: '2026-10-01', amount: PAYMENT.amount, status: 'paid', transaction_id: 't9' },
+      { due: '2026-11-01', amount: PAYMENT.amount, status: 'pending', transaction_id: null },
+      { due: '2026-09-28', amount: PAYMENT.amount, status: 'late', transaction_id: null },
+    ],
+  }
+
+  it('enseña los pagos con sus próximas fechas y marca el atraso', async () => {
+    window.location.hash = '#pagos'
+    loggedIn({ 'GET /api/v1/schedule': { body: [ITEM] } })
+    render(<App />)
+    const list = await screen.findByRole('list', { name: 'Tus pagos programados' })
+    expect(list).toHaveTextContent('Alquiler')
+    expect(list).toHaveTextContent('Cuenta conjunta')
+    const dates = screen.getByRole('list', { name: 'Próximas fechas de Alquiler' })
+    expect(dates).toHaveTextContent('Atrasado')
+    expect(dates).toHaveTextContent('Pendiente')
+    expect(dates).not.toHaveTextContent('Cobrado')
+  })
+
+  it('crea un pago con el importe en negativo y avisa de que se puede deshacer', async () => {
+    window.location.hash = '#pagos'
+    const calls = loggedIn({
+      'GET /api/v1/schedule': { body: [] },
+      'POST /api/v1/schedule': { status: 201, body: { payment: PAYMENT, operation_id: 'op1' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Nuevo pago programado' }))
+    await userEvent.type(screen.getByLabelText('Nombre'), 'Alquiler')
+    await userEvent.type(screen.getByLabelText('Importe'), '900')
+    fireEvent.change(screen.getByLabelText(/Primera fecha/), { target: { value: '2026-11-01' } })
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.url.pathname === '/api/v1/schedule')).toBe(true))
+    const sent = JSON.parse(String(calls.find((c) => c.method === 'POST' && c.url.pathname === '/api/v1/schedule')!.body))
+    expect(sent).toMatchObject({
+      name: 'Alquiler',
+      amount: '-900',
+      account_id: 'a-joint',
+      frequency: 'monthly',
+      interval: 1,
+      first_due: '2026-11-01',
+      ends_on: null,
+    })
+  })
+
+  it('un ingreso se manda en positivo y borrar avisa con deshacer', async () => {
+    window.location.hash = '#pagos'
+    const calls = loggedIn({
+      'GET /api/v1/schedule': { body: [ITEM] },
+      'PUT /api/v1/schedule/s1': { body: { payment: PAYMENT, operation_id: 'op2' } },
+      'DELETE /api/v1/schedule/s1': { body: { operation_id: 'op3' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Editar el pago Alquiler' }))
+    await userEvent.selectOptions(screen.getByLabelText('Tipo'), 'in')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(calls.some((c) => c.method === 'PUT')).toBe(true))
+    expect(JSON.parse(String(calls.find((c) => c.method === 'PUT')!.body))).toMatchObject({ amount: '900.00' })
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Borrar el pago Alquiler' }))
+    await waitFor(() => expect(calls.some((c) => c.method === 'DELETE')).toBe(true))
+    expect(await screen.findByText(/Pago «Alquiler» borrado/)).toBeInTheDocument()
+  })
+
+  it('enseña la previsión de saldo y avisa del primer día en negativo', async () => {
+    window.location.hash = '#pagos'
+    const eur = (amount: string) => ({ amount, currency: 'EUR' })
+    const joint = {
+      account_id: 'a-joint',
+      name: 'Cuenta conjunta',
+      currency: 'EUR',
+      start: eur('100.00'),
+      end: eur('-800.00'),
+      lowest: { day: '2026-11-01', balance: eur('-800.00') },
+      first_negative: '2026-11-01',
+      points: [
+        { day: '2026-10-15', balance: eur('100.00') },
+        { day: '2026-11-01', balance: eur('-800.00') },
+      ],
+    }
+    loggedIn({
+      'GET /api/v1/schedule': { body: [ITEM] },
+      'GET /api/v1/forecast': { body: { until: '2027-01-13', accounts: [joint], totals: [{ ...joint, account_id: null, name: null }] } },
+    })
+    render(<App />)
+    const box = await screen.findByRole('region', { name: 'Previsión de saldo' })
+    expect(box).toHaveTextContent('Total en EUR')
+    const alerts = within(screen.getByRole('list', { name: 'Avisos de saldo negativo' }))
+    expect(alerts.getByRole('alert')).toHaveTextContent('Cuenta conjunta: el saldo queda en negativo')
+    expect(within(screen.getByRole('list', { name: 'Previsión por cuenta' })).getByText(/Cuenta conjunta/)).toBeInTheDocument()
+  })
+
+  it('sin pagos programados la previsión no inventa nada', async () => {
+    window.location.hash = '#pagos'
+    const eur = (amount: string) => ({ amount, currency: 'EUR' })
+    const flat = { account_id: 'a-joint', name: 'Cuenta conjunta', currency: 'EUR', start: eur('100.00'), end: eur('100.00'), lowest: { day: '2026-10-15', balance: eur('100.00') }, first_negative: null, points: [{ day: '2026-10-15', balance: eur('100.00') }] }
+    loggedIn({
+      'GET /api/v1/schedule': { body: [] },
+      'GET /api/v1/forecast': { body: { until: '2027-01-13', accounts: [flat], totals: [{ ...flat, account_id: null, name: null }] } },
+    })
+    render(<App />)
+    const box = await screen.findByRole('region', { name: 'Previsión de saldo' })
+    expect(box).toHaveTextContent('Sin pagos programados')
+    expect(screen.queryByRole('list', { name: 'Avisos de saldo negativo' })).toBeNull()
+  })
+
+  const eurm = (amount: string) => ({ amount, currency: 'EUR' })
+  const ALLOWANCE = {
+    status: 'ok',
+    balance: eurm('1227.26'),
+    committed: eurm('900.00'),
+    available: eurm('327.26'),
+    per_day: eurm('18.18'),
+    days: 18,
+    until: '2026-10-28',
+    horizon: 'income',
+    short: false,
+    pending: [{ name: 'Alquiler', due: '2026-10-20', amount: eurm('-900.00') }],
+    next_income: { name: 'Nómina', due: '2026-10-28', amount: eurm('1600.00') },
+    envelopes: [{ category_id: 'c-super', available: eurm('52.66'), status: 'ok' }],
+  }
+
+  it('Este mes enseña cuánto se puede gastar hoy, con su cuenta y los sobres', async () => {
+    window.location.hash = '#mes'
+    loggedIn({
+      'GET /api/v1/insights/month': { body: OVERVIEW },
+      'GET /api/v1/allowance': { body: ALLOWANCE },
+    })
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Hoy podéis gastar' })
+    expect(card).toHaveTextContent('18,18 € al día')
+    expect(card).toHaveTextContent('cuando llega Nómina (18 días)')
+    expect(card).toHaveTextContent('1227,26 € menos 900,00 € de pagos pendientes')
+    expect(within(card).getByRole('list', { name: 'Pagos que se descuentan' })).toHaveTextContent('Alquiler')
+    expect(within(card).getByRole('list', { name: 'Sobres' })).toHaveTextContent('quedan 52,66 € en el sobre')
+  })
+
+  it('si no llega, la tarjeta lo dice en lugar de repartir', async () => {
+    window.location.hash = '#mes'
+    loggedIn({
+      'GET /api/v1/insights/month': { body: OVERVIEW },
+      'GET /api/v1/allowance': {
+        body: { ...ALLOWANCE, short: true, available: eurm('-400.00'), per_day: eurm('0.00'), committed: eurm('1627.26') },
+      },
+    })
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Hoy podéis gastar' })
+    expect(within(card).getByRole('alert')).toHaveTextContent('no llega hasta el')
+    expect(card).not.toHaveTextContent(/€ al día/)
+  })
+
+  it('sin pagos programados no se inventa ninguna cifra', async () => {
+    window.location.hash = '#mes'
+    loggedIn({
+      'GET /api/v1/insights/month': { body: OVERVIEW },
+      'GET /api/v1/allowance': {
+        body: { ...ALLOWANCE, status: 'no_schedule', balance: null, committed: null, available: null, per_day: null, days: null, until: null, horizon: null, pending: [], next_income: null, envelopes: [] },
+      },
+    })
+    render(<App />)
+    const card = await screen.findByRole('region', { name: 'Hoy podéis gastar' })
+    expect(card).toHaveTextContent('Programad el alquiler')
+    expect(card).not.toHaveTextContent(/€ al día/)
+    expect(within(card).getByRole('link', { name: /Programad el alquiler/ })).toHaveAttribute('href', '#pagos')
+  })
+
+  it('sin cuenta conjunta la tarjeta no aparece', async () => {
+    window.location.hash = '#mes'
+    loggedIn({
+      'GET /api/v1/insights/month': { body: OVERVIEW },
+      'GET /api/v1/allowance': { body: { ...ALLOWANCE, status: 'no_balance' } },
+    })
+    render(<App />)
+    await screen.findByRole('heading', { name: 'Este mes' })
+    expect(screen.queryByRole('region', { name: 'Hoy podéis gastar' })).toBeNull()
+  })
+
+  it('un cargo detectado llega con su nombre, importe y fecha ya puestos', async () => {
+    window.location.hash = '#pagos?nombre=Netflix&importe=-17.99&fecha=2026-11-02'
+    loggedIn({ 'GET /api/v1/schedule': { body: [] } })
+    render(<App />)
+    expect(await screen.findByLabelText('Nombre')).toHaveValue('Netflix')
+    expect(screen.getByLabelText('Importe')).toHaveValue('17.99')
+    expect(screen.getByLabelText('Tipo')).toHaveValue('out')
+    expect(screen.getByLabelText(/Primera fecha/)).toHaveValue('2026-11-02')
+    await waitFor(() => expect(window.location.hash).toBe('#pagos'))
+  })
+
+  it('muestra el error de la API al guardar', async () => {
+    window.location.hash = '#pagos'
+    loggedIn({
+      'GET /api/v1/schedule': { body: [] },
+      'POST /api/v1/schedule': { status: 409, body: { detail: 'Ya hay un pago con ese nombre' } },
+    })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Nuevo pago programado' }))
+    await userEvent.type(screen.getByLabelText('Nombre'), 'Alquiler')
+    await userEvent.type(screen.getByLabelText('Importe'), '900')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Ya hay un pago con ese nombre')
   })
 })

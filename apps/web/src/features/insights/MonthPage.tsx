@@ -4,8 +4,9 @@ import { useHousehold } from '../../app/household-context'
 import { Donut, LineChart, geometry } from '../../components/charts'
 import { ErrorState, Loading } from '../../components/LoadState'
 import { useLoad } from '../../lib/useLoad'
-import { centsToAmount, formatMoney, formatMoneyRounded, monthLabel, shortMonth, toCents } from '../../lib/format'
+import { centsToAmount, currentMonth, formatMoney, formatMoneyRounded, monthLabel, shortMonth, toCents } from '../../lib/format'
 import { routeHref } from '../../app/router'
+import { AllowanceCard } from './AllowanceCard'
 import { Delta, MonthPicker, NoData, ViewPicker } from './common'
 import { sharePercent, useCategoryMeta } from './meta'
 
@@ -157,6 +158,8 @@ export function MonthPage() {
           <p className="small muted">Las cuotas que aún no han llegado se suman a la previsión; las retrasadas, no.</p>
         </div>
       )}
+
+      {month === currentMonth() && <AllowanceCard />}
 
       <div className="grid g12">
         <div className="card">
@@ -314,9 +317,14 @@ export function MonthPage() {
                     <span className="name">
                       <span>{m.name}</span>
                       <span className="small">
-                        {formatMoneyRounded(b.spent)} de {formatMoneyRounded(b.amount)}
+                        {formatMoneyRounded(b.spent)} de {formatMoneyRounded({ ...b.amount, amount: centsToAmount(toCents(b.amount.amount) + toCents(b.carried.amount)) })}
                       </span>
                     </span>
+                    {b.mode === 'envelope' && (
+                      <span className="small muted block">
+                        Sobre: {toCents(b.carried.amount) < 0n ? 'arrastra un exceso de' : 'incluye'} {formatMoneyRounded({ ...b.carried, amount: b.carried.amount.replace(/^-/, '') })} del mes anterior
+                      </span>
+                    )}
                     {toCents(b.fixed.amount) > 0n && (
                       <span className="small muted block">{formatMoneyRounded(b.fixed)} son cuotas fijas</span>
                     )}

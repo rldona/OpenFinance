@@ -38,8 +38,10 @@ from openfinance.infrastructure.db.repositories.savings import (
     SqlGoalRepository,
     SqlIdeaDismissalRepository,
 )
+from openfinance.infrastructure.db.repositories.schedule import SqlScheduleRepository
 from openfinance.infrastructure.db.repositories.splits import SqlSplitRepository
 from openfinance.infrastructure.db.repositories.tags import SqlTagRepository
+from openfinance.infrastructure.db.repositories.templates import SqlTemplateRepository
 
 
 class SqlUnitOfWork:
@@ -65,6 +67,8 @@ class SqlUnitOfWork:
         self.rates = SqlRateRepository(session)
         self.automation = SqlAutomationRepository(session)
         self.csv_profiles = SqlCsvProfileRepository(session)
+        self.schedule = SqlScheduleRepository(session)
+        self.templates = SqlTemplateRepository(session)
         self.member_patterns = SqlMemberPatternRepository(session)
         self.changes = SqlChangeRepository(session)
 

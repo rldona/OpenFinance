@@ -332,6 +332,62 @@ class CsvProfileRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class ScheduledPaymentRow(Base):
+    """Pago programado (OF-1201). Las ocurrencias no se guardan: se calculan."""
+
+    __tablename__ = "scheduled_payments"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["account_id", "household_id"],
+            ["accounts.id", "accounts.household_id"],
+            name="fk_scheduled_payments_account_household",
+        ),
+        ForeignKeyConstraint(
+            ["category_id", "household_id"],
+            ["categories.id", "categories.household_id"],
+            name="fk_scheduled_payments_category_household",
+        ),
+        CheckConstraint("amount <> 0", name="amount_not_zero"),
+        CheckConstraint("interval >= 1", name="interval_positive"),
+        CheckConstraint(
+            "frequency IN ('once', 'weekly', 'monthly', 'yearly')", name="frequency_valid"
+        ),
+        Index("ix_scheduled_payments_household", "household_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    account_id: Mapped[UUID] = mapped_column()
+    name: Mapped[str] = mapped_column(String(60))
+    amount: Mapped[Decimal] = mapped_column(AMOUNT)
+    currency: Mapped[str] = mapped_column(String(3))
+    frequency: Mapped[str] = mapped_column(String(10))
+    interval: Mapped[int] = mapped_column()
+    first_due: Mapped[date] = mapped_column(Date)
+    ends_on: Mapped[date | None] = mapped_column(Date)
+    category_id: Mapped[UUID | None] = mapped_column()
+    merchant: Mapped[str] = mapped_column(String(120), server_default="")
+    variable: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa_false())
+    active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=sa_true())
+    created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class TransactionTemplateRow(Base):
+    """Plantilla de movimiento manual (OF-1204). La definición es JSON."""
+
+    __tablename__ = "transaction_templates"
+    __table_args__ = (Index("ix_transaction_templates_household", "household_id"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    scope: Mapped[str] = mapped_column(String(36), default="", server_default="")
+    name: Mapped[str] = mapped_column(String(60))
+    definition: Mapped[str] = mapped_column(Text)
+    created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class MerchantRow(Base):
     """Comercio con nombre propio (OF-1001). Los que nadie ha tocado no tienen fila."""
 
@@ -372,10 +428,35 @@ class BudgetRow(Base):
             name="fk_budgets_category_household",
         ),
         CheckConstraint("amount > 0", name="amount_positive"),
+        CheckConstraint("mode IN ('limit', 'envelope')", name="mode_valid"),
     )
 
     household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"), primary_key=True)
     category_id: Mapped[UUID] = mapped_column(primary_key=True)
+    amount: Mapped[Decimal] = mapped_column(AMOUNT)
+    currency: Mapped[str] = mapped_column(String(3))
+    mode: Mapped[str] = mapped_column(String(10), server_default="limit")
+    started: Mapped[str | None] = mapped_column(String(7))
+    """Mes (AAAA-MM) desde el que un sobre arrastra."""
+
+
+class BudgetOverrideRow(Base):
+    """Importe de un presupuesto para un mes concreto (OF-1203)."""
+
+    __tablename__ = "budget_overrides"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["household_id", "category_id"],
+            ["budgets.household_id", "budgets.category_id"],
+            name="fk_budget_overrides_budget",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint("amount > 0", name="amount_positive"),
+    )
+
+    household_id: Mapped[UUID] = mapped_column(primary_key=True)
+    category_id: Mapped[UUID] = mapped_column(primary_key=True)
+    month: Mapped[str] = mapped_column(String(7), primary_key=True)
     amount: Mapped[Decimal] = mapped_column(AMOUNT)
     currency: Mapped[str] = mapped_column(String(3))
 
@@ -401,6 +482,30 @@ class GoalRow(Base):
     currency: Mapped[str] = mapped_column(String(3))
     deadline: Mapped[str | None] = mapped_column(String(7))
     account_id: Mapped[UUID | None] = mapped_column()
+    priority: Mapped[int] = mapped_column(server_default="50")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class GoalContributionRow(Base):
+    """Aportación (o retirada) anotada a mano en un objetivo (OF-1206)."""
+
+    __tablename__ = "goal_contributions"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["goal_id"], ["goals.id"], name="fk_goal_contributions_goal", ondelete="CASCADE"
+        ),
+        CheckConstraint("amount <> 0", name="amount_not_zero"),
+        Index("ix_goal_contributions_goal", "goal_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"))
+    goal_id: Mapped[UUID] = mapped_column()
+    made_on: Mapped[date] = mapped_column(Date)
+    amount: Mapped[Decimal] = mapped_column(AMOUNT)
+    currency: Mapped[str] = mapped_column(String(3))
+    note: Mapped[str] = mapped_column(String(200), server_default="")
+    created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -492,7 +597,8 @@ class ChangeEntryRow(Base):
         Index("ix_change_entries_entity", "entity", "entity_id"),
         CheckConstraint(
             "entity IN ('transaction', 'rule', 'import', 'merchant', 'tag', 'split', 'link', "
-            "'account', 'attachment', 'reconciliation', 'rate', 'automation', 'csv_profile')",
+            "'account', 'attachment', 'reconciliation', 'rate', 'automation', 'csv_profile', "
+            "'schedule', 'template', 'goal_contribution')",
             name="entity_valid",
         ),
     )

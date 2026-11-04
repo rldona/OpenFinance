@@ -15,6 +15,7 @@ import { MonthPage } from '../features/insights/MonthPage'
 import { SpendingPage } from '../features/insights/SpendingPage'
 import { TrendsPage } from '../features/insights/TrendsPage'
 import { BudgetsPage } from '../features/savings/BudgetsPage'
+import { SchedulePage } from '../features/savings/SchedulePage'
 import { SavingsPage } from '../features/savings/SavingsPage'
 import { SettingsPage } from '../features/settings/SettingsPage'
 import { TransactionsPage } from '../features/transactions/TransactionsPage'
@@ -50,6 +51,8 @@ function Page({ route }: { route: RouteId }) {
       return <SettingsPage />
     case 'comercios':
       return <MerchantsPage />
+    case 'pagos':
+      return <SchedulePage />
     case 'cambios':
       return <ChangesPage />
   }

@@ -21,14 +21,17 @@ from openfinance.domain.imports import (
     PatternDirection,
 )
 from openfinance.domain.imports.batch import ImportBatch, ImportStatus
+from openfinance.domain.insights import Month
 from openfinance.domain.ledger import Account, Institution, Transaction
 from openfinance.domain.merchants import Merchant, MerchantId
 from openfinance.domain.rates import ExchangeRate
 from openfinance.domain.reconciliation import Reconciliation
-from openfinance.domain.savings import Budget, Goal, GoalId
-from openfinance.domain.shared import Currency
+from openfinance.domain.savings import Budget, Goal, GoalContribution, GoalId
+from openfinance.domain.schedule import ScheduledPayment
+from openfinance.domain.shared import Currency, Money
 from openfinance.domain.shared.ids import AccountId, TransactionId, UserId, WorkspaceId
 from openfinance.domain.splits import SplitPart
+from openfinance.domain.templates import TransactionTemplate
 from openfinance.domain.workspaces import Household
 
 
@@ -220,6 +223,26 @@ class CsvProfileRepository(Protocol):
     def delete(self, household_id: WorkspaceId, profile_id: UUID) -> None: ...
 
 
+class ScheduleRepository(Protocol):
+    def for_household(self, household_id: WorkspaceId) -> list[ScheduledPayment]:
+        """Todos los pagos del hogar, también los de cuentas personales: quien llama filtra."""
+        ...
+
+    def get(self, household_id: WorkspaceId, schedule_id: UUID) -> ScheduledPayment | None: ...
+    def save(self, payment: ScheduledPayment, created_by: UserId) -> None: ...
+    def delete(self, household_id: WorkspaceId, schedule_id: UUID) -> None: ...
+
+
+class TemplateRepository(Protocol):
+    def for_household(self, household_id: WorkspaceId) -> list[TransactionTemplate]:
+        """Todas las plantillas del hogar, también las personales: quien llama filtra."""
+        ...
+
+    def get(self, household_id: WorkspaceId, template_id: UUID) -> TransactionTemplate | None: ...
+    def save(self, template: TransactionTemplate, created_by: UserId) -> None: ...
+    def delete(self, household_id: WorkspaceId, template_id: UUID) -> None: ...
+
+
 class AutomationRepository(Protocol):
     def for_household(self, household_id: WorkspaceId) -> list[AutomationRule]:
         """Todas las reglas del hogar, también las personales: quien llama filtra por ámbito."""
@@ -348,7 +371,20 @@ class MerchantRepository(Protocol):
 class BudgetRepository(Protocol):
     def for_household(self, household_id: WorkspaceId) -> list[Budget]: ...
     def upsert(self, budget: Budget) -> None: ...
-    def delete(self, household_id: WorkspaceId, category_id: CategoryId) -> None: ...
+    def delete(self, household_id: WorkspaceId, category_id: CategoryId) -> None:
+        """Borra el presupuesto y sus importes por mes."""
+        ...
+
+    def overrides(self, household_id: WorkspaceId) -> dict[tuple[CategoryId, Month], Money]:
+        """Importes propios de un mes (OF-1203), por categoría y mes."""
+        ...
+
+    def set_override(
+        self, household_id: WorkspaceId, category_id: CategoryId, month: Month, amount: Money
+    ) -> None: ...
+    def delete_override(
+        self, household_id: WorkspaceId, category_id: CategoryId, month: Month
+    ) -> None: ...
 
 
 class IdeaDismissalRepository(Protocol):
@@ -362,7 +398,23 @@ class GoalRepository(Protocol):
     def get(self, household_id: WorkspaceId, goal_id: GoalId) -> Goal | None: ...
     def add(self, goal: Goal) -> None: ...
     def update(self, goal: Goal) -> None: ...
-    def delete(self, household_id: WorkspaceId, goal_id: GoalId) -> None: ...
+    def delete(self, household_id: WorkspaceId, goal_id: GoalId) -> None:
+        """Borra el objetivo y sus aportaciones."""
+        ...
+
+    def contributions(self, household_id: WorkspaceId, goal_id: GoalId) -> list[GoalContribution]:
+        """Las aportaciones de un objetivo, de la más reciente a la más antigua."""
+        ...
+
+    def contribution_totals(self, household_id: WorkspaceId) -> dict[GoalId, Money]:
+        """Lo aportado en cada objetivo que tiene aportaciones."""
+        ...
+
+    def get_contribution(
+        self, household_id: WorkspaceId, contribution_id: UUID
+    ) -> GoalContribution | None: ...
+    def save_contribution(self, contribution: GoalContribution, created_by: UserId) -> None: ...
+    def delete_contribution(self, household_id: WorkspaceId, contribution_id: UUID) -> None: ...
 
 
 class ImportBatchRepository(Protocol):
@@ -502,6 +554,10 @@ class UnitOfWork(Protocol):
     def automation(self) -> AutomationRepository: ...
     @property
     def csv_profiles(self) -> CsvProfileRepository: ...
+    @property
+    def schedule(self) -> ScheduleRepository: ...
+    @property
+    def templates(self) -> TemplateRepository: ...
     @property
     def member_patterns(self) -> MemberPatternRepository: ...
     @property

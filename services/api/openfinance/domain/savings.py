@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import math
 from collections import defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import date
 from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
@@ -20,6 +21,12 @@ from openfinance.domain.shared import Currency, Money
 from openfinance.domain.shared.ids import AccountId, WorkspaceId
 
 GoalId = NewType("GoalId", UUID)
+ContributionId = NewType("ContributionId", UUID)
+
+MIN_PRIORITY = 1
+MAX_PRIORITY = 99
+DEFAULT_PRIORITY = 50
+MAX_CONTRIBUTION_NOTE = 200
 
 
 class SavingsError(ValueError):
@@ -39,16 +46,75 @@ class BudgetStatus(StrEnum):
     """Se ha superado el límite."""
 
 
+class BudgetMode(StrEnum):
+    LIMIT = "limit"
+    """Un tope por mes: lo que no se gasta se pierde."""
+    ENVELOPE = "envelope"
+    """Un sobre: lo que sobra (o falta) pasa al mes siguiente (ADR-0022)."""
+
+
+MAX_ENVELOPE_MONTHS = 36
+"""Un sobre arrastra como mucho tres años hacia atrás: más allá el cálculo no cambia lo que se
+ve y el coste no merece la pena."""
+
+
 @dataclass(frozen=True, slots=True)
 class Budget:
     household_id: WorkspaceId
     category_id: CategoryId
     amount: Money
-    """Límite mensual."""
+    """El importe base de cada mes (un mes concreto puede tener otro, ver ``allocation``)."""
+    mode: BudgetMode = BudgetMode.LIMIT
+    started: Month | None = None
+    """Desde qué mes se arrastra, en un sobre."""
 
     def __post_init__(self) -> None:
         if self.amount.amount <= 0:
             raise SavingsError("El presupuesto debe ser mayor que cero")
+        if (self.mode is BudgetMode.ENVELOPE) != (self.started is not None):
+            raise SavingsError("Un sobre necesita su mes de inicio, y un límite no")
+
+
+def allocation(budget: Budget, overrides: Mapping[Month, Money], month: Month) -> Money:
+    """Lo asignado ese mes: el importe de ese mes si tiene uno propio, o el base."""
+    return overrides.get(month, budget.amount)
+
+
+def carried_into(
+    budget: Budget,
+    overrides: Mapping[Month, Money],
+    spent: Mapping[Month, Money],
+    month: Month,
+) -> Money:
+    """Lo que llega de los meses anteriores a un sobre (negativo si se gastó de más).
+
+    Se recalcula siempre desde el gasto, no se guarda: corregir un movimiento antiguo corrige
+    todos los meses siguientes. Un límite no arrastra nada.
+    """
+    zero = Money.zero(budget.amount.currency)
+    if budget.mode is not BudgetMode.ENVELOPE or budget.started is None or month <= budget.started:
+        return zero
+    first = max(budget.started, month.shift(-MAX_ENVELOPE_MONTHS))
+    balance = zero
+    current = first
+    while current < month:
+        balance = balance + allocation(budget, overrides, current) - spent.get(current, zero)
+        current = current.shift(1)
+    return balance
+
+
+def envelope_status(
+    spent: Money, limit: Money, fixed: Money | None = None
+) -> tuple[int, BudgetStatus]:
+    """Estado de un sobre. ``limit`` es lo asignado más lo arrastrado (puede no ser positivo).
+
+    «Pasado» es que el disponible sea negativo; mientras no lo sea, se avisa como en un límite.
+    """
+    if spent.amount > limit.amount:
+        return percent_of(spent, limit), BudgetStatus.OVER
+    if limit.amount <= 0:
+        return 0, BudgetStatus.OK
+    return budget_status(spent, limit, fixed)
 
 
 def percent_of(part: Money, whole: Money) -> int:
@@ -99,10 +165,14 @@ class Goal:
     deadline: Month | None = None
     account_id: AccountId | None = None
     """Hucha cuyo saldo es lo ahorrado."""
+    priority: int = DEFAULT_PRIORITY
+    """Cuanto menor, antes: ordena los objetivos y reparte lo que sobra (OF-1206)."""
 
     def __post_init__(self) -> None:
         if not self.name.strip() or len(self.name) > 60:
             raise SavingsError("El objetivo necesita un nombre de hasta 60 caracteres")
+        if not MIN_PRIORITY <= self.priority <= MAX_PRIORITY:
+            raise SavingsError(f"La prioridad va de {MIN_PRIORITY} a {MAX_PRIORITY}")
         if not self.icon.strip() or len(self.icon) > 8:
             raise SavingsError("Icono no válido")
         if self.target.amount <= 0:
@@ -111,6 +181,72 @@ class Goal:
             raise SavingsError("Las cantidades no pueden ser negativas")
         if len({self.target.currency, self.monthly.currency, self.saved.currency}) != 1:
             raise SavingsError("Todas las cantidades deben estar en la misma moneda")
+
+
+@dataclass(frozen=True, slots=True)
+class GoalContribution:
+    """Una aportación (o, en negativo, una retirada) anotada a mano en un objetivo."""
+
+    id: ContributionId
+    household_id: WorkspaceId
+    goal_id: GoalId
+    made_on: date
+    amount: Money
+    note: str = ""
+
+    def __post_init__(self) -> None:
+        if self.amount.is_zero:
+            raise SavingsError("La aportación no puede ser de cero")
+        if len(self.note) > MAX_CONTRIBUTION_NOTE or not self.note.isprintable():
+            raise SavingsError(f"La nota admite hasta {MAX_CONTRIBUTION_NOTE} caracteres")
+
+    def definition(self) -> str:
+        """El texto canónico (registro de cambios)."""
+        return json.dumps(
+            {
+                "goal_id": str(self.goal_id),
+                "made_on": self.made_on.isoformat(),
+                "amount": str(self.amount.amount),
+                "currency": self.amount.currency.code,
+                "note": self.note,
+            },
+            sort_keys=True,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+
+
+def contribution_from_definition(
+    contribution_id: UUID, household_id: WorkspaceId, definition: str
+) -> GoalContribution:
+    data = json.loads(definition)
+    return GoalContribution(
+        id=ContributionId(contribution_id),
+        household_id=household_id,
+        goal_id=GoalId(UUID(data["goal_id"])),
+        made_on=date.fromisoformat(data["made_on"]),
+        amount=Money.of(data["amount"], data["currency"]),
+        note=data["note"],
+    )
+
+
+def distribute(amount: Money, goals: Iterable[tuple[Goal, Money]]) -> list[tuple[GoalId, Money]]:
+    """Reparte ``amount`` por prioridad: el objetivo más prioritario recibe hasta lo que le falta
+    (segundo elemento de cada par), y lo que sobra pasa al siguiente.
+
+    A igual prioridad se respeta el orden dado. Un objetivo ya completo no recibe nada, y lo
+    que no cabe en ninguno queda sin repartir (no está en el resultado).
+    """
+    left = max(amount.amount, Decimal(0))
+    out: list[tuple[GoalId, Money]] = []
+    for goal, remaining in sorted(goals, key=lambda pair: pair[0].priority):
+        if left <= 0:
+            break
+        give = min(left, max(remaining.amount, Decimal(0)))
+        if give > 0:
+            out.append((goal.id, Money.of(give, amount.currency)))
+            left -= give
+    return out
 
 
 @dataclass(frozen=True, slots=True)

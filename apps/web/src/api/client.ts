@@ -9,6 +9,14 @@ export type CsvTest = Schemas['CsvTestOut']
 export type AutomationRule = Schemas['AutomationRuleOut']
 export type AutomationRuleInput = Schemas['AutomationRuleIn']
 export type RulePreview = Schemas['RulePreviewOut']
+export type ScheduleItem = Schemas['ScheduleItemOut']
+export type ForecastView = Schemas['ForecastViewOut']
+export type Template = Schemas['TemplateOut']
+export type Allowance = Schemas['AllowanceOut']
+export type TemplateInput = Schemas['TemplateIn']
+export type AccountForecast = Schemas['ForecastOut']
+export type ScheduledPayment = Schemas['ScheduledPaymentOut']
+export type ScheduledPaymentInput = Schemas['ScheduledPaymentIn']
 export type ExchangeRate = Schemas['RateOut']
 export type MissingRate = Schemas['MissingRateOut']
 export type Attachment = Schemas['AttachmentOut']
@@ -51,6 +59,8 @@ export type Budget = Schemas['BudgetOut']
 export type Goal = Schemas['GoalOut']
 export type GoalInput = Schemas['GoalIn']
 export type GoalPatch = Schemas['GoalPatch']
+export type Contribution = Schemas['ContributionOut']
+export type GoalShare = Schemas['ShareOut']
 export type SavingsOverview = Schemas['SavingsOverviewOut']
 
 export type ExportFormat = NonNullable<
@@ -195,6 +205,27 @@ export const api = {
     form.set('profile', JSON.stringify(profile))
     return request<CsvTest>('POST', '/api/v1/csv-profiles/test', { form })
   },
+  /** «Hoy podéis gastar» con el dinero de la conjunta (OF-1205). */
+  allowance: (signal?: AbortSignal) => request<Allowance>('GET', '/api/v1/allowance', { signal }),
+  /** Plantillas de movimientos manuales (OF-1204). */
+  templates: (signal?: AbortSignal) => request<Template[]>('GET', '/api/v1/templates', { signal }),
+  createTemplate: (template: TemplateInput) =>
+    request<{ template: Template; operation_id: string | null }>('POST', '/api/v1/templates', { json: template }),
+  deleteTemplate: (id: string) =>
+    request<{ operation_id: string | null }>('DELETE', `/api/v1/templates/${encodeURIComponent(id)}`),
+  useTemplate: (id: string, bookedOn: string) =>
+    request<ManualTransactionResult>('POST', `/api/v1/templates/${encodeURIComponent(id)}/use`, { json: { booked_on: bookedOn } }),
+  /** Pagos programados y sus próximas fechas (OF-1201). */
+  schedule: (days: number, signal?: AbortSignal) =>
+    request<ScheduleItem[]>('GET', `/api/v1/schedule?days=${days}`, { signal }),
+  forecast: (days: number, signal?: AbortSignal) =>
+    request<ForecastView>('GET', `/api/v1/forecast?days=${days}`, { signal }),
+  createScheduledPayment: (payment: ScheduledPaymentInput) =>
+    request<{ payment: ScheduledPayment; operation_id: string | null }>('POST', '/api/v1/schedule', { json: payment }),
+  updateScheduledPayment: (id: string, payment: ScheduledPaymentInput) =>
+    request<{ payment: ScheduledPayment; operation_id: string | null }>('PUT', `/api/v1/schedule/${encodeURIComponent(id)}`, { json: payment }),
+  deleteScheduledPayment: (id: string) =>
+    request<{ operation_id: string | null }>('DELETE', `/api/v1/schedule/${encodeURIComponent(id)}`),
   /** Reglas con condiciones, acciones y fases (OF-1101, OF-1102). */
   automationRules: (signal?: AbortSignal) => request<AutomationRule[]>('GET', '/api/v1/automation-rules', { signal }),
   createAutomationRule: (rule: AutomationRuleInput) =>
@@ -278,8 +309,15 @@ export const api = {
     request<Trends>('GET', '/api/v1/insights/trends', { query: { month, months: 12 }, signal }),
   budgets: (month: string, signal?: AbortSignal) =>
     request<Budgets>('GET', '/api/v1/budgets', { query: { month }, signal }),
-  setBudget: (categoryId: string, amount: string) =>
-    request<Budget>('PUT', `/api/v1/budgets/${encodeURIComponent(categoryId)}`, { json: { amount } }),
+  /** `mode` solo viaja si es un sobre: un límite es lo de siempre (OF-1203). */
+  setBudget: (categoryId: string, amount: string, mode: 'limit' | 'envelope' = 'limit') =>
+    request<Budget>('PUT', `/api/v1/budgets/${encodeURIComponent(categoryId)}`, {
+      json: mode === 'envelope' ? { amount, mode } : { amount },
+    }),
+  setBudgetMonth: (categoryId: string, month: string, amount: string) =>
+    request<Budget>('PUT', `/api/v1/budgets/${encodeURIComponent(categoryId)}/months/${encodeURIComponent(month)}`, { json: { amount } }),
+  clearBudgetMonth: (categoryId: string, month: string) =>
+    request<void>('DELETE', `/api/v1/budgets/${encodeURIComponent(categoryId)}/months/${encodeURIComponent(month)}`),
   deleteBudget: (categoryId: string) => request<void>('DELETE', `/api/v1/budgets/${encodeURIComponent(categoryId)}`),
   createGoal: (input: GoalInput) => request<Goal>('POST', '/api/v1/goals', { json: input }),
   updateGoal: (id: string, patch: Partial<GoalPatch>) =>
@@ -287,6 +325,19 @@ export const api = {
       json: { clear_account: false, ...patch },
     }),
   deleteGoal: (id: string) => request<void>('DELETE', `/api/v1/goals/${encodeURIComponent(id)}`),
+  /** Aportaciones a un objetivo y reparto por prioridad (OF-1206). */
+  goalContributions: (id: string, signal?: AbortSignal) =>
+    request<Contribution[]>('GET', `/api/v1/goals/${encodeURIComponent(id)}/contributions`, { signal }),
+  addContribution: (id: string, amount: string, note: string) =>
+    request<{ contribution: Contribution; operation_id: string | null }>('POST', `/api/v1/goals/${encodeURIComponent(id)}/contributions`, {
+      json: { amount, note },
+    }),
+  deleteContribution: (goalId: string, contributionId: string) =>
+    request<{ operation_id: string | null }>(
+      'DELETE',
+      `/api/v1/goals/${encodeURIComponent(goalId)}/contributions/${encodeURIComponent(contributionId)}`,
+    ),
+  goalSplit: (amount: string) => request<GoalShare[]>('GET', '/api/v1/goals/split', { query: { amount } }),
   dismissIdea: (id: string) => request<void>('PUT', `/api/v1/savings/ideas/${encodeURIComponent(id)}/dismissed`),
   restoreIdea: (id: string) => request<void>('DELETE', `/api/v1/savings/ideas/${encodeURIComponent(id)}/dismissed`),
   savingsOverview: (signal?: AbortSignal) => request<SavingsOverview>('GET', '/api/v1/savings/overview', { signal }),

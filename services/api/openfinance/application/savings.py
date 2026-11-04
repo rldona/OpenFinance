@@ -5,32 +5,43 @@ Como los gráficos, todo se calcula solo con la conjunta y las huchas (ADR-0013)
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
-from uuid import uuid4
+from uuid import UUID, uuid4
 
+from openfinance.application import changes as change_log
 from openfinance.application.conversion import report_transactions
-from openfinance.application.errors import InvalidRequestError, NotFoundError
+from openfinance.application.errors import ConflictError, InvalidRequestError, NotFoundError
 from openfinance.application.insights import shared_scope
 from openfinance.application.ledger import balance_of
 from openfinance.application.ports import UnitOfWork
 from openfinance.domain.categories import Category, CategoryId
+from openfinance.domain.changes import Change, Entity
 from openfinance.domain.insights import Month, average, by_month, spending_by_category
 from openfinance.domain.ledger import Account, AccountKind, summarize
 from openfinance.domain.savings import (
+    MAX_ENVELOPE_MONTHS,
     Budget,
+    BudgetMode,
     BudgetStatus,
     CategoryStats,
+    ContributionId,
     Goal,
+    GoalContribution,
     GoalId,
     GoalProjection,
     Idea,
     RecurringCharge,
     SavingsError,
+    allocation,
     budget_status,
     build_ideas,
+    carried_into,
     detect_recurring,
+    distribute,
+    envelope_status,
     is_fixed,
     pending_charges,
     project_goal,
@@ -74,19 +85,49 @@ class BudgetView:
     status: BudgetStatus
     fixed: Money
     """Cuotas fijas de la categoría este mes (cobradas y por cobrar): no avisan de «cerca»."""
+    allocated: Money
+    """Lo asignado ese mes: el importe propio del mes o el base."""
+    carried: Money
+    """Lo que llega de meses anteriores en un sobre (negativo si se gastó de más)."""
+    has_override: bool
+
+    @property
+    def limit(self) -> Money:
+        """Lo que se puede gastar ese mes: lo asignado más lo arrastrado."""
+        return self.allocated + self.carried
+
+    @property
+    def available(self) -> Money:
+        return self.limit - self.spent
 
 
 def list_budgets(uow: UnitOfWork, actor: Actor, month: Month, today: date) -> list[BudgetView]:
-    """Presupuestos con lo gastado en el mes (solo gastos de esa categoría y ese mes)."""
+    """Presupuestos con lo gastado en el mes (solo gastos de esa categoría y ese mes).
+
+    Un sobre mira hacia atrás hasta su mes de inicio (con el límite de ``MAX_ENVELOPE_MONTHS``)
+    para saber qué arrastra.
+    """
     scope = shared_scope(uow, actor)
     cur = scope.currency
+    budgets = uow.budgets.for_household(actor.household_id)
+    recent_from = month.shift(-HISTORY_MONTHS)
+    from_month = recent_from
+    for b in budgets:
+        if b.mode is BudgetMode.ENVELOPE and b.started is not None:
+            from_month = min(from_month, max(b.started, month.shift(-MAX_ENVELOPE_MONTHS)))
     history = report_transactions(
-        uow, actor.household_id, scope.accounts, month.shift(-HISTORY_MONTHS).start, month.end
+        uow, actor.household_id, scope.accounts, from_month.start, month.end
     )
     txns = [t for t in history if Month.of(t.booked_at) == month]
     spent = spending_by_category(txns, cur)
+    per_month: dict[CategoryId | None, dict[Month, Money]] = {}
+    for m, group in by_month(history).items():
+        for category_id, money in spending_by_category(group, cur).items():
+            per_month.setdefault(category_id, {})[m] = money
     # Las cuotas fijas ya están comprometidas: solo cuentan para el aviso de «cerca».
-    recurring = detect_recurring(history, cur, today)
+    recurring = detect_recurring(
+        [t for t in history if t.booked_at >= recent_from.start], cur, today
+    )
     merchants = {r.merchant for r in recurring}
     fixed: dict[CategoryId | None, Money] = {}
     for t in txns:
@@ -97,21 +138,55 @@ def list_budgets(uow: UnitOfWork, actor: Actor, month: Month, today: date) -> li
             if not p.late:
                 fixed[p.category_id] = fixed.get(p.category_id, Money.zero(cur)) + p.amount
     order = {c.id: c.position for c in uow.categories.for_household(actor.household_id)}
+    all_overrides = uow.budgets.overrides(actor.household_id)
     views = []
-    for b in uow.budgets.for_household(actor.household_id):
+    for b in budgets:
         s = spent.get(b.category_id, Money.zero(cur))
         f = fixed.get(b.category_id, Money.zero(cur))
-        percent, status = budget_status(s, b.amount, f)
-        views.append(BudgetView(b, s, percent, status, f))
+        own = {m: amount for (c, m), amount in all_overrides.items() if c == b.category_id}
+        allocated = allocation(b, own, month)
+        carried = carried_into(b, own, per_month.get(b.category_id, {}), month)
+        if b.mode is BudgetMode.ENVELOPE:
+            percent, status = envelope_status(s, allocated + carried, f)
+        else:
+            percent, status = budget_status(s, allocated, f)
+        views.append(BudgetView(b, s, percent, status, f, allocated, carried, month in own))
     views.sort(key=lambda v: order.get(v.budget.category_id, 1_000))
     return views
 
 
-def set_budget(uow: UnitOfWork, actor: Actor, category_id: CategoryId, amount: str) -> Budget:
+def set_budget(
+    uow: UnitOfWork,
+    actor: Actor,
+    category_id: CategoryId,
+    amount: str,
+    mode: BudgetMode = BudgetMode.LIMIT,
+    today: date | None = None,
+    started: Month | None = None,
+) -> Budget:
     _category(uow, actor, category_id)
     currency = _currency(uow, actor)
+    existing = next(
+        (b for b in uow.budgets.for_household(actor.household_id) if b.category_id == category_id),
+        None,
+    )
+    current = Month.of(today or date.today())  # noqa: DTZ011
+    if mode is BudgetMode.ENVELOPE:
+        if started is not None and started > current:
+            raise InvalidRequestError("Un sobre no puede empezar en un mes futuro")
+        # Sin inicio explícito, un sobre que ya existía conserva el suyo y uno nuevo empieza ahora.
+        kept = existing.started if existing is not None else None
+        started = started or kept or current
+    else:
+        started = None
     try:
-        budget = Budget(actor.household_id, category_id, _money(amount, currency, "Presupuesto"))
+        budget = Budget(
+            actor.household_id,
+            category_id,
+            _money(amount, currency, "Presupuesto"),
+            mode,
+            started,
+        )
     except SavingsError as exc:
         raise InvalidRequestError(str(exc)) from exc
     uow.budgets.upsert(budget)
@@ -122,6 +197,38 @@ def set_budget(uow: UnitOfWork, actor: Actor, category_id: CategoryId, amount: s
 def delete_budget(uow: UnitOfWork, actor: Actor, category_id: CategoryId) -> None:
     _category(uow, actor, category_id)
     uow.budgets.delete(actor.household_id, category_id)
+    uow.commit()
+
+
+def _budget(uow: UnitOfWork, actor: Actor, category_id: CategoryId) -> Budget:
+    _category(uow, actor, category_id)
+    budget = next(
+        (b for b in uow.budgets.for_household(actor.household_id) if b.category_id == category_id),
+        None,
+    )
+    if budget is None:
+        raise NotFoundError("Esa categoría no tiene presupuesto")
+    return budget
+
+
+def set_month_amount(
+    uow: UnitOfWork, actor: Actor, category_id: CategoryId, month: Month, amount: str
+) -> Budget:
+    """Un importe distinto para un mes concreto (vacaciones, un gasto grande…)."""
+    budget = _budget(uow, actor, category_id)
+    money = _money(amount, budget.amount.currency, "Importe del mes")
+    if money.amount <= 0:
+        raise InvalidRequestError("El importe del mes debe ser mayor que cero")
+    uow.budgets.set_override(actor.household_id, category_id, month, money)
+    uow.commit()
+    return budget
+
+
+def clear_month_amount(
+    uow: UnitOfWork, actor: Actor, category_id: CategoryId, month: Month
+) -> None:
+    _budget(uow, actor, category_id)
+    uow.budgets.delete_override(actor.household_id, category_id, month)
     uow.commit()
 
 
@@ -149,14 +256,18 @@ def _linkable_account(uow: UnitOfWork, actor: Actor, account_id: AccountId) -> A
     return account
 
 
-def goal_saved(uow: UnitOfWork, actor: Actor, goal: Goal) -> Money:
+def goal_saved(
+    uow: UnitOfWork, actor: Actor, goal: Goal, contributed: Mapping[GoalId, Money] | None = None
+) -> Money:
     """Lo ahorrado que se muestra: el saldo de la hucha vinculada o, si no la hay (o no es
-    una hucha compartida), lo anotado a mano."""
-    if goal.account_id is None:
-        return goal.saved
-    account = _linkable_account(uow, actor, goal.account_id)
+    una hucha compartida), lo anotado a mano más las aportaciones (OF-1206)."""
+    account = (
+        _linkable_account(uow, actor, goal.account_id) if goal.account_id is not None else None
+    )
     if account is None:
-        return goal.saved
+        if contributed is None:
+            contributed = uow.goals.contribution_totals(actor.household_id)
+        return goal.saved + contributed.get(goal.id, Money.zero(goal.saved.currency))
     balance = balance_of(uow, actor, account)
     return balance if not balance.is_negative else Money.zero(balance.currency)
 
@@ -168,9 +279,10 @@ def _check_account(uow: UnitOfWork, actor: Actor, account_id: AccountId | None) 
 
 def list_goals(uow: UnitOfWork, actor: Actor, today: date) -> list[GoalView]:
     month = Month.of(today)
+    contributed = uow.goals.contribution_totals(actor.household_id)
+    goals = sorted(uow.goals.for_household(actor.household_id), key=lambda g: g.priority)
     return [
-        GoalView(g, project_goal(g, goal_saved(uow, actor, g), month))
-        for g in uow.goals.for_household(actor.household_id)
+        GoalView(g, project_goal(g, goal_saved(uow, actor, g, contributed), month)) for g in goals
     ]
 
 
@@ -185,6 +297,7 @@ class GoalInput:
     """AAAA-MM o ``""`` para quitarla."""
     account_id: AccountId | None = None
     clear_account: bool = False
+    priority: int | None = None
 
 
 def _apply(goal: Goal, data: GoalInput, currency: Currency) -> Goal:
@@ -210,6 +323,7 @@ def _apply(goal: Goal, data: GoalInput, currency: Currency) -> Goal:
             else goal.saved,
             deadline=deadline,
             account_id=None if data.clear_account else (data.account_id or goal.account_id),
+            priority=data.priority if data.priority is not None else goal.priority,
         )
     except SavingsError as exc:
         raise InvalidRequestError(str(exc)) from exc
@@ -256,6 +370,118 @@ def delete_goal(uow: UnitOfWork, actor: Actor, goal_id: GoalId) -> None:
         raise NotFoundError("Objetivo no encontrado")
     uow.goals.delete(actor.household_id, goal_id)
     uow.commit()
+
+
+# --- OF-1206 · Aportaciones y reparto ------------------------------------------------------
+
+MAX_CONTRIBUTIONS = 2000
+
+
+def _goal(uow: UnitOfWork, actor: Actor, goal_id: GoalId) -> Goal:
+    goal = uow.goals.get(actor.household_id, goal_id)
+    if goal is None:
+        raise NotFoundError("Objetivo no encontrado")
+    return goal
+
+
+def list_contributions(uow: UnitOfWork, actor: Actor, goal_id: GoalId) -> list[GoalContribution]:
+    _goal(uow, actor, goal_id)
+    return uow.goals.contributions(actor.household_id, goal_id)
+
+
+def add_contribution(
+    uow: UnitOfWork,
+    actor: Actor,
+    goal_id: GoalId,
+    amount: str,
+    made_on: date,
+    note: str,
+    now: datetime,
+) -> tuple[GoalContribution, UUID | None]:
+    """Anota una aportación (o, en negativo, una retirada). Se puede deshacer."""
+    goal = _goal(uow, actor, goal_id)
+    if goal.account_id is not None and _linkable_account(uow, actor, goal.account_id) is not None:
+        raise InvalidRequestError(
+            "Este objetivo toma lo ahorrado del saldo de su hucha: mueve el dinero en la hucha"
+        )
+    if len(uow.goals.contributions(actor.household_id, goal_id)) >= MAX_CONTRIBUTIONS:
+        raise ConflictError(f"El objetivo ya tiene {MAX_CONTRIBUTIONS} aportaciones")
+    value = _money(amount, goal.target.currency, "Aportación")
+    try:
+        contribution = GoalContribution(
+            ContributionId(uuid4()),
+            actor.household_id,
+            goal_id,
+            made_on,
+            value,
+            " ".join(note.split()),
+        )
+    except SavingsError as exc:
+        raise InvalidRequestError(str(exc)) from exc
+    uow.goals.save_contribution(contribution, actor.user_id)
+    operation = change_log.record(
+        uow,
+        actor,
+        "goal.contribution",
+        f"Aportación a «{goal.name}»",
+        [
+            Change(
+                Entity.GOAL_CONTRIBUTION,
+                str(contribution.id),
+                "definition",
+                None,
+                contribution.definition(),
+            )
+        ],
+        now,
+    )
+    uow.commit()
+    return contribution, operation.id if operation else None
+
+
+def delete_contribution(
+    uow: UnitOfWork, actor: Actor, goal_id: GoalId, contribution_id: UUID, now: datetime
+) -> UUID | None:
+    goal = _goal(uow, actor, goal_id)
+    contribution = uow.goals.get_contribution(actor.household_id, contribution_id)
+    if contribution is None or contribution.goal_id != goal_id:
+        raise NotFoundError("Aportación no encontrada")
+    uow.goals.delete_contribution(actor.household_id, contribution_id)
+    operation = change_log.record(
+        uow,
+        actor,
+        "goal.contribution.delete",
+        f"Aportación a «{goal.name}» borrada",
+        [
+            Change(
+                Entity.GOAL_CONTRIBUTION,
+                str(contribution_id),
+                "definition",
+                contribution.definition(),
+                None,
+            )
+        ],
+        now,
+    )
+    uow.commit()
+    return operation.id if operation else None
+
+
+@dataclass(frozen=True, slots=True)
+class Share:
+    goal: GoalView
+    amount: Money
+
+
+def suggest_split(uow: UnitOfWork, actor: Actor, amount: str, today: date) -> list[Share]:
+    """Cómo repartir una cantidad entre los objetivos: por prioridad, cada uno hasta lo que le
+    falta. Es una sugerencia: no apunta nada."""
+    value = _money(amount, _currency(uow, actor), "Cantidad")
+    if value.amount <= 0:
+        raise InvalidRequestError("La cantidad debe ser mayor que cero")
+    views = {v.goal.id: v for v in list_goals(uow, actor, today)}
+    pairs = [(v.goal, v.projection.remaining) for v in views.values()]
+    return [Share(views[goal_id], money) for goal_id, money in distribute(value, pairs)]
 
 
 # --- OF-403/404/405 · Resumen de ahorro -----------------------------------------------------

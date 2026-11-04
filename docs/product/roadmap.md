@@ -475,6 +475,21 @@ Alcance en [ADR-0020](../adr/0020-motor-de-reglas-e-importacion-universal.md). C
 
 ---
 
+## Fase 12 · Planificar (v0.5) ✅
+
+Hecha (sin probar en un equipo con Docker ni con PostgreSQL: lo comprueba CI). Alcance en [ADR-0021](../adr/0021-pagos-programados-y-prevision.md) y [ADR-0022](../adr/0022-presupuestos-con-limites-o-sobres.md), ambos aceptados el 2 de noviembre de 2026. Cada ticket lleva su migración, su cambio de OpenAPI (`make openapi`), tests de privacidad negativos y, si cambia datos, registro de cambios con deshacer.
+
+| ID | Ticket | Criterio de hecho |
+| --- | --- | --- |
+| OF-1201 ✅ | Pagos programados: calendario, emparejado con lo cobrado y atrasos | Las ocurrencias son una función pura del calendario (meses cortos, fin, rango); emparejar no escribe movimientos (se calcula, ver ADR-0021); crear, cambiar y borrar se deshace; un cargo detectado se convierte en pago programado desde «Ahorrar» |
+| OF-1202 ✅ | Previsión de saldo por cuenta y del hogar | Saldo día a día; primer día en negativo y mínimo; una cuenta personal ajena no entra; `card` y `loan` fuera; cada moneda se suma aparte, sin mezclar |
+| OF-1203 ✅ | Presupuestos con límites o sobres, arrastre e importes por mes (ADR-0022) | Los presupuestos existentes siguen siendo límites; el arrastre se recalcula desde el gasto (hasta 36 meses atrás); un sobre en negativo arrastra el déficit; las cuentas personales nunca cuentan. La exportación v1 solo lleva el importe base (la v2 es de la fase 15) |
+| OF-1204 ✅ | Plantillas de movimientos | Crear desde plantilla usa el alta manual normal, con registro de cambios y deshacer; una plantilla del hogar no usa cuentas personales y una personal solo la ve su dueño |
+| OF-1205 ✅ | «Hoy podéis gastar» | Cifra con su desglose; sin datos suficientes lo dice en vez de inventar; solo cuenta la conjunta, así que no depende de quién mire; muestra lo que queda en cada sobre |
+| OF-1206 ✅ | Objetivos v2: aportaciones, prioridad y recordatorio | Las aportaciones alimentan lo ahorrado si no hay hucha; reparto por prioridad (solo sugiere); aportar, retirar y borrar se deshace; el recordatorio es un pago programado ya rellenado |
+
+---
+
 ## Después de v0.2
 
 Inspirado en Wallet, Spendee, Fintonic y Actual Budget. Cada fase empieza con su ADR y se detalla en tickets al empezarla. Esfuerzo estimado para una persona a tiempo completo.
@@ -483,7 +498,7 @@ Inspirado en Wallet, Spendee, Fintonic y Actual Budget. Cada fase empieza con su
 | --- | --- | --- | --- | --- |
 | 10 · Libro contable completo | v0.3 | Hecha: [Fase 10](#fase-10--libro-contable-completo-v03) | OF-1001 … OF-1008 | ✅ |
 | 11 · Reglas e importación universal | v0.4 | Hecha: [Fase 11](#fase-11--reglas-e-importación-universal-v04) | OF-1101 … OF-1105 | ✅ |
-| 12 · Planificar | v0.5 | Pagos programados (ADR-0021), previsión de saldo, presupuestos con límites o sobres y arrastre (ADR-0022), plantillas, «hoy podéis gastar», objetivos v2 | OF-1201 … OF-1206 | 7 semanas |
+| 12 · Planificar | v0.5 | Hecha: [Fase 12](#fase-12--planificar-v05) | OF-1201 … OF-1206 | ✅ |
 | 13 · Alertas | v0.6 | Avisos deterministas (comisiones, duplicados, recibos que suben…), notificaciones Web Push o ntfy (ADR-0023), resumen semanal | OF-1301 … OF-1303 | 4 semanas |
 | 14 · Conexión con el banco | v0.7 | Agregador PSD2 con cuenta propia (ADR-0024), sincronización por la misma tubería que la importación, consentimientos y conciliación automática | OF-1401 … OF-1404 | 6 semanas |
 | 15 · Informes y patrimonio | v0.8 | Patrimonio neto, flujo de caja, informes a medida y exportación v2 | OF-1501 … OF-1504 | 4 semanas |

@@ -6,13 +6,17 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
 
+from openfinance.application.allowance import AllowanceView
+from openfinance.application.allowance import Status as AllowanceStatus
 from openfinance.application.decorate import Decor
 from openfinance.application.imports import ImportPreview, ImportResult
 from openfinance.application.savings import BudgetView, GoalView
+from openfinance.domain.allowance import Horizon as AllowanceHorizon
 from openfinance.domain.attachments import Attachment
 from openfinance.domain.automation import AutomationRule, Phase
 from openfinance.domain.categories import Category, merchant_label
 from openfinance.domain.csv_profile import CsvProfile
+from openfinance.domain.forecast import BalancePoint, Forecast
 from openfinance.domain.identity import User
 from openfinance.domain.imports import PatternDirection
 from openfinance.domain.ledger import (
@@ -24,7 +28,10 @@ from openfinance.domain.ledger import (
     TransactionKind,
 )
 from openfinance.domain.reconciliation import Reconciliation
+from openfinance.domain.savings import BudgetMode, GoalContribution
+from openfinance.domain.schedule import Frequency, Occurrence, OccurrenceStatus, ScheduledPayment
 from openfinance.domain.shared import Money
+from openfinance.domain.templates import TransactionTemplate
 from openfinance.domain.workspaces import Household
 
 
@@ -548,6 +555,19 @@ class TrendsOut(BaseModel):
 
 class BudgetIn(BaseModel):
     amount: str = Field(pattern=AMOUNT_PATTERN, examples=["550", "550.00"])
+    mode: BudgetMode = Field(
+        default=BudgetMode.LIMIT,
+        description="limit: un tope por mes. envelope: lo que sobra o falta pasa al mes siguiente",
+    )
+    started: str | None = Field(
+        default=None,
+        pattern=r"^(19|2\d)\d{2}-(0[1-9]|1[0-2])$",
+        description="En un sobre, desde qué mes se arrastra (por defecto, el actual)",
+    )
+
+
+class BudgetMonthIn(BaseModel):
+    amount: str = Field(pattern=AMOUNT_PATTERN, examples=["900"])
 
 
 class BudgetOut(BaseModel):
@@ -561,13 +581,25 @@ class BudgetOut(BaseModel):
     fixed: MoneyOut = Field(
         description="Cuotas fijas de la categoría este mes, cobradas y por cobrar (OF-802)"
     )
+    mode: BudgetMode
+    base_amount: MoneyOut = Field(description="El importe de cualquier mes sin importe propio")
+    has_override: bool = Field(description="Ese mes tiene un importe propio")
+    carried: MoneyOut = Field(description="Lo que arrastra un sobre de los meses anteriores")
+    available: MoneyOut = Field(description="Lo asignado más lo arrastrado, menos lo gastado")
+    started: str | None = Field(description="Mes desde el que un sobre arrastra (AAAA-MM)")
 
     @classmethod
     def of(cls, v: BudgetView) -> BudgetOut:
         return cls(
             fixed=MoneyOut.of(v.fixed),
             category_id=v.budget.category_id,
-            amount=MoneyOut.of(v.budget.amount),
+            amount=MoneyOut.of(v.allocated),
+            mode=v.budget.mode,
+            base_amount=MoneyOut.of(v.budget.amount),
+            has_override=v.has_override,
+            carried=MoneyOut.of(v.carried),
+            available=MoneyOut.of(v.available),
+            started=str(v.budget.started) if v.budget.started else None,
             spent=MoneyOut.of(v.spent),
             percent=v.percent,
             status=v.status.value,
@@ -592,6 +624,7 @@ class GoalIn(BaseModel):
     saved: str = Field(default="0", pattern=AMOUNT_PATTERN)
     deadline: str | None = Field(default=None, pattern=MONTH_PATTERN)
     account_id: UUID | None = None
+    priority: int = Field(default=50, ge=1, le=99, description="Cuanto menor, antes")
 
 
 class GoalPatch(BaseModel):
@@ -605,6 +638,7 @@ class GoalPatch(BaseModel):
     )
     account_id: UUID | None = None
     clear_account: bool = False
+    priority: int | None = Field(default=None, ge=1, le=99)
 
 
 class GoalOut(BaseModel):
@@ -622,6 +656,7 @@ class GoalOut(BaseModel):
     eta: str | None
     needed_monthly: MoneyOut | None
     on_track: bool | None
+    priority: int
 
     @classmethod
     def of(cls, v: GoalView) -> GoalOut:
@@ -641,7 +676,42 @@ class GoalOut(BaseModel):
             eta=str(p.eta) if p.eta else None,
             needed_monthly=MoneyOut.of(p.needed_monthly) if p.needed_monthly else None,
             on_track=p.on_track,
+            priority=g.priority,
         )
+
+
+class ContributionIn(BaseModel):
+    amount: str = Field(
+        pattern=AMOUNT_PATTERN_SIGNED, description="Positivo aporta; negativo retira"
+    )
+    made_on: date | None = Field(default=None, description="Por defecto, hoy")
+    note: str = Field(default="", max_length=200)
+
+
+class ContributionOut(BaseModel):
+    id: UUID
+    goal_id: UUID
+    made_on: date
+    amount: MoneyOut
+    note: str
+
+    @classmethod
+    def of(cls, c: GoalContribution) -> ContributionOut:
+        return cls(
+            id=c.id, goal_id=c.goal_id, made_on=c.made_on, amount=MoneyOut.of(c.amount), note=c.note
+        )
+
+
+class ContributionChangeOut(BaseModel):
+    contribution: ContributionOut
+    operation_id: UUID | None
+
+
+class ShareOut(BaseModel):
+    goal_id: UUID
+    name: str
+    amount: MoneyOut = Field(description="Lo que se sugiere aportar a este objetivo")
+    remaining: MoneyOut
 
 
 class PriceChangeOut(BaseModel):
@@ -988,3 +1058,243 @@ class CsvTestOut(BaseModel):
     total: int = Field(description="Filas que se leen bien en todo el archivo")
     skipped: list[SkippedRowOut]
     skipped_total: int
+
+
+# --- OF-1201 · Pagos programados ------------------------------------------------------------
+
+
+class ScheduledPaymentIn(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
+    amount: str = Field(
+        max_length=20, examples=["-900.00"], description="Con signo: negativo es un pago"
+    )
+    account_id: UUID
+    frequency: Frequency
+    interval: int = Field(default=1, ge=1, le=60)
+    first_due: date
+    ends_on: date | None = None
+    category_id: UUID | None = None
+    merchant: str = Field(default="", max_length=120)
+    variable: bool = False
+    active: bool = True
+
+
+class ScheduledPaymentOut(BaseModel):
+    id: UUID
+    name: str
+    amount: MoneyOut
+    account_id: UUID
+    frequency: Frequency
+    interval: int
+    first_due: date
+    ends_on: date | None
+    category_id: UUID | None
+    merchant: str
+    variable: bool
+    active: bool
+
+    @classmethod
+    def of(cls, p: ScheduledPayment) -> ScheduledPaymentOut:
+        return cls(
+            id=p.id,
+            name=p.name,
+            amount=MoneyOut.of(p.amount),
+            account_id=p.account_id,
+            frequency=p.frequency,
+            interval=p.interval,
+            first_due=p.first_due,
+            ends_on=p.ends_on,
+            category_id=p.category_id,
+            merchant=p.merchant,
+            variable=p.variable,
+            active=p.active,
+        )
+
+
+class OccurrenceOut(BaseModel):
+    due: date
+    amount: MoneyOut
+    status: OccurrenceStatus
+    transaction_id: UUID | None
+
+
+class ScheduleItemOut(BaseModel):
+    payment: ScheduledPaymentOut
+    occurrences: list[OccurrenceOut]
+
+
+class ScheduledPaymentChangeOut(BaseModel):
+    payment: ScheduledPaymentOut
+    operation_id: UUID | None
+
+
+# --- OF-1202 · Previsión de saldo -----------------------------------------------------------
+
+
+class ForecastPointOut(BaseModel):
+    day: date
+    balance: MoneyOut
+
+
+class ForecastOut(BaseModel):
+    account_id: UUID | None = Field(description="Vacío en el total de una moneda")
+    name: str | None
+    currency: str
+    start: MoneyOut
+    end: MoneyOut
+    lowest: ForecastPointOut
+    first_negative: date | None
+    points: list[ForecastPointOut] = Field(description="Hoy y cada día en que el saldo cambia")
+
+    @classmethod
+    def of(cls, f: Forecast, currency: str, account: Account | None = None) -> ForecastOut:
+        def point(p: BalancePoint) -> ForecastPointOut:
+            return ForecastPointOut(day=p.day, balance=MoneyOut.of(p.balance))
+
+        return cls(
+            account_id=account.id if account else None,
+            name=account.name if account else None,
+            currency=currency,
+            start=MoneyOut.of(f.start),
+            end=MoneyOut.of(f.end),
+            lowest=point(f.lowest),
+            first_negative=f.first_negative,
+            points=[point(p) for p in f.points],
+        )
+
+
+class ForecastViewOut(BaseModel):
+    until: date
+    accounts: list[ForecastOut]
+    totals: list[ForecastOut]
+
+
+# --- OF-1204 · Plantillas de movimientos ----------------------------------------------------
+
+
+class TemplateIn(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
+    kind: TransactionKind = TransactionKind.EXPENSE
+    amount: str = Field(pattern=AMOUNT_PATTERN, description="Positivo; el tipo da el signo")
+    description: str = Field(min_length=1, max_length=200)
+    account_id: UUID
+    personal: bool = Field(default=False, description="Solo la ve quien la crea")
+    category_id: UUID | None = None
+    tags: list[str] = Field(default_factory=list, max_length=10)
+    note: str = Field(default="", max_length=2000)
+
+
+class TemplateOut(BaseModel):
+    id: UUID
+    name: str
+    kind: TransactionKind
+    amount: MoneyOut
+    description: str
+    account_id: UUID
+    personal: bool
+    category_id: UUID | None
+    tags: list[str]
+    note: str
+
+    @classmethod
+    def of(cls, t: TransactionTemplate, currency: str) -> TemplateOut:
+        return cls(
+            id=t.id,
+            name=t.name,
+            kind=t.kind,
+            amount=MoneyOut(amount=str(t.amount), currency=currency),
+            description=t.description,
+            account_id=t.account_id,
+            personal=t.personal,
+            category_id=t.category_id,
+            tags=list(t.tags),
+            note=t.note,
+        )
+
+
+class TemplateChangeOut(BaseModel):
+    template: TemplateOut
+    operation_id: UUID | None
+
+
+class TemplateUseIn(BaseModel):
+    booked_on: date | None = Field(default=None, description="Por defecto, hoy")
+
+
+# --- OF-1205 · «Hoy podéis gastar» ----------------------------------------------------------
+
+
+class AllowanceItemOut(BaseModel):
+    name: str
+    due: date
+    amount: MoneyOut
+
+
+class EnvelopeLeftOut(BaseModel):
+    category_id: UUID
+    available: MoneyOut
+    status: str
+
+
+class AllowanceOut(BaseModel):
+    status: AllowanceStatus
+    balance: MoneyOut | None
+    committed: MoneyOut | None = Field(description="Lo que está por pagar hasta el horizonte")
+    available: MoneyOut | None = Field(
+        description="Saldo menos lo comprometido; puede ser negativo"
+    )
+    per_day: MoneyOut | None = Field(description="Lo que se puede gastar cada día")
+    days: int | None
+    until: date | None
+    horizon: AllowanceHorizon | None
+    short: bool = Field(description="Lo comprometido es más que el saldo")
+    pending: list[AllowanceItemOut]
+    next_income: AllowanceItemOut | None
+    envelopes: list[EnvelopeLeftOut]
+
+    @classmethod
+    def of(cls, v: AllowanceView) -> AllowanceOut:
+        a = v.allowance
+        envelopes = [
+            EnvelopeLeftOut(
+                category_id=e.budget.category_id,
+                available=MoneyOut.of(e.available),
+                status=e.status.value,
+            )
+            for e in v.envelopes
+        ]
+        if a is None:
+            return cls(
+                status=v.status,
+                balance=None,
+                committed=None,
+                available=None,
+                per_day=None,
+                days=None,
+                until=None,
+                horizon=None,
+                short=False,
+                pending=[],
+                next_income=None,
+                envelopes=envelopes,
+            )
+
+        def item(o: Occurrence) -> AllowanceItemOut:
+            return AllowanceItemOut(
+                name=v.names.get(o.payment_id, "Pago"), due=o.due, amount=MoneyOut.of(o.amount)
+            )
+
+        return cls(
+            status=v.status,
+            balance=MoneyOut.of(a.balance),
+            committed=MoneyOut.of(a.committed),
+            available=MoneyOut.of(a.available),
+            per_day=MoneyOut.of(a.per_day),
+            days=a.days,
+            until=a.until,
+            horizon=a.horizon,
+            short=a.short,
+            pending=[item(o) for o in a.pending],
+            next_income=item(a.next_income) if a.next_income else None,
+            envelopes=envelopes,
+        )

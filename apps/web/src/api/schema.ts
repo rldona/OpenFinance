@@ -49,6 +49,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/allowance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Allowance
+         * @description Cuánto se puede gastar al día con el dinero de la conjunta (OF-1205).
+         */
+        get: operations["allowance_api_v1_allowance_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/attachments/{attachment_id}": {
         parameters: {
             query?: never;
@@ -241,6 +261,27 @@ export interface paths {
         post?: never;
         /** Delete Budget */
         delete: operations["delete_budget_api_v1_budgets__category_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/budgets/{category_id}/months/{month}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Month Amount
+         * @description Un importe propio para un mes (OF-1203). Devuelve el presupuesto de ese mes.
+         */
+        put: operations["set_month_amount_api_v1_budgets__category_id__months__month__put"];
+        post?: never;
+        /** Clear Month Amount */
+        delete: operations["clear_month_amount_api_v1_budgets__category_id__months__month__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -500,6 +541,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/forecast": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Forecast
+         * @description Saldo previsto de cada cuenta de efectivo y total por moneda (OF-1202).
+         */
+        get: operations["forecast_api_v1_forecast_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/goals": {
         parameters: {
             query?: never;
@@ -512,6 +573,26 @@ export interface paths {
         put?: never;
         /** Create Goal */
         post: operations["create_goal_api_v1_goals_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/goals/split": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Suggest Split
+         * @description Cómo repartir una cantidad entre los objetivos, por prioridad (OF-1206). No apunta nada.
+         */
+        get: operations["suggest_split_api_v1_goals_split_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -534,6 +615,44 @@ export interface paths {
         head?: never;
         /** Update Goal */
         patch: operations["update_goal_api_v1_goals__goal_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/goals/{goal_id}/contributions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Contributions */
+        get: operations["list_contributions_api_v1_goals__goal_id__contributions_get"];
+        put?: never;
+        /**
+         * Add Contribution
+         * @description Anota una aportación (o, en negativo, una retirada) a un objetivo sin hucha.
+         */
+        post: operations["add_contribution_api_v1_goals__goal_id__contributions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/goals/{goal_id}/contributions/{contribution_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Contribution */
+        delete: operations["delete_contribution_api_v1_goals__goal_id__contributions__contribution_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/imports": {
@@ -907,6 +1026,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Schedule */
+        get: operations["list_schedule_api_v1_schedule_get"];
+        put?: never;
+        /** Create Payment */
+        post: operations["create_payment_api_v1_schedule_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/schedule/{schedule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Payment */
+        put: operations["update_payment_api_v1_schedule__schedule_id__put"];
+        post?: never;
+        /** Delete Payment */
+        delete: operations["delete_payment_api_v1_schedule__schedule_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tags": {
         parameters: {
             query?: never;
@@ -921,6 +1076,62 @@ export interface paths {
         get: operations["list_tags_api_v1_tags_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Templates */
+        get: operations["list_templates_api_v1_templates_get"];
+        put?: never;
+        /** Create Template */
+        post: operations["create_template_api_v1_templates_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/templates/{template_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Template */
+        put: operations["update_template_api_v1_templates__template_id__put"];
+        post?: never;
+        /** Delete Template */
+        delete: operations["delete_template_api_v1_templates__template_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/templates/{template_id}/use": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Use Template
+         * @description Crea el movimiento de la plantilla (hoy, o en la fecha que se indique).
+         */
+        post: operations["use_template_api_v1_templates__template_id__use_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1308,6 +1519,43 @@ export interface components {
             /** Value */
             value: string | string[];
         };
+        /** AllowanceItemOut */
+        AllowanceItemOut: {
+            amount: components["schemas"]["MoneyOut"];
+            /**
+             * Due
+             * Format: date
+             */
+            due: string;
+            /** Name */
+            name: string;
+        };
+        /** AllowanceOut */
+        AllowanceOut: {
+            /** @description Saldo menos lo comprometido; puede ser negativo */
+            available: components["schemas"]["MoneyOut"] | null;
+            balance: components["schemas"]["MoneyOut"] | null;
+            /** @description Lo que está por pagar hasta el horizonte */
+            committed: components["schemas"]["MoneyOut"] | null;
+            /** Days */
+            days: number | null;
+            /** Envelopes */
+            envelopes: components["schemas"]["EnvelopeLeftOut"][];
+            horizon: components["schemas"]["Horizon"] | null;
+            next_income: components["schemas"]["AllowanceItemOut"] | null;
+            /** Pending */
+            pending: components["schemas"]["AllowanceItemOut"][];
+            /** @description Lo que se puede gastar cada día */
+            per_day: components["schemas"]["MoneyOut"] | null;
+            /**
+             * Short
+             * @description Lo comprometido es más que el saldo
+             */
+            short: boolean;
+            status: components["schemas"]["Status"];
+            /** Until */
+            until: string | null;
+        };
         /** AttachmentAddedOut */
         AttachmentAddedOut: {
             attachment: components["schemas"]["AttachmentOut"];
@@ -1459,10 +1707,39 @@ export interface components {
              * @example 550.00
              */
             amount: string;
+            /**
+             * @description limit: un tope por mes. envelope: lo que sobra o falta pasa al mes siguiente
+             * @default limit
+             */
+            mode: components["schemas"]["BudgetMode"];
+            /**
+             * Started
+             * @description En un sobre, desde qué mes se arrastra (por defecto, el actual)
+             */
+            started?: string | null;
+        };
+        /**
+         * BudgetMode
+         * @enum {string}
+         */
+        BudgetMode: "limit" | "envelope";
+        /** BudgetMonthIn */
+        BudgetMonthIn: {
+            /**
+             * Amount
+             * @example 900
+             */
+            amount: string;
         };
         /** BudgetOut */
         BudgetOut: {
             amount: components["schemas"]["MoneyOut"];
+            /** @description Lo asignado más lo arrastrado, menos lo gastado */
+            available: components["schemas"]["MoneyOut"];
+            /** @description El importe de cualquier mes sin importe propio */
+            base_amount: components["schemas"]["MoneyOut"];
+            /** @description Lo que arrastra un sobre de los meses anteriores */
+            carried: components["schemas"]["MoneyOut"];
             /**
              * Category Id
              * Format: uuid
@@ -1470,9 +1747,20 @@ export interface components {
             category_id: string;
             /** @description Cuotas fijas de la categoría este mes, cobradas y por cobrar (OF-802) */
             fixed: components["schemas"]["MoneyOut"];
+            /**
+             * Has Override
+             * @description Ese mes tiene un importe propio
+             */
+            has_override: boolean;
+            mode: components["schemas"]["BudgetMode"];
             /** Percent */
             percent: number;
             spent: components["schemas"]["MoneyOut"];
+            /**
+             * Started
+             * @description Mes desde el que un sobre arrastra (AAAA-MM)
+             */
+            started: string | null;
             /**
              * Status
              * @description ok, warning (≥ 85 % del margen que dejan las cuotas fijas) u over (> 100 %)
@@ -1645,6 +1933,51 @@ export interface components {
             op: string;
             /** Value */
             value: string | string[];
+        };
+        /** ContributionChangeOut */
+        ContributionChangeOut: {
+            contribution: components["schemas"]["ContributionOut"];
+            /** Operation Id */
+            operation_id: string | null;
+        };
+        /** ContributionIn */
+        ContributionIn: {
+            /**
+             * Amount
+             * @description Positivo aporta; negativo retira
+             */
+            amount: string;
+            /**
+             * Made On
+             * @description Por defecto, hoy
+             */
+            made_on?: string | null;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+        };
+        /** ContributionOut */
+        ContributionOut: {
+            amount: components["schemas"]["MoneyOut"];
+            /**
+             * Goal Id
+             * Format: uuid
+             */
+            goal_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Made On
+             * Format: date
+             */
+            made_on: string;
+            /** Note */
+            note: string;
         };
         /** CountOut */
         CountOut: {
@@ -1820,6 +2153,65 @@ export interface components {
             /** Line */
             line: number;
         };
+        /** EnvelopeLeftOut */
+        EnvelopeLeftOut: {
+            available: components["schemas"]["MoneyOut"];
+            /**
+             * Category Id
+             * Format: uuid
+             */
+            category_id: string;
+            /** Status */
+            status: string;
+        };
+        /** ForecastOut */
+        ForecastOut: {
+            /**
+             * Account Id
+             * @description Vacío en el total de una moneda
+             */
+            account_id: string | null;
+            /** Currency */
+            currency: string;
+            end: components["schemas"]["MoneyOut"];
+            /** First Negative */
+            first_negative: string | null;
+            lowest: components["schemas"]["ForecastPointOut"];
+            /** Name */
+            name: string | null;
+            /**
+             * Points
+             * @description Hoy y cada día en que el saldo cambia
+             */
+            points: components["schemas"]["ForecastPointOut"][];
+            start: components["schemas"]["MoneyOut"];
+        };
+        /** ForecastPointOut */
+        ForecastPointOut: {
+            balance: components["schemas"]["MoneyOut"];
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+        };
+        /** ForecastViewOut */
+        ForecastViewOut: {
+            /** Accounts */
+            accounts: components["schemas"]["ForecastOut"][];
+            /** Totals */
+            totals: components["schemas"]["ForecastOut"][];
+            /**
+             * Until
+             * Format: date
+             */
+            until: string;
+        };
+        /**
+         * Frequency
+         * @enum {string}
+         */
+        Frequency: "once" | "weekly" | "monthly" | "yearly";
         /** GoalIn */
         GoalIn: {
             /** Account Id */
@@ -1838,6 +2230,12 @@ export interface components {
             monthly: string;
             /** Name */
             name: string;
+            /**
+             * Priority
+             * @description Cuanto menor, antes
+             * @default 50
+             */
+            priority: number;
             /**
              * Saved
              * @default 0
@@ -1869,6 +2267,8 @@ export interface components {
             needed_monthly: components["schemas"]["MoneyOut"] | null;
             /** On Track */
             on_track: boolean | null;
+            /** Priority */
+            priority: number;
             /** Progress */
             progress: number;
             remaining: components["schemas"]["MoneyOut"];
@@ -1896,6 +2296,8 @@ export interface components {
             monthly?: string | null;
             /** Name */
             name?: string | null;
+            /** Priority */
+            priority?: number | null;
             /** Saved */
             saved?: string | null;
             /** Target */
@@ -1913,6 +2315,11 @@ export interface components {
             /** Version */
             version: string;
         };
+        /**
+         * Horizon
+         * @enum {string}
+         */
+        Horizon: "income" | "month_end";
         /** HouseholdOut */
         HouseholdOut: {
             /** Currency */
@@ -2301,6 +2708,23 @@ export interface components {
             month: string;
             saved: components["schemas"]["MoneyOut"];
         };
+        /** OccurrenceOut */
+        OccurrenceOut: {
+            amount: components["schemas"]["MoneyOut"];
+            /**
+             * Due
+             * Format: date
+             */
+            due: string;
+            status: components["schemas"]["OccurrenceStatus"];
+            /** Transaction Id */
+            transaction_id: string | null;
+        };
+        /**
+         * OccurrenceStatus
+         * @enum {string}
+         */
+        OccurrenceStatus: "paid" | "pending" | "late";
         /** OperationOut */
         OperationOut: {
             /** Action */
@@ -2666,6 +3090,111 @@ export interface components {
             recurring: components["schemas"]["RecurringOut"][];
             recurring_total: components["schemas"]["MoneyOut"];
         };
+        /** ScheduleItemOut */
+        ScheduleItemOut: {
+            /** Occurrences */
+            occurrences: components["schemas"]["OccurrenceOut"][];
+            payment: components["schemas"]["ScheduledPaymentOut"];
+        };
+        /** ScheduledPaymentChangeOut */
+        ScheduledPaymentChangeOut: {
+            /** Operation Id */
+            operation_id: string | null;
+            payment: components["schemas"]["ScheduledPaymentOut"];
+        };
+        /** ScheduledPaymentIn */
+        ScheduledPaymentIn: {
+            /**
+             * Account Id
+             * Format: uuid
+             */
+            account_id: string;
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /**
+             * Amount
+             * @description Con signo: negativo es un pago
+             * @example -900.00
+             */
+            amount: string;
+            /** Category Id */
+            category_id?: string | null;
+            /** Ends On */
+            ends_on?: string | null;
+            /**
+             * First Due
+             * Format: date
+             */
+            first_due: string;
+            frequency: components["schemas"]["Frequency"];
+            /**
+             * Interval
+             * @default 1
+             */
+            interval: number;
+            /**
+             * Merchant
+             * @default
+             */
+            merchant: string;
+            /** Name */
+            name: string;
+            /**
+             * Variable
+             * @default false
+             */
+            variable: boolean;
+        };
+        /** ScheduledPaymentOut */
+        ScheduledPaymentOut: {
+            /**
+             * Account Id
+             * Format: uuid
+             */
+            account_id: string;
+            /** Active */
+            active: boolean;
+            amount: components["schemas"]["MoneyOut"];
+            /** Category Id */
+            category_id: string | null;
+            /** Ends On */
+            ends_on: string | null;
+            /**
+             * First Due
+             * Format: date
+             */
+            first_due: string;
+            frequency: components["schemas"]["Frequency"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Interval */
+            interval: number;
+            /** Merchant */
+            merchant: string;
+            /** Name */
+            name: string;
+            /** Variable */
+            variable: boolean;
+        };
+        /** ShareOut */
+        ShareOut: {
+            /** @description Lo que se sugiere aportar a este objetivo */
+            amount: components["schemas"]["MoneyOut"];
+            /**
+             * Goal Id
+             * Format: uuid
+             */
+            goal_id: string;
+            /** Name */
+            name: string;
+            remaining: components["schemas"]["MoneyOut"];
+        };
         /** SkippedRowOut */
         SkippedRowOut: {
             /** Description */
@@ -2708,6 +3237,11 @@ export interface components {
              */
             category_id: string;
         };
+        /**
+         * Status
+         * @enum {string}
+         */
+        Status: "ok" | "no_balance" | "no_schedule";
         /** TagOut */
         TagOut: {
             /**
@@ -2731,6 +3265,81 @@ export interface components {
             /** Operation Id */
             operation_id: string | null;
             transaction: components["schemas"]["TransactionOut"];
+        };
+        /** TemplateChangeOut */
+        TemplateChangeOut: {
+            /** Operation Id */
+            operation_id: string | null;
+            template: components["schemas"]["TemplateOut"];
+        };
+        /** TemplateIn */
+        TemplateIn: {
+            /**
+             * Account Id
+             * Format: uuid
+             */
+            account_id: string;
+            /**
+             * Amount
+             * @description Positivo; el tipo da el signo
+             */
+            amount: string;
+            /** Category Id */
+            category_id?: string | null;
+            /** Description */
+            description: string;
+            /** @default expense */
+            kind: components["schemas"]["TransactionKind"];
+            /** Name */
+            name: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /**
+             * Personal
+             * @description Solo la ve quien la crea
+             * @default false
+             */
+            personal: boolean;
+            /** Tags */
+            tags?: string[];
+        };
+        /** TemplateOut */
+        TemplateOut: {
+            /**
+             * Account Id
+             * Format: uuid
+             */
+            account_id: string;
+            amount: components["schemas"]["MoneyOut"];
+            /** Category Id */
+            category_id: string | null;
+            /** Description */
+            description: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            kind: components["schemas"]["TransactionKind"];
+            /** Name */
+            name: string;
+            /** Note */
+            note: string;
+            /** Personal */
+            personal: boolean;
+            /** Tags */
+            tags: string[];
+        };
+        /** TemplateUseIn */
+        TemplateUseIn: {
+            /**
+             * Booked On
+             * @description Por defecto, hoy
+             */
+            booked_on?: string | null;
         };
         /**
          * TransactionKind
@@ -3057,6 +3666,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    allowance_api_v1_allowance_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllowanceOut"];
                 };
             };
         };
@@ -3460,6 +4089,72 @@ export interface operations {
             header?: never;
             path: {
                 category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_month_amount_api_v1_budgets__category_id__months__month__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: string;
+                month: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BudgetMonthIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clear_month_amount_api_v1_budgets__category_id__months__month__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: string;
+                month: string;
             };
             cookie?: never;
         };
@@ -3975,6 +4670,37 @@ export interface operations {
             };
         };
     };
+    forecast_api_v1_forecast_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForecastViewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_goals_api_v1_goals_get: {
         parameters: {
             query?: never;
@@ -4015,6 +4741,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GoalOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    suggest_split_api_v1_goals_split_get: {
+        parameters: {
+            query: {
+                amount: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShareOut"][];
                 };
             };
             /** @description Validation Error */
@@ -4079,6 +4836,104 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GoalOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_contributions_api_v1_goals__goal_id__contributions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                goal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_contribution_api_v1_goals__goal_id__contributions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                goal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContributionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContributionChangeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_contribution_api_v1_goals__goal_id__contributions__contribution_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                goal_id: string;
+                contribution_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationRefOut"];
                 };
             };
             /** @description Validation Error */
@@ -4702,6 +5557,136 @@ export interface operations {
             };
         };
     };
+    list_schedule_api_v1_schedule_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleItemOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_payment_api_v1_schedule_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduledPaymentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduledPaymentChangeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_payment_api_v1_schedule__schedule_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduledPaymentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduledPaymentChangeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_payment_api_v1_schedule__schedule_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationRefOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_tags_api_v1_tags_get: {
         parameters: {
             query?: never;
@@ -4718,6 +5703,160 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TagOut"][];
+                };
+            };
+        };
+    };
+    list_templates_api_v1_templates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateOut"][];
+                };
+            };
+        };
+    };
+    create_template_api_v1_templates_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateChangeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_template_api_v1_templates__template_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateChangeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_template_api_v1_templates__template_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationRefOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    use_template_api_v1_templates__template_id__use_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplateUseIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManualTransactionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

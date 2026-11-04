@@ -24,6 +24,12 @@ class Entity(StrEnum):
     existe. Su identificador es el de la regla."""
     CSV_PROFILE = "csv_profile"
     """Perfil de CSV (OF-1105). Campo ``definition`` como en las reglas."""
+    SCHEDULE = "schedule"
+    """Pago programado (OF-1201). Campo ``definition`` como en las reglas."""
+    TEMPLATE = "template"
+    """Plantilla de movimiento (OF-1204). Campo ``definition`` como en las reglas."""
+    GOAL_CONTRIBUTION = "goal_contribution"
+    """Aportación a un objetivo (OF-1206). Campo ``definition`` como en las reglas."""
     RATE = "rate"
     """Tipo de cambio (OF-1008). Su identificador es «MONEDA|AAAA-MM-DD»; campo ``rate``: el valor
     como texto o ``None`` si no existe."""

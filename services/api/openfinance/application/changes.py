@@ -29,10 +29,13 @@ from openfinance.domain.imports.batch import ImportStatus
 from openfinance.domain.ledger import LedgerError, Transaction, TransactionKind
 from openfinance.domain.merchants import Merchant, MerchantId, join_keys, split_keys
 from openfinance.domain.rates import ExchangeRate
+from openfinance.domain.savings import contribution_from_definition
+from openfinance.domain.schedule import from_definition as from_schedule_definition
 from openfinance.domain.shared import Currency
 from openfinance.domain.shared.ids import AccountId, TransactionId, UserId
 from openfinance.domain.splits import decode_parts, encode_parts
 from openfinance.domain.tags import join_tags, split_tags
+from openfinance.domain.templates import from_definition as from_template_definition
 from openfinance.domain.workspaces import Actor
 
 MAX_SUMMARY = 200
@@ -240,6 +243,12 @@ def _apply(
             done, rest = _apply_csv_profile(uow, actor, entity_id, changes)
         elif entity is Entity.AUTOMATION:
             done, rest = _apply_automation(uow, actor, entity_id, changes)
+        elif entity is Entity.GOAL_CONTRIBUTION:
+            done, rest = _apply_goal_contribution(uow, actor, entity_id, changes)
+        elif entity is Entity.TEMPLATE:
+            done, rest = _apply_template(uow, actor, visible, entity_id, changes)
+        elif entity is Entity.SCHEDULE:
+            done, rest = _apply_schedule(uow, actor, visible, entity_id, changes)
         elif entity is Entity.RATE:
             done, rest = _apply_rate(uow, actor, entity_id, changes)
         elif entity is Entity.ATTACHMENT:
@@ -352,6 +361,103 @@ def _apply_csv_profile(
         else:
             current = from_csv_definition(profile_id, actor.household_id, str(c.after))
             uow.csv_profiles.save(current, actor.user_id)
+        applied += 1
+    return applied, kept
+
+
+def _apply_goal_contribution(
+    uow: UnitOfWork, actor: Actor, entity_id: str, changes: list[Change]
+) -> tuple[int, list[Change]]:
+    """Una aportación a un objetivo (OF-1206): ``definition`` es su texto canónico o ``None``.
+
+    Si el objetivo ya no existe, el cambio se respeta (no se puede rehacer sobre la nada).
+    """
+    contribution_id = UUID(entity_id)
+    current = uow.goals.get_contribution(actor.household_id, contribution_id)
+    applied, kept = 0, []
+    for c in changes:
+        state = current.definition() if current else None
+        target = current
+        if c.after is not None:
+            target = contribution_from_definition(contribution_id, actor.household_id, str(c.after))
+        missing_goal = (
+            target is not None and uow.goals.get(actor.household_id, target.goal_id) is None
+        )
+        if c.field != "definition" or state != c.before or missing_goal:
+            kept.append(c)
+            continue
+        if c.after is None:
+            uow.goals.delete_contribution(actor.household_id, contribution_id)
+            current = None
+        else:
+            current = target
+            assert current is not None
+            uow.goals.save_contribution(current, actor.user_id)
+        applied += 1
+    return applied, kept
+
+
+def _apply_template(
+    uow: UnitOfWork, actor: Actor, visible: set[AccountId], entity_id: str, changes: list[Change]
+) -> tuple[int, list[Change]]:
+    """Una plantilla (OF-1204): ``definition`` es su texto canónico o ``None``.
+
+    La plantilla personal de otra persona no se toca, y tampoco una cuya cuenta no se ve.
+    """
+    template_id = UUID(entity_id)
+    current = uow.templates.get(actor.household_id, template_id)
+    applied, kept = 0, []
+    for c in changes:
+        state = current.definition() if current else None
+        target = current
+        if c.after is not None:
+            target = from_template_definition(template_id, actor.household_id, str(c.after))
+        blocked = any(
+            t is not None
+            and (t.scope not in ("", str(actor.user_id)) or t.account_id not in visible)
+            for t in (current, target)
+        )
+        if c.field != "definition" or state != c.before or blocked:
+            kept.append(c)
+            continue
+        if c.after is None:
+            uow.templates.delete(actor.household_id, template_id)
+            current = None
+        else:
+            current = target
+            assert current is not None
+            uow.templates.save(current, actor.user_id)
+        applied += 1
+    return applied, kept
+
+
+def _apply_schedule(
+    uow: UnitOfWork, actor: Actor, visible: set[AccountId], entity_id: str, changes: list[Change]
+) -> tuple[int, list[Change]]:
+    """Un pago programado (OF-1201): ``definition`` es su texto canónico o ``None``.
+
+    Solo se toca si su cuenta es visible para quien deshace (ADR-0013): el pago de una cuenta
+    personal ajena no se deshace ni se rehace desde otra sesión.
+    """
+    schedule_id = UUID(entity_id)
+    current = uow.schedule.get(actor.household_id, schedule_id)
+    applied, kept = 0, []
+    for c in changes:
+        state = current.definition() if current else None
+        target = current
+        if c.after is not None:
+            target = from_schedule_definition(schedule_id, actor.household_id, str(c.after))
+        hidden = any(p is not None and p.account_id not in visible for p in (current, target))
+        if c.field != "definition" or state != c.before or hidden:
+            kept.append(c)
+            continue
+        if c.after is None:
+            uow.schedule.delete(actor.household_id, schedule_id)
+            current = None
+        else:
+            current = target
+            assert current is not None
+            uow.schedule.save(current, actor.user_id)
         applied += 1
     return applied, kept
 
