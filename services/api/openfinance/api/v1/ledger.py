@@ -1,3 +1,5 @@
+import base64
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -10,8 +12,10 @@ from openfinance.api.v1.schemas import (
     BulkCategorizeOut,
     ManualTransactionIn,
     ManualTransactionOut,
+    MoneyOut,
     OperationRefOut,
     TransactionOut,
+    TransactionPageOut,
 )
 from openfinance.application import ledger, movements
 from openfinance.application.ports import TransactionQuery
@@ -60,6 +64,57 @@ def list_transactions(
     except ValueError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
     return [TransactionOut.of(t) for t in ledger.list_transactions(uow, actor, query)]
+
+
+def _encode_cursor(at: datetime, last_id: UUID) -> str:
+    return base64.urlsafe_b64encode(f"{at.isoformat()}|{last_id}".encode()).decode()
+
+
+def _decode_cursor(cursor: str) -> tuple[datetime, UUID]:
+    try:
+        text = base64.urlsafe_b64decode(cursor.encode()).decode()
+        at, last_id = text.split("|")
+        return datetime.fromisoformat(at), UUID(last_id)
+    except (ValueError, UnicodeDecodeError) as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Cursor no válido") from exc
+
+
+@router.get("/transactions/page", response_model=TransactionPageOut)
+def page_transactions(
+    actor: ActorDep,
+    uow: UowDep,
+    month: Annotated[str | None, Query(pattern=r"^(19|2\d)\d{2}-(0[1-9]|1[0-2])$")] = None,
+    q: Annotated[str | None, Query(max_length=100)] = None,
+    uncategorized: bool = False,
+    account_id: UUID | None = None,
+    category_id: UUID | None = None,
+    cursor: Annotated[
+        str | None, Query(max_length=200, description="`next_cursor` anterior")
+    ] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> TransactionPageOut:
+    """Movimientos de 50 en 50 con el total del filtro (OF-803). Mismo orden que el listado."""
+    year, mon = (int(month[:4]), int(month[5:])) if month else (None, None)
+    try:
+        query = TransactionQuery(
+            year=year,
+            month=mon,
+            text=q or None,
+            uncategorized=uncategorized,
+            account_id=AccountId(account_id) if account_id else None,
+            category_id=CategoryId(category_id) if category_id else None,
+            limit=limit,
+            after=_decode_cursor(cursor) if cursor else None,
+        )
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
+    page = ledger.page_transactions(uow, actor, query)
+    return TransactionPageOut(
+        items=[TransactionOut.of(t) for t in page.items],
+        next_cursor=_encode_cursor(*page.next_after) if page.next_after else None,
+        count=page.count,
+        total=MoneyOut.of(page.total),
+    )
 
 
 @router.post("/transactions/categorize", response_model=BulkCategorizeOut)

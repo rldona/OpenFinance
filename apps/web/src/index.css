@@ -5,16 +5,74 @@
   --text: #17202b;
   --muted: #627080;
   --accent: #0f766e;
+  --on-accent: #fff;
   --accent-soft: #e2f3f0;
   --pos: #15803d;
+  --pos-soft: #eaf7ef;
   --neg: #c2410c;
+  --on-neg: #fff;
+  --neg-soft: #fdefe8;
   --warn: #b45309;
   --warn-soft: #fff4e0;
+  --warn-border: #f5d9a8;
+  --track: #edf0f3;
+  --chart-zero: #cbd5e1;
+  --focus: #1d4ed8;
   --radius: 14px;
+  color-scheme: light;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
   color: var(--text);
   background: var(--bg);
+}
+
+/* Modo oscuro (OF-805): sigue al sistema salvo que se elija «Claro» u «Oscuro» en Ajustes. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #0e1520;
+    --surface: #162130;
+    --border: #28364a;
+    --text: #e8eef5;
+    --muted: #9fb0c3;
+    --accent: #2dd4bf;
+    --on-accent: #052e2b;
+    --accent-soft: #12332f;
+    --pos: #4ade80;
+    --pos-soft: #12331f;
+    --neg: #fb923c;
+    --on-neg: #2a1204;
+    --neg-soft: #3a1f12;
+    --warn: #fbbf24;
+    --warn-soft: #3a2c0f;
+    --warn-border: #5c4515;
+    --track: #263445;
+    --chart-zero: #475569;
+    --focus: #93c5fd;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #0e1520;
+  --surface: #162130;
+  --border: #28364a;
+  --text: #e8eef5;
+  --muted: #9fb0c3;
+  --accent: #2dd4bf;
+  --on-accent: #052e2b;
+  --accent-soft: #12332f;
+  --pos: #4ade80;
+  --pos-soft: #12331f;
+  --neg: #fb923c;
+  --on-neg: #2a1204;
+  --neg-soft: #3a1f12;
+  --warn: #fbbf24;
+  --warn-soft: #3a2c0f;
+  --warn-border: #5c4515;
+  --track: #263445;
+  --chart-zero: #475569;
+  --focus: #93c5fd;
+  color-scheme: dark;
 }
 
 * {
@@ -90,16 +148,40 @@ h2 {
   margin: 0;
 }
 
+/*
+ * Estructura de la aplicación (OF-801): la cabecera arriba y el menú según el ancho.
+ * Móvil (< 640 px): barra inferior. Tableta (640–1023 px): carril a la izquierda. Escritorio: barra lateral.
+ */
+.app {
+  --top-h: 56px;
+  --nav-w: 0px;
+  display: grid;
+  grid-template-columns: var(--nav-w) minmax(0, 1fr);
+  grid-template-rows: var(--top-h) 1fr;
+  grid-template-areas:
+    'top top'
+    'nav main';
+  min-height: 100vh;
+}
+
 .top {
+  grid-area: top;
   display: flex;
   align-items: center;
-  gap: 18px;
-  padding: 12px 28px;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 14px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
   z-index: 5;
+}
+
+.top-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .brand {
@@ -116,28 +198,172 @@ h2 {
   color: var(--muted);
 }
 
-.tabs {
+.nav {
+  grid-area: nav;
   display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-  flex: 1;
+  background: var(--surface);
 }
 
-.tabs a {
-  padding: 8px 14px;
-  border-radius: 99px;
+.nav a {
+  position: relative;
+  display: flex;
+  align-items: center;
   text-decoration: none;
   color: var(--text);
 }
 
-.tabs a:hover {
+.nav a:hover {
   background: var(--bg);
 }
 
-.tabs a.active {
-  background: var(--accent);
-  color: #fff;
-  font-weight: 600;
+.nav a.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.nav-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.nav .badge {
+  margin-left: auto;
+}
+
+/* El nombre completo lo leen los lectores de pantalla; a la vista va el corto cuando no cabe. */
+.nav-full,
+.nav-short {
+  white-space: nowrap;
+}
+
+/* Móvil: barra inferior con las seis secciones. */
+@media (max-width: 639px) {
+  .app {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'top'
+      'main';
+  }
+
+  .nav {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 5;
+    border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .nav a {
+    flex: 1 1 0;
+    min-width: 0;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    min-height: 56px;
+    padding: 6px 2px;
+    font-size: 11px;
+  }
+
+  .nav a.active {
+    background: transparent;
+    box-shadow: inset 0 3px 0 var(--accent);
+  }
+
+  .nav .badge {
+    position: absolute;
+    top: 4px;
+    left: 55%;
+    margin: 0;
+  }
+
+  .nav-full {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
+
+  .app main {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  }
+}
+
+/* Tableta: carril estrecho con icono y nombre corto. */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .app {
+    --nav-w: 84px;
+  }
+
+  .nav {
+    position: sticky;
+    top: var(--top-h);
+    align-self: start;
+    height: calc(100vh - var(--top-h));
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 6px;
+    border-right: 1px solid var(--border);
+  }
+
+  .nav a {
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    min-height: 56px;
+    padding: 6px 2px;
+    border-radius: 12px;
+    font-size: 11px;
+  }
+
+  .nav .badge {
+    position: absolute;
+    top: 2px;
+    right: 6px;
+    margin: 0;
+  }
+
+  .nav-full {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
+}
+
+/* Escritorio: barra lateral con los nombres completos. */
+@media (min-width: 1024px) {
+  .app {
+    --nav-w: 232px;
+  }
+
+  .top {
+    padding: 0 28px;
+  }
+
+  .nav {
+    position: sticky;
+    top: var(--top-h);
+    align-self: start;
+    height: calc(100vh - var(--top-h));
+    flex-direction: column;
+    gap: 2px;
+    padding: 14px 10px;
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+  }
+
+  .nav a {
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+  }
+
+  .nav-short {
+    display: none;
+  }
 }
 
 .people {
@@ -182,14 +408,17 @@ h2 {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  color: #fff;
+  color: var(--on-neg);
   font-weight: 700;
   font-size: 12px;
-  border: 2px solid #fff;
+  border: 2px solid var(--surface);
   margin-left: -6px;
 }
 
 main {
+  grid-area: main;
+  min-width: 0;
+  width: 100%;
   padding: 24px 28px 60px;
   max-width: 1200px;
   margin: 0 auto;
@@ -229,7 +458,7 @@ main {
 
 .view-picker button[aria-pressed='true'] {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font-weight: 600;
 }
 
@@ -329,7 +558,7 @@ input[type='search'].field {
 .btn.primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .btn:disabled {
@@ -379,7 +608,7 @@ tr.dim {
 }
 
 .tag-in {
-  background: #dcf3e4;
+  background: var(--pos-soft);
   color: var(--pos);
 }
 
@@ -406,13 +635,13 @@ tr.dim {
 }
 
 .notice.ok {
-  background: #dcf3e4;
+  background: var(--pos-soft);
   color: var(--pos);
 }
 
 .notice.warn {
   background: var(--warn-soft);
-  border: 1px solid #f5d9a8;
+  border: 1px solid var(--warn-border);
   color: var(--warn);
 }
 
@@ -482,11 +711,6 @@ tr.dim {
 }
 
 @media (max-width: 800px) {
-  .top {
-    flex-wrap: wrap;
-    padding: 10px 14px;
-  }
-
   main {
     padding: 16px 14px 48px;
   }
@@ -498,7 +722,7 @@ tr.dim {
 
 .badge {
   background: var(--neg);
-  color: #fff;
+  color: var(--on-neg);
   border-radius: 99px;
   font-size: 11px;
   padding: 0 6px;
@@ -530,7 +754,7 @@ tr.dim {
 
 .catsel.empty {
   background: var(--warn-soft);
-  border-color: #f5d9a8;
+  border-color: var(--warn-border);
   color: var(--warn);
 }
 
@@ -546,6 +770,7 @@ tr.dim {
   max-width: min(420px, calc(100vw - 40px));
   background: #1f2937;
   color: #fff;
+  border: 1px solid var(--border);
   padding: 10px 14px;
   border-radius: 10px;
   opacity: 0;
@@ -634,7 +859,7 @@ table.stale {
 }
 
 .chart .zero {
-  stroke: #cbd5e1;
+  stroke: var(--chart-zero);
 }
 
 .donut-title {
@@ -694,12 +919,12 @@ table.stale {
 }
 
 .pill.up {
-  background: #fde8dd;
+  background: var(--neg-soft);
   color: var(--neg);
 }
 
 .pill.down {
-  background: #dcf3e4;
+  background: var(--pos-soft);
   color: var(--pos);
 }
 
@@ -758,7 +983,7 @@ table.stale {
   display: block;
   height: 9px;
   border-radius: 99px;
-  background: #edf0f3;
+  background: var(--track);
   overflow: hidden;
   margin-top: 4px;
 }
@@ -980,36 +1205,10 @@ ul.plain {
 
 /* Móvil (OF-503): pestañas en una fila desplazable y objetivos táctiles de 40 px o más. */
 @media (max-width: 800px) {
-  .top {
-    gap: 8px 10px;
-  }
-
   .brand {
     flex: 1;
   }
 
-  .tabs {
-    order: 10;
-    flex: 1 0 calc(100% + 28px);
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-    scroll-snap-type: x proximity;
-    margin: 0 -14px;
-    padding: 0 14px;
-  }
-
-  .tabs::-webkit-scrollbar {
-    display: none;
-  }
-
-  .tabs a {
-    flex: none;
-    white-space: nowrap;
-    scroll-snap-align: start;
-  }
-
-  .tabs a,
   .btn,
   .btn.small,
   .field {
@@ -1017,7 +1216,6 @@ ul.plain {
     min-width: 40px;
   }
 
-  .tabs a,
   .btn,
   .btn.small {
     display: inline-flex;
@@ -1264,7 +1462,88 @@ ul.plain {
   .top .people {
     display: none;
   }
-  .top {
-    gap: 10px;
+  .top-tools {
+    gap: 6px;
   }
+}
+
+/* Cargos que faltan este mes (OF-802). */
+.pending {
+  display: grid;
+  gap: 8px;
+}
+.pending li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 12px;
+}
+.pending li .small {
+  grid-column: 1;
+  grid-row: 2;
+}
+.pending li strong {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+.pending li.late span:first-child {
+  color: var(--warn);
+}
+
+/* Accesibilidad (OF-804): enlace de salto, foco visible y errores junto al campo. */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -48px;
+  z-index: 20;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.skip-link:focus {
+  top: 8px;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+main:focus {
+  outline: none; /* recibe el foco al navegar, pero no es un control */
+}
+
+.field-error {
+  margin: 4px 0 0;
+}
+.field[aria-invalid='true'] {
+  border-color: var(--neg);
+}
+
+/* El aviso no se esconde detrás de la barra inferior del móvil. */
+@media (max-width: 639px) {
+  .toast {
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    right: 14px;
+  }
+}
+
+fieldset.appearance {
+  margin: 0;
+  min-width: 0;
+}
+.h2 {
+  font-size: 16px;
+  font-weight: 700;
+  padding: 0;
+}
+
+.insight .linkish {
+  padding: 0;
+  margin-top: 4px;
+}
+.dismissed {
+  margin-top: 12px;
+  opacity: 0.85;
 }

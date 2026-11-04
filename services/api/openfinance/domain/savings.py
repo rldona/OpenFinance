@@ -60,14 +60,26 @@ def percent_of(part: Money, whole: Money) -> int:
     return int(value.to_integral_value(rounding=ROUND_FLOOR))
 
 
-def budget_status(spent: Money, limit: Money) -> tuple[int, BudgetStatus]:
-    """El estado se decide con los importes exactos, no con el porcentaje redondeado."""
+def budget_status(
+    spent: Money, limit: Money, fixed: Money | None = None
+) -> tuple[int, BudgetStatus]:
+    """El estado se decide con los importes exactos, no con el porcentaje redondeado.
+
+    ``fixed`` son las cuotas fijas de la categoría (cobradas o por cobrar este mes). Una cuota
+    ya está comprometida: no avisa de «cerca» por sí sola. El aviso mira solo el margen que
+    queda para el gasto variable (límite menos cuotas) y, si las cuotas lo agotan, no avisa
+    hasta que se supera el límite.
+    """
     percent = percent_of(spent, limit)
     if spent.amount > limit.amount:
         return percent, BudgetStatus.OVER
-    if spent.amount * 100 >= limit.amount * WARNING_PERCENT:
-        return percent, BudgetStatus.WARNING
-    return percent, BudgetStatus.OK
+    if fixed is None or fixed.amount <= 0:
+        near = spent.amount * 100 >= limit.amount * WARNING_PERCENT
+    else:
+        room = limit.amount - fixed.amount
+        variable = max(spent.amount - min(fixed.amount, spent.amount), Decimal(0))
+        near = room > 0 and variable * 100 >= room * WARNING_PERCENT
+    return percent, BudgetStatus.WARNING if near else BudgetStatus.OK
 
 
 # --- OF-402 · Objetivos ---------------------------------------------------------------------
@@ -263,6 +275,75 @@ def detect_recurring(
         )
     found.sort(key=lambda r: (-r.amount.amount, r.merchant))
     return found
+
+
+# --- OF-802 · Cargos pendientes y previsión de cierre ---------------------------------------
+
+MIN_FORECAST_DAYS = 7
+"""Con menos días de datos, el ritmo diario no dice nada: no se hace previsión."""
+
+
+@dataclass(frozen=True, slots=True)
+class PendingCharge:
+    merchant: str
+    category_id: CategoryId | None
+    amount: Money
+    expected_day: int
+    """Día del mes en que suele cobrarse (el del último cargo)."""
+    late: bool
+    """Ya debería haberse cobrado este mes y no ha llegado: se avisa, pero no se suma."""
+
+
+def is_fixed(t: Transaction, recurring_merchants: set[str]) -> bool:
+    return (
+        t.kind is TransactionKind.EXPENSE
+        and t.amount.is_negative
+        and t.merchant is not None
+        and t.merchant in recurring_merchants
+    )
+
+
+def pending_charges(
+    recurring: Iterable[RecurringCharge], month_transactions: Iterable[Transaction], today: date
+) -> list[PendingCharge]:
+    """Cuotas habituales que este mes todavía no han llegado."""
+    current = Month.of(today)
+    paid = {
+        t.merchant
+        for t in month_transactions
+        if t.kind is TransactionKind.EXPENSE and t.amount.is_negative and t.merchant
+    }
+    out: list[PendingCharge] = []
+    for r in recurring:
+        if r.merchant in paid:
+            continue
+        expected = min(r.last_date.day, current.days)
+        out.append(
+            PendingCharge(r.merchant, r.category_id, r.amount, expected, late=expected < today.day)
+        )
+    out.sort(key=lambda p: (p.late, p.expected_day, p.merchant))
+    return out
+
+
+def forecast_month_end(
+    spent: Money,
+    fixed_paid: Money,
+    pending: Iterable[PendingCharge],
+    days_elapsed: int,
+    days_in_month: int,
+    currency: Currency,
+) -> Money | None:
+    """Gasto con el que cerraría el mes: lo gastado, más las cuotas que faltan, más el
+    ritmo diario del gasto variable (sin las cuotas ya cobradas) los días que quedan."""
+    if days_elapsed < MIN_FORECAST_DAYS:
+        return None
+    upcoming = Money.zero(currency)
+    for p in pending:
+        if not p.late:
+            upcoming = upcoming + p.amount
+    variable = max(spent.amount - fixed_paid.amount, Decimal(0))
+    rest = variable * (days_in_month - days_elapsed) / days_elapsed
+    return Money.of(spent.amount + upcoming.amount + rest, currency)
 
 
 # --- OF-404 · Ideas -------------------------------------------------------------------------

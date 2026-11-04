@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from datetime import datetime
+from uuid import UUID
 
 from openfinance.application.errors import NotFoundError
 from openfinance.application.ports import TransactionQuery, UnitOfWork
 from openfinance.domain.ledger import Account, AccountKind, Transaction, account_balance
 from openfinance.domain.shared import Money
+from openfinance.domain.shared.ids import AccountId
 from openfinance.domain.workspaces import Actor
 
 
@@ -30,7 +33,7 @@ def list_accounts(uow: UnitOfWork, actor: Actor) -> list[AccountView]:
     ]
 
 
-def list_transactions(uow: UnitOfWork, actor: Actor, query: TransactionQuery) -> list[Transaction]:
+def _account_ids(uow: UnitOfWork, actor: Actor, query: TransactionQuery) -> list[AccountId]:
     accounts = visible_accounts(uow, actor)
     if query.shared_only:
         accounts = [a for a in accounts if a.kind in (AccountKind.JOINT, AccountKind.SAVINGS)]
@@ -41,6 +44,44 @@ def list_transactions(uow: UnitOfWork, actor: Actor, query: TransactionQuery) ->
         if query.account_id not in ids:
             raise NotFoundError("Cuenta no encontrada")
         ids = [query.account_id]
+    return ids
+
+
+def list_transactions(uow: UnitOfWork, actor: Actor, query: TransactionQuery) -> list[Transaction]:
+    ids = _account_ids(uow, actor, query)
     if not ids:
         return []
     return uow.transactions.search(actor.household_id, ids, query)
+
+
+@dataclass(frozen=True, slots=True)
+class TransactionPage:
+    items: list[Transaction]
+    next_after: tuple[datetime, UUID] | None
+    """Cursor de la página siguiente; ``None`` si esta es la última."""
+    count: int
+    """Movimientos que cumplen el filtro en total, no solo los de esta página."""
+    total: Money
+    """Suma de sus importes (con signo)."""
+
+
+def page_transactions(uow: UnitOfWork, actor: Actor, query: TransactionQuery) -> TransactionPage:
+    """Una página del listado (OF-803) con el total del filtro. Solo cuentas visibles."""
+    household = uow.households.get(actor.household_id)
+    if household is None:
+        raise NotFoundError("Hogar no encontrado")
+    ids = _account_ids(uow, actor, query)
+    if not ids:
+        return TransactionPage([], None, 0, Money.zero(household.currency))
+    rows = uow.transactions.search(
+        actor.household_id, ids, replace(query, limit=query.limit + 1, after=query.after)
+    )
+    page = rows[: query.limit]
+    last = page[-1] if len(rows) > query.limit else None
+    count, total = uow.transactions.totals(actor.household_id, ids, replace(query, after=None))
+    return TransactionPage(
+        page,
+        (last.booked_at, last.id) if last else None,
+        count,
+        Money.of(total, household.currency),
+    )

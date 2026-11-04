@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ACCOUNTS, CATEGORIES, ME, PREVIEW, TRANSACTIONS, mockApi } from '../test/api'
+import { ACCOUNTS, CATEGORIES, ME, PREVIEW, TRANSACTIONS, mockApi, page } from '../test/api'
+import axe from 'axe-core'
 import { App } from './App'
 
 beforeEach(() => {
@@ -20,6 +21,7 @@ const loggedIn = (extra: Parameters<typeof mockApi>[0] = {}) =>
     'GET /api/v1/me': { body: ME },
     'GET /api/v1/accounts': { body: ACCOUNTS },
     'GET /api/v1/transactions': { body: TRANSACTIONS },
+    'GET /api/v1/transactions/page': { body: page(TRANSACTIONS) },
     'GET /api/v1/categories': { body: CATEGORIES },
     'GET /api/v1/transactions/uncategorized-count': { body: { count: 1 } },
     'GET /api/v1/imports': { body: [] },
@@ -32,7 +34,7 @@ describe('Inicio de sesión', () => {
       'GET /api/v1/me': { status: 401, body: { detail: 'Inicia sesión' } },
       'POST /api/v1/auth/login': { body: ME },
       'GET /api/v1/accounts': { body: ACCOUNTS },
-      'GET /api/v1/transactions': { body: [] },
+      'GET /api/v1/transactions/page': { body: page([]) },
       'GET /api/v1/categories': { body: CATEGORIES },
       'GET /api/v1/transactions/uncategorized-count': { body: { count: 0 } },
     })
@@ -87,19 +89,19 @@ describe('Movimientos', () => {
     const calls = loggedIn()
     render(<App />)
     await screen.findByRole('table')
-    const month = calls.filter((c) => c.url.pathname === '/api/v1/transactions').at(-1)!
+    const month = calls.filter((c) => c.url.pathname === '/api/v1/transactions/page').at(-1)!
     expect(month.url.searchParams.get('month')).toMatch(/^\d{4}-\d{2}$/)
 
     await userEvent.click(screen.getByLabelText(/Solo sin categoría/))
     await waitFor(() => {
-      const last = calls.filter((c) => c.url.pathname === '/api/v1/transactions').at(-1)!
+      const last = calls.filter((c) => c.url.pathname === '/api/v1/transactions/page').at(-1)!
       expect(last.url.searchParams.get('uncategorized')).toBe('true')
     })
 
     await userEvent.click(screen.getByLabelText(/Solo sin categoría/))
     await userEvent.click(screen.getByRole('button', { name: 'Mes anterior' }))
     await waitFor(() => {
-      const last = calls.filter((c) => c.url.pathname === '/api/v1/transactions').at(-1)!
+      const last = calls.filter((c) => c.url.pathname === '/api/v1/transactions/page').at(-1)!
       expect(last.url.searchParams.get('month')).not.toBe(month.url.searchParams.get('month'))
     })
   })
@@ -199,7 +201,7 @@ describe('Varios a la vez y efectivo (OF-705)', () => {
   it('solo los movimientos añadidos a mano se pueden borrar', async () => {
     const manual = { ...TRANSACTIONS[3], source: 'manual' }
     const calls = loggedIn({
-      'GET /api/v1/transactions': { body: [TRANSACTIONS[2], manual] },
+      'GET /api/v1/transactions/page': { body: page([TRANSACTIONS[2], manual]) },
       'GET /api/v1/transactions/t3/history': { body: [] },
       'GET /api/v1/transactions/t4/history': { body: [] },
       'DELETE /api/v1/transactions/t4': { body: { operation_id: 'op-3' } },
@@ -363,7 +365,7 @@ describe('Búsqueda', () => {
     await screen.findByRole('table')
     await userEvent.type(screen.getByRole('searchbox'), text)
     await waitFor(() => {
-      const last = calls.filter((c) => c.url.pathname === '/api/v1/transactions').at(-1)!
+      const last = calls.filter((c) => c.url.pathname === '/api/v1/transactions/page').at(-1)!
       expect(last.url.searchParams.get('q')).toBe(text)
     })
     expect(await screen.findByRole('table')).toBeInTheDocument()
@@ -373,7 +375,7 @@ describe('Búsqueda', () => {
 describe('Error inesperado', () => {
   it('muestra un aviso con «Recargar» en vez de dejar la pantalla congelada', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined) // React registra el error capturado
-    loggedIn({ 'GET /api/v1/transactions': { body: [{ roto: true }] } })
+    loggedIn({ 'GET /api/v1/transactions/page': { body: page([{ roto: true }]) } })
     render(<App />)
     expect(await screen.findByRole('alert')).toHaveTextContent('Algo ha fallado')
     expect(screen.getByRole('button', { name: 'Recargar' })).toBeInTheDocument()
@@ -463,17 +465,63 @@ describe('Sesión caducada', () => {
     mockApi({
       'GET /api/v1/me': { body: ME },
       'GET /api/v1/accounts': { body: ACCOUNTS },
-      'GET /api/v1/transactions': { status: 401, body: { detail: 'Inicia sesión' } },
+      'GET /api/v1/transactions/page': { status: 401, body: { detail: 'Inicia sesión' } },
     })
     render(<App />)
     expect(await screen.findByRole('button', { name: 'Entrar' })).toBeInTheDocument()
   })
 
-  it('avisa cuando se alcanza el límite de movimientos', async () => {
-    const many = Array.from({ length: 1000 }, (_, i) => ({ ...TRANSACTIONS[3], id: `t${i}` }))
-    loggedIn({ 'GET /api/v1/transactions': { body: many } })
+  it('con más movimientos que una página ofrece «Cargar más» y enseña el total del filtro', async () => {
+    const first = Array.from({ length: 50 }, (_, i) => ({ ...TRANSACTIONS[3], id: `t${i}` }))
+    const second = Array.from({ length: 20 }, (_, i) => ({ ...TRANSACTIONS[3], id: `u${i}` }))
+    const calls = loggedIn({
+      'GET /api/v1/transactions/page': (call) =>
+        call.url.searchParams.get('cursor') === 'c1'
+          ? { body: page(second, { count: 70, total: '-700.00' }) }
+          : { body: page(first, { next_cursor: 'c1', count: 70, total: '-700.00' }) },
+    })
     render(<App />)
-    expect(await screen.findByText(/Se muestran los 1000 más recientes/)).toBeInTheDocument()
+    expect(await screen.findByText(/Mostrando 50 de 70 movimientos/)).toBeInTheDocument()
+    expect(screen.getByText(/Suma del filtro/)).toHaveTextContent('-700,00')
+    await userEvent.click(screen.getByRole('button', { name: 'Cargar más' }))
+    expect(await screen.findByText(/70 movimientos/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cargar más' })).toBeNull()
+    const last = calls.filter((c) => c.url.pathname === '/api/v1/transactions/page').at(-1)!
+    expect(last.url.searchParams.get('cursor')).toBe('c1')
+    expect(screen.getAllByRole('row')).toHaveLength(71)
+  })
+
+  it('al cambiar un filtro vuelve a la primera página', async () => {
+    const calls = loggedIn({
+      'GET /api/v1/transactions/page': { body: page(TRANSACTIONS, { next_cursor: 'c1' }) },
+    })
+    render(<App />)
+    await screen.findByRole('button', { name: 'Cargar más' })
+    await userEvent.type(screen.getByRole('searchbox'), 'luz')
+    await waitFor(() => {
+      const last = calls.filter((c) => c.url.pathname === '/api/v1/transactions/page').at(-1)!
+      expect(last.url.searchParams.get('q')).toBe('luz')
+      expect(last.url.searchParams.has('cursor')).toBe(false)
+    })
+  })
+
+  it('corregir una categoría actualiza solo esa fila, sin volver a pedir la lista', async () => {
+    const calls = loggedIn({
+      'PATCH /api/v1/transactions/t4': {
+        body: {
+          transaction: { ...TRANSACTIONS[3], category_id: 'c-rest' },
+          rule: null,
+          also_categorized: 0,
+          operation_id: 'op-1',
+        },
+      },
+    })
+    render(<App />)
+    const select = await screen.findByLabelText(`Categoría de ${TRANSACTIONS[3].description}`)
+    const before = calls.filter((c) => c.url.pathname === '/api/v1/transactions/page').length
+    await userEvent.selectOptions(select, 'c-rest')
+    await waitFor(() => expect(select).toHaveValue('c-rest'))
+    expect(calls.filter((c) => c.url.pathname === '/api/v1/transactions/page').length).toBe(before)
   })
 })
 
@@ -581,6 +629,8 @@ const OVERVIEW = {
   currency: 'EUR',
   daily: Array.from({ length: 31 }, (_, i) => (i < 10 ? '100.00' : '1000.00')),
   previous_daily: Array.from({ length: 30 }, () => '800.00'),
+  forecast: null,
+  pending_charges: [],
 }
 
 const DETAIL = {
@@ -754,8 +804,8 @@ describe('Gráficos (fase 3)', () => {
 const BUDGETS = {
   month: '2026-10',
   items: [
-    { category_id: 'c-super', amount: eur('550.00'), spent: eur('600.00'), percent: 109, status: 'over' },
-    { category_id: 'c-rest', amount: eur('350.00'), spent: eur('300.00'), percent: 86, status: 'warning' },
+    { category_id: 'c-super', amount: eur('550.00'), spent: eur('600.00'), percent: 109, status: 'over', fixed: eur('0.00') },
+    { category_id: 'c-rest', amount: eur('350.00'), spent: eur('300.00'), percent: 86, status: 'warning', fixed: eur('0.00') },
   ],
   total_amount: eur('900.00'),
   total_spent: eur('900.00'),
@@ -807,6 +857,7 @@ const SAVINGS = {
       yearly_saving: eur('648.00'),
       evidence: '48 movimientos de los últimos 3 meses',
       assumption: 'Estimación orientativa: -25 %',
+      dismissed: false,
     },
   ],
   goals: [
@@ -1001,5 +1052,315 @@ describe('Errores al cargar (OF-605)', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Error del servidor')
     await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
     expect(await screen.findByLabelText('Presupuesto de Supermercado')).toBeInTheDocument()
+  })
+})
+
+describe('Estado en la URL y menú (OF-801)', () => {
+  it('los filtros de Movimientos se leen de la URL y se escriben en ella', async () => {
+    window.location.hash = '#movimientos?q=luz&sin=1&mes=2026-08'
+    const calls = loggedIn()
+    render(<App />)
+    await screen.findByRole('table')
+    const first = calls.filter((c) => c.url.pathname === '/api/v1/transactions/page').at(-1)!
+    expect(first.url.searchParams.get('q')).toBe('luz')
+    expect(first.url.searchParams.get('uncategorized')).toBe('true')
+    expect(screen.getByRole('searchbox')).toHaveValue('luz')
+
+    await userEvent.click(screen.getByLabelText(/Solo sin categoría/))
+    await waitFor(() => expect(window.location.hash).not.toContain('sin=1'))
+    expect(window.location.hash).toContain('q=luz')
+  })
+
+  it('el mes elegido va en la URL y el menú lo conserva al cambiar de pantalla', async () => {
+    window.location.hash = '#mes'
+    loggedIn({ 'GET /api/v1/insights/month': { body: OVERVIEW } })
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Mes anterior' }))
+    await waitFor(() => expect(window.location.hash).toBe('#mes?mes=2026-09'))
+    const nav = screen.getByRole('navigation', { name: 'Secciones' })
+    expect(within(nav).getByRole('link', { name: /Movimientos/ })).toHaveAttribute('href', '#movimientos?mes=2026-09')
+  })
+
+  it('un mes inválido en la URL se ignora', async () => {
+    window.location.hash = '#movimientos?mes=basura'
+    const calls = loggedIn()
+    render(<App />)
+    await screen.findByRole('table')
+    const last = calls.filter((c) => c.url.pathname === '/api/v1/transactions/page').at(-1)!
+    expect(last.url.searchParams.get('month')).toBe('2026-10')
+  })
+
+  it('el menú marca la pantalla actual', async () => {
+    loggedIn()
+    render(<App />)
+    const nav = await screen.findByRole('navigation', { name: 'Secciones' })
+    expect(within(nav).getByRole('link', { name: /Movimientos/ })).toHaveAttribute('aria-current', 'page')
+  })
+})
+
+describe('Este mes honesto (OF-802)', () => {
+  const PARTIAL = {
+    ...OVERVIEW,
+    is_partial: true,
+    days_elapsed: 20,
+    forecast: eur('1400.00'),
+    pending_charges: [
+      { merchant: 'Gimnasio', category_id: null, amount: eur('30.00'), expected_day: 25, late: false },
+      { merchant: 'Seguro hogar', category_id: null, amount: eur('45.00'), expected_day: 10, late: true },
+    ],
+  }
+
+  it('enseña la previsión de cierre y los cargos pendientes del mes en curso', async () => {
+    window.location.hash = '#mes'
+    loggedIn({ 'GET /api/v1/insights/month': { body: PARTIAL } })
+    render(<App />)
+    expect(await screen.findByText(/Al ritmo actual cerraríais el mes en torno a/)).toHaveTextContent('1400 €')
+    const list = screen.getByRole('list', { name: 'Cargos pendientes' })
+    expect(within(list).getByText('Gimnasio')).toBeInTheDocument()
+    expect(within(list).getByText(/día 25/)).toBeInTheDocument()
+    expect(within(list).getByText(/Seguro hogar/).closest('li')).toHaveTextContent('aún no ha llegado')
+  })
+
+  it('un mes cerrado no hace previsión ni lista cargos', async () => {
+    window.location.hash = '#mes'
+    loggedIn({ 'GET /api/v1/insights/month': { body: OVERVIEW } })
+    render(<App />)
+    await screen.findByRole('heading', { name: 'Este mes' })
+    expect(screen.queryByText(/Al ritmo actual/)).toBeNull()
+    expect(screen.queryByRole('list', { name: 'Cargos pendientes' })).toBeNull()
+  })
+
+  it('explica que parte de un presupuesto son cuotas fijas', async () => {
+    window.location.hash = '#mes'
+    loggedIn({
+      'GET /api/v1/insights/month': { body: OVERVIEW },
+      'GET /api/v1/budgets': {
+        body: {
+          ...BUDGETS,
+          items: [{ ...BUDGETS.items[1], status: 'ok', fixed: eur('120.00') }],
+        },
+      },
+    })
+    render(<App />)
+    expect(await screen.findByText(/120 € son cuotas fijas/)).toBeInTheDocument()
+    expect(screen.queryByText(/cerca/)).toBeNull()
+  })
+})
+
+describe('Accesibilidad (OF-804)', () => {
+  const RULES = [{ key: 'MERCADONA', merchant: 'Mercadona', category_id: 'c-super', scope: 'household', matches: 12 }]
+  const OP = { id: 'op-a', actor_id: 'u-raul', created_at: '2026-11-01T10:00:00Z', action: 'transaction.edit', changes: [], summary: 'Glovo → Restaurantes', undone: false }
+  const mocks = () => ({
+    'GET /api/v1/insights/month': { body: OVERVIEW },
+    'GET /api/v1/insights/category': { body: DETAIL },
+    'GET /api/v1/insights/trends': { body: TRENDS },
+    'GET /api/v1/budgets': { body: BUDGETS },
+    'GET /api/v1/savings/overview': { body: SAVINGS },
+    'GET /api/v1/rules': { body: RULES },
+    'GET /api/v1/changes': { body: [OP] },
+    'GET /api/v1/me/patterns': { body: [] },
+  })
+
+  /** Reglas de WCAG 2.1 A/AA. El contraste se comprueba aparte: jsdom no calcula estilos de CSS. */
+  async function violations(): Promise<string[]> {
+    const result = await axe.run(document.body, {
+      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] },
+      rules: { 'color-contrast': { enabled: false } },
+    })
+    return result.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`)
+  }
+
+  const SCREENS: Array<[string, string, string]> = [
+    ['mes', 'Este mes', 'heading'],
+    ['gastos', '¿En qué gastamos?', 'heading'],
+    ['evolucion', 'Evolución', 'heading'],
+    ['ahorrar', 'Ahorrar', 'heading'],
+    ['movimientos', 'Movimientos', 'heading'],
+    ['importar', 'Importar extracto', 'heading'],
+    ['categorias', 'Categorías', 'heading'],
+    ['presupuestos', 'Presupuestos', 'heading'],
+    ['reglas', 'Reglas', 'heading'],
+    ['ajustes', 'Ajustes', 'heading'],
+    ['cambios', 'Mis cambios', 'heading'],
+  ]
+
+  it.each(SCREENS)('%s no tiene violaciones de axe', async (hash, title) => {
+    window.location.hash = `#${hash}`
+    loggedIn(mocks())
+    render(<App />)
+    expect(await screen.findByRole('heading', { level: 1, name: title })).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByText('Cargando…')).toBeNull())
+    expect(await violations()).toEqual([])
+    expect(document.title).toBe(`${title} · OpenFinance`)
+  })
+
+  it('el detector funciona: encuentra una imagen sin texto alternativo', async () => {
+    render(<img src="x.png" />)
+    expect(await violations()).toEqual([expect.stringContaining('image-alt')])
+  })
+
+  it('el acceso (sin sesión) no tiene violaciones y el error va junto al campo', async () => {
+    mockApi({
+      'GET /api/v1/me': { status: 401 },
+      'POST /api/v1/auth/login': { status: 401, body: { detail: 'Email o contraseña incorrectos' } },
+    })
+    render(<App />)
+    await userEvent.type(await screen.findByLabelText('Email'), 'raul@example.org')
+    await userEvent.type(screen.getByLabelText('Contraseña'), 'mala-clave')
+    await userEvent.click(screen.getByRole('button', { name: 'Entrar' }))
+    const alert = await screen.findByRole('alert')
+    const password = screen.getByLabelText('Contraseña')
+    expect(password).toHaveAttribute('aria-invalid', 'true')
+    expect(password).toHaveAttribute('aria-describedby', alert.id)
+    expect(password).toHaveFocus()
+    expect(await violations()).toEqual([])
+  })
+
+  it('al cambiar de pantalla el foco pasa al contenido y hay un enlace para saltar el menú', async () => {
+    loggedIn(mocks())
+    render(<App />)
+    await screen.findByRole('table')
+    expect(screen.getByRole('link', { name: 'Saltar al contenido' })).toHaveAttribute('href', '#contenido')
+    const nav = screen.getByRole('navigation', { name: 'Secciones' })
+    await userEvent.click(within(nav).getByRole('link', { name: /Importar/ }))
+    await screen.findByRole('heading', { level: 1, name: 'Importar extracto' })
+    expect(screen.getByRole('main')).toHaveFocus()
+  })
+
+  it('un importe mal escrito se avisa junto al campo y le devuelve el foco', async () => {
+    loggedIn(mocks())
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: '+ Añadir a mano' }))
+    await userEvent.type(screen.getByLabelText(/Concepto/), 'Pan')
+    await userEvent.type(screen.getByLabelText(/Importe/), 'abc')
+    await userEvent.click(screen.getByRole('button', { name: 'Añadir' }))
+    const amount = screen.getByLabelText(/Importe/)
+    expect(amount).toHaveAttribute('aria-invalid', 'true')
+    expect(amount).toHaveFocus()
+    expect(screen.getByRole('alert')).toHaveTextContent('Escribe un importe mayor que cero')
+  })
+
+  it('una contraseña actual incorrecta se señala en su campo, sin cerrar la sesión', async () => {
+    window.location.hash = '#ajustes'
+    loggedIn({
+      ...mocks(),
+      'POST /api/v1/me/password': { status: 422, body: { detail: 'La contraseña actual no es correcta' } },
+    })
+    render(<App />)
+    await userEvent.type(await screen.findByLabelText('Contraseña actual'), 'mala-clave-1')
+    await userEvent.type(screen.getByLabelText(/Nueva contraseña/), 'nueva-clave-larga')
+    await userEvent.type(screen.getByLabelText('Repite la nueva'), 'nueva-clave-larga')
+    await userEvent.click(screen.getByRole('button', { name: 'Cambiar la contraseña' }))
+    const current = screen.getByLabelText('Contraseña actual')
+    await waitFor(() => expect(current).toHaveAttribute('aria-invalid', 'true'))
+    expect(current).toHaveFocus()
+    expect(screen.getByRole('alert')).toHaveTextContent('La contraseña actual no es correcta')
+  })
+
+  it('un presupuesto no válido se avisa junto a su campo y conserva lo escrito', async () => {
+    window.location.hash = '#presupuestos'
+    loggedIn(mocks())
+    render(<App />)
+    const input = await screen.findByLabelText('Presupuesto de Restaurantes')
+    await userEvent.clear(input)
+    await userEvent.type(input, 'mucho')
+    await userEvent.tab()
+    expect(await screen.findByRole('alert')).toHaveTextContent('Escribe un importe mayor que cero')
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(input).toHaveValue('mucho')
+  })
+})
+
+describe('Apariencia y app instalable (OF-805)', () => {
+  afterEach(() => {
+    document.documentElement.removeAttribute('data-theme')
+    window.localStorage.clear()
+  })
+
+  it('el tema oscuro se elige en Ajustes, se aplica y se recuerda', async () => {
+    window.location.hash = '#ajustes'
+    loggedIn({ 'GET /api/v1/me/patterns': { body: [] } })
+    render(<App />)
+    const group = await screen.findByRole('radiogroup', { name: 'Apariencia' })
+    expect(within(group).getByLabelText('Como el sistema')).toBeChecked()
+    await userEvent.click(within(group).getByLabelText('Oscuro'))
+    expect(document.documentElement).toHaveAttribute('data-theme', 'dark')
+    expect(window.localStorage.getItem('openfinance-theme')).toBe('dark')
+    await userEvent.click(within(group).getByLabelText('Como el sistema'))
+    expect(document.documentElement).not.toHaveAttribute('data-theme')
+    expect(window.localStorage.getItem('openfinance-theme')).toBeNull()
+  })
+
+  it('si el navegador no deja guardar, el tema vale para esta visita', async () => {
+    window.location.hash = '#ajustes'
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('bloqueado')
+    })
+    loggedIn({ 'GET /api/v1/me/patterns': { body: [] } })
+    render(<App />)
+    await userEvent.click(await screen.findByLabelText('Claro'))
+    expect(document.documentElement).toHaveAttribute('data-theme', 'light')
+  })
+})
+
+describe('Simulador e ideas (OF-806)', () => {
+  const MANY = Array.from({ length: 9 }, (_, i) => ({
+    id: `c-${i}`,
+    name: `Categoría ${i}`,
+    icon: '🏷️',
+    color: '#000000',
+    hidden: false,
+    slug: `cat-${i}`,
+  }))
+  const WITH_ALL = {
+    ...SAVINGS,
+    averages: MANY.map((c, i) => ({ category_id: c.id, average: eur(`${(90 - i * 10).toFixed(2)}`) })),
+  }
+
+  it('el simulador ofrece todas las categorías con gasto, de mayor a menor media', async () => {
+    window.location.hash = '#ahorrar'
+    loggedIn({ 'GET /api/v1/categories': { body: MANY }, 'GET /api/v1/savings/overview': { body: WITH_ALL } })
+    render(<App />)
+    await screen.findByText(/Ahorro extra/)
+    // Seis a la vista y el resto plegado, pero todas cuentan en el total.
+    const sliders = screen.getAllByRole('slider')
+    expect(sliders.map((s) => s.getAttribute('aria-label'))).toEqual(
+      [0, 1, 2, 3, 4, 5].map((i) => `Recorte en Categoría ${i}`),
+    )
+    fireEvent.change(sliders[0], { target: { value: '50' } })
+    const box = screen.getByText(/Ahorro extra/).closest('.sim-total')!
+    expect(box).toHaveTextContent('45 €/mes') // 50 % de 90 €
+    await userEvent.click(screen.getByRole('button', { name: 'Mostrar las 3 categorías restantes' }))
+    expect(screen.getAllByRole('slider')).toHaveLength(9)
+    fireEvent.change(screen.getByLabelText('Recorte en Categoría 8'), { target: { value: '50' } })
+    expect(box).toHaveTextContent('50 €/mes') // + 50 % de 10 €
+  })
+
+  it('descarta una idea, la esconde y se puede recuperar', async () => {
+    window.location.hash = '#ahorrar'
+    let dismissed = false
+    const calls = loggedIn({
+      'GET /api/v1/savings/overview': () => ({
+        body: { ...SAVINGS, ideas: SAVINGS.ideas.map((i) => ({ ...i, dismissed })) },
+      }),
+      'PUT /api/v1/savings/ideas/cut-restaurantes/dismissed': () => {
+        dismissed = true
+        return { status: 204 }
+      },
+      'DELETE /api/v1/savings/ideas/cut-restaurantes/dismissed': () => {
+        dismissed = false
+        return { status: 204 }
+      },
+    })
+    render(<App />)
+    const ideas = await screen.findByRole('list', { name: 'Ideas' })
+    await userEvent.click(within(ideas).getByRole('button', { name: /Descartar: Restaurantes/ }))
+    expect(await screen.findByText('Has descartado todas las ideas.')).toBeInTheDocument()
+    expect(calls.some((c) => c.method === 'PUT' && c.url.pathname.endsWith('/cut-restaurantes/dismissed'))).toBe(true)
+    await userEvent.click(screen.getByRole('button', { name: /1 idea descartada/ }))
+    const old = screen.getByRole('list', { name: 'Ideas descartadas' })
+    await userEvent.click(within(old).getByRole('button', { name: /Recuperar: Restaurantes/ }))
+    expect(await screen.findByRole('button', { name: /Descartar: Restaurantes/ })).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Ideas descartadas' })).toBeNull()
   })
 })

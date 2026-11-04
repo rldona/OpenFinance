@@ -161,6 +161,24 @@ class CategoryRuleRow(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class DismissedIdeaRow(Base):
+    """Ideas de ahorro que el hogar ha descartado (OF-806)."""
+
+    __tablename__ = "dismissed_ideas"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["household_id", "dismissed_by"],
+            ["memberships.household_id", "memberships.user_id"],
+            name="fk_dismissed_ideas_member_membership",
+        ),
+    )
+
+    household_id: Mapped[UUID] = mapped_column(ForeignKey("households.id"), primary_key=True)
+    idea_id: Mapped[str] = mapped_column(String(60), primary_key=True)
+    dismissed_by: Mapped[UUID] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class BudgetRow(Base):
     __tablename__ = "budgets"
     __table_args__ = (

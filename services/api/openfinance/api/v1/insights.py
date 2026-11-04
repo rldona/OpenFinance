@@ -13,6 +13,7 @@ from openfinance.api.v1.schemas import (
     MonthAmountOut,
     MonthOverviewOut,
     MonthSavedOut,
+    PendingChargeOut,
     TrendCategoryOut,
     TrendMonthOut,
     TrendsOut,
@@ -89,6 +90,17 @@ def month_overview(
         currency=o.currency.code,
         daily=[str(m.amount) for m in o.daily],
         previous_daily=[str(m.amount) for m in o.previous_daily],
+        forecast=_money(o.forecast),
+        pending_charges=[
+            PendingChargeOut(
+                merchant=merchant_label(p.merchant),
+                category_id=p.category_id,
+                amount=MoneyOut.of(p.amount),
+                expected_day=p.expected_day,
+                late=p.late,
+            )
+            for p in o.pending
+        ],
     )
 
 

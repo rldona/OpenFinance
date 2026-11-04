@@ -1,11 +1,14 @@
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useRef, useState } from 'react'
 import { ApiError, api, type Me } from '../../api/client'
+import { FieldError } from '../../components/FieldError'
+import { invalid } from '../../lib/invalid'
 
 export function LoginPage({ onLogin }: { onLogin: (me: Me) => void }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const passwordInput = useRef<HTMLInputElement>(null)
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -15,6 +18,7 @@ export function LoginPage({ onLogin }: { onLogin: (me: Me) => void }) {
       onLogin(await api.login(email, password))
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'No se ha podido conectar con OpenFinance')
+      passwordInput.current?.focus()
     } finally {
       setBusy(false)
     }
@@ -43,15 +47,13 @@ export function LoginPage({ onLogin }: { onLogin: (me: Me) => void }) {
             type="password"
             autoComplete="current-password"
             required
+            ref={passwordInput}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            {...invalid('login-error', error)}
           />
         </label>
-        {error && (
-          <p className="error" role="alert">
-            {error}
-          </p>
-        )}
+        <FieldError id="login-error" message={error} />
         <button className="btn primary" type="submit" disabled={busy}>
           {busy ? 'Entrando…' : 'Entrar'}
         </button>

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 from typing import Protocol
 from uuid import UUID
 
@@ -36,6 +37,8 @@ class TransactionQuery:
     mine_only: bool = False
     """Solo las cuentas personales de quien pregunta, como la vista «mío»."""
     limit: int = 1000
+    after: tuple[datetime, UUID] | None = None
+    """Cursor (OF-803): solo los movimientos posteriores a este en el orden del listado."""
 
     def __post_init__(self) -> None:
         if (self.year is None) != (self.month is None):
@@ -80,6 +83,12 @@ class TransactionRepository(Protocol):
     def search(
         self, household_id: WorkspaceId, account_ids: list[AccountId], query: TransactionQuery
     ) -> list[Transaction]: ...
+    def totals(
+        self, household_id: WorkspaceId, account_ids: list[AccountId], query: TransactionQuery
+    ) -> tuple[int, Decimal]:
+        """Cuántos movimientos cumplen el filtro (sin cursor ni límite) y cuánto suman."""
+        ...
+
     def for_account(
         self, household_id: WorkspaceId, account_id: AccountId
     ) -> list[Transaction]: ...
@@ -159,6 +168,12 @@ class BudgetRepository(Protocol):
     def for_household(self, household_id: WorkspaceId) -> list[Budget]: ...
     def upsert(self, budget: Budget) -> None: ...
     def delete(self, household_id: WorkspaceId, category_id: CategoryId) -> None: ...
+
+
+class IdeaDismissalRepository(Protocol):
+    def dismissed(self, household_id: WorkspaceId) -> set[str]: ...
+    def dismiss(self, household_id: WorkspaceId, idea_id: str, user_id: UserId) -> None: ...
+    def restore(self, household_id: WorkspaceId, idea_id: str) -> None: ...
 
 
 class GoalRepository(Protocol):
@@ -274,6 +289,8 @@ class UnitOfWork(Protocol):
     def budgets(self) -> BudgetRepository: ...
     @property
     def goals(self) -> GoalRepository: ...
+    @property
+    def dismissed_ideas(self) -> IdeaDismissalRepository: ...
     @property
     def member_patterns(self) -> MemberPatternRepository: ...
     @property

@@ -83,3 +83,16 @@ export const PREVIEW = {
   bank_balance: eur('2625.46'),
   balance_after_import: eur('2625.46'),
 }
+
+/** Una página de `GET /api/v1/transactions/page` con valores por defecto razonables. */
+export function page(
+  items: unknown[],
+  extra: { next_cursor?: string | null; count?: number; total?: string } = {},
+) {
+  return {
+    items,
+    next_cursor: extra.next_cursor ?? null,
+    count: extra.count ?? items.length,
+    total: { amount: extra.total ?? '-100.00', currency: 'EUR' },
+  }
+}

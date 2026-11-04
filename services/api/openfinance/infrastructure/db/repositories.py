@@ -3,9 +3,10 @@ from __future__ import annotations
 import calendar
 import json
 from datetime import UTC, datetime
+from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import delete, func, or_, select, update
+from sqlalchemy import Select, and_, delete, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -40,6 +41,7 @@ from openfinance.infrastructure.db.models import (
     CategoryRuleRow,
     ChangeEntryRow,
     ChangeOperationRow,
+    DismissedIdeaRow,
     GoalRow,
     HouseholdRow,
     ImportBatchRow,
@@ -208,9 +210,9 @@ class SqlTransactionRepository:
     def __init__(self, session: Session) -> None:
         self._s = session
 
-    def search(
+    def _filtered(
         self, household_id: WorkspaceId, account_ids: list[AccountId], query: TransactionQuery
-    ) -> list[Transaction]:
+    ) -> Select[TransactionRow]:
         stmt = select(TransactionRow).where(
             TransactionRow.household_id == household_id,
             TransactionRow.account_id.in_(account_ids),
@@ -232,8 +234,35 @@ class SqlTransactionRepository:
                 TransactionRow.kind == TransactionKind.EXPENSE.value,
                 TransactionRow.category_id.is_(None),
             )
+        return stmt
+
+    def search(
+        self, household_id: WorkspaceId, account_ids: list[AccountId], query: TransactionQuery
+    ) -> list[Transaction]:
+        stmt = self._filtered(household_id, account_ids, query)
+        if query.after is not None:
+            # Orden del listado: fecha descendente y, a igual fecha, identificador ascendente.
+            at, last_id = query.after
+            stmt = stmt.where(
+                or_(
+                    TransactionRow.booked_at < at,
+                    and_(TransactionRow.booked_at == at, TransactionRow.id > last_id),
+                )
+            )
         stmt = stmt.order_by(TransactionRow.booked_at.desc(), TransactionRow.id).limit(query.limit)
         return [_transaction(r) for r in self._s.scalars(stmt)]
+
+    def totals(
+        self, household_id: WorkspaceId, account_ids: list[AccountId], query: TransactionQuery
+    ) -> tuple[int, Decimal]:
+        filtered = self._filtered(household_id, account_ids, query).subquery()
+        count = 0
+        total = Decimal(0)
+        # Se suma en Python: SUM sobre decimales exactos no es fiable en todos los motores.
+        for (amount,) in self._s.execute(select(filtered.c.amount)):
+            count += 1
+            total += amount
+        return count, total
 
     def for_account(self, household_id: WorkspaceId, account_id: AccountId) -> list[Transaction]:
         rows = self._s.scalars(
@@ -609,6 +638,35 @@ class SqlRuleRepository:
                 CategoryRuleRow.merchant == merchant,
             )
         )
+
+
+class SqlIdeaDismissalRepository:
+    def __init__(self, session: Session) -> None:
+        self._s = session
+
+    def dismissed(self, household_id: WorkspaceId) -> set[str]:
+        return set(
+            self._s.scalars(
+                select(DismissedIdeaRow.idea_id).where(
+                    DismissedIdeaRow.household_id == household_id
+                )
+            )
+        )
+
+    def dismiss(self, household_id: WorkspaceId, idea_id: str, user_id: UserId) -> None:
+        if self._s.get(DismissedIdeaRow, (household_id, idea_id)) is None:
+            self._s.add(
+                DismissedIdeaRow(household_id=household_id, idea_id=idea_id, dismissed_by=user_id)
+            )
+            _flush(self._s)
+
+    def restore(self, household_id: WorkspaceId, idea_id: str) -> None:
+        self._s.execute(
+            delete(DismissedIdeaRow).where(
+                DismissedIdeaRow.household_id == household_id, DismissedIdeaRow.idea_id == idea_id
+            )
+        )
+        _flush(self._s)
 
 
 class SqlBudgetRepository:
@@ -1000,6 +1058,7 @@ class SqlUnitOfWork:
         self.rules = SqlRuleRepository(session)
         self.budgets = SqlBudgetRepository(session)
         self.goals = SqlGoalRepository(session)
+        self.dismissed_ideas = SqlIdeaDismissalRepository(session)
         self.member_patterns = SqlMemberPatternRepository(session)
         self.changes = SqlChangeRepository(session)
 

@@ -1,7 +1,10 @@
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useRef, useState } from 'react'
 import { ApiError, api, type MemberPattern } from '../../api/client'
 import { useHousehold } from '../../app/household-context'
+import { FieldError } from '../../components/FieldError'
+import { invalid } from '../../lib/invalid'
 import { ErrorState, Loading } from '../../components/LoadState'
+import { type Theme, getTheme, setTheme } from '../../lib/theme'
 import { useLoad } from '../../lib/useLoad'
 
 const MIN_PASSWORD = 10
@@ -12,12 +15,15 @@ function PasswordForm() {
   const [next, setNext] = useState('')
   const [repeat, setRepeat] = useState('')
   const [saving, setSaving] = useState(false)
+  const [currentError, setCurrentError] = useState<string | null>(null)
+  const currentInput = useRef<HTMLInputElement>(null)
   const mismatch = repeat.length > 0 && next !== repeat
 
   async function save(e: FormEvent) {
     e.preventDefault()
     if (next !== repeat) return
     setSaving(true)
+    setCurrentError(null)
     try {
       const r = await api.changePassword(current, next)
       notify(
@@ -29,7 +35,11 @@ function PasswordForm() {
       setNext('')
       setRepeat('')
     } catch (err) {
-      notify(err instanceof ApiError ? err.message : 'No se ha podido cambiar la contraseña')
+      if (err instanceof ApiError && err.status === 422) {
+        // La contraseña actual es incorrecta: el error va en su campo y el foco vuelve a él.
+        setCurrentError(err.message)
+        currentInput.current?.focus()
+      } else notify(err instanceof ApiError ? err.message : 'No se ha podido cambiar la contraseña')
     } finally {
       setSaving(false)
     }
@@ -40,8 +50,18 @@ function PasswordForm() {
       <h2>Tu contraseña</h2>
       <label>
         Contraseña actual
-        <input className="field" type="password" autoComplete="current-password" required value={current} onChange={(e) => setCurrent(e.target.value)} />
+        <input
+          ref={currentInput}
+          className="field"
+          type="password"
+          autoComplete="current-password"
+          required
+          value={current}
+          onChange={(e) => setCurrent(e.target.value)}
+          {...invalid('current-password-error', currentError)}
+        />
       </label>
+      <FieldError id="current-password-error" message={currentError} />
       <label>
         Nueva contraseña (mín. {MIN_PASSWORD} caracteres)
         <input
@@ -56,9 +76,17 @@ function PasswordForm() {
       </label>
       <label>
         Repite la nueva
-        <input className="field" type="password" autoComplete="new-password" required value={repeat} onChange={(e) => setRepeat(e.target.value)} />
+        <input
+          className="field"
+          type="password"
+          autoComplete="new-password"
+          required
+          value={repeat}
+          onChange={(e) => setRepeat(e.target.value)}
+          {...invalid('repeat-password-error', mismatch ? 'No coinciden.' : null)}
+        />
       </label>
-      {mismatch && <p className="small error">No coinciden.</p>}
+      <FieldError id="repeat-password-error" message={mismatch ? 'No coinciden.' : null} />
       <p className="small muted">Al cambiarla se cierran tus sesiones en otros dispositivos; esta sigue abierta.</p>
       <div className="toolbar">
         <button className="btn primary" type="submit" disabled={saving || mismatch || next.length < MIN_PASSWORD}>
@@ -66,6 +94,38 @@ function PasswordForm() {
         </button>
       </div>
     </form>
+  )
+}
+
+const THEMES: Array<[Theme, string]> = [
+  ['auto', 'Como el sistema'],
+  ['light', 'Claro'],
+  ['dark', 'Oscuro'],
+]
+
+/** Apariencia (OF-805): se recuerda en este navegador, no en el servidor. */
+function Appearance() {
+  const [theme, setChoice] = useState<Theme>(getTheme)
+  return (
+    <fieldset className="card stack appearance">
+      <legend className="h2">Apariencia</legend>
+      <div className="toolbar" role="radiogroup" aria-label="Apariencia">
+        {THEMES.map(([value, label]) => (
+          <label key={value} className="small">
+            <input
+              type="radio"
+              name="theme"
+              checked={theme === value}
+              onChange={() => {
+                setChoice(value)
+                setTheme(value)
+              }}
+            />{' '}
+            {label}
+          </label>
+        ))}
+      </div>
+    </fieldset>
   )
 }
 
@@ -176,6 +236,7 @@ export function SettingsPage() {
         <PasswordForm />
         <div className="grid stack">
           <RechargeCards />
+          <Appearance />
           <Sessions />
           <div className="card stack">
             <h2>Más ajustes</h2>

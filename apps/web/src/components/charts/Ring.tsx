@@ -5,7 +5,7 @@ export function Ring({ percent, label, size = 84, color = '#0f766e' }: { percent
   const p = Math.max(0, Math.min(percent, 100))
   return (
     <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} role="img" aria-label={`${label}: ${Math.round(percent)} %`}>
-      <circle r={r} cx={c} cy={c} fill="none" stroke="#e7eaee" strokeWidth={9} />
+      <circle r={r} cx={c} cy={c} fill="none" style={{ stroke: 'var(--track)' }} strokeWidth={9} />
       <circle
         r={r}
         cx={c}

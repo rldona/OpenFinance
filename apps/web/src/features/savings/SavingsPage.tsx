@@ -17,7 +17,9 @@ import {
 import { useLoad } from '../../lib/useLoad'
 import { useCategoryMeta } from '../insights/meta'
 
-const SIMULATED = ['restaurantes', 'super', 'suscripciones', 'transporte', 'ocio', 'ropa']
+/** Recortes con los que arranca el simulador; el resto de categorías empiezan en 0 %. */
+const DEFAULT_CUTS: Record<string, number> = { restaurantes: 25, super: 10 }
+const VISIBLE_ROWS = 6
 
 function GoalCard({ goal, onChanged }: { goal: Goal; onChanged: () => void }) {
   const { notify } = useHousehold()
@@ -188,16 +190,20 @@ function NewGoal({ onCreated }: { onCreated: () => void }) {
 function Simulator({ overview }: { overview: SavingsOverview }) {
   const { categoryById } = useHousehold()
   const meta = useCategoryMeta()
-  const [cuts, setCuts] = useState<Record<string, number>>({ restaurantes: 25, super: 10 })
-  const rows = overview.averages
-    .filter((a) => a.category_id && SIMULATED.includes(categoryById.get(a.category_id)?.slug ?? ''))
-    .filter((a) => toCents(a.average.amount) > 0n)
-    .sort((a, b) => SIMULATED.indexOf(categoryById.get(a.category_id!)!.slug!) - SIMULATED.indexOf(categoryById.get(b.category_id!)!.slug!))
-  if (rows.length === 0) return <p className="muted">Hacen falta movimientos categorizados para simular recortes.</p>
+  const [cuts, setCuts] = useState<Record<string, number>>({})
+  const [showAll, setShowAll] = useState(false)
+  // Todas las categorías con gasto, de mayor a menor media (OF-806).
+  const all = overview.averages
+    .filter((a) => a.category_id && categoryById.has(a.category_id) && toCents(a.average.amount) > 0n)
+    .sort((a, b) => Number(toCents(b.average.amount) - toCents(a.average.amount)))
+  const cutOf = (id: string) => cuts[id] ?? DEFAULT_CUTS[categoryById.get(id)?.slug ?? ''] ?? 0
+  const rows = showAll ? all : all.filter((a, i) => i < VISIBLE_ROWS || cutOf(a.category_id!) > 0)
+  if (all.length === 0) return <p className="muted">Hacen falta movimientos categorizados para simular recortes.</p>
 
-  const currency = rows[0].average.currency
-  const saving = (avg: string, slug: string) => (toCents(avg) * BigInt(cuts[slug] ?? 0)) / 100n
-  const extra = rows.reduce((s, r) => s + saving(r.average.amount, categoryById.get(r.category_id!)!.slug!), 0n)
+  const currency = all[0].average.currency
+  const saving = (avg: string, id: string) => (toCents(avg) * BigInt(cutOf(id))) / 100n
+  // El ahorro cuenta todas las categorías, también las que están plegadas.
+  const extra = all.reduce((s, r) => s + saving(r.average.amount, r.category_id!), 0n)
   const goal = overview.goals.find((g) => toCents(g.remaining.amount) > 0n)
   // Mismo «hoy» que el servidor, para que coincida con la fecha de la tarjeta del objetivo.
   const etaWith = (monthlyCents: bigint) =>
@@ -212,10 +218,10 @@ function Simulator({ overview }: { overview: SavingsOverview }) {
     <div>
       {rows.map((r) => {
         const m = meta(r.category_id)
-        const slug = categoryById.get(r.category_id!)!.slug!
-        const pct = cuts[slug] ?? 0
+        const id = r.category_id!
+        const pct = cutOf(id)
         return (
-          <div className="sim-row" key={slug}>
+          <div className="sim-row" key={id}>
             <span aria-hidden="true">{m.icon}</span>
             <span>
               {m.name}
@@ -229,13 +235,23 @@ function Simulator({ overview }: { overview: SavingsOverview }) {
               value={pct}
               aria-label={`Recorte en ${m.name}`}
               aria-valuetext={`${pct} %`}
-              onChange={(e) => setCuts((c) => ({ ...c, [slug]: Number(e.target.value) }))}
+              onChange={(e) => setCuts((c) => ({ ...c, [id]: Number(e.target.value) }))}
             />
             <strong className="num">{pct} %</strong>
-            <span className="num pos">+{formatMoneyRounded({ amount: centsToAmount(saving(r.average.amount, slug)), currency })}/mes</span>
+            <span className="num pos">+{formatMoneyRounded({ amount: centsToAmount(saving(r.average.amount, id)), currency })}/mes</span>
           </div>
         )
       })}
+      {all.length > rows.length && (
+        <button className="btn small" type="button" onClick={() => setShowAll(true)}>
+          Mostrar las {all.length - rows.length} categorías restantes
+        </button>
+      )}
+      {showAll && all.length > VISIBLE_ROWS && (
+        <button className="btn small" type="button" onClick={() => setShowAll(false)}>
+          Mostrar menos
+        </button>
+      )}
       <div className="sim-total">
         <div>
           <div className="small muted">Ahorro extra</div>
@@ -264,6 +280,72 @@ function monthsBetween(a: string, b: string): number {
   const [ay, am] = a.split('-').map(Number)
   const [by, bm] = b.split('-').map(Number)
   return by * 12 + bm - (ay * 12 + am)
+}
+
+/** Ideas para ahorrar. Las descartadas se esconden para todo el hogar y se pueden recuperar (OF-806). */
+function Ideas({ ideas, onChanged }: { ideas: SavingsOverview['ideas']; onChanged: () => void }) {
+  const { notify } = useHousehold()
+  const [showDismissed, setShowDismissed] = useState(false)
+  const active = ideas.filter((i) => !i.dismissed)
+  const dismissed = ideas.filter((i) => i.dismissed)
+
+  async function setDismissed(id: string, value: boolean) {
+    try {
+      if (value) await api.dismissIdea(id)
+      else await api.restoreIdea(id)
+      onChanged()
+    } catch (err) {
+      notify(err instanceof ApiError ? err.message : 'No se ha podido cambiar la idea')
+    }
+  }
+
+  const item = (i: SavingsOverview['ideas'][number]) => (
+    <li key={i.id} className="insight">
+      <span className="ic" aria-hidden="true">
+        {i.icon}
+      </span>
+      <div>
+        <strong>{i.title}</strong>
+        <div className="small muted">{i.detail}</div>
+        <div className="small muted">
+          {i.evidence}
+          {i.assumption && ` · ${i.assumption}`}
+        </div>
+        <button
+          className="linkish small"
+          type="button"
+          aria-label={`${i.dismissed ? 'Recuperar' : 'Descartar'}: ${i.title}`}
+          onClick={() => void setDismissed(i.id, !i.dismissed)}
+        >
+          {i.dismissed ? 'Recuperar' : 'Descartar'}
+        </button>
+      </div>
+      <span className="save">{formatMoneyRounded(i.yearly_saving)}/año</span>
+    </li>
+  )
+
+  return (
+    <div className="card">
+      <h2>Ideas para ahorrar</h2>
+      {ideas.length === 0 && <p className="muted">Aún no hay datos suficientes para proponer ideas.</p>}
+      {ideas.length > 0 && active.length === 0 && <p className="muted">Has descartado todas las ideas.</p>}
+      <ul className="plain" aria-label="Ideas">
+        {active.map(item)}
+      </ul>
+      {dismissed.length > 0 && (
+        <>
+          <button className="btn small" type="button" aria-expanded={showDismissed} onClick={() => setShowDismissed((v) => !v)}>
+            {showDismissed ? 'Ocultar' : 'Ver'} {dismissed.length === 1 ? '1 idea descartada' : `${dismissed.length} ideas descartadas`}
+          </button>
+          {showDismissed && (
+            <ul className="plain dismissed" aria-label="Ideas descartadas">
+              {dismissed.map(item)}
+            </ul>
+          )}
+        </>
+      )}
+    </div>
+  )
 }
 
 export function SavingsPage() {
@@ -297,28 +379,7 @@ export function SavingsPage() {
       <NewGoal onCreated={reload} />
 
       <div className="grid g2 spaced-card">
-        <div className="card">
-          <h2>Ideas para ahorrar</h2>
-          {o.ideas.length === 0 && <p className="muted">Aún no hay datos suficientes para proponer ideas.</p>}
-          <ul className="plain">
-            {o.ideas.map((i) => (
-              <li key={i.id} className="insight">
-                <span className="ic" aria-hidden="true">
-                  {i.icon}
-                </span>
-                <div>
-                  <strong>{i.title}</strong>
-                  <div className="small muted">{i.detail}</div>
-                  <div className="small muted">
-                    {i.evidence}
-                    {i.assumption && ` · ${i.assumption}`}
-                  </div>
-                </div>
-                <span className="save">{formatMoneyRounded(i.yearly_saving)}/año</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <Ideas ideas={o.ideas} onChanged={reload} />
         <div className="card">
           <h2>Simulador: ¿y si recortamos…?</h2>
           <Simulator overview={o} />
