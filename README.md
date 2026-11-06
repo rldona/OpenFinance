@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/cover.png" alt="OpenFinance: mira en qué gastas y a dónde va. Self-hosted, en tu casa." width="860">
+</p>
+
 # OpenFinance
 
 Gestor económico open source para el hogar: una pareja, una cuenta común y gráficos claros para saber **cuánto gastamos, en qué y cómo ahorrar mejor**. Se ejecuta en casa o en un servidor propio y los datos no salen de ahí.
