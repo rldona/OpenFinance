@@ -104,6 +104,31 @@ describe('Movimientos', () => {
   })
 })
 
+describe('Búsqueda', () => {
+  it.each(['#1', '%', '"comillas"', "l'oreal"])('busca «%s» sin romper la pantalla', async (text) => {
+    const calls = loggedIn()
+    render(<App />)
+    await screen.findByRole('table')
+    await userEvent.type(screen.getByRole('searchbox'), text)
+    await waitFor(() => {
+      const last = calls.filter((c) => c.url.pathname === '/api/v1/transactions').at(-1)!
+      expect(last.url.searchParams.get('q')).toBe(text)
+    })
+    expect(await screen.findByRole('table')).toBeInTheDocument()
+  })
+})
+
+describe('Error inesperado', () => {
+  it('muestra un aviso con «Recargar» en vez de dejar la pantalla congelada', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined) // React registra el error capturado
+    loggedIn({ 'GET /api/v1/transactions': { body: [{ roto: true }] } })
+    render(<App />)
+    expect(await screen.findByRole('alert')).toHaveTextContent('Algo ha fallado')
+    expect(screen.getByRole('button', { name: 'Recargar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Salir' })).toBeInTheDocument()
+  })
+})
+
 describe('Importar', () => {
   it('sube el extracto, enseña la vista previa y confirma', async () => {
     window.location.hash = '#importar'
@@ -267,6 +292,19 @@ describe('Errores de carga', () => {
 
 const eur = (amount: string) => ({ amount, currency: 'EUR' })
 
+const amountVsAverage = (category_id: string | null, amount: string, average: string, change: string) => ({
+  category_id,
+  amount: eur(amount),
+  average: eur(average),
+  reference: eur(average),
+  change: eur(change),
+})
+const CATEGORY_AMOUNTS = [
+  amountVsAverage('c-super', '600.00', '500.00', '100.00'),
+  amountVsAverage('c-rest', '300.00', '100.00', '200.00'),
+  amountVsAverage(null, '100.00', '0.00', '100.00'),
+]
+
 const OVERVIEW = {
   month: '2026-10',
   has_data: true,
@@ -286,11 +324,8 @@ const OVERVIEW = {
     { member_id: 'u-elena', amount: eur('1400.00') },
   ],
   contributed: eur('0.00'),
-  categories: [
-    { category_id: 'c-super', amount: eur('600.00'), average: eur('500.00') },
-    { category_id: 'c-rest', amount: eur('300.00'), average: eur('100.00') },
-    { category_id: null, amount: eur('100.00'), average: eur('0.00') },
-  ],
+  categories: CATEGORY_AMOUNTS,
+  changes: [CATEGORY_AMOUNTS[1], CATEGORY_AMOUNTS[2], CATEGORY_AMOUNTS[0]],
   currency: 'EUR',
   daily: Array.from({ length: 31 }, (_, i) => (i < 10 ? '100.00' : '1000.00')),
   previous_daily: Array.from({ length: 30 }, () => '800.00'),
@@ -312,6 +347,7 @@ const TRENDS = {
   months: Array.from({ length: 12 }, (_, i) => ({
     month: `${i < 2 ? 2025 : 2026}-${String(((i + 10) % 12) + 1).padStart(2, '0')}`,
     has_data: true,
+    is_partial: false,
     spent: eur('1000.00'),
     inflow: eur('3000.00'),
     saved: eur(i === 9 ? '-500.00' : '2000.00'),
@@ -412,6 +448,9 @@ describe('Gráficos (fase 3)', () => {
     expect(await screen.findByText(/mes en curso, hasta el día 10/)).toBeInTheDocument()
     expect(screen.getByText(/▲ 100 % que a estas alturas del mes anterior/)).toBeInTheDocument()
     expect(screen.getByText(/\(meses completos\)/)).toBeInTheDocument()
+    // Los cambios por categoría se comparan con lo gastado hasta el mismo día (OF-608).
+    const changes = screen.getByRole('list', { name: 'Cambios frente a la media' })
+    expect(within(changes).getAllByText(/media hasta el día 10/)).toHaveLength(3)
   })
 
   it('«Mío» enseña tu gasto y lo aportado a la conjunta aparte (OF-108)', async () => {
@@ -674,5 +713,41 @@ describe('Ahorro (fase 4)', () => {
       ['POST', { name: 'Coche', icon: '🎯', target: '12000', monthly: '250.50', saved: '0', deadline: null }],
       ['PATCH', { clear_account: false, monthly: '300', saved: '6120.00' }],
     ])
+  })
+})
+
+describe('Errores al cargar (OF-605)', () => {
+  it('si fallan los movimientos de una categoría se ve el error con «Reintentar»', async () => {
+    window.location.hash = '#gastos'
+    let failures = 1
+    loggedIn({
+      'GET /api/v1/insights/month': { body: OVERVIEW },
+      'GET /api/v1/insights/category': { body: DETAIL },
+      'GET /api/v1/transactions': (call) =>
+        call.url.searchParams.has('category_id') && failures-- > 0
+          ? { status: 500, body: { detail: 'Error del servidor' } }
+          : { body: TRANSACTIONS },
+    })
+    render(<App />)
+    const panel = (await screen.findByRole('heading', { name: /Movimientos de/ })).parentElement!
+    expect(await within(panel).findByRole('alert')).toHaveTextContent('Error del servidor')
+    await userEvent.click(within(panel).getByRole('button', { name: 'Reintentar' }))
+    expect(await within(panel).findByRole('table')).toBeInTheDocument()
+    expect(within(panel).queryByRole('alert')).toBeNull()
+  })
+
+  it('Presupuestos se recupera al reintentar', async () => {
+    window.location.hash = '#presupuestos'
+    let failures = 1
+    loggedIn({
+      'GET /api/v1/categories': { body: CATS_WITH_SLUGS },
+      'GET /api/v1/budgets': () =>
+        failures-- > 0 ? { status: 500, body: { detail: 'Error del servidor' } } : { body: BUDGETS },
+      'GET /api/v1/savings/overview': { body: SAVINGS },
+    })
+    render(<App />)
+    expect(await screen.findByRole('alert')).toHaveTextContent('Error del servidor')
+    await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(await screen.findByLabelText('Presupuesto de Supermercado')).toBeInTheDocument()
   })
 })

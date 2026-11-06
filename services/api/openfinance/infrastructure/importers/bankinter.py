@@ -32,6 +32,8 @@ from openfinance.domain.shared.text import normalize_text
 from openfinance.infrastructure.importers import xlsx
 from openfinance.infrastructure.importers.common import (
     INVALID_AMOUNT,
+    MISSING_AMOUNT,
+    ZERO_AMOUNT,
     Cell,
     ImportFormatError,
     Rows,
@@ -58,6 +60,11 @@ _MAX_HEADER_SCAN = 1000
 """Los pendientes van antes de la cabecera: puede haber bastantes."""
 _PENDING = "pendiente: se importará cuando se contabilice"
 _MAX_DESCRIPTION = 500
+
+
+_DECIMAL_SEP = None
+"""Los importes del Excel son números. Si alguno llega como texto, solo se acepta lo que no
+tiene dos lecturas: el formato del texto no se ha visto en un extracto real (bancos.md)."""
 
 
 def _date(value: Cell) -> datetime:
@@ -112,21 +119,29 @@ def parse_bankinter(content: bytes, account_key: str, rules: ClassificationRules
         if not any(cell_text(c) for c in row):
             continue
         description = cell_text(cell(row, "description"))[:_MAX_DESCRIPTION]
+        if not cell_text(cell(row, "amount")):
+            result.skipped.append(SkippedRow(line, MISSING_AMOUNT, description))
+            continue
         try:
             booked_at = _date(cell(row, "booked"))
             raw_value = cell(row, "value")
             value_date = _date(raw_value) if cell_text(raw_value) else booked_at
             currency = cell_text(cell(row, "currency"))
-            amount = Money.of(to_decimal(cell(row, "amount")), currency)
+            amount = Money.of(to_decimal(cell(row, "amount"), decimal_sep=_DECIMAL_SEP), currency)
             raw_balance = cell(row, "balance")
             balance = (
-                Money.of(to_decimal(raw_balance), currency) if cell_text(raw_balance) else None
+                Money.of(to_decimal(raw_balance, decimal_sep=_DECIMAL_SEP), currency)
+                if cell_text(raw_balance)
+                else None
             )
         except ValueError as exc:
             result.skipped.append(SkippedRow(line, f"fila no válida: {exc}", description))
             continue
         except ArithmeticError:
             result.skipped.append(SkippedRow(line, INVALID_AMOUNT, description))
+            continue
+        if amount.is_zero:
+            result.skipped.append(SkippedRow(line, ZERO_AMOUNT, description))
             continue
         parsed.append((line, booked_at, value_date, description, amount, balance))
 

@@ -31,6 +31,7 @@ from openfinance.domain.ledger import (
     Account,
     AccountKind,
     Institution,
+    LedgerError,
     Transaction,
     TransactionKind,
     account_balance,
@@ -41,7 +42,8 @@ from openfinance.domain.shared.text import normalize_text
 from openfinance.domain.workspaces import Actor
 
 # Pendiente de validar con extractos reales (docs/product/bancos.md).
-DEFAULT_SAVINGS_PATTERNS = ("To pocket",)
+DEFAULT_SAVINGS_PATTERNS = ("To pocket", "From pocket")
+"""Revolut: meter en la hucha (importe negativo) y sacar de ella (positivo, no es ingreso)."""
 DEFAULT_OUTFLOW_CONTRIBUTION_PATTERNS = ("REVOLUT**",)
 """Salidas de una cuenta personal de Bankinter hacia Revolut: la recarga de la conjunta
 (ADR-0015). En otras entidades ese texto no tiene por qué significar lo mismo."""
@@ -274,8 +276,8 @@ def commit_import(
         member = r.member_id
         if kind is TransactionKind.CONTRIBUTION and member is None:
             kind = TransactionKind.INCOME
-        uow.transactions.add(
-            Transaction(
+        try:
+            transaction = Transaction(
                 id=TransactionId(uuid4()),
                 household_id=actor.household_id,
                 account_id=account.id,
@@ -291,9 +293,26 @@ def commit_import(
                 fingerprint=row.fingerprint,
                 import_id=batch.id,
             )
-        )
+        except LedgerError as exc:
+            # Los lectores ya descartan lo que el dominio no admite; si algo se escapa, la
+            # importación entera se deshace (no se guarda nada) en vez de dar un error 500.
+            raise InvalidRequestError(
+                f"La fila {row.line} del extracto no se puede guardar: {exc}"
+            ) from exc
+        uow.transactions.add(transaction)
         created += 1
     done = batch.committed(now, created, len(rows) - created, len(result.skipped))
     uow.imports.save_committed(done)
     uow.commit()
     return ImportResult(done, done.created_count, done.duplicate_count, done.skipped_count)
+
+
+def purge_expired_imports(uow: UnitOfWork, now: datetime) -> int:
+    """Borra el archivo de las vistas previas caducadas. Devuelve cuántas había (OF-607).
+
+    También ocurre en cada vista previa y en cada inicio de sesión; esto lo usan el
+    arranque de la API y ``make backup``, para que la copia no se lleve extractos viejos.
+    """
+    purged = uow.imports.purge_expired_content(now)
+    uow.commit()
+    return purged

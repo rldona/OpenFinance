@@ -1,3 +1,7 @@
+import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,8 +16,14 @@ from openfinance.application.errors import (
     InvalidRequestError,
     NotFoundError,
 )
+from openfinance.application.imports import purge_expired_imports
 from openfinance.domain.imports.batch import MAX_FILE_BYTES
 from openfinance.infrastructure.config import Settings, get_settings
+from openfinance.infrastructure.db.repositories import SqlUnitOfWork
+from openfinance.infrastructure.db.session import get_session_factory
+from openfinance.infrastructure.time import utc_now
+
+logger = logging.getLogger(__name__)
 
 CSRF_HEADER = "X-Requested-With"
 CSRF_VALUE = "OpenFinance"
@@ -71,6 +81,24 @@ async def _validation_error(_: Request, exc: Exception) -> JSONResponse:
     return JSONResponse({"detail": detail}, status_code=status.HTTP_422_UNPROCESSABLE_CONTENT)
 
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Al arrancar, borra el archivo de las vistas previas caducadas (OF-607).
+
+    Si la base de datos aún no responde, la API arranca igual: la purga se repite en cada
+    vista previa y en cada inicio de sesión.
+    """
+    factory = app.dependency_overrides.get(get_session_factory, get_session_factory)()
+    try:
+        with factory() as session:
+            purged = purge_expired_imports(SqlUnitOfWork(session), utc_now())
+        if purged:
+            logger.info("Vistas previas caducadas purgadas al arrancar: %d", purged)
+    except Exception:  # nunca impide arrancar
+        logger.warning("No se han podido purgar las vistas previas al arrancar", exc_info=True)
+    yield
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     app = FastAPI(
@@ -80,6 +108,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         docs_url=None if settings.is_production else "/docs",
         redoc_url=None if settings.is_production else "/redoc",
         openapi_url=None if settings.is_production else "/openapi.json",
+        lifespan=_lifespan,
     )
     # El último en añadirse es el más externo: CORS envuelve al resto para que también
     # las respuestas 403/413 lleven sus cabeceras.

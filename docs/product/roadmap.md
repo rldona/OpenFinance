@@ -14,8 +14,13 @@ Un ticket está terminado cuando cumple sus criterios de aceptación, tiene test
 | 3 · Gráficos | Este mes, ¿En qué gastamos? y Evolución | OF-301 … OF-305 | ✅ Hecha |
 | 4 · Ahorro | Presupuestos, objetivos, ideas y simulador | OF-401 … OF-405 | ✅ Hecha |
 | 5 · Uso real | Instalado en casa, con copias de seguridad | OF-501 … OF-504 | ✅ OF-501 a OF-503 (CI en verde, también `compose-e2e`) · OF-504 preparado: falta la etiqueta `v0.1.0` tras el mes de uso real |
+| 6 · Datos fiables | Que cualquier extracto real se importe sin errores ni entradas infladas | OF-601 … OF-608 | ✅ Hecha · falta reconocer los traspasos internos de OF-602 (pendiente de un extracto real) |
+| 7 · Corregir sin miedo | Editar, deshacer y ajustar desde la web, con historial | OF-701 … OF-706 | Pendiente |
+| 8 · Uso diario | Móvil, PWA, accesibilidad y mes en curso honesto (v0.2) | OF-801 … OF-806 | Pendiente |
+| 9 · Operación | Copias cifradas, dependencias y actualizaciones (v0.2) | OF-901 … OF-907 | Pendiente |
+| 10 – 17 | Del libro contable completo a la 1.0 | OF-1001 … OF-1705 | Ver [Después de v0.2](#después-de-v02) |
 
-**Hito v0.1:** fin de la fase 5, con al menos un mes de uso real con vuestros datos.
+**Hito v0.1:** fases 6 y 7 terminadas y al menos un mes de uso real con vuestros datos. La auditoría del 1 de noviembre de 2026 encontró fallos que, con datos reales, dejan importaciones que no se pueden confirmar o totales inflados que no se pueden corregir; por eso la fase 6 va antes del mes de uso real.
 
 ## Cómo retomar
 
@@ -23,8 +28,7 @@ Estado a 1 de noviembre de 2026. Código en [github.com/rldona/OpenFinance](http
 
 ### Lo que falta para v0.1, en orden
 
-No queda ningún ticket de desarrollo: OF-108 (vista «mi gasto») está terminado.
-
+0. ✅ **Fase 6 hecha.** Solo falta reconocer los traspasos internos de OF-602, que necesitan ver su texto en un extracto real: se puede cerrar con el primer extracto del paso 1. La fase 7 se puede hacer durante el mes de uso real.
 1. **Instalar en casa** siguiendo [Instalar en casa](../deployment/home.md), en modo HTTPS con dominio propio, en un equipo x86-64:
    1. Configurar el DNS del dominio y abrir los puertos 80 y 443 del router hacia el equipo.
    2. En `.env`: `COMPOSE_FILE=compose.yaml:compose.https.yaml`, `OPENFINANCE_DOMAIN` y una contraseña de PostgreSQL aleatoria.
@@ -268,14 +272,109 @@ El Core calcula y el frontend solo pinta. Los totales del hogar usan solo la con
 
 ---
 
-## Después de v0.1
+## Fase 6 · Datos fiables
 
-Ideas que se retoman cuando v0.1 esté en uso; cada una tiene su ADR aplazado.
+Que cualquier extracto real de Revolut o Bankinter se importe sin errores y sin inflar las entradas. Sale de la auditoría del 1 de noviembre de 2026 y **va antes del mes de uso real**.
 
-| Idea | Referencia |
+### OF-601 · Filas de importe cero o vacío ✅
+Una verificación de tarjeta a 0,00 € pasaba la vista previa, pero al confirmar el dominio la rechazaba y la API respondía 500: el extracto no se podía importar nunca.
+- ✅ Los lectores de Revolut y Bankinter descartan las filas de importe cero («importe cero: no mueve dinero») y las de importe vacío («fila no válida: falta el importe»), con su motivo en la vista previa. El saldo sigue cuadrando.
+- ✅ Si al confirmar el dominio rechaza una fila, la API responde 422 y no guarda nada: el lote no queda reclamado y se puede volver a confirmar.
+- ✅ 🧪 Un extracto con una verificación de tarjeta a 0,00 se previsualiza y se confirma; 🧪 un error del dominio al confirmar da 422 y deja la importación intacta.
+
+### OF-602 · Clasificación: huchas en los dos sentidos, nombres por palabra completa y traspasos internos ✅ (salvo traspasos internos)
+- ✅ Patrones de hucha «To pocket» y «From pocket». Sacar de la hucha es `savings_transfer` positivo: no cuenta como ingreso, resta de lo traspasado al ahorro y en Movimientos se lee «De la hucha». Los textos en español siguen pendientes de un extracto real ([bancos.md](bancos.md)).
+- ✅ Todos los patrones (nombres, patrones por persona, huchas) se buscan por palabra completa tras normalizar: «MARIANA» no es aportación de Ana y «\*1234» no reconoce «\*12345». Solo se exige frontera en el extremo que es letra o cifra, así que «REVOLUT\*\*» sigue reconociendo «Revolut\*\*9876\*».
+- ⏳ `internal_patterns` con las recargas de la conjunta hacia las cuentas personales: **pendiente de ver el texto en un extracto real**. Inventarlo clasificaría mal movimientos reales que luego no se pueden reclasificar (hasta OF-701).
+- ✅ 🧪 «From pocket EUR Viaje» no cuenta como entrada; ✅ 🧪 «Transferencia de MARIANA LOPEZ» no es aportación de Ana; ✅ 🧪 las huellas ya guardadas no cambian (la de la muestra queda fijada en el test y no depende de las reglas).
+
+### OF-603 · Búsqueda con «#» y ErrorBoundary global ✅
+- ✅ La clave de la consulta de Movimientos es `JSON.stringify([consulta, versión])`, sin partirla por «#». Antes, buscar «#1» lanzaba un `SyntaxError` y la lista se quedaba congelada.
+- ✅ Un `ErrorBoundary` por pestaña en `App.tsx` muestra «Algo ha fallado · Recargar» en lugar de congelar la pantalla; la cabecera y las otras pestañas siguen funcionando.
+- ✅ 🧪 Buscar «#1», «%», comillas o apóstrofos envía la búsqueda tal cual y la lista sigue funcionando; ✅ 🧪 una respuesta que rompe la pantalla muestra el aviso con «Recargar».
+
+### OF-604 · Importes ambiguos: rechazar en vez de adivinar ✅
+- ✅ `to_decimal` recibe el separador decimal del banco y el otro solo puede agrupar miles de tres en tres. El CSV de Revolut declara «.»; los Excel de Revolut y Bankinter traen números, y si una celda llega como texto solo se acepta lo inequívoco («12,30», «1.234,56»), porque su formato de texto no se ha visto en un extracto real.
+- ✅ Lo que no sigue el formato («12,30» en el CSV inglés, «1,23,456», «1.5.») es una fila no válida con su motivo.
+- ✅ 🧪 «1,234» en el CSV inglés se lee como 1234 y el saldo cuadra; ✅ 🧪 sin formato declarado, «1,234» y «1.234» se rechazan como «importe ambiguo», nunca se leen como 1,234.
+
+### OF-605 · `useLoad` común con estados de carga, error y reintento ✅
+- ✅ `useLoad` en `src/lib/useLoad.ts`, con `reload`: al recargar se siguen viendo los datos hasta que llegan los nuevos, y un error se quita al reintentar. Lo usan Este mes, ¿En qué gastamos? (y su panel), Evolución, Ahorrar y Presupuestos; Movimientos mantiene su carga propia (filas atenuadas mientras llega la nueva consulta) con el mismo «Reintentar».
+- ✅ Componentes `<Loading/>` y `<ErrorState onRetry/>` en `src/components/LoadState.tsx`. `<UncategorizedNotice/>` no se ha extraído: el aviso solo aparece en Este mes.
+- ✅ 🧪 Si fallan los movimientos de una categoría se ve el error con «Reintentar» y al reintentar se cargan; ✅ 🧪 Presupuestos se recupera al reintentar (antes el error se quedaba para siempre).
+
+### OF-606 · CLI de mantenimiento: contraseña, cuentas y personas ✅
+- ✅ `openfinance users set-password <email>`: la contraseña se pide sin eco (nunca como argumento), y se cierran solo las sesiones de esa persona.
+- ✅ `openfinance accounts add <email> <nombre> [--kind savings|joint|personal] [--bank …] [--opening-balance …]`: añade una cuenta al hogar de esa persona; con `personal`, es su titular. El nombre no se puede repetir en el hogar.
+- ✅ 🧪 Tras cambiar la contraseña, la sesión anterior da 401, la de la otra persona sigue abierta y la contraseña vieja ya no entra; ✅ 🧪 una cuenta personal nueva solo la ve su titular y no se puede dar a alguien de otro hogar.
+- Guía: [Instalar en casa](../deployment/home.md).
+
+### OF-607 · Purgar el contenido de importaciones caducadas ✅
+- ✅ El archivo de una vista previa sin confirmar de más de 24 h se borra al arrancar la API, en cada inicio de sesión y en cada vista previa. `make backup` ejecuta `openfinance imports purge` antes de volcar. Si al arrancar la base de datos no responde, la API arranca igual y lo deja en el registro.
+- ✅ 🧪 Una vista previa de más de 24 h no conserva su contenido tras el siguiente login (de cualquier persona del hogar); ✅ 🧪 una reciente sí; ✅ 🧪 el arranque y `imports purge` también la borran.
+
+### OF-608 · El mes en curso en el Core ✅
+- ✅ `insights/trends` toma las medias de meses completos: si el periodo llega al mes en curso, de los 12 meses anteriores a él, igual que Este mes. El mes en curso cuenta en los totales, pero no en las medias ni en el mejor o peor mes, y se marca con `is_partial`.
+- ✅ `insights/month` devuelve para cada categoría su `reference` (la media o, en el mes en curso, la media de lo gastado hasta el mismo día) y su `change`, y la lista `changes` con las que más cambian (máx. 4, sin importes de menos de 20 €). El frontend ya no lo calcula.
+- ✅ 🧪 Evolución y Este mes dan la misma media; ✅ 🧪 el día 1 ninguna categoría aparece por debajo de su media; ✅ 🧪 el mejor y el peor mes no incluyen el mes en curso; ✅ 🧪 un mes pasado mantiene su ventana de 12 meses.
+
+---
+
+## Fase 7 · Corregir sin miedo
+
+Que cualquier error de datos se arregle desde la web, quede trazado y se pueda deshacer. Se hace durante el mes de uso real; al terminarla se etiqueta `v0.1.0`.
+
+| ID | Ticket | Tamaño |
+| --- | --- | --- |
+| OF-701 | Editar tipo, persona y nota de un movimiento, con historial de correcciones (`transaction_corrections`) | L |
+| OF-702 | Reglas visibles: aviso con «Deshacer», pantalla Reglas (`GET/DELETE /api/v1/rules`), los Bizum no aprenden reglas | M |
+| OF-703 | Historial de importaciones y deshacer una importación (anulación trazada, nunca borrado silencioso) | M |
+| OF-704 | Ajustes: cambio de contraseña, cerrar sesiones, tarjetas de recarga desde la web (revisa ADR-0015) | M |
+| OF-705 | Clasificar varios a la vez y movimientos de efectivo | M |
+| OF-706 | Registro de cambios con deshacer y rehacer: base de reglas, fusiones, importaciones y asistente | L |
+
+Cada ticket lleva sus tests negativos de privacidad (la pareja y otro hogar).
+
+---
+
+## Fase 8 · Uso diario (v0.2)
+
+| ID | Ticket |
 | --- | --- |
-| Más cuentas (tarjetas) y conciliación de saldos | — |
-| Conexión automática con el banco (Open Banking) | — |
-| Asistente con IA que explica los gráficos y propone cambios con aprobación | ADR-0004, ADR-0005 |
-| Perfiles compartidos y reparto de gastos | ADR-0011 |
-| Módulos y extensiones | ADR-0006 |
+| OF-801 | Navegación adaptable (barra inferior en el móvil, carril en la tablet, barra lateral en el escritorio) y estado en la URL |
+| OF-802 | «Este mes» honesto: previsión de cierre y cargos pendientes; las cuotas fijas no disparan «cerca» |
+| OF-803 | Movimientos con paginación por cursor, total del filtro y actualización por fila |
+| OF-804 | Accesibilidad (foco, `document.title`, errores junto al campo, contraste) y tests de pantalla con axe |
+| OF-805 | Modo oscuro e instalable en el móvil (PWA) |
+| OF-806 | Simulador con todas las categorías e ideas descartables |
+
+## Fase 9 · Operación (v0.2)
+
+| ID | Ticket |
+| --- | --- |
+| OF-901 | Copias cifradas con `age`, rotación y receta para guardarlas fuera del equipo |
+| OF-902 | Imágenes por digest, actions por SHA, Renovate, `pip-audit`, `npm audit` y Trivy |
+| OF-903 | nginx con `gzip`, `Cache-Control` y cabeceras; Compose endurecido y rotación de logs |
+| OF-904 | Logging configurado, identificador de petición y `/ready` con base de datos |
+| OF-905 | Saldos con `SUM` en SQL, un solo flush al confirmar y `repositories.py` partido por contexto |
+| OF-906 | Limitador de login acotado y atómico; Argon2 fuera del threadpool común |
+| OF-907 | Imágenes publicadas y firmadas; aviso de versión nueva |
+
+---
+
+## Después de v0.2
+
+Inspirado en Wallet, Spendee, Fintonic y Actual Budget. Cada fase empieza con su ADR y se detalla en tickets al empezarla. Esfuerzo estimado para una persona a tiempo completo.
+
+| Fase | Versión | Qué consigue | Tickets | Esfuerzo |
+| --- | --- | --- | --- | --- |
+| 10 · Libro contable completo | v0.3 | ADR-0017 (nuevo alcance), comercios con renombrar y fusionar, dividir movimientos, traspasos enlazados, conciliación, efectivo, tarjeta, préstamo e inversión, varias monedas (ADR-0018), etiquetas, notas y adjuntos | OF-1001 … OF-1008 | 8 semanas |
+| 11 · Reglas e importación universal | v0.4 | Motor de reglas con condiciones, acciones y fases (ADR-0019), vista previa y aplicar a lo existente, OFX, QIF y CAMT.053, CSV de cualquier banco con perfiles | OF-1101 … OF-1105 | 5 semanas |
+| 12 · Planificar | v0.5 | Pagos programados (ADR-0020), previsión de saldo, presupuestos con límites o sobres y arrastre (ADR-0021), plantillas, «hoy podéis gastar», objetivos v2 | OF-1201 … OF-1206 | 7 semanas |
+| 13 · Alertas | v0.6 | Avisos deterministas (comisiones, duplicados, recibos que suben…), notificaciones Web Push o ntfy (ADR-0022), resumen semanal | OF-1301 … OF-1303 | 4 semanas |
+| 14 · Conexión con el banco | v0.7 | Agregador PSD2 con cuenta propia (ADR-0023), sincronización por la misma tubería que la importación, consentimientos y conciliación automática | OF-1401 … OF-1404 | 6 semanas |
+| 15 · Informes y patrimonio | v0.8 | Patrimonio neto, flujo de caja, informes a medida y exportación v2 | OF-1501 … OF-1504 | 4 semanas |
+| 16 · Hogar ampliado | v0.9 | Más personas con roles mínimos (ADR-0002), reparto de gastos (ADR-0011), viajes y eventos | OF-1601 … OF-1603 | 5 semanas |
+| 17 · Plataforma 1.0 | v1.0 | API con tokens, servidor MCP de lectura, asistente con aprobación (ADR-0004, ADR-0005), auditoría externa de seguridad | OF-1701 … OF-1705 | 6 semanas |
+
+Fuera de alcance a propósito: nota financiera, préstamos, seguros y cuentas remuneradas (son negocio de intermediación) y cifrado de extremo a extremo (impediría calcular los agregados en el servidor; se cubre con disco y copias cifradas).

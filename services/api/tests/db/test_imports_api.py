@@ -261,3 +261,52 @@ class TestReviewFixes:
         r = plain.post("/api/v1/auth/logout", headers={"Origin": "http://localhost:5173"})
         assert r.status_code == 403
         assert r.headers.get("access-control-allow-origin") == "http://localhost:5173"
+
+
+class TestZeroAmounts:
+    """OF-601: una fila de importe 0 no puede impedir confirmar el extracto."""
+
+    ZERO = b"CARD_PAYMENT,Current,2026-10-12 09:00:00,2026-10-12 09:00:01,Verificacion tarjeta,0.00,0.00,EUR,COMPLETED,2619.69\n"  # noqa: E501
+    EMPTY = b"CARD_PAYMENT,Current,2026-10-12 10:00:00,2026-10-12 10:00:01,Sin importe,,0.00,EUR,COMPLETED,2619.69\n"  # noqa: E501
+
+    def test_zero_amount_row_is_skipped_and_the_statement_commits(self, as_raul, seed) -> None:
+        before = joint_count(as_raul, seed)
+        r = upload(as_raul, seed.joint.id, FIXTURE + self.ZERO)
+        assert r.status_code == 201
+        p = r.json()
+        assert p["new_count"] == 10
+        assert p["balance_mismatches"] == []
+        skipped = {s["description"]: s["reason"] for s in p["skipped"]}
+        assert skipped["Verificacion tarjeta"] == "importe cero: no mueve dinero"
+        c = commit(as_raul, p["id"])
+        assert c.status_code == 200
+        assert c.json()["created"] == 10
+        assert joint_count(as_raul, seed) == before + 10
+
+    def test_missing_amount_is_a_skipped_row(self, as_raul, seed) -> None:
+        p = upload(as_raul, seed.joint.id, FIXTURE + self.EMPTY).json()
+        skipped = {s["description"]: s["reason"] for s in p["skipped"]}
+        assert skipped["Sin importe"] == "fila no válida: falta el importe"
+        assert commit(as_raul, p["id"]).status_code == 200
+
+    def test_domain_error_at_commit_is_a_422_and_saves_nothing(
+        self, as_raul, seed, monkeypatch
+    ) -> None:
+        from openfinance.application import imports as imports_app
+        from openfinance.domain.ledger import LedgerError
+
+        def reject(**_: object) -> None:
+            raise LedgerError("Un movimiento no puede ser de importe cero")
+
+        p = upload(as_raul, seed.joint.id).json()
+        before = joint_count(as_raul, seed)
+        with monkeypatch.context() as m:
+            m.setattr(imports_app, "Transaction", reject)
+            r = commit(as_raul, p["id"])
+        assert r.status_code == 422
+        assert "no se puede guardar" in r.json()["detail"]
+        assert joint_count(as_raul, seed) == before
+        # El lote no queda reclamado a medias: se puede confirmar después.
+        again = commit(as_raul, p["id"])
+        assert again.status_code == 200
+        assert again.json()["created"] == 10

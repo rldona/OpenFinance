@@ -34,7 +34,10 @@ from openfinance.domain.shared.text import normalize_text
 from openfinance.infrastructure.importers import common, xlsx
 from openfinance.infrastructure.importers.common import (
     INVALID_AMOUNT,
+    MISSING_AMOUNT,
+    ZERO_AMOUNT,
     Cell,
+    DecimalSeparator,
     ImportFormatError,
     Rows,
     cell_text,
@@ -162,7 +165,7 @@ def parse_revolut_csv(content: bytes | str, profile: RevolutProfile) -> ParseRes
     found = find_header_row([first], _COLUMNS, _REQUIRED)
     if found is None:
         raise _missing_columns([first])
-    return _parse_rows(rows, found[1], profile)
+    return _parse_rows(rows, found[1], profile, decimal_sep=".")
 
 
 def parse_revolut_xlsx(content: bytes, profile: RevolutProfile) -> ParseResult:
@@ -172,11 +175,17 @@ def parse_revolut_xlsx(content: bytes, profile: RevolutProfile) -> ParseResult:
     if found is None:
         raise _missing_columns(rows)
     position, col = found
-    return _parse_rows(rows[position + 1 :], col, profile)
+    # Las celdas de importe del Excel son números; si alguna llega como texto, solo se
+    # acepta lo que no tiene dos lecturas (formato aún sin validar: bancos.md).
+    return _parse_rows(rows[position + 1 :], col, profile, decimal_sep=None)
 
 
 def _parse_rows(
-    rows: Iterable[tuple[int, list[Cell]]], col: dict[str, int], profile: RevolutProfile
+    rows: Iterable[tuple[int, list[Cell]]],
+    col: dict[str, int],
+    profile: RevolutProfile,
+    *,
+    decimal_sep: DecimalSeparator | None,
 ) -> ParseResult:
     products = {p.upper() for p in profile.products}
 
@@ -203,23 +212,33 @@ def _parse_rows(
             reason = f"producto {product.lower()} (hucha o ahorro)"
             result.skipped.append(SkippedRow(line, reason, description))
             continue
+        if not cell_text(cell(row, "amount")):
+            result.skipped.append(SkippedRow(line, MISSING_AMOUNT, description))
+            continue
         try:
             booked_at = _datetime(cell(row, "started"))
             completed = cell(row, "completed")
             value_date = _datetime(completed).date() if cell_text(completed) else booked_at.date()
             currency = text(row, "currency")
             amount = Money.of(
-                to_decimal(cell(row, "amount")) - to_decimal(cell(row, "fee")), currency
+                to_decimal(cell(row, "amount"), decimal_sep=decimal_sep)
+                - to_decimal(cell(row, "fee"), decimal_sep=decimal_sep),
+                currency,
             )
             balance_raw = cell(row, "balance")
             balance = (
-                Money.of(to_decimal(balance_raw), currency) if cell_text(balance_raw) else None
+                Money.of(to_decimal(balance_raw, decimal_sep=decimal_sep), currency)
+                if cell_text(balance_raw)
+                else None
             )
         except ValueError as exc:
             result.skipped.append(SkippedRow(line, f"fila no válida: {exc}", description))
             continue
         except ArithmeticError:
             result.skipped.append(SkippedRow(line, INVALID_AMOUNT, description))
+            continue
+        if amount.is_zero:
+            result.skipped.append(SkippedRow(line, ZERO_AMOUNT, description))
             continue
 
         bank_type = text(row, "type").upper()[:_MAX_BANK_TYPE]

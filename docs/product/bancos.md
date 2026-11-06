@@ -45,7 +45,8 @@ Notas del Excel real:
 
 - Entradas con el nombre de una persona (nombre completo o primer nombre, sin tildes; p. ej. «Transferencia de RAUL …») → **aportación** de esa persona.
 - Entradas que coinciden con un patrón de entrada guardado para una persona (p. ej. «Recarga de \*1234», con los últimos dígitos de su tarjeta) → **aportación** de esa persona. Ver «Patrones por persona».
-- «To pocket …» → **traspaso a ahorro**.
+- «To pocket …» → **traspaso a ahorro**; «From pocket …» → traspaso desde la hucha (positivo, no es ingreso).
+- Nombres y patrones se buscan por palabra completa: «ANA» no reconoce «MARIANA».
 - Otras entradas (Bizum recibidos, intereses) → **ingreso**.
 - El resto → **gasto**, pendiente de categoría.
 
@@ -56,7 +57,8 @@ Notas del Excel real:
 - [x] Texto de las aportaciones: «Transferencia de NOMBRE APELLIDOS» y «Recarga de \*NNNN».
 - [ ] Si la hora está en hora local o en UTC: decide en qué día cae un pago de madrugada.
 - [ ] Signo de `Comisión` y si `Saldo` ya la descuenta: en la muestra todas las comisiones son 0.
-- [ ] Texto exacto de los movimientos a huchas en el Excel en español (hoy se reconoce «To pocket»).
+- [ ] Texto exacto de los movimientos a huchas en el Excel en español (hoy se reconocen «To pocket» y «From pocket»).
+- [ ] Texto de las recargas de la conjunta hacia las cuentas personales, para reconocerlas como traspaso interno (OF-602).
 
 ## Bankinter · cuentas personales
 

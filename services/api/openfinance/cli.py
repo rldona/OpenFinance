@@ -7,6 +7,9 @@ público: el alta se hace una vez desde el servidor.
 de cada persona, y ``openfinance statement-check`` comprueba un extracto sin base de datos
 mostrando solo recuentos. ``openfinance sessions revoke-all`` cierra todas las sesiones (se
 usa tras restaurar una copia).
+
+``openfinance users set-password`` cambia la contraseña de alguien (y cierra sus sesiones) y
+``openfinance accounts add`` añade una hucha o una cuenta al hogar ya creado.
 """
 
 from __future__ import annotations
@@ -23,6 +26,7 @@ from openfinance.application.households import (
     BootstrapRequest,
     NewAccount,
     NewMember,
+    add_account,
     bootstrap_household,
 )
 from openfinance.application.imports import (
@@ -37,6 +41,7 @@ from openfinance.domain.shared.text import normalize_text
 from openfinance.infrastructure.db.repositories import SqlUnitOfWork
 from openfinance.infrastructure.db.session import get_session_factory
 from openfinance.infrastructure.security import Argon2PasswordHasher
+from openfinance.infrastructure.time import utc_now
 
 Prompt = Callable[[str], str]
 
@@ -139,7 +144,6 @@ def _demo(args: argparse.Namespace) -> int:
 
 def _member_patterns(args: argparse.Namespace) -> int:
     from openfinance.application import member_patterns as mp
-    from openfinance.infrastructure.time import utc_now
 
     direction = PatternDirection.OUTFLOW if args.outflow else PatternDirection.INFLOW
     with get_session_factory()() as session:
@@ -164,13 +168,63 @@ def _member_patterns(args: argparse.Namespace) -> int:
     return 0
 
 
+def _imports(_: argparse.Namespace) -> int:
+    from openfinance.application.imports import purge_expired_imports
+
+    with get_session_factory()() as session:
+        purged = purge_expired_imports(SqlUnitOfWork(session), utc_now())
+    print(
+        "1 vista previa caducada purgada"
+        if purged == 1
+        else f"{purged} vistas previas caducadas purgadas"
+    )
+    return 0
+
+
 def _sessions(_: argparse.Namespace) -> int:
     from openfinance.application.identity import revoke_all_sessions
-    from openfinance.infrastructure.time import utc_now
 
     with get_session_factory()() as session:
         revoked = revoke_all_sessions(SqlUnitOfWork(session), utc_now())
     print(revoked)
+    return 0
+
+
+def _users(args: argparse.Namespace) -> int:
+    from openfinance.application.identity import set_password
+
+    # Se pide sin eco y nunca como argumento: no queda en el historial de la shell.
+    password = _ask_password(getpass.getpass, args.email)
+    with get_session_factory()() as session:
+        try:
+            revoked = set_password(
+                SqlUnitOfWork(session), Argon2PasswordHasher(), args.email, password
+            )
+        except ApplicationError as exc:
+            print(f"No se ha cambiado la contraseña: {exc}", file=sys.stderr)
+            return 1
+    closed = "1 sesión cerrada" if revoked == 1 else f"{revoked} sesiones cerradas"
+    print(f"Contraseña cambiada para {args.email} ({closed}).")
+    return 0
+
+
+def _accounts(args: argparse.Namespace) -> int:
+    kind = AccountKind(args.kind)
+    spec = NewAccount(
+        args.name,
+        Institution(args.bank),
+        kind,
+        args.opening_balance,
+        owner_email=args.email if kind is AccountKind.PERSONAL else None,
+    )
+    with get_session_factory()() as session:
+        try:
+            account = add_account(SqlUnitOfWork(session), args.email, spec)
+        except ApplicationError as exc:
+            print(f"No se ha añadido la cuenta: {exc}", file=sys.stderr)
+            return 1
+    who = "solo la verá su titular" if kind is AccountKind.PERSONAL else "la ve todo el hogar"
+    print(f"Cuenta «{account.name}» añadida ({who}).")
     return 0
 
 
@@ -309,6 +363,37 @@ def main(argv: Sequence[str] | None = None) -> int:
         "revoke-all", help="Cerrar todas las sesiones e imprimir cuántas había"
     )
     sessions.set_defaults(func=_sessions)
+
+    imports = sub.add_parser("imports", help="Importaciones de extractos")
+    import_actions = imports.add_subparsers(dest="action", required=True)
+    import_actions.add_parser(
+        "purge", help="Borrar el archivo de las vistas previas de más de 24 h sin confirmar"
+    )
+    imports.set_defaults(func=_imports)
+
+    users = sub.add_parser("users", help="Personas del hogar")
+    user_actions = users.add_subparsers(dest="action", required=True)
+    set_pw = user_actions.add_parser(
+        "set-password",
+        help="Cambiar la contraseña de alguien y cerrar sus sesiones",
+        description="La contraseña se pide sin eco; nunca se pasa como argumento.",
+    )
+    set_pw.add_argument("email", help="Email de la persona")
+    users.set_defaults(func=_users)
+
+    accounts = sub.add_parser("accounts", help="Cuentas del hogar")
+    account_actions = accounts.add_subparsers(dest="action", required=True)
+    add = account_actions.add_parser(
+        "add",
+        help="Añadir una hucha o una cuenta al hogar existente",
+        description="Una cuenta personal es de EMAIL y solo la ve esa persona (ADR-0013).",
+    )
+    add.add_argument("email", help="Email de alguien del hogar (titular si es personal)")
+    add.add_argument("name", help="Nombre de la cuenta, p. ej. 'Hucha viaje'")
+    add.add_argument("--kind", choices=[k.value for k in AccountKind], default="savings")
+    add.add_argument("--bank", choices=[i.value for i in Institution], default="revolut")
+    add.add_argument("--opening-balance", default="0", help="Saldo inicial, p. ej. 120.50")
+    accounts.set_defaults(func=_accounts)
 
     check = sub.add_parser(
         "statement-check",

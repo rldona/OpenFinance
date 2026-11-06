@@ -37,6 +37,11 @@ Pregunta el nombre del hogar, el nombre, el email y la contraseña de cada perso
 
 Para identificar las aportaciones que no llevan vuestro nombre (recargas con tarjeta, salidas de las cuentas personales), consulta `docker compose exec api openfinance member-patterns --help`.
 
+Más tarea de mantenimiento desde el servidor:
+
+- Si alguien olvida su contraseña: `docker compose exec api openfinance users set-password <email>`. La pide sin eco y cierra las sesiones abiertas de esa persona.
+- Para añadir una hucha o una cuenta después del alta: `docker compose exec api openfinance accounts add <email> 'Hucha viaje' --kind savings --opening-balance 120.50`. Con `--kind personal` la cuenta es de esa persona y solo la ve su titular.
+
 ## 4. Entrar desde el móvil en casa (http)
 
 En `.env`:

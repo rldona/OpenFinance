@@ -262,7 +262,8 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "Media de los meses completos anteriores"
           },
           "category_id": {
             "anyOf": [
@@ -276,12 +277,36 @@
             ],
             "description": "None = sin categoría",
             "title": "Category Id"
+          },
+          "change": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "amount - reference"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "La media o, en el mes en curso, la media hasta el mismo día"
           }
         },
         "required": [
           "category_id",
           "amount",
-          "average"
+          "average",
+          "reference",
+          "change"
         ],
         "title": "CategoryAmountOut",
         "type": "object"
@@ -1215,6 +1240,14 @@
             "title": "Categories",
             "type": "array"
           },
+          "changes": {
+            "description": "Las categorías que más cambian frente a su referencia (máx. 4)",
+            "items": {
+              "$ref": "#/components/schemas/CategoryAmountOut"
+            },
+            "title": "Changes",
+            "type": "array"
+          },
           "contributed": {
             "$ref": "#/components/schemas/MoneyOut",
             "description": "Lo aportado a la conjunta desde estas cuentas (vista «mío»); no es gasto"
@@ -1328,6 +1361,7 @@
           "contributions",
           "contributed",
           "categories",
+          "changes",
           "currency",
           "daily",
           "previous_daily"
@@ -1737,6 +1771,11 @@
           "inflow": {
             "$ref": "#/components/schemas/MoneyOut"
           },
+          "is_partial": {
+            "description": "Mes en curso: cuenta en los totales, no en las medias ni en el mejor o peor",
+            "title": "Is Partial",
+            "type": "boolean"
+          },
           "month": {
             "title": "Month",
             "type": "string"
@@ -1751,6 +1790,7 @@
         "required": [
           "month",
           "has_data",
+          "is_partial",
           "spent",
           "inflow",
           "saved",

@@ -133,10 +133,52 @@ def test_repair_mojibake(raw, expected) -> None:
         ("1.234,56", Decimal("1234.56")),
         ("1,234.56", Decimal("1234.56")),
         ("12.30", Decimal("12.30")),
+        ("1.234.567", Decimal("1234567")),
+        ("+5", Decimal("5")),
     ],
 )
 def test_to_decimal(raw, expected) -> None:
     assert to_decimal(raw) == expected
+
+
+@pytest.mark.parametrize("raw", ["1,234", "1.234", "-1,234", "12.345"])
+def test_to_decimal_rejects_ambiguous_amounts_without_a_declared_format(raw) -> None:
+    # «1,234» puede ser mil doscientos o uno con dos: sin saber el formato, no se adivina.
+    with pytest.raises(ValueError, match="importe ambiguo"):
+        to_decimal(raw)
+
+
+@pytest.mark.parametrize(
+    ("raw", "sep", "expected"),
+    [
+        ("1,234", ".", Decimal("1234")),
+        ("1,234.5", ".", Decimal("1234.5")),
+        ("1.234", ",", Decimal("1234")),
+        ("-87.34", ".", Decimal("-87.34")),
+        ("-87,34", ",", Decimal("-87.34")),
+        ("1234", ".", Decimal("1234")),
+    ],
+)
+def test_to_decimal_with_the_bank_number_format(raw, sep, expected) -> None:
+    assert to_decimal(raw, decimal_sep=sep) == expected
+
+
+@pytest.mark.parametrize(
+    ("raw", "sep"),
+    [
+        ("12,30", "."),  # en inglés la coma solo agrupa miles de tres en tres
+        ("1.234,56", "."),
+        ("1,234.56", ","),
+        ("1,23,456", "."),
+        ("1.2.3", None),
+        (",5", ","),
+        ("1,,234", "."),
+        ("1.5.", "."),
+    ],
+)
+def test_to_decimal_rejects_amounts_that_do_not_follow_the_format(raw, sep) -> None:
+    with pytest.raises(ValueError, match="importe"):
+        to_decimal(raw, decimal_sep=sep)
 
 
 @pytest.mark.parametrize("raw", ["abc", "NaN", datetime(2026, 1, 1)])

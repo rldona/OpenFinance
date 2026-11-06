@@ -270,7 +270,11 @@ class MemberAmountOut(BaseModel):
 class CategoryAmountOut(BaseModel):
     category_id: UUID | None = Field(description="None = sin categoría")
     amount: MoneyOut
-    average: MoneyOut | None
+    average: MoneyOut | None = Field(description="Media de los meses completos anteriores")
+    reference: MoneyOut | None = Field(
+        description="La media o, en el mes en curso, la media hasta el mismo día"
+    )
+    change: MoneyOut | None = Field(description="amount - reference")
 
 
 class MonthOverviewOut(BaseModel):
@@ -296,6 +300,9 @@ class MonthOverviewOut(BaseModel):
         description="Lo aportado a la conjunta desde estas cuentas (vista «mío»); no es gasto"
     )
     categories: list[CategoryAmountOut]
+    changes: list[CategoryAmountOut] = Field(
+        description="Las categorías que más cambian frente a su referencia (máx. 4)"
+    )
     currency: str
     daily: list[str] = Field(description="Gasto acumulado al final de cada día (decimal exacto)")
     previous_daily: list[str]
@@ -329,6 +336,9 @@ class TrendCategoryOut(BaseModel):
 class TrendMonthOut(BaseModel):
     month: str
     has_data: bool
+    is_partial: bool = Field(
+        description="Mes en curso: cuenta en los totales, no en las medias ni en el mejor o peor"
+    )
     spent: MoneyOut
     inflow: MoneyOut
     saved: MoneyOut

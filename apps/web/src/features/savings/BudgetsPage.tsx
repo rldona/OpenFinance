@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { ApiError, api, type Budgets, type SavingsOverview } from '../../api/client'
 import { useHousehold } from '../../app/household-context'
+import { ErrorState, Loading } from '../../components/LoadState'
+import { useLoad } from '../../lib/useLoad'
 import { centsToAmount, formatMoneyRounded, parseAmountInput, toCents } from '../../lib/format'
 
 function roundUpTo10(cents: bigint): string {
@@ -74,29 +76,17 @@ function BudgetInput({
 
 export function BudgetsPage() {
   const { categories, month } = useHousehold()
-  const [version, setVersion] = useState(0)
-  const [data, setData] = useState<{ budgets: Budgets; overview: SavingsOverview } | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    const controller = new AbortController()
-    Promise.all([api.budgets(month, controller.signal), api.savingsOverview(controller.signal)]).then(
-      ([budgets, overview]) => setData({ budgets, overview }),
-      (err: unknown) => {
-        if (!controller.signal.aborted)
-          setError(err instanceof ApiError ? err.message : 'No se han podido cargar los presupuestos')
-      },
-    )
-    return () => controller.abort()
-  }, [month, version])
-
-  if (error) return <p className="error" role="alert">{error}</p>
-  if (!data)
-    return (
-      <p className="muted" role="status">
-        Cargando…
-      </p>
-    )
+  const load = useLoad<{ budgets: Budgets; overview: SavingsOverview }>(
+    month,
+    async (s) => {
+      const [budgets, overview] = await Promise.all([api.budgets(month, s), api.savingsOverview(s)])
+      return { budgets, overview }
+    },
+    'No se han podido cargar los presupuestos',
+  )
+  if (load.error) return <ErrorState message={load.error} onRetry={load.reload} />
+  const data = load.data
+  if (!data) return <Loading />
   const byCategory = new Map(data.budgets.items.map((b) => [b.category_id, b]))
   const averages = new Map(data.overview.averages.map((a) => [a.category_id, a.average]))
   const visible = categories.filter((c) => !c.hidden || byCategory.has(c.id))
@@ -133,7 +123,7 @@ export function BudgetsPage() {
                       name={c.name}
                       current={byCategory.get(c.id)?.amount.amount ?? null}
                       suggestion={avg && avgCents > 0n ? { amount: roundUpTo10(avgCents), currency: avg.currency } : null}
-                      onSaved={() => setVersion((v) => v + 1)}
+                      onSaved={load.reload}
                     />
                   </td>
                 </tr>

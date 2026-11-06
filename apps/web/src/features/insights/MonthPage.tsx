@@ -1,18 +1,18 @@
 import { useEffect, useState } from 'react'
-import { ApiError, api, type Budgets, type MonthOverview } from '../../api/client'
+import { api, type Budgets, type MonthOverview } from '../../api/client'
 import { useHousehold } from '../../app/household-context'
 import { Donut, LineChart, geometry } from '../../components/charts'
+import { ErrorState, Loading } from '../../components/LoadState'
+import { useLoad } from '../../lib/useLoad'
 import { centsToAmount, formatMoney, formatMoneyRounded, monthLabel, shortMonth, toCents } from '../../lib/format'
 import { Delta, MonthPicker, NoData, ViewPicker } from './common'
 import { sharePercent, useCategoryMeta } from './meta'
 
-const MIN_CHANGE_CENTS = 2000n
 const abs = (x: bigint) => (x < 0n ? -x : x)
 
 export function MonthPage() {
   const { me, month, view, uncategorized, setFocusCategory } = useHousehold()
   const meta = useCategoryMeta()
-  const [result, setResult] = useState<{ key: string; data?: MonthOverview; error?: string } | null>(null)
   const [budgets, setBudgets] = useState<Budgets | null>(null)
 
   useEffect(() => {
@@ -22,29 +22,12 @@ export function MonthPage() {
     return () => controller.abort()
   }, [month])
 
-  useEffect(() => {
-    const controller = new AbortController()
-    const key = `${view}|${month}`
-    api.insightsMonth(month, view, controller.signal).then(
-      (data) => setResult({ key, data }),
-      (err: unknown) => {
-        if (!controller.signal.aborted)
-          setResult({ key, error: err instanceof ApiError ? err.message : 'No se han podido cargar los datos' })
-      },
-    )
-    return () => controller.abort()
-  }, [month, view])
+  const overview = useLoad<MonthOverview>(`${view}|${month}`, (s) => api.insightsMonth(month, view, s))
 
   const mine = view === 'mine'
-  const current = result?.key === `${view}|${month}` ? result : null
-  if (current?.error) return <p className="error" role="alert">{current.error}</p>
-  if (!current?.data)
-    return (
-      <p className="muted" role="status">
-        Cargando…
-      </p>
-    )
-  const o = current.data
+  if (overview.error) return <ErrorState message={overview.error} onRetry={overview.reload} />
+  if (!overview.data) return <Loading />
+  const o = overview.data
   if (!o.has_data) return <NoData title="Este mes" />
 
   const money = (amount: string) => ({ amount, currency: o.currency })
@@ -53,15 +36,6 @@ export function MonthPage() {
   const topMeta = top ? meta(top.category_id) : null
   const memberName = (id: string) => me.members.find((m) => m.id === id)?.display_name ?? '—'
 
-  const changes = o.categories
-    .filter((c) => {
-      const now = toCents(c.amount.amount)
-      const avg = c.average ? toCents(c.average.amount) : 0n
-      return now >= MIN_CHANGE_CENTS || avg >= MIN_CHANGE_CENTS
-    })
-    .map((c) => ({ ...c, diff: toCents(c.amount.amount) - (c.average ? toCents(c.average.amount) : 0n) }))
-    .sort((a, b) => (abs(b.diff) === abs(a.diff) ? 0 : abs(b.diff) > abs(a.diff) ? 1 : -1))
-    .slice(0, 4)
 
   const days = Math.max(o.daily.length, o.previous_daily.length)
   const pad = (xs: string[]) => [...xs.map((x) => geometry(toCents(x))), ...Array<null>(days - xs.length).fill(null)]
@@ -259,11 +233,12 @@ export function MonthPage() {
           </div>
 
           <h2 className="spaced">Lo que más ha cambiado frente a {mine ? 'tu' : 'vuestra'} media</h2>
-          {changes.length === 0 && <p className="muted small">Aún no hay meses anteriores con los que comparar.</p>}
+          {o.changes.length === 0 && <p className="muted small">Aún no hay meses anteriores con los que comparar.</p>}
           <ul className="catlist plain" aria-label="Cambios frente a la media">
-            {changes.map((c) => {
+            {o.changes.map((c) => {
               const m = meta(c.category_id)
-              const up = c.diff > 0n
+              const diff = c.change ? toCents(c.change.amount) : 0n
+              const up = diff > 0n
               return (
                 <li key={m.id ?? 'none'}>
                 <a className="cat" href="#gastos" onClick={() => setFocusCategory(c.category_id)}>
@@ -273,11 +248,13 @@ export function MonthPage() {
                       <span>{m.name}</span>
                       <span className={up ? 'neg' : 'pos'}>
                         {up ? '+' : '−'}
-                        {formatMoneyRounded(money(centsToAmount(abs(c.diff))))}
+                        {formatMoneyRounded(money(centsToAmount(abs(diff))))}
                       </span>
                     </span>
                     <span className="small muted">
-                      {formatMoneyRounded(c.amount)} este mes · media {c.average ? formatMoneyRounded(c.average) : '—'}
+                      {formatMoneyRounded(c.amount)} este mes ·{' '}
+                      {o.is_partial ? `media hasta el día ${o.days_elapsed}` : 'media'}{' '}
+                      {c.reference ? formatMoneyRounded(c.reference) : '—'}
                     </span>
                   </span>
                   <span />

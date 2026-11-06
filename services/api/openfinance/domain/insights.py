@@ -70,6 +70,13 @@ def spending_by_category(
     return out
 
 
+def spending_by_category_until(
+    transactions: Iterable[Transaction], day: int, currency: Currency
+) -> dict[CategoryId | None, Money]:
+    """Como ``spending_by_category``, pero solo hasta el día ``day`` del mes (incluido)."""
+    return spending_by_category((t for t in transactions if t.booked_at.day <= day), currency)
+
+
 def contributions_by_member(
     transactions: Iterable[Transaction], currency: Currency
 ) -> dict[UserId, Money]:

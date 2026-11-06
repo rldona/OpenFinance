@@ -1,35 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
-import { ApiError, api, type CategoryDetail, type MonthOverview, type Transaction } from '../../api/client'
+import { api, type CategoryDetail, type MonthOverview, type Transaction } from '../../api/client'
 import { useHousehold } from '../../app/household-context'
 import { BarChart, Donut, geometry } from '../../components/charts'
+import { ErrorState, Loading } from '../../components/LoadState'
+import { useLoad } from '../../lib/useLoad'
 import { formatDate, formatMoney, formatMoneyRounded, monthLabel, shortMonth, toCents } from '../../lib/format'
 import { Delta, MonthPicker, NoData, ViewPicker } from './common'
 import { sharePercent } from './meta'
 import { useCategoryMeta } from './meta'
-
-type Loaded<T> = { key: string; data?: T; error?: string } | null
-
-function useLoad<T>(key: string, load: (signal: AbortSignal) => Promise<T>): { data: T | null; error: string | null } {
-  const [state, setState] = useState<Loaded<T>>(null)
-  const loadRef = useRef(load)
-  useEffect(() => {
-    loadRef.current = load
-  })
-  useEffect(() => {
-    const controller = new AbortController()
-    loadRef.current(controller.signal).then(
-      (data) => setState({ key, data }),
-      (err: unknown) => {
-        if (!controller.signal.aborted)
-          setState({ key, error: err instanceof ApiError ? err.message : 'No se han podido cargar los datos' })
-      },
-    )
-    return () => controller.abort()
-    // `key` resume todo lo que cambia la consulta.
-  }, [key])
-  const current = state?.key === key ? state : null
-  return { data: current?.data ?? null, error: current?.error ?? null }
-}
 
 function CategoryPanel({ categoryId, month }: { categoryId: string | null; month: string }) {
   const { me, view } = useHousehold()
@@ -45,13 +22,8 @@ function CategoryPanel({ categoryId, month }: { categoryId: string | null; month
       s,
     ),
   )
-  if (detail.error) return <p className="error" role="alert">{detail.error}</p>
-  if (!detail.data)
-    return (
-      <p className="muted" role="status">
-        Cargando…
-      </p>
-    )
+  if (detail.error) return <ErrorState message={detail.error} onRetry={detail.reload} />
+  if (!detail.data) return <Loading />
   const d = detail.data
   const now = d.months[d.months.length - 1]
   const maxMerchant = d.merchants.reduce((mx, x) => (toCents(x.amount.amount) > mx ? toCents(x.amount.amount) : mx), 1n)
@@ -102,7 +74,8 @@ function CategoryPanel({ categoryId, month }: { categoryId: string | null; month
       </div>
       <div className="card">
         <h2>Movimientos de {monthLabel(month)}</h2>
-        {!txns.data && <p className="muted">Cargando…</p>}
+        {txns.error && <ErrorState message={txns.error} onRetry={txns.reload} />}
+        {!txns.data && !txns.error && <Loading />}
         {txns.data && txns.data.length === 0 && <p className="muted">No hay movimientos.</p>}
         {txns.data && txns.data.length > 0 && (
           <table>
@@ -133,13 +106,8 @@ export function SpendingPage() {
   const { month, view, focusCategory, setFocusCategory } = useHousehold()
   const meta = useCategoryMeta()
   const overview = useLoad<MonthOverview>(`${view}|${month}`, (s) => api.insightsMonth(month, view, s))
-  if (overview.error) return <p className="error" role="alert">{overview.error}</p>
-  if (!overview.data)
-    return (
-      <p className="muted" role="status">
-        Cargando…
-      </p>
-    )
+  if (overview.error) return <ErrorState message={overview.error} onRetry={overview.reload} />
+  if (!overview.data) return <Loading />
   const o = overview.data
   if (!o.has_data) return <NoData title="¿En qué gastamos?" />
 

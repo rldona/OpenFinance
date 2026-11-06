@@ -40,10 +40,24 @@ class TestMonth:
 
     def test_categories_with_their_average(self, as_raul) -> None:
         o = as_raul.get("/api/v1/insights/month", params={"month": "2026-10"}).json()
+        # Mes completo: la referencia es la media de meses completos.
         assert o["categories"] == [
-            {"category_id": super_id(as_raul), "amount": eur("87.34"), "average": eur("60.00")},
-            {"category_id": None, "amount": eur("25.40"), "average": eur("0.00")},
+            {
+                "category_id": super_id(as_raul),
+                "amount": eur("87.34"),
+                "average": eur("60.00"),
+                "reference": eur("60.00"),
+                "change": eur("27.34"),
+            },
+            {
+                "category_id": None,
+                "amount": eur("25.40"),
+                "average": eur("0.00"),
+                "reference": eur("0.00"),
+                "change": eur("25.40"),
+            },
         ]
+        assert [c["category_id"] for c in o["changes"]] == [super_id(as_raul), None]
 
     def test_daily_cumulative_spending(self, as_raul) -> None:
         o = as_raul.get("/api/v1/insights/month", params={"month": "2026-10"}).json()
@@ -159,7 +173,15 @@ class TestMine:
         o = self.month(as_elena, view="mine")
         assert o["spent"] == eur("42.00")
         assert o["contributed"] == eur("0.00")
-        assert o["categories"] == [{"category_id": None, "amount": eur("42.00"), "average": None}]
+        assert o["categories"] == [
+            {
+                "category_id": None,
+                "amount": eur("42.00"),
+                "average": None,
+                "reference": None,
+                "change": None,
+            }
+        ]
         assert o["daily"][8] == o["daily"][-1] == "42.00"
 
     def test_partner_never_sees_the_others_personal_account(self, as_raul, as_elena) -> None:
@@ -237,3 +259,47 @@ class TestTrends:
         t = as_raul.get("/api/v1/insights/trends", params={"month": "2026-10", "months": 3}).json()
         assert [m["month"] for m in t["months"]] == ["2026-08", "2026-09", "2026-10"]
         assert as_raul.get("/api/v1/insights/trends", params={"months": 100}).status_code == 422
+
+
+class TestMonthInProgress:
+    """OF-608: el mes en curso se compara con los mismos días y no entra en las medias."""
+
+    @pytest.fixture(autouse=True)
+    def fifth_of_october(self, monkeypatch):
+        monkeypatch.setattr(insights_api, "local_today", lambda: date(2026, 10, 5))
+
+    def test_trends_and_month_give_the_same_average(self, as_raul) -> None:
+        month = as_raul.get("/api/v1/insights/month").json()
+        trends = as_raul.get("/api/v1/insights/trends").json()
+        assert trends["months"][-1] == {
+            **trends["months"][-1],
+            "month": "2026-10",
+            "is_partial": True,
+        }
+        assert trends["average_spent"] == month["average_spent"] == eur("60.00")
+        assert trends["average_saved"] == eur("-60.00")
+
+    def test_best_and_worst_ignore_the_month_in_progress(self, as_raul) -> None:
+        t = as_raul.get("/api/v1/insights/trends").json()
+        assert t["best"] == t["worst"] == {"month": "2026-09", "saved": eur("-60.00")}
+        # Los totales del periodo sí incluyen lo que va de mes.
+        assert t["total_spent"] == eur("172.74")
+
+    def test_categories_are_compared_up_to_the_same_day(self, as_raul) -> None:
+        o = as_raul.get("/api/v1/insights/month").json()
+        sup = next(c for c in o["categories"] if c["category_id"] == super_id(as_raul))
+        # A 5 de septiembre aún no se había comprado nada: la media de meses completos (60 €)
+        # no sirve de referencia a mitad de mes.
+        assert (sup["average"], sup["reference"]) == (eur("60.00"), eur("0.00"))
+
+    def test_on_day_one_no_category_is_far_below_its_average(self, as_raul, monkeypatch) -> None:
+        monkeypatch.setattr(insights_api, "local_today", lambda: date(2026, 10, 1))
+        o = as_raul.get("/api/v1/insights/month").json()
+        assert o["days_elapsed"] == 1
+        assert all(not c["change"]["amount"].startswith("-") for c in o["changes"])
+        assert all(c["reference"] == eur("0.00") for c in o["categories"])
+
+    def test_a_past_month_keeps_its_twelve_month_window(self, as_raul) -> None:
+        t = as_raul.get("/api/v1/insights/trends", params={"month": "2026-09"}).json()
+        assert t["average_spent"] == eur("60.00")
+        assert all(m["is_partial"] is False for m in t["months"])

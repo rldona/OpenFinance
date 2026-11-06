@@ -37,6 +37,10 @@ RULES = ClassificationRules(
         ("Ana Perez tienda", True, True, (TransactionKind.EXPENSE, None)),
         # Una entrada que coincide con un patrón de salida no es aportación.
         ("Revolut**9876*", True, False, (TransactionKind.INCOME, None)),
+        # Los patrones se buscan por palabra completa: no dentro de otra palabra o cifra.
+        ("Transferencia de MARIANA PEREZ", True, False, (TransactionKind.INCOME, None)),
+        ("Recarga de *12345", True, False, (TransactionKind.INCOME, None)),
+        ("ANA PEREZ.", True, False, (TransactionKind.CONTRIBUTION, "ana")),
     ],
 )
 def test_suggest_kind(description, inflow, refund, expected) -> None:

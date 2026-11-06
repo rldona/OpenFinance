@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ApiError, TRANSACTIONS_LIMIT, api, type Account, type Transaction } from '../../api/client'
 import { useHousehold } from '../../app/household-context'
+import { ErrorState, Loading } from '../../components/LoadState'
 import { formatDate, formatMoney } from '../../lib/format'
 import { MonthPicker } from '../insights/common'
 import { kindLabel } from './labels'
@@ -63,12 +64,13 @@ export function TransactionsPage() {
     uncategorized: onlyUncategorized,
     account_id: accountId || undefined,
   }
-  const key = `${JSON.stringify(query)}#${version}`
+  // La clave lleva la consulta tal cual: la búsqueda puede contener cualquier carácter.
+  const key = JSON.stringify([query, version])
 
   useEffect(() => {
     const controller = new AbortController()
     api
-      .transactions(JSON.parse(key.split('#')[0]) as typeof query, controller.signal)
+      .transactions((JSON.parse(key) as [typeof query, number])[0], controller.signal)
       .then((rows) => setResult({ key, rows }))
       .catch((err: unknown) => {
         if (controller.signal.aborted) return
@@ -162,12 +164,8 @@ export function TransactionsPage() {
           </label>
         </div>
 
-        {error && (
-          <p className="error" role="alert">
-            {error}
-          </p>
-        )}
-        {!error && rows === null && <p className="muted">Cargando…</p>}
+        {error && <ErrorState message={error} onRetry={() => setVersion((v) => v + 1)} />}
+        {!error && rows === null && <Loading />}
         {rows && rows.length === 0 && (
           <div className="empty">
             {onlyUncategorized ? (

@@ -47,6 +47,16 @@ def _money(m: Money | None) -> MoneyOut | None:
     return MoneyOut.of(m) if m is not None else None
 
 
+def _category_amount(c: insights.CategoryAmount) -> CategoryAmountOut:
+    return CategoryAmountOut(
+        category_id=c.category_id,
+        amount=MoneyOut.of(c.amount),
+        average=_money(c.average),
+        reference=_money(c.reference),
+        change=_money(c.change),
+    )
+
+
 @router.get("/month", response_model=MonthOverviewOut)
 def month_overview(
     actor: ActorDep,
@@ -74,12 +84,8 @@ def month_overview(
             MemberAmountOut(member_id=k, amount=MoneyOut.of(v)) for k, v in o.contributions.items()
         ],
         contributed=MoneyOut.of(o.contributed),
-        categories=[
-            CategoryAmountOut(
-                category_id=c.category_id, amount=MoneyOut.of(c.amount), average=_money(c.average)
-            )
-            for c in o.categories
-        ],
+        categories=[_category_amount(c) for c in o.categories],
+        changes=[_category_amount(c) for c in o.changes],
         currency=o.currency.code,
         daily=[str(m.amount) for m in o.daily],
         previous_daily=[str(m.amount) for m in o.previous_daily],
@@ -123,7 +129,7 @@ def trends(
     months: Annotated[int, Query(ge=2, le=36)] = 12,
 ) -> TrendsOut:
     """Evolución mensual hasta ``month``: gasto, entradas, ahorro y gasto por categoría."""
-    t = insights.trends(uow, actor, _month(month), months)
+    t = insights.trends(uow, actor, _month(month), local_today(), months)
 
     def saved(item: insights.TrendMonth | None) -> MonthSavedOut | None:
         return (
@@ -137,6 +143,7 @@ def trends(
             TrendMonthOut(
                 month=str(m.month),
                 has_data=m.has_data,
+                is_partial=m.is_partial,
                 spent=MoneyOut.of(m.summary.spent),
                 inflow=MoneyOut.of(m.summary.inflow),
                 saved=MoneyOut.of(m.summary.saved),

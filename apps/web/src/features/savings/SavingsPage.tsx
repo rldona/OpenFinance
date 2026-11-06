@@ -1,7 +1,8 @@
-import { type FormEvent, useEffect, useState } from 'react'
+import { type FormEvent, useState } from 'react'
 import { ApiError, api, type Goal, type SavingsOverview } from '../../api/client'
 import { useHousehold } from '../../app/household-context'
 import { Ring } from '../../components/charts'
+import { ErrorState, Loading } from '../../components/LoadState'
 import {
   ceilDiv,
   centsToAmount,
@@ -13,6 +14,7 @@ import {
   shiftMonth,
   toCents,
 } from '../../lib/format'
+import { useLoad } from '../../lib/useLoad'
 import { useCategoryMeta } from '../insights/meta'
 
 const SIMULATED = ['restaurantes', 'super', 'suscripciones', 'transporte', 'ocio', 'ropa']
@@ -266,30 +268,11 @@ function monthsBetween(a: string, b: string): number {
 
 export function SavingsPage() {
   const meta = useCategoryMeta()
-  const [version, setVersion] = useState(0)
-  const [result, setResult] = useState<{ version: number; data?: SavingsOverview; error?: string } | null>(null)
-
-  useEffect(() => {
-    const controller = new AbortController()
-    api.savingsOverview(controller.signal).then(
-      (data) => setResult({ version, data }),
-      (err: unknown) => {
-        if (!controller.signal.aborted)
-          setResult({ version, error: err instanceof ApiError ? err.message : 'No se han podido cargar los datos' })
-      },
-    )
-    return () => controller.abort()
-  }, [version])
-
-  const reload = () => setVersion((v) => v + 1)
-  if (result?.error) return <p className="error" role="alert">{result.error}</p>
-  if (!result?.data)
-    return (
-      <p className="muted" role="status">
-        Cargando…
-      </p>
-    )
-  const o = result.data
+  const overview = useLoad<SavingsOverview>('overview', (s) => api.savingsOverview(s))
+  const reload = overview.reload
+  if (overview.error) return <ErrorState message={overview.error} onRetry={reload} />
+  if (!overview.data) return <Loading />
+  const o = overview.data
 
   return (
     <section>

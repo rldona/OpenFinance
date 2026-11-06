@@ -91,6 +91,11 @@ class SqlUserRepository:
         )
         self._s.flush()
 
+    def set_password_hash(self, user_id: UserId, password_hash: str) -> None:
+        self._s.execute(
+            update(UserRow).where(UserRow.id == user_id).values(password_hash=password_hash)
+        )
+
 
 class SqlHouseholdRepository:
     def __init__(self, session: Session) -> None:
@@ -397,6 +402,10 @@ class SqlSessionRepository:
         result = self._s.execute(delete(SessionRow).where(SessionRow.expires_at <= now))
         return int(getattr(result, "rowcount", 0) or 0)
 
+    def delete_for_user(self, user_id: UserId) -> int:
+        result = self._s.execute(delete(SessionRow).where(SessionRow.user_id == user_id))
+        return int(getattr(result, "rowcount", 0) or 0)
+
     def delete_all(self) -> int:
         result = self._s.execute(delete(SessionRow))
         return int(getattr(result, "rowcount", 0) or 0)
@@ -664,8 +673,8 @@ class SqlImportBatchRepository:
         )
         return bool(getattr(result, "rowcount", 0))
 
-    def purge_expired_content(self, now: datetime) -> None:
-        self._s.execute(
+    def purge_expired_content(self, now: datetime) -> int:
+        result = self._s.execute(
             update(ImportBatchRow)
             .where(
                 ImportBatchRow.status == ImportStatus.PREVIEW.value,
@@ -674,6 +683,7 @@ class SqlImportBatchRepository:
             )
             .values(content=None)
         )
+        return int(getattr(result, "rowcount", 0) or 0)
 
     def save_committed(self, batch: ImportBatch) -> None:
         row = self._s.get(ImportBatchRow, batch.id)
